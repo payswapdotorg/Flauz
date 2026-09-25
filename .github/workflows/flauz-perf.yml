@@ -108,11 +108,23 @@ jobs:
         with:
           node-version-file: flauz/.nvmrc
 
-      - name: Restore node_modules cache (key = root lockfile; identical in both trees while divergence=0)
-        uses: ./flauz/.github/actions/restore-node-modules
+      # 2026-09-26 first-CI fix: the restore-node-modules composite action assumes
+      # the repo at the workspace ROOT (relative `node build/...` paths); this job
+      # checks out into flauz/ + upstream/. Inlined here with the correct dir —
+      # semantics identical to .github/actions/restore-node-modules.
+      - name: Prepare node_modules cache key (flauz tree)
+        run: mkdir -p flauz/.build && cd flauz && node build/azure-pipelines/common/computeNodeModulesCacheKey.ts linux x64 $(node -p process.arch) > .build/packagelockhash
+
+      - name: Restore node_modules cache
+        id: nm_cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          key-prefix: node_modules-linux
-          key-args: "linux x64 $(node -p process.arch)"
+          path: flauz/.build/node_modules_cache
+          key: "node_modules-linux-${{ hashFiles('flauz/.build/packagelockhash') }}"
+
+      - name: Extract node_modules cache
+        if: steps.nm_cache.outputs.cache-hit == 'true'
+        run: cd flauz && ./.github/workflows/node_modules_cache/cache.sh extract
 
       - name: Install build tools
         run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
@@ -126,11 +138,39 @@ jobs:
             ln -s "$(pwd)/node_modules" ../upstream/node_modules
           fi
 
-      - name: Setup Electron (cached, shared by both trees)
-        uses: ./flauz/.github/actions/setup-electron
+      # 2026-09-26 first-CI fix: setup-electron composite also assumes repo-at-root
+      # (npm run electron + hashFiles('.npmrc',...)); inlined with flauz/ dirs.
+      - name: Prepare Electron cache path
+        run: echo "ELECTRON_CACHE_PATH=${XDG_CACHE_HOME:-$HOME/.cache}/electron" >> "$GITHUB_ENV"
+
+      - name: Restore Electron cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          arch: x64
-          save-cache: true
+          path: ${{ env.ELECTRON_CACHE_PATH }}
+          key: "electron-download-v1-${{ runner.os }}-x64-${{ hashFiles('flauz/.npmrc', 'flauz/build/checksums/electron.txt') }}"
+
+      - name: Download Electron (flauz tree; shared cache)
+        run: |
+          set -e
+          for i in {1..3}; do
+            if (cd flauz && npm run electron -- x64); then
+              echo "Download successful on attempt $i"
+              break
+            fi
+            if [ $i -eq 3 ]; then
+              echo "Download failed after 3 attempts" >&2
+              exit 1
+            fi
+            echo "Download failed on attempt $i, retrying..."
+            sleep 5
+          done
+
+      - name: Save Electron cache
+        if: always()
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ${{ env.ELECTRON_CACHE_PATH }}
+          key: "electron-download-v1-${{ runner.os }}-x64-${{ hashFiles('flauz/.npmrc', 'flauz/build/checksums/electron.txt') }}"
 
       - name: Compile flauz tree
         run: cd flauz && npm run compile
@@ -140,6 +180,7 @@ jobs:
 
       - name: Start X server
         run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp flauz/build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb
           sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults

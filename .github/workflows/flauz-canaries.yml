@@ -92,6 +92,9 @@ jobs:
       - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
         run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
 
+      - name: Install dependencies (setup-electron needs vinyl-fs from node_modules)
+        run: node build/npm/preinstall.ts && npm install
+
       - name: Setup Electron
         uses: ./.github/actions/setup-electron
         with:
@@ -101,11 +104,9 @@ jobs:
         if: steps.lanes.outputs.present == 'true'
         run: |
           set -e
-          # Setup + compile + xvfb (shared recipe; see flauz-hygiene.yml for the
-          # upstream-pipeline-shaped steps — duplicated here so the canary job is
-          # self-contained).
-          node build/npm/preinstall.ts && npm install
+          # deps pre-installed (setup-electron prerequisite); compile + xvfb here
           npm run compile
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
           mkdir -p artifacts
@@ -193,6 +194,7 @@ jobs:
         run: |
           set -e
           node build/npm/preinstall.ts && npm install && npm run compile
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
           mkdir -p artifacts
@@ -259,6 +261,7 @@ jobs:
         run: |
           set -e
           node build/npm/preinstall.ts && npm install && npm run compile
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
           mkdir -p artifacts
@@ -324,6 +327,7 @@ jobs:
         run: |
           set -e
           node build/npm/preinstall.ts && npm install && npm run compile
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
           mkdir -p artifacts
