@@ -1,0 +1,12 @@
+{
+  "nameShort": "Flauz",
+  "nameLong": "Flauz",
+  "version": "0.1.0",
+  "extensionEnabledApiProposals": {
+    "flauz.flauz-agent": [
+      "defaultChatParticipant",
+      "chatParticipantAdditions"
+    ]
+  },
+  "defaultChatAgent": null
+}

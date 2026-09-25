@@ -1,97 +1,97 @@
 {
-	"name": "flauz-agent",
-	"publisher": "flauz",
-	"displayName": "Flauz Agent Bridge",
-	"description": "Flauz chat participant, terminal tool, and workspace task seam (Agent Bridge, Wave 3 Lane F).",
-	"version": "0.1.0",
-	"type": "module",
-	"private": true,
-	"engines": {
-		"vscode": "^1.140.0"
-	},
-	"activationEvents": [
-		"onStartupFinished",
-		"onCommand:flauz.showTasks",
-		"onCommand:flauz.verifyLedger"
-	],
-	"main": "./dist/extension.js",
-	"enabledApiProposals": [],
-	"contributes": {
-		"chatParticipants": [
-			{
-				"id": "flauz.agent",
-				"name": "flauz",
-				"fullName": "Flauz Agent",
-				"description": "Plan-driven agent bridge with human approval gates and an append-only evidence ledger.",
-				"isDefault": true,
-				"isSticky": true,
-				"locations": [
-					"panel"
-				],
-				"modes": [
-					"ask",
-					"agent"
-				],
-				"commands": [
-					{
-						"name": "approve",
-						"description": "Approve the current plan and start execution (human gate)"
-					},
-					{
-						"name": "request-changes",
-						"description": "Send the current plan back to planning (human gate)"
-					},
-					{
-						"name": "sign-off",
-						"description": "Sign off a verified task (human gate)"
-					},
-					{
-						"name": "cancel",
-						"description": "Cancel the active task (human gate)"
-					}
-				]
-			}
-		],
-		"languageModelTools": [
-			{
-				"name": "flauz_terminal",
-				"toolReferenceName": "flauzTerminal",
-				"displayName": "Flauz Terminal",
-				"userDescription": "Runs a shell command in the integrated terminal after asking for confirmation.",
-				"modelDescription": "Runs a shell command in the user's integrated terminal and returns its output. Requires explicit human confirmation before execution.",
-				"canBeReferencedInPrompt": true,
-				"icon": "$(terminal)",
-				"inputSchema": {
-					"type": "object",
-					"required": [
-						"command"
-					],
-					"properties": {
-						"command": {
-							"type": "string",
-							"description": "The shell command line to execute."
-						}
-					},
-					"additionalProperties": false
-				}
-			}
-		],
-		"commands": [
-			{
-				"command": "flauz.showTasks",
-				"title": "Show Flauz Tasks"
-			},
-			{
-				"command": "flauz.verifyLedger",
-				"title": "Verify Flauz Evidence Ledger"
-			}
-		]
-	},
-	"scripts": {
-		"typecheck": "tsc --noEmit",
-		"test": "node --test test/"
-	},
-	"devDependencies": {
-		"typescript": "^5.9.0"
-	}
+        "name": "flauz-agent",
+        "publisher": "flauz",
+        "displayName": "Flauz Agent Bridge",
+        "description": "Flauz chat participant, terminal tool, and workspace task seam (Agent Bridge, Wave 3 Lane F).",
+        "version": "0.1.0",
+        "type": "module",
+        "private": true,
+        "engines": {
+                "vscode": "^1.140.0"
+        },
+        "activationEvents": [
+                "onStartupFinished",
+                "onCommand:flauz.showTasks",
+                "onCommand:flauz.verifyLedger"
+        ],
+        "main": "./dist/extension.js",
+        "enabledApiProposals": [],
+        "contributes": {
+                "chatParticipants": [
+                        {
+                                "id": "flauz.agent",
+                                "name": "flauz",
+                                "fullName": "Flauz Agent",
+                                "description": "Plan-driven agent bridge with human approval gates and an append-only evidence ledger.",
+                                "isDefault": true,
+                                "isSticky": true,
+                                "locations": [
+                                        "panel"
+                                ],
+                                "modes": [
+                                        "ask",
+                                        "agent"
+                                ],
+                                "commands": [
+                                        {
+                                                "name": "approve",
+                                                "description": "Approve the current plan and start execution (human gate)"
+                                        },
+                                        {
+                                                "name": "request-changes",
+                                                "description": "Send the current plan back to planning (human gate)"
+                                        },
+                                        {
+                                                "name": "sign-off",
+                                                "description": "Sign off a verified task (human gate)"
+                                        },
+                                        {
+                                                "name": "cancel",
+                                                "description": "Cancel the active task (human gate)"
+                                        }
+                                ]
+                        }
+                ],
+                "languageModelTools": [
+                        {
+                                "name": "flauz_terminal",
+                                "toolReferenceName": "flauzTerminal",
+                                "displayName": "Flauz Terminal",
+                                "userDescription": "Runs a shell command in the integrated terminal after asking for confirmation.",
+                                "modelDescription": "Runs a shell command in the user's integrated terminal and returns its output. Requires explicit human confirmation before execution.",
+                                "canBeReferencedInPrompt": true,
+                                "icon": "$(terminal)",
+                                "inputSchema": {
+                                        "type": "object",
+                                        "required": [
+                                                "command"
+                                        ],
+                                        "properties": {
+                                                "command": {
+                                                        "type": "string",
+                                                        "description": "The shell command line to execute."
+                                                }
+                                        },
+                                        "additionalProperties": false
+                                }
+                        }
+                ],
+                "commands": [
+                        {
+                                "command": "flauz.showTasks",
+                                "title": "Show Flauz Tasks"
+                        },
+                        {
+                                "command": "flauz.verifyLedger",
+                                "title": "Verify Flauz Evidence Ledger"
+                        }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "test": "node --test \"test/*.test.ts\""
+        },
+        "devDependencies": {
+                "typescript": "^5.9.0"
+        }
 }
