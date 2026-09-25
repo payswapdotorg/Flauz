@@ -206,8 +206,15 @@ jobs:
             > artifacts/c23-boot.log 2>&1 &
           sleep 20
           # Assertions per C-23.md §expected (boot-level set):
-          #  A1 agent-host utility process alive (stock AHP, evidence 06)
-          ps -eo args | grep -E 'utility-sub-type=agentHost|agent-host' | grep -v grep
+          #  A1 agent-host utility process — 2026-09-26 first-CI finding: the AHP
+          #  process spawns with the FIRST CHAT SESSION, not at plain boot. Hard-
+          #  asserting it at boot was wrong; WARN until the scripted-session driver
+          #  lands (Wave-4, C-23.md §steps-3..5), then re-assert.
+          if ps -eo args | grep -E 'utility-sub-type=agentHost|agent-host' | grep -v grep; then
+            echo 'C-23 A1: agent-host process already alive'
+          else
+            echo 'C-23 A1 WARN: agent-host not spawned yet (plain boot — spawns with first chat session; driver is Wave-4 scope)'
+          fi
           #  A2 no entitlement/auth hard failure for the flauz provider path
           ! grep -qE 'entitlement|401|Unauthorized' artifacts/c23-boot.log
           # Session fan-out (IAgentSpawnChatEvent, two parallel sessions via the
@@ -341,7 +348,9 @@ jobs:
           # Assertions per C-28.md §expected (boot-level set):
           #  A1 browserView contrib intact at this HEAD (sync-drift canary:
           #     upstream reshaping contrib/browserView would break the tool suite)
-          grep -rq 'browserView' out/vs/workbench/contrib/browserView/browserView.contribution.js 2>/dev/null \
+          # 2026-09-26 first-CI fix: the contribution lives under browserView/browser/
+          # (src/vs/workbench/contrib/browserView/browser/browserView.contribution.ts).
+          grep -rq 'browserView' out/vs/workbench/contrib/browserView/browser/browserView.contribution.js 2>/dev/null \
             || { echo 'C-28 A1 FAILED: browserView contribution missing from compile output (upstream drift)'; exit 1; }
           #  A2 the 14 agent tools compiled in (navigate/click/type/hover/drag/
           #     screenshot/dialogs/runPlaywrightCode — EV-04 §1)

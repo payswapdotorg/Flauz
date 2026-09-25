@@ -137,6 +137,13 @@ jobs:
           if [ ! -d ../upstream/node_modules ]; then
             ln -s "$(pwd)/node_modules" ../upstream/node_modules
           fi
+          # 2026-09-26 first-CI fix: extensions/copilot has its OWN node_modules
+          # (esbuild devDep; root postinstall installs it per-dir). The upstream
+          # tree's compile-copilot needs the same — share it while divergence=0.
+          mkdir -p ../upstream/extensions/copilot
+          if [ ! -e ../upstream/extensions/copilot/node_modules ]; then
+            ln -s "$(pwd)/extensions/copilot/node_modules" ../upstream/extensions/copilot/node_modules
+          fi
 
       # 2026-09-26 first-CI fix: setup-electron composite also assumes repo-at-root
       # (npm run electron + hashFiles('.npmrc',...)); inlined with flauz/ dirs.

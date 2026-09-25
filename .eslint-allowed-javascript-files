@@ -165,3 +165,16 @@ test/unit/electron/renderer.js
 test/unit/fullJsonStreamReporter.js
 test/unit/node/index.js
 test/unit/reporter.js
+
+# Flauz additive zero-dep scripts (Wave 3; .mjs for ESM imports; added at
+# first-CI integration per this file's own policy — see DECISION-LOG DL-29)
+build/flauz/merge-product.mjs
+build/flauz/merge-product.test.mjs
+build/flauz/scripts/activation-lint.mjs
+build/flauz/scripts/memory-snapshot.mjs
+build/flauz/scripts/perf-log-parse.mjs
+build/flauz/scripts/proposed-api-rota.mjs
+build/flauz/scripts/startup-pair.mjs
+build/flauz/stage-delivery.mjs
+extensions/flauz-agent/core/contracts.mjs
+extensions/flauz-agent/core/service.mjs
