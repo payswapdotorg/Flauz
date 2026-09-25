@@ -69,8 +69,8 @@ test('activate wires core + participant + tool + commands and emits the document
                 ok(state.commands.some((entry) => entry.command === 'flauz.verifyLedger'));
                 strictEqual(
                         recorder.marks.filter((name) => name.startsWith('code/flauz/')).join(','),
-                        'code/flauz/willConnectCore,code/flauz/didConnectCore,code/flauz/willRegisterParticipants,code/flauz/didRegisterParticipants,code/flauz/willWarmModels,code/flauz/didWarmModels',
-                        'documented mark order (PERF-PLAN 2.2)',
+                        'code/flauz/willActivateBridge,code/flauz/willConnectCore,code/flauz/didConnectCore,code/flauz/willRegisterParticipants,code/flauz/didRegisterParticipants,code/flauz/willWarmModels,code/flauz/didWarmModels,code/flauz/didActivateBridge',
+                        'documented mark order (PERF-PLAN 2.2 + integration addendum: activation pair per PERF 1.3 row 5)',
                 );
                 // The core service actually started against the workspace root.
                 ok(state.outputChannels[0].lines.some((line) => line.includes('ready')), 'output channel logs the core ready line');
