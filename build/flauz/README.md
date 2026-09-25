@@ -46,6 +46,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `startup-pair.mjs` | §1.3 startup gates + R6 mark integrity | `--timers-flauz/--timers-upstream`, `--markers-flauz/--markers-upstream`, `--check-marks --src-root`, `--phase-gate --src-root`, `--pairs-file`, `--min-runs` | 0 pass/SKIP · 1 violation · 2 usage |
 | `memory-snapshot.mjs` | §3.2 memory budget gate | `--json` (resolveProcesses shape) / `--status` / `--ps`, `--scenario eventually|after-session`, `--enforce`, `--pattern name=regex` | 0 pass · 1 violation · 2 usage |
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
+| `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
 
 **Skip-vs-fail policy** (important): while lanes F/G are in flight, the
 zero-dep gates SKIP with a recorded reason instead of failing (empty flauz
@@ -95,7 +96,14 @@ Real IDE boots / real CI execution are OUT OF SCOPE in worker sandboxes
 
 ## 5. Fixture-verification receipts (in-sandbox, 2026-09-25)
 
-Full transcript in the delivery `REPORT.md` (§ VERIFICATION-RECEIPTS).
+Run the whole matrix with one command (expects each case's outcome — a gate
+that cannot fail is not a gate):
+
+```sh
+sh build/flauz/scripts/verify-fixtures.sh
+# → ALL 29 CASES AS EXPECTED (0 deviations)
+```
+
 Summary (command class → exit code):
 
 | Check | Result |
