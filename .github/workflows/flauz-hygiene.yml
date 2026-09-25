@@ -1,0 +1,149 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 3 — Lane H. Job 1 of the MIGRATION-PLAN §5 CI strategy:
+# "Build + upstream hygiene" (compile, eslint, unit subset touching Flauz dirs —
+# shaped on upstream's own .github/workflows/pr.yml "Compile & Hygiene" job),
+# plus the two zero-dep Flauz gates that must run FIRST (fail fast, no install):
+#   1. FORK-CRITICAL guard (DL-12/DL-10: src/vs divergence outside
+#      contrib/flauz must be EMPTY — runs before anything expensive)
+#   2. activation lint (PERF §2.1/§2.2 for extensions/flauz-*)
+#
+# Constraints honored (work order §3):
+#   - ubuntu-latest class, NO secrets (public repo, zero tokens; the upstream
+#     pr.yml GITHUB_TOKEN env is deliberately omitted — see REPORT DECISION-LOG
+#     proposals if a sub-step ever requires it)
+#   - zero-dep steps use node >= 20 stdlib only (build/flauz/scripts/*)
+#   - npm install happens only via the upstream pipeline's own steps
+#     (restore-node-modules composite action + npm install, exactly as
+#     .github/workflows/pr.yml does) — never inside Flauz-added steps
+#   - gated on Flauz paths only + workflow_dispatch
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Hygiene
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-hygiene-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Mirrors .github/workflows/chat-perf.yml: binaries are fetched explicitly
+  # later (setup-electron composite action), never during npm install.
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  VSCODE_QUALITY: 'oss'
+
+jobs:
+  hygiene:
+    name: Flauz build + upstream hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # ---- zero-dep Flauz gates FIRST (fail fast, before any install) ----
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # full history for the guard's base...head diff (default depth is fine
+          # for a single commit; the guard fetches what it needs below)
+          fetch-depth: 0
+
+      - name: Fetch pristine base (main = upstream mirror, DL-12)
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+
+      - name: FORK-CRITICAL guard (DL-12/DL-10 — src/vs must stay pristine)
+        run: sh build/flauz/scripts/fork-critical-guard.sh --base origin/main --head HEAD
+
+      - name: Activation lint (PERF §2.1/§2.2 — extensions/flauz-* manifests)
+        run: node build/flauz/scripts/activation-lint.mjs --root .
+
+      # ---- upstream hygiene pipeline (shaped on .github/workflows/pr.yml) ----
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Restore node_modules cache
+        uses: ./.github/actions/restore-node-modules
+        with:
+          key-prefix: node_modules-linux
+          key-args: "linux ${{ env.VSCODE_ARCH }} $(node -p process.arch)"
+        env:
+          VSCODE_ARCH: x64
+
+      - name: Install build tools
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
+
+      - name: Install Electron headers
+        run: node build/npm/preinstall.ts
+
+      - name: Install dependencies
+        run: npm install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: ${{ env.ELECTRON_SKIP_BINARY_DOWNLOAD }}
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: ${{ env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD }}
+
+      - name: Prepare Electron types
+        run: node build/npm/electronTypes.ts
+
+      - name: Compile & Hygiene (upstream pipeline line, pr.yml)
+        run: npm exec -- npm-run-all2 -lp core-ci hygiene eslint valid-layers-check define-class-fields-check vscode-dts-compile-check tsec-compile-check test-build-scripts
+
+      # ---- Flauz unit subset: only the tests touching Flauz dirs ----
+      # Discovery is glob-driven (never a hardcoded list): compiled test files
+      # under out/ whose path matches a Flauz dir. While lanes F/G are in
+      # flight this is empty -> documented skip, job stays green.
+
+      - name: Start X server (for Electron unit tests)
+        run: |
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb
+          sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults
+          sudo service xvfb start
+
+      - name: Run unit tests touching Flauz dirs (glob-discovered subset)
+        run: |
+          set -e
+          TESTS="$(find out -type f -name '*.test.js' | grep -E 'flauz' || true)"
+          if [ -z "$TESTS" ]; then
+            echo "flauz-hygiene: no compiled test files under out/ match 'flauz' —"
+            echo "unit subset skipped (lanes F/G not merged yet; documented skip)."
+            exit 0
+          fi
+          echo "flauz unit subset:"
+          echo "$TESTS"
+          for t in $TESTS; do
+            echo "::group::unit $t"
+            DISPLAY=:10 VSCODE_SKIP_PRELAUNCH=1 ./scripts/test.sh --run "$t"
+            echo "::endgroup::"
+          done
+
+      - name: Upload hygiene log context (on failure)
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-hygiene-failure-context
+          path: |
+            out/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
