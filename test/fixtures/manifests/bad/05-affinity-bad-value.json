@@ -1,0 +1,15 @@
+{
+  "name": "badval",
+  "publisher": "flauz",
+  "version": "0.1.0",
+  "activationEvents": [
+    "onCommand:flauz.badval.run"
+  ],
+  "contributes": {
+    "configurationDefaults": {
+      "extensions.experimental.affinity": {
+        "flauz.agent-bridge": "1"
+      }
+    }
+  }
+}

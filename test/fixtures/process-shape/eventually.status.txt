@@ -1,0 +1,14 @@
+CPU %	Mem MB	   PID	Process
+    0	   310	   1000	flauz
+    1	   420	   1001	window [1] (Flauz)
+    0	   140	   1002	gpu-process
+    0	   190	   1003	shared-process
+    0	    48	   1004	pty-host
+    0	    36	   1005	watcher
+    1	   210	   1006	agent-host
+    2	   180	   1007	extensionHost
+    1	   165	   1008	extensionHost
+    0	   128	   1009	flauz-core
+    0	    88	   1010	browserView renderer [pane-1]
+
+Workspace Stats: 

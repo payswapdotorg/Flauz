@@ -1,0 +1,131 @@
+{
+  "pidToNames": [
+    [
+      1003,
+      "shared-process"
+    ],
+    [
+      1004,
+      "pty-host"
+    ],
+    [
+      1005,
+      "watcher"
+    ],
+    [
+      1006,
+      "agent-host"
+    ],
+    [
+      1007,
+      "extensionHost"
+    ],
+    [
+      1008,
+      "extensionHost"
+    ],
+    [
+      1009,
+      "flauz-core"
+    ],
+    [
+      1010,
+      "browserView renderer [pane-1]"
+    ]
+  ],
+  "processes": [
+    {
+      "name": "Local",
+      "rootProcess": {
+        "name": "flauz",
+        "cmd": "code",
+        "pid": 1000,
+        "ppid": 1,
+        "load": 0.0,
+        "mem": 310,
+        "children": [
+          {
+            "name": "window [1] (Flauz)",
+            "cmd": "code --type=renderer",
+            "pid": 1001,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 420
+          },
+          {
+            "name": "gpu-process",
+            "cmd": "code --type=gpu-process",
+            "pid": 1002,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 140
+          },
+          {
+            "name": "shared-process",
+            "cmd": "code --type=utility --utility-sub-type=node.mojom.NodeService",
+            "pid": 1003,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 190
+          },
+          {
+            "name": "pty-host",
+            "cmd": "code --type=utility --utility-sub-type=pty",
+            "pid": 1004,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 48
+          },
+          {
+            "name": "watcher",
+            "cmd": "code --type=utility --utility-sub-type=watcher",
+            "pid": 1005,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 36
+          },
+          {
+            "name": "agent-host",
+            "cmd": "code --type=utility --utility-sub-type=agentHost",
+            "pid": 1006,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 210
+          },
+          {
+            "name": "extensionHost",
+            "cmd": "code --type=utility --utility-sub-type=extensionHost",
+            "pid": 1007,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 180
+          },
+          {
+            "name": "extensionHost",
+            "cmd": "code --type=utility --utility-sub-type=extensionHost affinity=1",
+            "pid": 1008,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 165
+          },
+          {
+            "name": "flauz-core",
+            "cmd": "flauz-core --stdio",
+            "pid": 1009,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 128
+          },
+          {
+            "name": "browserView renderer [pane-1]",
+            "cmd": "code --type=renderer --browser-view",
+            "pid": 1010,
+            "ppid": 1000,
+            "load": 0.0,
+            "mem": 88
+          }
+        ]
+      }
+    }
+  ]
+}

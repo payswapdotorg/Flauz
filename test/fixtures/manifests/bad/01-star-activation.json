@@ -1,0 +1,10 @@
+{
+  "name": "star",
+  "publisher": "flauz",
+  "version": "0.1.0",
+  "activationEvents": [
+    "*",
+    "onCommand:flauz.star.inspect"
+  ],
+  "main": "./out/extension.js"
+}

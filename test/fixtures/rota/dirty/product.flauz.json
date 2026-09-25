@@ -1,0 +1,12 @@
+{
+  "nameShort": "Flauz",
+  "extensionEnabledApiProposals": {
+    "flauz.agent-bridge": [
+      "chatProvider",
+      "oldRenamed"
+    ],
+    "flauz.workspace": [
+      "scmArtifactProvider"
+    ]
+  }
+}

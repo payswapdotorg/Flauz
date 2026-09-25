@@ -1,0 +1,12 @@
+{
+  "name": "agent-bridge",
+  "publisher": "flauz",
+  "version": "0.1.0",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "enabledApiProposals": [
+    "chatProvider",
+    "browser"
+  ]
+}

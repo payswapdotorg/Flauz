@@ -1,0 +1,183 @@
+{
+  "pidToNames": [
+    [
+      3003,
+      "shared-process"
+    ],
+    [
+      3004,
+      "pty-host"
+    ],
+    [
+      3005,
+      "watcher"
+    ],
+    [
+      3006,
+      "agent-host"
+    ],
+    [
+      3007,
+      "extensionHost"
+    ],
+    [
+      3008,
+      "extensionHost"
+    ],
+    [
+      3009,
+      "flauz-core"
+    ],
+    [
+      3010,
+      "browserView renderer [pane-1]"
+    ],
+    [
+      3011,
+      "browserView renderer [pane-2]"
+    ],
+    [
+      3012,
+      "browserView renderer [pane-3]"
+    ],
+    [
+      3013,
+      "claude-agent-session"
+    ],
+    [
+      3014,
+      "codex-agent-session"
+    ],
+    [
+      3015,
+      "qwen-agent-session"
+    ]
+  ],
+  "processes": [
+    {
+      "name": "Local",
+      "rootProcess": {
+        "name": "flauz",
+        "cmd": "code",
+        "pid": 3000,
+        "ppid": 1,
+        "load": 0.0,
+        "mem": 320,
+        "children": [
+          {
+            "name": "window [1] (Flauz)",
+            "cmd": "code --type=renderer",
+            "pid": 3001,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 460
+          },
+          {
+            "name": "shared-process",
+            "cmd": "code --type=utility",
+            "pid": 3003,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 196
+          },
+          {
+            "name": "pty-host",
+            "cmd": "code --type=utility",
+            "pid": 3004,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 55
+          },
+          {
+            "name": "watcher",
+            "cmd": "code --type=utility",
+            "pid": 3005,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 40
+          },
+          {
+            "name": "agent-host",
+            "cmd": "code --type=utility",
+            "pid": 3006,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 268
+          },
+          {
+            "name": "extensionHost",
+            "cmd": "code --type=utility",
+            "pid": 3007,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 185
+          },
+          {
+            "name": "extensionHost",
+            "cmd": "code --type=utility affinity=1",
+            "pid": 3008,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 310
+          },
+          {
+            "name": "flauz-core",
+            "cmd": "code --type=utility flauzCore",
+            "pid": 3009,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 240
+          },
+          {
+            "name": "browserView renderer [pane-1]",
+            "cmd": "code --type=renderer",
+            "pid": 3010,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 91
+          },
+          {
+            "name": "browserView renderer [pane-2]",
+            "cmd": "code --type=renderer",
+            "pid": 3011,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 88
+          },
+          {
+            "name": "browserView renderer [pane-3]",
+            "cmd": "code --type=renderer",
+            "pid": 3012,
+            "ppid": 3000,
+            "load": 0.0,
+            "mem": 87
+          },
+          {
+            "name": "claude-agent-session",
+            "cmd": "claude-agent-sdk run",
+            "pid": 3013,
+            "ppid": 3006,
+            "load": 0.0,
+            "mem": 92
+          },
+          {
+            "name": "codex-agent-session",
+            "cmd": "codex-agent-sdk run",
+            "pid": 3014,
+            "ppid": 3006,
+            "load": 0.0,
+            "mem": 85
+          },
+          {
+            "name": "qwen-agent-session",
+            "cmd": "qwen-agent-sdk run",
+            "pid": 3015,
+            "ppid": 3006,
+            "load": 0.0,
+            "mem": 84
+          }
+        ]
+      }
+    }
+  ]
+}
