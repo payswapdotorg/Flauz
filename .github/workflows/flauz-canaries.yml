@@ -89,6 +89,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
       - name: Setup Electron
         uses: ./.github/actions/setup-electron
         with:
@@ -182,6 +185,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
       - name: Boot + assert AHP session surface (spec C-23.md)
         if: steps.lanes.outputs.present == 'true'
         run: |
@@ -245,6 +251,9 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
       - name: Boot + assert AHP signal surface (spec C-24.md)
         if: steps.lanes.outputs.present == 'true'
         run: |
@@ -306,6 +315,9 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
 
       - name: Boot + assert browser tool surface (spec C-28.md)
         if: steps.lanes.outputs.present == 'true'
