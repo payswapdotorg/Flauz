@@ -1,0 +1,15 @@
+{
+  "name": "badkey",
+  "publisher": "flauz",
+  "version": "0.1.0",
+  "activationEvents": [
+    "onCommand:flauz.badkey.run"
+  ],
+  "contributes": {
+    "configurationDefaults": {
+      "extensions.experimental.affinity": {
+        "ms-python.python": 1
+      }
+    }
+  }
+}

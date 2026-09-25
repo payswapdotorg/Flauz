@@ -1,0 +1,10 @@
+  PID  PPID   RSS %CPU ARGS
+ 4100     1 317440  0.0 /home/runner/flauz/Flauz --type=utility --utility-sub-type=node.mojom.NodeService shared-process
+ 4101  4100  49152  0.1 /home/runner/flauz/Flauz --type=utility --utility-sub-type=pty pty-host
+ 4102  4100  36864  0.0 /home/runner/flauz/Flauz --type=utility --utility-sub-type=watcher watcher
+ 4103  4100 215040  1.2 /home/runner/flauz/Flauz --type=utility --utility-sub-type=agentHost agent-host
+ 4104  4100 184320  0.3 /home/runner/flauz/Flauz --type=utility --utility-sub-type=extensionHost
+ 4105  4100 168960  0.4 /home/runner/flauz/Flauz --type=utility --utility-sub-type=extensionHost affinity=1
+ 4106  4100 131072  0.1 /home/runner/flauz/flauz-core --stdio flauz-core
+ 4107  4100  90112  0.0 /home/runner/flauz/Flauz --type=renderer --browser-view browserView renderer [pane-1]
+ 4108  4103  40960  0.5 claude-agent-sdk run --session abc claude-agent-session

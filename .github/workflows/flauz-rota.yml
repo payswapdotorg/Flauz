@@ -1,0 +1,108 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 3 — Lane H. Job 5 of the MIGRATION-PLAN §5 CI strategy:
+# "Proposed-API rota" (DL-4 posture; PERF §7 R5) — diff the union of
+# extensionEnabledApiProposals (product.flauz.json + flauz-* manifests) vs the
+# src/vscode-dts/*.d.ts inventory at HEAD; drift report (renames/removals/
+# absences) + DECISION-LOG diff reminder at checkpoint tags.
+#
+# Runs at EVERY upstream sync (DL-11) via workflow_dispatch from the sync
+# runbook, and on Flauz-path changes to keep the union honest in between.
+#
+# Baseline: build/flauz/rota-baseline.json (checked in by the TL at each sync
+# tag via `--snapshot`). When present, the rota additionally reports
+# union/inventory deltas since the last sync — the rename/removal signature.
+#
+# Constraints honored: no secrets; zero-dep step (proposed-api-rota.mjs);
+# ubuntu-latest; gated on Flauz paths + workflow_dispatch.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Proposed-API Rota
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+    inputs:
+      sync_tag:
+        description: 'Sync checkpoint tag this run attaches to (flauz/sync/<date>), if invoked by the sync runbook'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-rota-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rota:
+    name: Proposed-API rota (DL-4 churn gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (zero-dep script needs node >= 20 only)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      - name: Run the rota (union vs d.ts inventory at HEAD; baseline deltas when present)
+        run: |
+          set -e
+          BASELINE_ARG=""
+          if [ -f build/flauz/rota-baseline.json ]; then
+            BASELINE_ARG="--baseline build/flauz/rota-baseline.json"
+            echo "using baseline: build/flauz/rota-baseline.json"
+          else
+            echo "no baseline snapshot yet (first sync tags one via --snapshot) — absence check only."
+          fi
+          node build/flauz/scripts/proposed-api-rota.mjs \
+            --repo-root . \
+            --report artifacts $BASELINE_ARG
+
+      - name: Checkpoint reminder (MIGRATION §5 job 6 — DECISION-LOG diff at every tag)
+        if: always()
+        run: |
+          TAG='${{ inputs.sync_tag }}'
+          echo "=============================================================="
+          if [ -n "$TAG" ]; then
+            echo "Flauz sync checkpoint: $TAG"
+            echo "TODO (sync runbook, MIGRATION-PLAN §5 job 6):"
+          else
+            echo "(inter-run rota — checkpoint checklist printed for reference)"
+            echo "At the next sync tag (flauz/sync/<date>):"
+          fi
+          echo "  1. attach this job's drift report to the tag artifact set"
+          echo "  2. review the DECISION-LOG diff since the previous tag"
+          echo "  3. TL snapshots the rota baseline for the next window:"
+          echo "     node build/flauz/scripts/proposed-api-rota.mjs --repo-root . \\"
+          echo "       --snapshot build/flauz/rota-baseline.json   # commit at the tag"
+          echo "  4. DL-11 cadence check: divergence=0 -> monthly; >0 -> weekly"
+          echo "=============================================================="
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-rota-drift-report
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 90

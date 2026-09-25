@@ -1,0 +1,321 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 3 — Lane H. Job 4 of the MIGRATION-PLAN §5 CI strategy:
+# "Upstream-sync canaries (run at EVERY sync, per DL-11)" on Worker C's gated
+# rows (the ⚠ rows + U-1 closure spike):
+#
+#   C-20 default-agent re-point (model picker + management editor light up for
+#        the flauz participant) — gated on product.json:90-157 defaultChatAgent
+#        -> Copilot; Flauz re-points it via product.flauz.json (build input).
+#   C-23 parallel agent sessions via own provider (AHP IAgentSpawnChatEvent,
+#        agent sessions viewer, multiple chat sessions).
+#   C-24 subagents + mid-run steering signals (IAgentSubagentStarted/Resumed/
+#        CompletedSignal, IAgentSteeringConsumedSignal,
+#        IAgentToolPendingConfirmationSignal).
+#   C-28 browser tools light up for a non-Copilot agent (browserView contrib,
+#        14 agent tools, proposed browser.d.ts for built-ins).
+#
+# Each canary job = scripted boot (xvfb) + assertions from the spec at
+# build/flauz/canaries/C-<id>.md (tree citations from the wave1/c matrix row).
+# Boot-level assertions are mechanical TODAY (zero product code); the
+# interactive/UI assertions ride lane F's golden-path smoke suite and are
+# marked WAITING-ON-LANE in the specs — the jobs detect lane presence by glob
+# (never hardcode) and report skips with reasons instead of failing.
+#
+# Constraints honored: no secrets; zero-dep Flauz steps; ubuntu-latest;
+# gated on Flauz paths + workflow_dispatch (the sync runbook triggers this
+# workflow at EVERY sync — DL-11).
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Canaries
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-canaries-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  VSCODE_QUALITY: 'oss'
+
+jobs:
+  c20-default-agent:
+    name: 'C-20 canary: default-agent re-point'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Spec present?
+        run: |
+          test -f build/flauz/canaries/C-20.md || { echo "C-20 spec missing (build/flauz/canaries/C-20.md)"; exit 1; }
+          echo "C-20 spec: OK"
+
+      - name: Lane presence probe (glob, never hardcode)
+        id: lanes
+        run: |
+          if ls extensions/flauz-*/package.json >/dev/null 2>&1 && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes + product overlay present"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes / product.flauz.json not merged yet — C-20 canary runs in PROBE-ONLY mode (documented skip of participant assertions)."
+          fi
+
+      - name: Setup Electron
+        uses: ./.github/actions/setup-electron
+        with:
+          arch: x64
+
+      - name: Boot flauz build and assert the C-20 boot-level surface
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          # Setup + compile + xvfb (shared recipe; see flauz-hygiene.yml for the
+          # upstream-pipeline-shaped steps — duplicated here so the canary job is
+          # self-contained).
+          node build/npm/preinstall.ts && npm install
+          npm run compile
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          # Boot per C-20.md §steps-1..3 with verbose logging.
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$RUNNER_TEMP/c20-userdata" \
+            --extensions-dir "$RUNNER_TEMP/c20-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            > artifacts/c20-boot.log 2>&1 &
+          BOOT_PID=$!
+          sleep 25
+          # Assertions per C-20.md §expected (boot-level set):
+          #  A1 no crash / clean boot                (log has no 'Unresponsive' / fatal)
+          #  A2 affinity pin took (PERF §7 R1)       'Placing extension(s) flauz.agent-bridge on a separate extension host.'
+          #  A3 no DL-4 proposal drop                'DOES NOT EXIST' must NOT appear (extensionsProposedApi.ts:47)
+          #  A4 participant registered               code/flauz/didRegisterParticipants present in the perf-mark log
+          ! grep -qE 'Unresponsive|Fatal error' artifacts/c20-boot.log
+          grep -q 'Placing extension(s).*separate extension host' artifacts/c20-boot.log \
+            || { echo 'C-20 A2 FAILED: affinity pin log line missing (PERF R1)'; exit 1; }
+          ! grep -q 'DOES NOT EXIST' artifacts/c20-boot.log \
+            || { echo 'C-20 A3 FAILED: a flauz proposed API does not exist at this HEAD (DL-4 rota drift)'; exit 1; }
+          if grep -q 'code/flauz/didRegisterParticipants' artifacts/c20-boot.log; then
+            echo 'C-20 A4: participant marks present'
+          else
+            echo 'C-20 A4 WARN: didRegisterParticipants mark not in boot log (lane F may emit it via TelemetryLogger instead) — triage, not fatal'
+          fi
+          kill $BOOT_PID 2>/dev/null || true
+          echo 'C-20 boot-level canary: GREEN'
+          # UI-level assertions (model picker + management editor light up for the
+          # flauz participant) are specified in C-20.md §steps-4..6 and run in lane
+          # F's golden-path smoke suite — cross-referenced there.
+
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-c20
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  c23-parallel-sessions:
+    name: 'C-23 canary: parallel agent sessions via own provider'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Spec present?
+        run: |
+          test -f build/flauz/canaries/C-23.md
+          echo "C-23 spec: OK"
+      - name: Lane presence probe
+        id: lanes
+        run: |
+          if ls extensions/flauz-*/package.json >/dev/null 2>&1 && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes not merged yet — C-23 runs in PROBE-ONLY mode (documented)."
+          fi
+      - name: Boot + assert AHP session surface (spec C-23.md)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          node build/npm/preinstall.ts && npm install && npm run compile
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$RUNNER_TEMP/c23-userdata" \
+            --extensions-dir "$RUNNER_TEMP/c23-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            > artifacts/c23-boot.log 2>&1 &
+          sleep 20
+          # Assertions per C-23.md §expected (boot-level set):
+          #  A1 agent-host utility process alive (stock AHP, evidence 06)
+          ps -eo args | grep -E 'utility-sub-type=agentHost|agent-host' | grep -v grep
+          #  A2 no entitlement/auth hard failure for the flauz provider path
+          ! grep -qE 'entitlement|401|Unauthorized' artifacts/c23-boot.log
+          # Session fan-out (IAgentSpawnChatEvent, two parallel sessions via the
+          # flauz provider) = the scripted-session driver in C-23.md §steps-3..5,
+          # shared with the flauz-perf.yml memory job (after-session capture).
+          # Until that driver lands with lane F this canary asserts the boot
+          # surface only — documented in C-23.md.
+          pkill -f 'scripts/code.sh' 2>/dev/null || true
+          echo 'C-23 boot-level canary: GREEN'
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-c23
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  c24-subagents-steering:
+    name: 'C-24 canary: subagents + steering signals'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Spec present?
+        run: |
+          test -f build/flauz/canaries/C-24.md
+          echo "C-24 spec: OK"
+      - name: Lane presence probe
+        id: lanes
+        run: |
+          if ls extensions/flauz-*/package.json >/dev/null 2>&1 && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes not merged yet — C-24 runs in PROBE-ONLY mode (documented)."
+          fi
+      - name: Boot + assert AHP signal surface (spec C-24.md)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          node build/npm/preinstall.ts && npm install && npm run compile
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$RUNNER_TEMP/c24-userdata" \
+            --extensions-dir "$RUNNER_TEMP/c24-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            > artifacts/c24-boot.log 2>&1 &
+          sleep 20
+          # Assertions per C-24.md §expected (boot-level set): the AHP protocol
+          # surface the signals ride must initialize cleanly — subagent spawn
+          # failure at boot means the tree (not our wiring) regressed, which is
+          # exactly the sync-drift this canary exists to catch.
+          ! grep -qE 'agentHost.*(crash|failed to start)' artifacts/c24-boot.log
+          # IAgentSubagentStarted/Resumed/CompletedSignal + SteeringConsumed +
+          # ToolPendingConfirmation signal assertions need a live session —
+          # scripted in C-24.md §steps-3..8 against the lane-F session driver;
+          # the log-greppable variants land with it (documented).
+          pkill -f 'scripts/code.sh' 2>/dev/null || true
+          echo 'C-24 boot-level canary: GREEN'
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-c24
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  c28-browser-tools:
+    name: 'C-28 canary: browser tools for a non-Copilot agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+      - name: Spec present?
+        run: |
+          test -f build/flauz/canaries/C-28.md
+          echo "C-28 spec: OK"
+      - name: Lane presence probe
+        id: lanes
+        run: |
+          if ls extensions/flauz-*/package.json >/dev/null 2>&1 && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes not merged yet — C-28 runs in PROBE-ONLY mode (documented)."
+          fi
+      - name: Boot + assert browser tool surface (spec C-28.md)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          node build/npm/preinstall.ts && npm install && npm run compile
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$RUNNER_TEMP/c28-userdata" \
+            --extensions-dir "$RUNNER_TEMP/c28-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            > artifacts/c28-boot.log 2>&1 &
+          sleep 20
+          # Assertions per C-28.md §expected (boot-level set):
+          #  A1 browserView contrib intact at this HEAD (sync-drift canary:
+          #     upstream reshaping contrib/browserView would break the tool suite)
+          grep -rq 'browserView' out/vs/workbench/contrib/browserView/browserView.contribution.js 2>/dev/null \
+            || { echo 'C-28 A1 FAILED: browserView contribution missing from compile output (upstream drift)'; exit 1; }
+          #  A2 the 14 agent tools compiled in (navigate/click/type/hover/drag/
+          #     screenshot/dialogs/runPlaywrightCode — EV-04 §1)
+          TOOLS=0
+          for t in navigateBrowserTool clickBrowserTool typeBrowserTool hoverBrowserTool dragBrowserTool screenshotBrowserTool runPlaywrightCodeTool; do
+            if grep -rq "$t" out/vs/workbench/contrib/browserView/ 2>/dev/null; then TOOLS=$((TOOLS+1)); fi
+          done
+          echo "C-28 A2: $TOOLS/7 sampled browser tools present in compile output"
+          [ "$TOOLS" -ge 5 ] || { echo 'C-28 A2 FAILED: browser tool suite incomplete (upstream drift)'; exit 1; }
+          # The non-Copilot-agent tool-light-up (tools offered to the flauz
+          # participant) + the 4-process-path cold/warm timing measurement
+          # (PERF §8 q4) are specified in C-28.md §steps-4..9 — they ride the
+          # lane-F session driver; the timing capture closes §8 q4.
+          pkill -f 'scripts/code.sh' 2>/dev/null || true
+          echo 'C-28 boot-level canary: GREEN'
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-c28
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

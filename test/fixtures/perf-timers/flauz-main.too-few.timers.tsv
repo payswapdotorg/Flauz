@@ -1,0 +1,5 @@
+836	Flauz	f1a2b3c4d5	sess-fl-0001	standard_start	0042ms
+840	Flauz	f1a2b3c4d5	sess-fl-0002	standard_start	0042ms
+844	Flauz	f1a2b3c4d5	sess-fl-0003	standard_start	0042ms
+871	Flauz	f1a2b3c4d5	sess-fl-0004	NO_standard_start : Expected window count : 1, Actual : 2	0042ms
+884	Flauz	f1a2b3c4d5	sess-fl-0005	NO_standard_start : non standard startup, restore folder	0042ms

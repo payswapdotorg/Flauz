@@ -1,0 +1,11 @@
+{
+  "name": "models",
+  "publisher": "flauz",
+  "version": "0.1.0",
+  "activationEvents": [
+    "onLanguageModelChatProvider:anthropic"
+  ],
+  "enabledApiProposals": [
+    "languageModelPricing"
+  ]
+}

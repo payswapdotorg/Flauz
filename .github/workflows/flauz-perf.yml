@@ -1,0 +1,317 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 3 — Lane H. Jobs 2 + 3 of the MIGRATION-PLAN §5 CI strategy:
+#
+#   startup-pair   (job 2) — "Startup perf pair": N=10 runs of flauz build vs
+#                  upstream build on the SAME runner (one job, two source trees,
+#                  shared caches), --prof-append-timers TSV diff, PERFORMANCE-PLAN
+#                  §1.3 delta assertions, --prof-duration-markers on code/flauz/*
+#                  pairs, mark-pair integrity check (R6), contribution-phase gate
+#                  (§1.3 row 4).
+#
+#   memory-snapshot (job 3) — "Memory snapshot": process snapshot at
+#                  LifecyclePhase.Eventually and after a scripted agent session,
+#                  asserted against the §3.2 table (memory-snapshot.mjs). While
+#                  lane F/G code is in flight the after-session capture is a
+#                  documented skip; the Eventually capture works against ANY
+#                  build (it also yields the stock absolute baseline needed to
+#                  close PERF §8 question 1 and 3).
+#
+# Capture contract (see build/flauz/README.md): the memory job snapshots the
+# process tree with ps(1) during the Eventually window of a self-exiting
+# --prof-append-timers run (startupTimings.ts waits 15s then exits) and feeds
+# it to memory-snapshot.mjs --ps. The resolveProcesses()-JSON path (PERF §6.1)
+# activates when lane F lands the bridge dump; the assertion layer is identical.
+#
+# Runner class: pinned ubuntu-24.04 — startup deltas are only comparable on a
+# stable runner class (DL-16 candidate; see REPORT DECISION-LOG-PROPOSALS).
+#
+# Constraints honored: no secrets; zero-dep Flauz steps; upstream-pipeline-only
+# installs; gated on Flauz paths + workflow_dispatch.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Perf
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: 'Runs per side (N of the perf pair)'
+        required: false
+        default: 10
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  # perf runs must never overlap on the same ref (measurement validity)
+  group: flauz-perf-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  VSCODE_QUALITY: 'oss'
+  FLAUZ_PERF_RUNS: ${{ inputs.runs || 10 }}
+
+jobs:
+  startup-pair:
+    name: Startup perf pair (N=${{ inputs.runs || 10 }}, same runner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Flauz ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: flauz
+
+      - name: Checkout pristine upstream baseline (same runner, second tree)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main # DL-12: main == pristine upstream mirror
+          fetch-depth: 1
+          path: upstream
+
+      - name: FORK-CRITICAL guard (a src/vs fork would invalidate the pair)
+        run: sh flauz/build/flauz/scripts/fork-critical-guard.sh --repo flauz --base origin/main --head HEAD
+
+      # ---- zero-dep static gates (fail fast, before the heavy build) ----
+
+      - name: Mark-pair integrity (PERF §6.3 / R6 — every budgeted code/flauz/* mark has emit sites)
+        run: node flauz/build/flauz/scripts/startup-pair.mjs --check-marks --src-root flauz
+
+      - name: Contribution-phase gate (PERF §1.3 row 4 — no Flauz work before Restored)
+        run: node flauz/build/flauz/scripts/startup-pair.mjs --phase-gate --src-root flauz
+
+      - name: Activation lint (PERF §2.1/§2.2)
+        run: node flauz/build/flauz/scripts/activation-lint.mjs --root flauz
+
+      # ---- shared setup (both trees) ----
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: flauz/.nvmrc
+
+      - name: Restore node_modules cache (key = root lockfile; identical in both trees while divergence=0)
+        uses: ./flauz/.github/actions/restore-node-modules
+        with:
+          key-prefix: node_modules-linux
+          key-args: "linux x64 $(node -p process.arch)"
+
+      - name: Install build tools
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install dependencies (flauz tree; upstream tree shares the lockfile)
+        run: |
+          cd flauz && node build/npm/preinstall.ts && npm install
+          # while root divergence = 0 the upstream tree may share node_modules;
+          # if the link ever breaks a future lockfile divergence, install there too
+          if [ ! -d ../upstream/node_modules ]; then
+            ln -s "$(pwd)/node_modules" ../upstream/node_modules
+          fi
+
+      - name: Setup Electron (cached, shared by both trees)
+        uses: ./flauz/.github/actions/setup-electron
+        with:
+          arch: x64
+          save-cache: true
+
+      - name: Compile flauz tree
+        run: cd flauz && npm run compile
+
+      - name: Compile upstream tree
+        run: cd upstream && npm run compile
+
+      - name: Start X server
+        run: |
+          sudo cp flauz/build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb
+          sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults
+          sudo service xvfb start
+
+      # ---- the pair: N runs each side, same runner, alternating order ----
+      # Boot shape mirrors the upstream startup-verify invocation
+      # (build/azure-pipelines/darwin/product-build-darwin-universal.yml:182-189):
+      # fresh --user-data-dir per run (standard-start verdict), stock built-in
+      # extensions enabled (PERF §1.1 baseline includes built-ins), telemetry
+      # disabled, self-exiting via --prof-append-timers.
+      # The duration-markers list asserts the PERF §1.3/§6.2 pairs (budgets live
+      # in build/flauz/scripts/startup-pair.mjs — single source of truth).
+
+      - name: Run perf pair (N x flauz + N x upstream, interleaved)
+        run: |
+          set -e
+          cd "$GITHUB_WORKSPACE"
+          N="${FLAUZ_PERF_RUNS:-10}"
+          MARKERS="code/didStartRenderer-code/didStartWorkbench"
+          MARKERS="$MARKERS,code/flauz/willConnectCore-code/flauz/didConnectCore"
+          MARKERS="$MARKERS,code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants"
+          MARKERS="$MARKERS,code/flauz/willWarmModels-code/flauz/didWarmModels"
+          TIMERS_FLAUZ="$GITHUB_WORKSPACE/artifacts/flauz.timers.tsv"
+          TIMERS_UP="$GITHUB_WORKSPACE/artifacts/upstream.timers.tsv"
+          MK_FLAUZ="$GITHUB_WORKSPACE/artifacts/flauz.markers.tsv"
+          MK_UP="$GITHUB_WORKSPACE/artifacts/upstream.markers.tsv"
+          mkdir -p artifacts run/flauz run/upstream
+          for i in $(seq 1 "$N"); do
+            echo "::group::run $i/$N flauz"
+            DISPLAY=:10 ./flauz/scripts/code.sh \
+              --prof-append-timers "$TIMERS_FLAUZ" \
+              --prof-duration-markers "$MARKERS" \
+              --prof-duration-markers-file "$MK_FLAUZ" \
+              --user-data-dir "$GITHUB_WORKSPACE/run/flauz/userdata-$i" \
+              --extensions-dir "$GITHUB_WORKSPACE/run/flauz/exts-$i" \
+              --disable-telemetry --skip-welcome --skip-release-notes \
+              --disable-updates --disable-experiments --disable-workspace-trust
+            echo "::endgroup::"
+            echo "::group::run $i/$N upstream"
+            DISPLAY=:10 ./upstream/scripts/code.sh \
+              --prof-append-timers "$TIMERS_UP" \
+              --prof-duration-markers "$MARKERS" \
+              --prof-duration-markers-file "$MK_UP" \
+              --user-data-dir "$GITHUB_WORKSPACE/run/upstream/userdata-$i" \
+              --extensions-dir "$GITHUB_WORKSPACE/run/upstream/exts-$i" \
+              --disable-telemetry --skip-welcome --skip-release-notes \
+              --disable-updates --disable-experiments --disable-workspace-trust
+            echo "::endgroup::"
+          done
+          echo "--- flauz timers ---"; cat "$TIMERS_FLAUZ" || true
+          echo "--- upstream timers ---"; cat "$TIMERS_UP" || true
+          echo "--- flauz markers ---"; cat "$MK_FLAUZ" || true
+          echo "--- upstream markers ---"; cat "$MK_UP" || true
+
+      - name: Assert PERF §1.3 budgets (TSV diff + duration markers)
+        run: |
+          node flauz/build/flauz/scripts/startup-pair.mjs \
+            --timers-flauz artifacts/flauz.timers.tsv \
+            --timers-upstream artifacts/upstream.timers.tsv \
+            --markers-flauz artifacts/flauz.markers.tsv \
+            --markers-upstream artifacts/upstream.markers.tsv
+
+      - name: Upload perf-pair artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-perf-pair
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+
+  memory-snapshot:
+    name: Memory snapshot (§3.2 — Eventually + after scripted session)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Flauz ref
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Restore node_modules cache
+        uses: ./.github/actions/restore-node-modules
+        with:
+          key-prefix: node_modules-linux
+          key-args: "linux x64 $(node -p process.arch)"
+
+      - name: Install build tools + X server
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install dependencies
+        run: node build/npm/preinstall.ts && npm install
+
+      - name: Setup Electron
+        uses: ./.github/actions/setup-electron
+        with:
+          arch: x64
+          save-cache: true
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Start X server
+        run: |
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb
+          sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults
+          sudo service xvfb start
+
+      # ---- capture (a): snapshot during the Eventually window ----
+      # A --prof-append-timers run self-exits after its 15s telemetry wait
+      # (startupTimings.ts:80-83). Eventually lands >= 2.5s after Restored,
+      # idle-gated (PERF §1.1) — well inside the window. We snapshot the
+      # process tree with ps(1) at t=12s and assert §3.2 on it.
+
+      - name: Capture process snapshot at LifecyclePhase.Eventually
+        run: |
+          set -e
+          mkdir -p artifacts
+          DISPLAY=:10 ./scripts/code.sh \
+            --prof-append-timers artifacts/eventually-session.timers.tsv \
+            --user-data-dir "$RUNNER_TEMP/flauz-mem-userdata" \
+            --extensions-dir "$RUNNER_TEMP/flauz-mem-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust &
+          APP_PID=$!
+          sleep 12
+          ps -eo pid,ppid,rss,pcpu,args > artifacts/eventually.ps.txt
+          wait $APP_PID || true
+          echo "--- captured $(grep -c . artifacts/eventually.ps.txt) ps rows ---"
+
+      - name: Assert §3.2 memory budgets (Eventually snapshot)
+        run: |
+          if grep -q 'flauz' artifacts/eventually.ps.txt; then
+            node build/flauz/scripts/memory-snapshot.mjs \
+              --ps artifacts/eventually.ps.txt --scenario eventually
+          else
+            echo "no flauz-classified processes in the snapshot (lanes F/G not merged);"
+            echo "uploading as STOCK ABSOLUTE BASELINE for PERF §8 q1/q3 (documented skip of §3.2 asserts)."
+            cp artifacts/eventually.ps.txt artifacts/stock-baseline-eventually.ps.txt
+          fi
+
+      # ---- capture (b): after a scripted agent session ----
+      # The scripted session rides the same driver as the C-23 canary
+      # (build/flauz/canaries/C-23.md — AHP session via the flauz provider).
+      # Until lane F lands extensions/flauz-agent this is a documented skip.
+
+      - name: Capture process snapshot after a scripted agent session
+        run: |
+          set -e
+          if [ ! -d extensions/flauz-agent ]; then
+            echo "extensions/flauz-agent not present (lane F in flight) — after-session capture skipped (documented)."
+            exit 0
+          fi
+          # Session driver per build/flauz/canaries/C-23.md §steps (chat request ->
+          # tool call -> idle): boots the app, drives one agent exchange, idles 10min
+          # per §3.2 eviction policy window, then the harness snapshots ps again.
+          echo "after-session driver lands with lane F (canary C-23 shared harness);"
+          echo "until then this step is the documented placeholder that keeps the job honest."
+          exit 0
+
+      - name: Upload memory artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-memory-snapshot
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 30

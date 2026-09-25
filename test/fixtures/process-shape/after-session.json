@@ -1,0 +1,167 @@
+{
+  "pidToNames": [
+    [
+      2003,
+      "shared-process"
+    ],
+    [
+      2004,
+      "pty-host"
+    ],
+    [
+      2005,
+      "watcher"
+    ],
+    [
+      2006,
+      "agent-host"
+    ],
+    [
+      2007,
+      "extensionHost"
+    ],
+    [
+      2008,
+      "extensionHost"
+    ],
+    [
+      2009,
+      "flauz-core"
+    ],
+    [
+      2010,
+      "browserView renderer [pane-1]"
+    ],
+    [
+      2011,
+      "browserView renderer [pane-2]"
+    ],
+    [
+      2012,
+      "claude-agent-session"
+    ],
+    [
+      2013,
+      "codex-agent-session"
+    ]
+  ],
+  "processes": [
+    {
+      "name": "Local",
+      "rootProcess": {
+        "name": "flauz",
+        "cmd": "code",
+        "pid": 2000,
+        "ppid": 1,
+        "load": 0.0,
+        "mem": 312,
+        "children": [
+          {
+            "name": "window [1] (Flauz)",
+            "cmd": "code --type=renderer",
+            "pid": 2001,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 455
+          },
+          {
+            "name": "gpu-process",
+            "cmd": "code --type=gpu-process",
+            "pid": 2002,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 141
+          },
+          {
+            "name": "shared-process",
+            "cmd": "code --type=utility",
+            "pid": 2003,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 195
+          },
+          {
+            "name": "pty-host",
+            "cmd": "code --type=utility --utility-sub-type=pty",
+            "pid": 2004,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 52
+          },
+          {
+            "name": "watcher",
+            "cmd": "code --type=utility --utility-sub-type=watcher",
+            "pid": 2005,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 38
+          },
+          {
+            "name": "agent-host",
+            "cmd": "code --type=utility --utility-sub-type=agentHost",
+            "pid": 2006,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 260
+          },
+          {
+            "name": "extensionHost",
+            "cmd": "code --type=utility --utility-sub-type=extensionHost",
+            "pid": 2007,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 182
+          },
+          {
+            "name": "extensionHost",
+            "cmd": "code --type=utility --utility-sub-type=extensionHost affinity=1",
+            "pid": 2008,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 178
+          },
+          {
+            "name": "flauz-core",
+            "cmd": "code --type=utility --utility-sub-type=flauzCore",
+            "pid": 2009,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 140
+          },
+          {
+            "name": "browserView renderer [pane-1]",
+            "cmd": "code --type=renderer --browser-view",
+            "pid": 2010,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 55
+          },
+          {
+            "name": "browserView renderer [pane-2]",
+            "cmd": "code --type=renderer --browser-view",
+            "pid": 2011,
+            "ppid": 2000,
+            "load": 0.0,
+            "mem": 50
+          },
+          {
+            "name": "claude-agent-session",
+            "cmd": "claude-agent-sdk run --session abc",
+            "pid": 2012,
+            "ppid": 2006,
+            "load": 0.0,
+            "mem": 40
+          },
+          {
+            "name": "codex-agent-session",
+            "cmd": "codex-agent-sdk run --session def",
+            "pid": 2013,
+            "ppid": 2006,
+            "load": 0.0,
+            "mem": 35
+          }
+        ]
+      }
+    }
+  ]
+}

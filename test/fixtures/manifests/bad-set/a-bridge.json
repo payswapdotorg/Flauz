@@ -1,0 +1,16 @@
+{
+  "name": "agent-bridge",
+  "publisher": "flauz",
+  "version": "0.1.0",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configurationDefaults": {
+      "extensions.experimental.affinity": {
+        "flauz.agent-bridge": 1
+      }
+    }
+  }
+}
