@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Flauz product overlay (product.flauz.json)",
+  "description": "Schema for the Flauz product overlay consumed by build/flauz/merge-product.mjs. The overlay is merged onto the upstream Code OSS product.json with null-deletes semantics: an explicit JSON null DELETES the key from the merged product (e.g. \"defaultChatAgent\": null removes the Copilot setup/entitlement wiring), plain objects merge recursively, arrays and scalars replace wholesale. v0 is permissive (additionalProperties: true) — unknown keys pass through the merge but are warned about on stderr by the merger because the pinned upstream tree (9bf9ae764da) has no IProductConfiguration consumer for them. See build/flauz/README.md for the key-by-key rationale and canaries/default-agent-checklist.md for the runtime posture.",
+  "type": "object",
+  "properties": {
+    "nameShort": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Product short name (IProductConfiguration.nameShort, src/vs/base/common/product.ts:105). Rebrands the IDE identity (window titles, about dialog)."
+    },
+    "nameLong": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Product long name (IProductConfiguration.nameLong, src/vs/base/common/product.ts:106)."
+    },
+    "version": {
+      "type": "string",
+      "description": "NOT a key of the shipped upstream product.json — upstream stamps version at build time from package.json (build/gulpfile.vscode.ts:176-205). Included in the overlay per the v0 work-order spec; flagged as DL-18 (version stamping conflict) — CI must reconcile this value with the build stamping."
+    },
+    "extensionEnabledApiProposals": {
+      "type": "object",
+      "description": "Force-enables API proposals for extensions by \"publisher.name\" key (case-insensitive). The product list REPLACES the extension's own package.json declaration (src/vs/workbench/services/extensions/common/extensionsProposedApi.ts:80-102). This is the DL-4 pattern: enable proposed APIs for trusted Flauz built-ins via product overlay, zero promotion/fork.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of API proposal names (unknown names are silently dropped with a log warning by extensionsProposedApi.ts:46-52)."
+      }
+    },
+    "defaultChatAgent": {
+      "type": ["object", "null"],
+      "description": "The upstream Copilot default-agent product block (product.json:90-157; IDefaultChatAgent at src/vs/base/common/product.ts). In the Flauz overlay this is ALWAYS null, which the merger translates into a key DELETION: the merged product has no defaultChatAgent, which no-ops the whole Copilot setup/entitlement stack (src/vs/workbench/services/chat/common/chatEntitlementService.ts:458-460) so that the statically-contributed flauz.agent participant becomes the sole default chat agent. See canaries/default-agent-checklist.md (D1-D11) for every surface this touches."
+    }
+  },
+  "additionalProperties": true
+}

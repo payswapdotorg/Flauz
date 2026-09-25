@@ -1,0 +1,32 @@
+{
+        "name": "flauz-models",
+        "publisher": "flauz",
+        "displayName": "Flauz Models",
+        "description": "Flauz model vendor pack: deterministic flauz-mock echo language model chat provider plus design-only vendor adapter stubs (Wave 3 Lane F).",
+        "version": "0.1.0",
+        "type": "module",
+        "private": true,
+        "engines": {
+                "vscode": "^1.140.0"
+        },
+        "activationEvents": [
+                "onLanguageModelChatProvider:flauz-mock"
+        ],
+        "main": "./dist/extension.js",
+        "enabledApiProposals": [],
+        "contributes": {
+                "languageModelChatProviders": [
+                        {
+                                "vendor": "flauz-mock",
+                                "displayName": "Flauz Mock"
+                        }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "test": "node --test test/*.test.ts"
+        },
+        "devDependencies": {
+                "typescript": "^5.9.0"
+        }
+}
