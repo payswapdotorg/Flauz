@@ -74,7 +74,7 @@ declare module 'node:test' {
 }
 
 declare module 'node:assert' {
-        export function ok(value: unknown, message?: string): void;
+        export function ok(value: unknown, message?: string): asserts value;
         export function equal(actual: unknown, expected: unknown, message?: string): void;
         export function strictEqual(actual: unknown, expected: unknown, message?: string): void;
         export function notStrictEqual(actual: unknown, expected: unknown, message?: string): void;
@@ -109,7 +109,11 @@ declare const console: {
 };
 
 /** Minimal WHATWG URL surface used for module-path resolution. */
-declare const URL: new (input: string, base?: string) => { readonly href: string; readonly pathname: string };
+declare class URL {
+        constructor(input: string, base?: string);
+        readonly href: string;
+        readonly pathname: string;
+}
 
 interface ImportMeta {
         readonly url: string;
