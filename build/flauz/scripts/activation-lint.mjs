@@ -74,7 +74,12 @@ const ALLOWED_EVENT_PATTERNS = [
         /^onTaskType:flauz\.[A-Za-z0-9._-]*\*?$/,
         /^onLanguageModelChatProvider:[A-Za-z0-9._-]+$/,
 ];
-const DEFAULT_STARTUP_ALLOWED = ['flauz.agent-bridge', 'flauz.workspace'];
+// 2026-09-26 first-CI fix: the allowed list must carry the REAL extension ids
+// as shipped (publisher 'flauz' + manifest name) and adjudicated in DL-19 —
+// flauz.flauz-agent (the Agent Bridge) and flauz.flauz-workspace. The PERF
+// plan's conceptual ids (flauz.agent-bridge / flauz.workspace) never existed
+// in any manifest.
+const DEFAULT_STARTUP_ALLOWED = ['flauz.flauz-agent', 'flauz.flauz-workspace'];
 const DEFAULT_MAX_STARTUP = 2;
 const AFFINITY_SETTING = 'extensions.experimental.affinity';
 const AFFINITY_KEY_RE = /^flauz\.[a-z0-9-]+$/;
@@ -282,12 +287,12 @@ function main() {
         // R7 bridge pinned
         const pinnedIds = new Set(affinityEntries.map(a => a.key));
         for (const id of bridgeIdsPresent) {
-                if (/agent-bridge/.test(id) && !pinnedIds.has(id)) {
+                if (/flauz[.-]agent/.test(id) && !pinnedIds.has(id)) {
                         warn(`R7 bridge id '${id}' present but not pinned via ${AFFINITY_SETTING} — pinning is flauz-defaults config (PERF §7 R1); CI canary asserts the 'Placing extension(s) … on a separate extension host.' log line.`);
                 }
         }
         if (pinnedIds.size > 0) {
-                const unpinned = [...bridgeIdsPresent].filter(id => !pinnedIds.has(id) && !/agent-bridge/.test(id));
+                const unpinned = [...bridgeIdsPresent].filter(id => !pinnedIds.has(id) && !/flauz[.-]agent/.test(id));
                 if (unpinned.length) { report.push(`INFO  flauz ids not affinity-pinned (by design?): ${unpinned.join(', ')}`); }
         }
 
