@@ -22,35 +22,35 @@ export const Uri = mock.vscode.Uri;
 export const RelativePattern = mock.vscode.RelativePattern;
 
 export function __configure(patch: Partial<MockVscodeState>): void {
-        if ('workspaceFolders' in patch) {
-                mock.state.workspaceFolders = patch.workspaceFolders;
-        }
-        if (patch.fsFiles !== undefined) {
-                mock.state.fsFiles = patch.fsFiles;
-        }
-        if (patch.inputBoxResponse !== undefined) {
-                mock.state.inputBoxResponse = patch.inputBoxResponse;
-        }
+	if ('workspaceFolders' in patch) {
+		mock.state.workspaceFolders = patch.workspaceFolders;
+	}
+	if (patch.fsFiles !== undefined) {
+		mock.state.fsFiles = patch.fsFiles;
+	}
+	if (patch.inputBoxResponse !== undefined) {
+		mock.state.inputBoxResponse = patch.inputBoxResponse;
+	}
 }
 
 export function __state(): MockVscodeState {
-        return mock.state;
+	return mock.state;
 }
 
 export function __reset(patch: Partial<MockVscodeState> = {}): void {
-        // Presence-checked assignment (NOT ??): an explicit undefined in the patch
-        // clears the field; an absent key restores the default.
-        mock.state.workspaceFolders = 'workspaceFolders' in patch
-                ? patch.workspaceFolders
-                : [{ uri: { fsPath: '/ws/acme', scheme: 'file', toString: () => 'file:///ws/acme' }, name: 'acme', index: 0 }];
-        mock.state.fsFiles = patch.fsFiles ?? new Map<string, string>();
-        mock.state.createdDirectories = [];
-        mock.state.writtenFiles = [];
-        mock.state.watchers = [];
-        mock.state.commands = [];
-        mock.state.outputChannels = [];
-        mock.state.openedDocuments = [];
-        mock.state.shownDocuments = [];
-        mock.state.messages = [];
-        mock.state.inputBoxResponse = patch.inputBoxResponse;
+	// Presence-checked assignment (NOT ??): an explicit undefined in the patch
+	// clears the field; an absent key restores the default.
+	mock.state.workspaceFolders = 'workspaceFolders' in patch
+		? patch.workspaceFolders
+		: [{ uri: { fsPath: '/ws/acme', scheme: 'file', toString: () => 'file:///ws/acme' }, name: 'acme', index: 0 }];
+	mock.state.fsFiles = patch.fsFiles ?? new Map<string, string>();
+	mock.state.createdDirectories = [];
+	mock.state.writtenFiles = [];
+	mock.state.watchers = [];
+	mock.state.commands = [];
+	mock.state.outputChannels = [];
+	mock.state.openedDocuments = [];
+	mock.state.shownDocuments = [];
+	mock.state.messages = [];
+	mock.state.inputBoxResponse = patch.inputBoxResponse;
 }
