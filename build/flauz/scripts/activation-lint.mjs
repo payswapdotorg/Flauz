@@ -100,7 +100,7 @@ Options:
 	--allow-event <regex>    extra allowed activation event (repeatable; cite a PERF amendment)
 	--max-startup <n>        max flauz extensions on onStartupFinished (default ${DEFAULT_MAX_STARTUP})
 	--startup-allowed <ids>  comma-separated ids allowed on onStartupFinished
-						   (default ${DEFAULT_STARTUP_ALLOWED.join(',')})
+							(default ${DEFAULT_STARTUP_ALLOWED.join(',')})
 	--max-affinity-slots <n> max distinct positive affinity value (default 1 — one pinned host, DL-5)
 	--require-manifests      fail when zero manifests are found (default: SKIP notice, exit 0)
 	--json                   emit a machine-readable verdict block
