@@ -131,19 +131,14 @@ jobs:
 
       - name: Install dependencies (flauz tree; upstream tree shares the lockfile)
         run: |
+          # 2026-09-26 first-CI fix (round 5): symlink-sharing node_modules between
+          # the trees is NOT enough — the build needs the per-repo DISTRO
+          # (.build/distro/npm/node_modules: gulp-merge-json etc.) which materializes
+          # only via each tree's own preinstall+npm install. Install BOTH trees
+          # (upstream's own CI installs per-tree; the shared lockfile makes the
+          # second install fast and cache-friendly).
           cd flauz && node build/npm/preinstall.ts && npm install
-          # while root divergence = 0 the upstream tree may share node_modules;
-          # if the link ever breaks a future lockfile divergence, install there too
-          if [ ! -d ../upstream/node_modules ]; then
-            ln -s "$(pwd)/node_modules" ../upstream/node_modules
-          fi
-          # 2026-09-26 first-CI fix: extensions/copilot has its OWN node_modules
-          # (esbuild devDep; root postinstall installs it per-dir). The upstream
-          # tree's compile-copilot needs the same — share it while divergence=0.
-          mkdir -p ../upstream/extensions/copilot
-          if [ ! -e ../upstream/extensions/copilot/node_modules ]; then
-            ln -s "$(pwd)/extensions/copilot/node_modules" ../upstream/extensions/copilot/node_modules
-          fi
+          cd ../upstream && node build/npm/preinstall.ts && npm install
 
       # 2026-09-26 first-CI fix: setup-electron composite also assumes repo-at-root
       # (npm run electron + hashFiles('.npmrc',...)); inlined with flauz/ dirs.
