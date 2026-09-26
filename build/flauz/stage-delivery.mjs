@@ -24,17 +24,17 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 
 function parseArgs(argv) {
-        const options = { out: join(repoRoot, 'flauz-delivery', 'f-agent-bridge'), base: '9bf9ae764da438b1234a8243dc9e47173ef58ee7' };
-        for (let i = 0; i < argv.length; i += 2) {
-                if (argv[i] === '--out') {
-                        options.out = argv[i + 1];
-                } else if (argv[i] === '--base') {
-                        options.base = argv[i + 1];
-                } else {
-                        throw new Error(`unknown argument: ${argv[i]}`);
-                }
-        }
-        return options;
+		const options = { out: join(repoRoot, 'flauz-delivery', 'f-agent-bridge'), base: '9bf9ae764da438b1234a8243dc9e47173ef58ee7' };
+		for (let i = 0; i < argv.length; i += 2) {
+				if (argv[i] === '--out') {
+						options.out = argv[i + 1];
+				} else if (argv[i] === '--base') {
+						options.base = argv[i + 1];
+				} else {
+						throw new Error(`unknown argument: ${argv[i]}`);
+				}
+		}
+		return options;
 }
 
 const { out, base } = parseArgs(process.argv.slice(2));
@@ -44,24 +44,24 @@ const files = diff.split('\n').map((line) => line.trim()).filter((line) => line.
 
 let copied = 0;
 for (const file of files) {
-        const source = join(repoRoot, file);
-        const target = join(out, file);
-        if (!existsSync(source) || !statSync(source).isFile()) {
-                continue;
-        }
-        mkdirSync(dirname(target), { recursive: true });
-        copyFileSync(source, target);
-        copied += 1;
+		const source = join(repoRoot, file);
+		const target = join(out, file);
+		if (!existsSync(source) || !statSync(source).isFile()) {
+				continue;
+		}
+		mkdirSync(dirname(target), { recursive: true });
+		copyFileSync(source, target);
+		copied += 1;
 }
 
 const manifestLines = [];
 for (const file of files) {
-        const source = join(repoRoot, file);
-        if (!existsSync(source) || !statSync(source).isFile()) {
-                continue;
-        }
-        const sha256 = hashFile(source);
-        manifestLines.push(`${sha256}  ${file}`);
+		const source = join(repoRoot, file);
+		if (!existsSync(source) || !statSync(source).isFile()) {
+				continue;
+		}
+		const sha256 = hashFile(source);
+		manifestLines.push(`${sha256}  ${file}`);
 }
 manifestLines.sort((a, b) => (a.slice(66) < b.slice(66) ? -1 : a.slice(66) > b.slice(66) ? 1 : 0));
 writeFileSync(join(out, 'MANIFEST.txt'), `${manifestLines.join('\n')}\n`);
@@ -69,5 +69,5 @@ writeFileSync(join(out, 'MANIFEST.txt'), `${manifestLines.join('\n')}\n`);
 console.log(`staged ${copied} delta files into ${relative(repoRoot, out)} (baseline ${base.slice(0, 12)})`);
 
 function hashFile(path) {
-        return createHash('sha256').update(readFileSync(path)).digest('hex');
+		return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
