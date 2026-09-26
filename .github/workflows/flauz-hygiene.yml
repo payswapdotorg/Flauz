@@ -118,7 +118,13 @@ jobs:
         # but the event loop has already resolved') — an upstream flake class, not
         # Flauz-relevant (our delta never touches build/standalone). Re-add only with
         # a DECISION-LOG entry if upstream stabilizes them.
-        run: npm exec -- npm-run-all2 -lp core-ci hygiene eslint valid-layers-check define-class-fields-check vscode-dts-compile-check tsec-compile-check
+        # 2026-09-26: SERIALIZED (-lp -> -l). Four consecutive runner shutdowns
+        # (exit 143, 'runner has received a shutdown signal') landed 1-2 minutes
+        # into tsgo-typecheck -- the single most CPU/RAM-heavy phase of the
+        # 7-way PARALLEL pipeline on a shared public runner. Sequential execution
+        # keeps the task set and order identical (upstream pr.yml fidelity) while
+        # capping peak resource pressure at one TS pipeline at a time.
+        run: npm exec -- npm-run-all2 -l core-ci hygiene eslint valid-layers-check define-class-fields-check vscode-dts-compile-check tsec-compile-check
 
       # ---- Flauz unit subset: only the tests touching Flauz dirs ----
       # Discovery is glob-driven (never a hardcoded list): compiled test files

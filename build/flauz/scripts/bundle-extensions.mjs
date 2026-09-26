@@ -43,7 +43,7 @@ function usage(exit) {
 		'',
 		'options:',
 		'\t--root <dir>    repository root (default: two levels up from this script)',
-		'\t--esbuild <p>   esbuild bin shim path (default: <root>/node_modules/esbuild/bin/esbuild)',
+		'\t--esbuild <p>   esbuild bin path (default: searched in node_modules + build/node_modules + .bin)',
 		'\t--verify        skip building; assert every flauz extension main exists on disk',
 		'\t--help          this text',
 		'',
@@ -110,9 +110,19 @@ function main() {
 		console.log(`bundle-extensions --verify: all ${found.length} main target(s) present`);
 		process.exit(0);
 	}
-	const esbuildBin = opts.esbuild || path.join(opts.root, 'node_modules', 'esbuild', 'bin', 'esbuild');
-	if (!fs.existsSync(esbuildBin)) {
-		console.error(`bundle-extensions: esbuild not found at ${esbuildBin}`);
+	// esbuild resolution: the repo declares it in build/package.json (materialized
+	// at build/node_modules by the per-dir install), while sandbox/other layouts may
+	// have it at the root or as an .bin shim -- try each in order.
+	const candidates = [
+		opts.esbuild,
+		path.join(opts.root, 'node_modules', 'esbuild', 'bin', 'esbuild'),
+		path.join(opts.root, 'build', 'node_modules', 'esbuild', 'bin', 'esbuild'),
+		path.join(opts.root, 'node_modules', '.bin', 'esbuild'),
+	].filter(Boolean);
+	const esbuildBin = candidates.find(c => fs.existsSync(c));
+	if (!esbuildBin) {
+		console.error('bundle-extensions: esbuild not found; looked at:');
+		for (const c of candidates) { console.error('  ' + c); }
 		console.error('(expected after the repo npm install; pass --esbuild <path> to override)');
 		process.exit(1);
 	}
