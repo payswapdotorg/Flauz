@@ -22,7 +22,7 @@
  *  reachable at HEAD. Per DL-4 (built-ins may use proposed APIs, zero promotion, no
  *  workarounds) the blocked path returns {checkpointRef: null} and records a gap row
  *  in the evidence ledger instead of faking a reference. Promotion proposals for a
- *  real out-of-band surface live in REPORT §DECISION-LOG-PROPOSALS (DL-17).
+ *  real out-of-band surface live in REPORT section DECISION-LOG-PROPOSALS (DL-17).
  *
  *  Decision matrix:
  *    - 'verified'  — platform-issued snapshot confirmed by the platform itself.

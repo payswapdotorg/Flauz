@@ -1,11 +1,15 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Artifact persistence for the Flauz Agent Bridge (F side).
  *
  * Tool outputs are written under `<workspaceRoot>/.flauz/artifacts/<taskId>/`
  * and hashed; the ledger row then references the workspace-relative URI plus
- * the sha256 (seam contract §H `appendEvidence`). The artifacts directory
+ * the sha256 (seam contract section H `appendEvidence`). The artifacts directory
  * choice is a documented v0 contract interpretation (REPORT
- * §CONTRACT-DEVIATIONS).
+ * section CONTRACT-DEVIATIONS).
  */
 
 import { createHash } from 'node:crypto';

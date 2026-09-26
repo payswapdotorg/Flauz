@@ -8,7 +8,7 @@
  *  'vscode' and node builtins at runtime.
  *
  *  Build note: `main` points at ./out/extension.js, produced by the upstream
- *  built-in-extension compile (CI-side per MIGRATION-PLAN §5 — never built in this
+ *  built-in-extension compile (CI-side per MIGRATION-PLAN section 5 — never built in this
  *  sandbox). Local verification is tsc --noEmit + node --test over src/ + test/.
  *--------------------------------------------------------------------------------------------*/
 

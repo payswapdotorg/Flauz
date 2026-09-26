@@ -1,8 +1,8 @@
-// PROVENANCE: copied verbatim from src/vscode-dts/vscode.d.ts @ 9bf9ae764da438b1234a8243dc9e47173ef58ee7 (github.com/payswapdotorg/Flauz pristine mirror of microsoft/vscode). Only this PROVENANCE line was added. Do not edit.
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+// PROVENANCE: copied verbatim from src/vscode-dts/vscode.d.ts @ 9bf9ae764da438b1234a8243dc9e47173ef58ee7 (github.com/payswapdotorg/Flauz pristine mirror of microsoft/vscode). Only this PROVENANCE line was added. Do not edit.
 
 declare module 'vscode' {
 

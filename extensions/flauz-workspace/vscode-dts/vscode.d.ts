@@ -1,8 +1,8 @@
-// PROVENANCE: copied verbatim from src/vscode-dts/vscode.d.ts @ 9bf9ae764da438b1234a8243dc9e47173ef58ee7 (mirror: github.com/payswapdotorg/Flauz). This PROVENANCE line is the only addition; byte-identity of the remainder is verified via diff (receipt in REPORT.md). Vendored so the extension typechecks standalone without building the workbench (DL-12 additive path; sandbox discipline forbids upstream builds).
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+// PROVENANCE: copied verbatim from src/vscode-dts/vscode.d.ts @ 9bf9ae764da438b1234a8243dc9e47173ef58ee7 (mirror: github.com/payswapdotorg/Flauz). This PROVENANCE line is the only addition; byte-identity of the remainder is verified via diff (receipt in REPORT.md). Vendored so the extension typechecks standalone without building the workbench (DL-12 additive path; sandbox discipline forbids upstream builds).
 
 declare module 'vscode' {
 

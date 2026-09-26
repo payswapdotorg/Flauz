@@ -4,7 +4,7 @@
  *  The command seam. Seven contract commands (createTask / appendEvent / listTasks /
  *  getTask / appendEvidence / createCheckpoint / verifyLedger) plus one additive
  *  command (openEvidence) required by the SCM artifact mapping — see REPORT
- *  §CONTRACT-DEVIATIONS. Worker F's runtime calls these via vscode.commands;
+ *  section CONTRACT-DEVIATIONS. Worker F's runtime calls these via vscode.commands;
  *  illegal transitions raise Errors whose messages list the allowed source statuses.
  *
  *  Handlers are pure with respect to vscode (typed via `import type`); registration

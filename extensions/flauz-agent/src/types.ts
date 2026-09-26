@@ -1,9 +1,13 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Shared seam types for the Flauz Agent Bridge (F side).
  *
  * The transition/ledger logic itself lives in `core/contracts.mjs` (G side);
  * these types mirror the wire shapes so both sides compile against one
- * description of the seam contract §H.
+ * description of the seam contract section H.
  */
 
 export type TaskStatus =

@@ -1,6 +1,10 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * STUB — design shape only (Wave 3 Lane F): no network calls, no registration,
- * no entitlement. Real adapters are future work (see REPORT §GAPS-AND-SKIPS).
+ * no entitlement. Real adapters are future work (see REPORT section GAPS-AND-SKIPS).
  *
  * This literal describes the registration a future flauz-claude adapter WOULD
  * make (vendor + displayName + models + pricing envelope). Nothing in v0

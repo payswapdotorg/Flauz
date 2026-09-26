@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Runtime stand-in for the real 'vscode' module. vscode-redirect.ts rewrites
  * every runtime import of the specifier 'vscode' to THIS file (node:module

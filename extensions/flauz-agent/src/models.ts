@@ -1,7 +1,11 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Model selection for the Flauz Agent Bridge.
  *
- * PERF-PLAN §2.2: warming is ONE `selectChatModels` call — no requests, no
+ * PERF-PLAN section 2.2: warming is ONE `selectChatModels` call — no requests, no
  * heavy work. Vendor preference puts the flauz-mock vendor first (the
  * flauz-models vendor pack) so CI runs deterministic; other vendors follow.
  * The "no models available" state is handled gracefully per the stable-API

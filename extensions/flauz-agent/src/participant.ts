@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * The `flauz.agent` chat participant (DL-3: Flauz's own participant, not a
  * Copilot fork). The participant itself is contributed STATICALLY in

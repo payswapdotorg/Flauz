@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Redirects runtime imports of the 'vscode' module to the test harness mock
  * (./vscode-mock-module.ts) using node:module registerHooks, so that

@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * F-side client for the Flauz workspace seam service (`core/service.mjs`).
  *
@@ -191,7 +195,7 @@ export class SeamClient {
                 });
         }
 
-        // --- Typed convenience wrappers over the command seam (§H) ---
+        // --- Typed convenience wrappers over the command seam (section H) ---
 
         createTask(title: string): Promise<CreateTaskResult> {
                 return this.request<CreateTaskResult>('flauz.workspace.createTask', { title });

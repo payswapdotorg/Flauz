@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * The Flauz golden-path orchestrator (F side).
  *
@@ -13,8 +17,8 @@
  *           -> verify-pass(tool, ledger hash-chain check)
  *           -> sign-off(human, via /sign-off chat turn) -> done
  *
- * v0 simplifications (documented in REPORT §CONTRACT-DEVIATIONS /
- * §GAPS-AND-SKIPS): one active task per orchestrator instance (no chat
+ * v0 simplifications (documented in REPORT section CONTRACT-DEVIATIONS /
+ * section GAPS-AND-SKIPS): one active task per orchestrator instance (no chat
  * history persistence), plan text is deterministic (model attribution only,
  * no sendRequest), and the plan/refinement turn model is minimal.
  */

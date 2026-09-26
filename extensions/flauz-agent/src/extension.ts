@@ -1,10 +1,14 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Flauz Agent Bridge — extension entry point (activation wiring).
  *
- * PERF-PLAN §1.2/§2.1: activation is `onStartupFinished` + two narrow
+ * PERF-PLAN section 1.2/section 2.1: activation is `onStartupFinished` + two narrow
  * `onCommand:flauz.*` events (never `*`). The activation sequence emits the
  * documented marks, in order (timerService only aggregates `code/`-prefixed
- * marks, PERFORMANCE-PLAN §6.2):
+ * marks, PERFORMANCE-PLAN section 6.2):
  *
  *   code/flauz/willConnectCore      -> fork core/service.mjs (hello/ready)
  *   code/flauz/didConnectCore
@@ -29,9 +33,9 @@ import { registerParticipant, PARTICIPANT_ID } from './participant.ts';
 let activeSeam: SeamClient | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-	// PERF §1.3 row 5: the bridge-activation budget pair (added at first-CI
+	// PERF section 1.3 row 5: the bridge-activation budget pair (added at first-CI
 	// integration — the startup-pair gate requires an emit site for every
-	// budgeted mark, PERF §6.3/R6).
+	// budgeted mark, PERF section 6.3/R6).
 	mark(FlauzMarks.willActivateBridge);
 	try {
 		await activateInner(context);

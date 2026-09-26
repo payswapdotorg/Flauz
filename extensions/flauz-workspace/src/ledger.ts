@@ -2,7 +2,7 @@
  *  flauz-workspace — src/ledger.ts
  *
  *  Append-only, hash-chained evidence ledger at `.flauz/evidence/ledger.jsonl`
- *  (SECURITY-MODEL §3.3). Each stored line is the canonical JSON (sorted keys, no
+ *  (SECURITY-MODEL section 3.3). Each stored line is the canonical JSON (sorted keys, no
  *  whitespace) of exactly the 7 contract fields:
  *
  *      {"seq":N,"ts":ms,"taskId":...,"kind":...,"uri":...,"sha256":...,"prev":...}
@@ -13,7 +13,7 @@
  *
  *  v0 scope: hash chain only — no signatures, no compaction, single-writer assumption.
  *  A truncated tail (deleted last rows) is NOT detectable by the chain itself; see
- *  README "Ledger v0 scope" and REPORT §LEDGER-V0-SCOPE. Signature hook = Wave-4.
+ *  README "Ledger v0 scope" and REPORT section LEDGER-V0-SCOPE. Signature hook = Wave-4.
  *--------------------------------------------------------------------------------------------*/
 
 import {
