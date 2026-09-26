@@ -106,6 +106,12 @@ jobs:
         run: node build/npm/electronTypes.ts
 
       - name: Compile & Hygiene (upstream pipeline line, pr.yml)
+        env:
+          # 2026-09-26: DL-20's narrow exception ACTIVATED — the auto-provided
+          # workflow token lifts api.github.com rate limits on the ripgrep-prebuilt
+          # release fetch (the 403 class observed in the round-7 canary flake).
+          # Auto-token only; nothing configured in the repo (no-secrets policy holds).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # 2026-09-26 first-CI fix: test-build-scripts dropped from the Flauz gate —
         # upstream's standalone-build tests (next/test/*.test.ts) fail on public
         # ubuntu-latest runners under node 24 ('Promise resolution is still pending
