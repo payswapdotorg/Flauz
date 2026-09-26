@@ -1,0 +1,98 @@
+{
+	"$schema": "flauz.connectionPlan/v0",
+	"agentHost": {
+		"mode": "remote-proxy",
+		"treeRef": "src/vs/platform/agentHost/common/devContainerAgentHost.ts:10-46; src/vs/platform/agentHost/common/agentService.ts:66-72 (AgentHostIpcChannels.RemoteProxy proxies AHP JSON-RPC frames renderer<->server agent host)"
+	},
+	"authority": "dev-container+flauz-dev",
+	"budgets": {
+		"choreographyMs": 500,
+		"warmSwitchMs": 1500
+	},
+	"environmentId": "env-dev-container",
+	"kind": "container",
+	"notes": [
+		"v0 plan only -- no docker/CLI call in the sandbox (runners execute the plan; REPORT GAPS-AND-SKIPS).",
+		"dev container spec + CLI are OSS (matrix C-32); MS Dev Containers extension stays out (license, DL-7 posture).",
+		"connectionId is minted at connect time by IDevContainerAgentHostMainService.connect() -- descriptors carry only stable inputs."
+	],
+	"phases": [
+		{
+			"budgetMs": 50,
+			"id": "validate",
+			"marks": [],
+			"steps": [
+				{
+					"action": "check Docker resolvable from the user shell (isDockerAvailable) -- fail fast before any CLI spawn",
+					"id": "container-docker-check",
+					"treeRef": "src/vs/platform/agentHost/common/devContainerAgentHost.ts:41-43 (isDockerAvailable over IDevContainerAgentHostMainService)"
+				}
+			],
+			"title": "Docker availability + descriptor validation"
+		},
+		{
+			"budgetMs": 0,
+			"id": "resolve",
+			"marks": [
+				"code/flauz/willResolveEnv",
+				"code/flauz/didResolveEnv"
+			],
+			"steps": [
+				{
+					"action": "connect the dev container agent host: IDevContainerAgentHostMainService.connect({ connectionId: <minted>, workspaceFolder: \"/workspaces/flauz\", name: \"flauz-dev\" }) -> IDevContainerAgentHostConnectResult { connectionId, address, remoteWorkspaceFolder }",
+					"id": "container-connect",
+					"treeRef": "src/vs/platform/agentHost/common/devContainerAgentHost.ts:21-29 (connect result), :44 (connect()); workbench surface src/vs/workbench/contrib/chat/browser/remoteAgentHost/"
+				}
+			],
+			"title": "Connect dev container agent host (CLI + relay)"
+		},
+		{
+			"budgetMs": 150,
+			"id": "agent-host",
+			"marks": [
+				"code/flauz/willBridgeAgentHost",
+				"code/flauz/didBridgeAgentHost"
+			],
+			"steps": [
+				{
+					"action": "relay AHP protocol frames over the devContainerAgentHost channel; renderer-side frames ride AgentHostIpcChannels.RemoteProxy through the server relay",
+					"id": "container-agent-host",
+					"treeRef": "src/vs/platform/agentHost/common/devContainerAgentHost.ts:10 (DEV_CONTAINER_AGENT_HOST_CHANNEL); src/vs/platform/agentHost/common/agentService.ts:66-72 (RemoteProxy channel)"
+				}
+			],
+			"title": "AHP frame relay (devContainerAgentHost channel + RemoteProxy)"
+		},
+		{
+			"budgetMs": 300,
+			"id": "ready",
+			"marks": [
+				"code/flauz/willRehydrateEnvSwitch",
+				"code/flauz/didRehydrateEnvSwitch"
+			],
+			"steps": [
+				{
+					"action": "open the workspace on the container authority (re-open continuity: vscode.newWindow { remoteAuthority })",
+					"id": "container-open-window",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:396-403 (authority open pattern); src/vs/workbench/contrib/chat/browser/remoteAgentHost/remoteAgentHost.contribution.ts (workbench wiring surface)"
+				}
+			],
+			"title": "Open workspace on the container authority (re-open continuity kicks in)"
+		}
+	],
+	"resolver": {
+		"authorityPrefix": "dev-container",
+		"managed": false,
+		"steps": [
+			{
+				"action": "check Docker resolvable from the user shell (isDockerAvailable) -- fail fast before any CLI spawn",
+				"id": "container-docker-check",
+				"treeRef": "src/vs/platform/agentHost/common/devContainerAgentHost.ts:41-43 (isDockerAvailable over IDevContainerAgentHostMainService)"
+			},
+			{
+				"action": "connect the dev container agent host: IDevContainerAgentHostMainService.connect({ connectionId: <minted>, workspaceFolder: \"/workspaces/flauz\", name: \"flauz-dev\" }) -> IDevContainerAgentHostConnectResult { connectionId, address, remoteWorkspaceFolder }",
+				"id": "container-connect",
+				"treeRef": "src/vs/platform/agentHost/common/devContainerAgentHost.ts:21-29 (connect result), :44 (connect()); workbench surface src/vs/workbench/contrib/chat/browser/remoteAgentHost/"
+			}
+		]
+	}
+}

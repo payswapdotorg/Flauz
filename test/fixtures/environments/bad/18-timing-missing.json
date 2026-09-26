@@ -1,0 +1,26 @@
+{
+	"capabilities": {
+		"agentHost": true,
+		"browser": false,
+		"exec": true,
+		"terminal": true
+	},
+	"connection": {
+		"authMethod": "key",
+		"host": "build.example.internal",
+		"port": 2222,
+		"remotePath": "/srv/workspace",
+		"user": "builder"
+	},
+	"enabled": true,
+	"id": "env-build-box",
+	"kind": "ssh-local",
+	"label": "Build box",
+	"timing": {
+		"created": 1730000000000
+	},
+	"trust": {
+		"inheritsWorkspaceTrust": false,
+		"posture": "unknown"
+	}
+}

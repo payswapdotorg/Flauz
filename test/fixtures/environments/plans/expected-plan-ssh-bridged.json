@@ -1,0 +1,103 @@
+{
+	"$schema": "flauz.connectionPlan/v0",
+	"agentHost": {
+		"bridge": {
+			"bridgePort": 7777,
+			"tokenEnvVar": "VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN",
+			"tokenRef": "vault:agent-host-bridge/env-bridge-host"
+		},
+		"mode": "bridged",
+		"treeRef": "extensions/vscode-test-resolver/src/extension.ts:176-194; src/vs/platform/agentHost/common/agentService.ts:66-72 (AgentHostIpcChannels.RemoteProxy)"
+	},
+	"authority": "ssh-remote+bridge.example.internal",
+	"budgets": {
+		"choreographyMs": 500,
+		"warmSwitchMs": 1500
+	},
+	"environmentId": "env-bridge-host",
+	"kind": "ssh-local",
+	"notes": [
+		"v0 plan only -- no live connection (runners execute the plan; REPORT GAPS-AND-SKIPS).",
+		"MS Remote-SSH stays out (license-blocked, DL-7); own OSS resolver on the vscode-test-resolver blueprint.",
+		"bridge token resolved at runtime from vault:agent-host-bridge/env-bridge-host -- never persisted (SECURITY-MODEL 3.5)."
+	],
+	"phases": [
+		{
+			"budgetMs": 50,
+			"id": "validate",
+			"marks": [],
+			"steps": [
+				{
+					"action": "verify/pin host key for bridge.example.internal (SSH trust phase; escape = environmentPower-class permission, default-confirm)",
+					"id": "ssh-host-key-pin",
+					"treeRef": "src/vs/platform/agentHost/common/sshHostKeyTrust.ts + sshHostKeyPolicy.ts + sshKnownHosts.ts (host-key pinning policy for agent SSH -- SECURITY-MODEL 3.4)"
+				}
+			],
+			"title": "SSH trust + descriptor validation"
+		},
+		{
+			"budgetMs": 0,
+			"id": "resolve",
+			"marks": [
+				"code/flauz/willResolveEnv",
+				"code/flauz/didResolveEnv"
+			],
+			"steps": [
+				{
+					"action": "resolver resolves authority ssh-remote+bridge.example.internal: spawn/attach remote server (in-repo src/vs/server/), pass --connection-token, resolve to host+port (ManagedResolvedAuthority when the tunnel is managed)",
+					"id": "ssh-resolver-resolve",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:145-192 (server spawn + connection token), :254-280 (ManagedResolvedAuthority); src/vscode-dts/vscode.proposed.resolvers.d.ts:29-51 (ResolvedAuthority/ManagedResolvedAuthority)"
+				}
+			],
+			"title": "Resolve authority + spawn/attach remote server"
+		},
+		{
+			"budgetMs": 150,
+			"id": "agent-host",
+			"marks": [
+				"code/flauz/willBridgeAgentHost",
+				"code/flauz/didBridgeAgentHost"
+			],
+			"steps": [
+				{
+					"action": "bridge to the externally-running agent host: server gets --agent-host-bridge-port 7777; token (resolved from vault:agent-host-bridge/env-bridge-host) is passed via env VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN; AHP frames ride AgentHostIpcChannels.RemoteProxy",
+					"id": "ssh-agent-host",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:26 (token env const), :166-194 (agent-host-port vs agent-host-bridge-port mutual exclusion + token env write); src/vs/platform/agentHost/common/agentService.ts:66-72 (RemoteProxy channel proxies AHP JSON-RPC frames renderer<->server agent host)"
+				}
+			],
+			"title": "Bridge renderer to external agent host (AHP RemoteProxy)"
+		},
+		{
+			"budgetMs": 300,
+			"id": "ready",
+			"marks": [
+				"code/flauz/willRehydrateEnvSwitch",
+				"code/flauz/didRehydrateEnvSwitch"
+			],
+			"steps": [
+				{
+					"action": "open the workspace on authority ssh-remote+bridge.example.internal (re-open continuity: vscode.newWindow { remoteAuthority })",
+					"id": "ssh-open-window",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:396-403 (vscode.newWindow remoteAuthority pattern); src/vs/workbench/contrib/remote/browser/remoteIndicator.ts:132-133 (remoteAuthority from environmentService)"
+				}
+			],
+			"title": "Open workspace on the resolved authority (re-open continuity kicks in)"
+		}
+	],
+	"resolver": {
+		"authorityPrefix": "ssh-remote",
+		"managed": false,
+		"steps": [
+			{
+				"action": "verify/pin host key for bridge.example.internal (SSH trust phase; escape = environmentPower-class permission, default-confirm)",
+				"id": "ssh-host-key-pin",
+				"treeRef": "src/vs/platform/agentHost/common/sshHostKeyTrust.ts + sshHostKeyPolicy.ts + sshKnownHosts.ts (host-key pinning policy for agent SSH -- SECURITY-MODEL 3.4)"
+			},
+			{
+				"action": "resolver resolves authority ssh-remote+bridge.example.internal: spawn/attach remote server (in-repo src/vs/server/), pass --connection-token, resolve to host+port (ManagedResolvedAuthority when the tunnel is managed)",
+				"id": "ssh-resolver-resolve",
+				"treeRef": "extensions/vscode-test-resolver/src/extension.ts:145-192 (server spawn + connection token), :254-280 (ManagedResolvedAuthority); src/vscode-dts/vscode.proposed.resolvers.d.ts:29-51 (ResolvedAuthority/ManagedResolvedAuthority)"
+			}
+		]
+	}
+}

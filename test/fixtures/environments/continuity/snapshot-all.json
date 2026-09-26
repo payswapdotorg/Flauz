@@ -1,0 +1,20 @@
+{
+	"surfaces": [
+		"flauz-tasks-envelope",
+		"flauz-evidence-ledger",
+		"flauz-evidence-artifacts",
+		"flauz-environments-registry",
+		"scm-working-tree",
+		"chat-sessions",
+		"chat-editing-checkpoints",
+		"edit-sessions",
+		"agent-sessions",
+		"flauz-task-state-machine",
+		"persisted-approvals",
+		"terminal-scrollback",
+		"browser-pane-state",
+		"inflight-chat-streams",
+		"window-layout",
+		"resolver-connection-state"
+	]
+}

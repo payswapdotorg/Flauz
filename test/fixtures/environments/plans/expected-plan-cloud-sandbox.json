@@ -1,0 +1,99 @@
+{
+	"$schema": "flauz.connectionPlan/v0",
+	"agentHost": {
+		"mode": "remote-proxy",
+		"treeRef": "src/vs/platform/agentHost/common/agentService.ts:66-72 (AgentHostIpcChannels.RemoteProxy proxies AHP JSON-RPC frames renderer<->server agent host); sandbox agent host per DL-8 provider extension"
+	},
+	"authority": "e2b+env-e2b-main",
+	"budgets": {
+		"choreographyMs": 500,
+		"warmSwitchMs": 1500
+	},
+	"environmentId": "env-e2b-main",
+	"kind": "cloud-sandbox",
+	"notes": [
+		"v0 plan only -- no cloud API call in the sandbox (runners execute the plan; REPORT GAPS-AND-SKIPS).",
+		"entitlement-free posture (DL-8): in-tree cloudSandbox* services are reference-only; Flauz sandbox providers are extensions.",
+		"API key resolved from the vault at runtime -- never persisted (SECURITY-MODEL 3.5).",
+		"read-only tier is the default containment posture (cloudSandboxReadOnlySessionHandler precedent, SECURITY-MODEL 3.4)."
+	],
+	"phases": [
+		{
+			"budgetMs": 50,
+			"id": "validate",
+			"marks": [],
+			"steps": [
+				{
+					"action": "resolve API key from \"vault:e2b/api-key\" (SecretStorage; never materialized outside the vault) + confirm the provider extension is installed",
+					"id": "cloud-vault-ref",
+					"treeRef": "src/vscode-dts/vscode.d.ts (SecretStorage/secrets surface); SECURITY-MODEL 3.5 (keys referenced, not copied); resolver-category extension per DL-7"
+				}
+			],
+			"title": "Vault reference + provider extension presence"
+		},
+		{
+			"budgetMs": 0,
+			"id": "resolve",
+			"marks": [
+				"code/flauz/willResolveEnv",
+				"code/flauz/didResolveEnv"
+			],
+			"steps": [
+				{
+					"action": "provision/attach the e2b sandbox from template \"flauz-dev-64gb\"; resolver registers under prefix e2b and resolves to the sandbox endpoint",
+					"id": "cloud-provision",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:376-393 (resolver registration blueprint); src/vscode-dts/vscode.proposed.resolvers.d.ts:456 (registerRemoteAuthorityResolver)"
+				}
+			],
+			"title": "Provision/attach sandbox + resolve authority (managed)"
+		},
+		{
+			"budgetMs": 150,
+			"id": "agent-host",
+			"marks": [
+				"code/flauz/willBridgeAgentHost",
+				"code/flauz/didBridgeAgentHost"
+			],
+			"steps": [
+				{
+					"action": "AHP agent host runs INSIDE the sandbox; the remote server proxies AHP JSON-RPC frames renderer <-> sandbox agent host over AgentHostIpcChannels.RemoteProxy; read-only tier is the default posture",
+					"id": "cloud-agent-host",
+					"treeRef": "src/vs/platform/agentHost/common/agentService.ts:66-72 (RemoteProxy channel); reference contrast: src/vs/platform/agentHost/common/cloudSandboxAgentHost.ts (Copilot-entitlement-bound, DL-8 reference-only) + cloudSandboxReadOnlySessionHandler.ts (read-only containment tier)"
+				}
+			],
+			"title": "AHP RemoteProxy frame relay into the sandbox"
+		},
+		{
+			"budgetMs": 300,
+			"id": "ready",
+			"marks": [
+				"code/flauz/willRehydrateEnvSwitch",
+				"code/flauz/didRehydrateEnvSwitch"
+			],
+			"steps": [
+				{
+					"action": "open the workspace on the sandbox authority (re-open continuity: vscode.newWindow { remoteAuthority }); cloud browser panes stream per the PERF 5.3 ladder",
+					"id": "cloud-open-window",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:396-403 (authority open pattern); PERF 5.3 remote-pane quality ladder (fps -> quality -> on-demand snapshots + watermark backpressure)"
+				}
+			],
+			"title": "Open workspace on the sandbox authority (re-open continuity; remote panes per 5.3 ladder)"
+		}
+	],
+	"resolver": {
+		"authorityPrefix": "e2b",
+		"managed": true,
+		"steps": [
+			{
+				"action": "resolve API key from \"vault:e2b/api-key\" (SecretStorage; never materialized outside the vault) + confirm the provider extension is installed",
+				"id": "cloud-vault-ref",
+				"treeRef": "src/vscode-dts/vscode.d.ts (SecretStorage/secrets surface); SECURITY-MODEL 3.5 (keys referenced, not copied); resolver-category extension per DL-7"
+			},
+			{
+				"action": "provision/attach the e2b sandbox from template \"flauz-dev-64gb\"; resolver registers under prefix e2b and resolves to the sandbox endpoint",
+				"id": "cloud-provision",
+				"treeRef": "extensions/vscode-test-resolver/src/extension.ts:376-393 (resolver registration blueprint); src/vscode-dts/vscode.proposed.resolvers.d.ts:456 (registerRemoteAuthorityResolver)"
+			}
+		]
+	}
+}

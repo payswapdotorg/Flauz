@@ -1,0 +1,11 @@
+{
+	"persists": [
+		"flauz-tasks-envelope",
+		"flauz-evidence-ledger",
+		"flauz-evidence-artifacts",
+		"flauz-environments-registry",
+		"scm-working-tree"
+	],
+	"rehydrates": [],
+	"lost": []
+}
