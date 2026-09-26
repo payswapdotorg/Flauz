@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+	*  Copyright (c) Microsoft Corporation. All rights reserved.
+	*  Licensed under the MIT License. See License.txt in the project root for license information.
+	*--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
@@ -91,19 +91,19 @@ function usage() {
 		process.stdout.write(`activation-lint.mjs — activation discipline for extensions/flauz-* (PERF section 2.1/section 2.2)
 
 Usage:
-  node activation-lint.mjs [--root <repo>] [--manifests-glob <glob>]
-  node activation-lint.mjs --root test/fixtures/manifests/bad --manifests-glob "*.json" --require-manifests
+	node activation-lint.mjs [--root <repo>] [--manifests-glob <glob>]
+	node activation-lint.mjs --root test/fixtures/manifests/bad --manifests-glob "*.json" --require-manifests
 
 Options:
-  --root <dir>             root dir for the manifests glob (default: cwd)
-  --manifests-glob <g>     glob (default: ${DEFAULT_GLOB})
-  --allow-event <regex>    extra allowed activation event (repeatable; cite a PERF amendment)
-  --max-startup <n>        max flauz extensions on onStartupFinished (default ${DEFAULT_MAX_STARTUP})
-  --startup-allowed <ids>  comma-separated ids allowed on onStartupFinished
+	--root <dir>             root dir for the manifests glob (default: cwd)
+	--manifests-glob <g>     glob (default: ${DEFAULT_GLOB})
+	--allow-event <regex>    extra allowed activation event (repeatable; cite a PERF amendment)
+	--max-startup <n>        max flauz extensions on onStartupFinished (default ${DEFAULT_MAX_STARTUP})
+	--startup-allowed <ids>  comma-separated ids allowed on onStartupFinished
 						   (default ${DEFAULT_STARTUP_ALLOWED.join(',')})
-  --max-affinity-slots <n> max distinct positive affinity value (default 1 — one pinned host, DL-5)
-  --require-manifests      fail when zero manifests are found (default: SKIP notice, exit 0)
-  --json                   emit a machine-readable verdict block
+	--max-affinity-slots <n> max distinct positive affinity value (default 1 — one pinned host, DL-5)
+	--require-manifests      fail when zero manifests are found (default: SKIP notice, exit 0)
+	--json                   emit a machine-readable verdict block
 
 Rules: R1 no '*' · R2 event whitelist · R3 onStartupFinished cap+ids ·
 R4 affinity key shape · R5 affinity value shape · R6 single pinned slot ·

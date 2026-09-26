@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+	*  Copyright (c) Microsoft Corporation. All rights reserved.
+	*  Licensed under the MIT License. See License.txt in the project root for license information.
+	*--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
@@ -95,11 +95,11 @@ function usage() {
 		process.stdout.write(`memory-snapshot.mjs — Flauz memory budget gate (PERF section 3.2)
 
 Usage:
-  node memory-snapshot.mjs --json  <resolveProcesses-shaped.json> [--scenario eventually|after-session]
-  node memory-snapshot.mjs --status <status-process-list.txt>     [--scenario ...]
-  node memory-snapshot.mjs --ps     <ps-eo-pid-ppid-rss-pcpu-args.txt> [--scenario ...]
-  node memory-snapshot.mjs --json <file> --enforce        # [E] estimates become hard failures
-  node memory-snapshot.mjs --json <file> --pattern extHost=/regex/i   # override a classifier
+	node memory-snapshot.mjs --json  <resolveProcesses-shaped.json> [--scenario eventually|after-session]
+	node memory-snapshot.mjs --status <status-process-list.txt>     [--scenario ...]
+	node memory-snapshot.mjs --ps     <ps-eo-pid-ppid-rss-pcpu-args.txt> [--scenario ...]
+	node memory-snapshot.mjs --json <file> --enforce        # [E] estimates become hard failures
+	node memory-snapshot.mjs --json <file> --pattern extHost=/regex/i   # override a classifier
 
 Budgets (section 3.2): ext-host RSS ${EXT_HOST_RSS_MIN_MB}-${EXT_HOST_RSS_MAX_MB}MB [E] · flauz-core idle <= ${FLAUZ_CORE_MAX_IDLE_MB}MB ·
 agent sessions <= ${MAX_AGENT_SESSIONS} · browser panes <= ${MAX_BROWSER_PANES} · flauz-added total <= ${FLAUZ_TOTAL_RSS_MAX_MB}MB.

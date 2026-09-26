@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+	*  Copyright (c) Microsoft Corporation. All rights reserved.
+	*  Licensed under the MIT License. See License.txt in the project root for license information.
+	*--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
@@ -72,11 +72,11 @@ function usage() {
 	process.stdout.write(`proposed-api-rota.mjs — proposed-API churn rota (DL-4, PERF R5, MIGRATION section 5 job 5)
 
 Usage:
-  node proposed-api-rota.mjs --repo-root <dir>                 # rota assert mode
-  node proposed-api-rota.mjs --repo-root <dir> --report <dir>  # + artifacts
-  node proposed-api-rota.mjs --repo-root <dir> --snapshot <file>
-  node proposed-api-rota.mjs --repo-root <dir> --baseline <file>
-  node proposed-api-rota.mjs --repo-root <dir> --no-fail       # informational
+	node proposed-api-rota.mjs --repo-root <dir>                 # rota assert mode
+	node proposed-api-rota.mjs --repo-root <dir> --report <dir>  # + artifacts
+	node proposed-api-rota.mjs --repo-root <dir> --snapshot <file>
+	node proposed-api-rota.mjs --repo-root <dir> --baseline <file>
+	node proposed-api-rota.mjs --repo-root <dir> --no-fail       # informational
 
 Exit codes: 0 clean/SKIP · 1 drift (unless --no-fail) · 2 usage error.
 `);

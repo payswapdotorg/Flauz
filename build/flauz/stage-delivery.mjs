@@ -1,19 +1,19 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+	*  Copyright (c) Microsoft Corporation. All rights reserved.
+	*  Licensed under the MIT License. See License.txt in the project root for license information.
+	*--------------------------------------------------------------------------------------------*/
 /**
- * Stage the Lane F delivery for transit (zero-dependency).
- *
- * Copies every NEW path of the working tree delta vs the upstream baseline
- * (git diff --name-only --diff-filter=A <base>..HEAD, excluding the staging
- * area itself) into the staging directory with repo-relative paths preserved,
- * and (re)writes MANIFEST.txt with one `<sha256>  <path>` line per file.
- * REPORT.md / README.md inside the staging dir are authored by hand and are
- * never overwritten.
- *
- * Usage: node build/flauz/stage-delivery.mjs [--out flauz-delivery/f-agent-bridge] [--base 9bf9ae764da...]
- */
+	* Stage the Lane F delivery for transit (zero-dependency).
+	*
+	* Copies every NEW path of the working tree delta vs the upstream baseline
+	* (git diff --name-only --diff-filter=A <base>..HEAD, excluding the staging
+	* area itself) into the staging directory with repo-relative paths preserved,
+	* and (re)writes MANIFEST.txt with one `<sha256>  <path>` line per file.
+	* REPORT.md / README.md inside the staging dir are authored by hand and are
+	* never overwritten.
+	*
+	* Usage: node build/flauz/stage-delivery.mjs [--out flauz-delivery/f-agent-bridge] [--base 9bf9ae764da...]
+	*/
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

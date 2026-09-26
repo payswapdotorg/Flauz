@@ -1,13 +1,13 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+	*  Copyright (c) Microsoft Corporation. All rights reserved.
+	*  Licensed under the MIT License. See License.txt in the project root for license information.
+	*--------------------------------------------------------------------------------------------*/
 /**
- * Type declarations for `core/contracts.mjs` (the pure seam-contract module).
- * Extension source imports these types only (`import type`), so the .mjs is
- * never loaded from shipped extension code; tests import the runtime module
- * directly. Written by hand per the zero-dependency discipline.
- */
+	* Type declarations for `core/contracts.mjs` (the pure seam-contract module).
+	* Extension source imports these types only (`import type`), so the .mjs is
+	* never loaded from shipped extension code; tests import the runtime module
+	* directly. Written by hand per the zero-dependency discipline.
+	*/
 
 export declare const TASKS_SCHEMA: string;
 export declare const SERVICE_NAME: string;

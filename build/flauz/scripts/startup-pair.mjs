@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
+	*  Copyright (c) Microsoft Corporation. All rights reserved.
+	*  Licensed under the MIT License. See License.txt in the project root for license information.
+	*--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
@@ -120,23 +120,23 @@ function usage() {
 		process.stdout.write(`startup-pair.mjs — Flauz startup perf pair gate (PERF section 1.3) + mark integrity (R6)
 
 Modes:
-  --timers-flauz <tsv> --timers-upstream <tsv>
+	--timers-flauz <tsv> --timers-upstream <tsv>
 		Assert section 1.3 row 1 (<= +${FIRST_PAINT_P50_MAX}ms p50 / +${FIRST_PAINT_P95_MAX}ms p95) and row 2
 		(<= +${DIDSTARTWORKBENCH_P95_MAX}ms p95) on the ellapsed column of --prof-append-timers TSVs.
-  --markers-flauz <tsv> [--markers-upstream <tsv>]
+	--markers-flauz <tsv> [--markers-upstream <tsv>]
 		Assert duration-marker pair budgets (see table in this file / --pairs-file).
-  --check-marks --src-root <dir>
+	--check-marks --src-root <dir>
 		Mark-pair integrity: every budgeted code/flauz/* mark greppable in flauz sources (R6).
-  --phase-gate --src-root <dir>
+	--phase-gate --src-root <dir>
 		section 1.3 row 4: no flauz workbench contribution before AfterRestored/Eventually.
-  --pairs-file <json>
+	--pairs-file <json>
 		Extra/override budgets: { "<pair-name>": { "absMax": 500 } | { "deltaMaxP95": 100 } }
 
 Options:
-  --min-runs <n>      minimum standard_start runs per side (default 5)
-  --flauz-glob <g>    override source globs for --check-marks/--phase-gate (repeatable)
-  --src-root <dir>    repository root (or any dir containing flauz sources)
-  --json              additionally emit a machine-readable JSON verdict block
+	--min-runs <n>      minimum standard_start runs per side (default 5)
+	--flauz-glob <g>    override source globs for --check-marks/--phase-gate (repeatable)
+	--src-root <dir>    repository root (or any dir containing flauz sources)
+	--json              additionally emit a machine-readable JSON verdict block
 
 Exit codes: 0 pass/SKIP · 1 violation or invalid measurement · 2 usage error.
 `);
