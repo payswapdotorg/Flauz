@@ -177,7 +177,7 @@ jobs:
           key: "electron-download-v1-${{ runner.os }}-x64-${{ hashFiles('flauz/.npmrc', 'flauz/build/checksums/electron.txt') }}"
 
       - name: Compile flauz tree
-        run: cd flauz && npm run compile
+        run: cd flauz && npm run compile && node build/flauz/scripts/bundle-extensions.mjs
 
       - name: Compile upstream tree
         run: cd upstream && npm run compile
@@ -299,7 +299,7 @@ jobs:
           save-cache: true
 
       - name: Compile
-        run: npm run compile
+        run: npm run compile && node build/flauz/scripts/bundle-extensions.mjs
 
       - name: Start X server
         run: |

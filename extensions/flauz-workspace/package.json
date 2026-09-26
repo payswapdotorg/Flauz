@@ -1,46 +1,46 @@
 {
-  "name": "flauz-workspace",
-  "displayName": "Flauz Workspace",
-  "description": "Flauz agent workspace state: .flauz/ task envelope (flauz.tasks/v0), hash-chained evidence ledger, SCM artifact exposure, chatEditing checkpoint interop.",
-  "version": "0.1.0",
-  "publisher": "flauz",
-  "license": "MIT",
-  "type": "module",
-  "engines": {
-    "vscode": "^1.140.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "enabledApiProposals": [
-    "scmArtifactProvider"
-  ],
-  "activationEvents": [
-    "onStartupFinished",
-    "onCommand:flauz.workspace.createTask",
-    "onCommand:flauz.workspace.appendEvent",
-    "onCommand:flauz.workspace.listTasks",
-    "onCommand:flauz.workspace.getTask",
-    "onCommand:flauz.workspace.appendEvidence",
-    "onCommand:flauz.workspace.createCheckpoint",
-    "onCommand:flauz.workspace.verifyLedger",
-    "onCommand:flauz.workspace.openEvidence"
-  ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "flauz.workspace.openEvidence",
-        "title": "Open Evidence",
-        "category": "Flauz"
-      }
-    ]
-  },
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.ts"
-  },
-  "devDependencies": {
-    "typescript": "5.9.3"
-  }
+	"name": "flauz-workspace",
+	"displayName": "Flauz Workspace",
+	"description": "Flauz agent workspace state: .flauz/ task envelope (flauz.tasks/v0), hash-chained evidence ledger, SCM artifact exposure, chatEditing checkpoint interop.",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"enabledApiProposals": [
+		"scmArtifactProvider"
+	],
+	"activationEvents": [
+		"onStartupFinished",
+		"onCommand:flauz.workspace.createTask",
+		"onCommand:flauz.workspace.appendEvent",
+		"onCommand:flauz.workspace.listTasks",
+		"onCommand:flauz.workspace.getTask",
+		"onCommand:flauz.workspace.appendEvidence",
+		"onCommand:flauz.workspace.createCheckpoint",
+		"onCommand:flauz.workspace.verifyLedger",
+		"onCommand:flauz.workspace.openEvidence"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.workspace.openEvidence",
+				"title": "Open Evidence",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test test/*.test.ts"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
 }

@@ -110,6 +110,9 @@ jobs:
           set -e
           # deps pre-installed (setup-electron prerequisite); compile + xvfb here
           npm run compile
+          # bundle the flauz extensions so boots ACTIVATE them (first-CI finding:
+          # noEmit tsconfigs mean nothing builds main targets without this)
+          node build/flauz/scripts/bundle-extensions.mjs
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
@@ -197,7 +200,8 @@ jobs:
         if: steps.lanes.outputs.present == 'true'
         run: |
           set -e
-          node build/npm/preinstall.ts && npm install && npm run compile
+          node build/npm/preinstall.ts && npm install && npm run compile \
+            && node build/flauz/scripts/bundle-extensions.mjs
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
@@ -273,7 +277,8 @@ jobs:
         if: steps.lanes.outputs.present == 'true'
         run: |
           set -e
-          node build/npm/preinstall.ts && npm install && npm run compile
+          node build/npm/preinstall.ts && npm install && npm run compile \
+            && node build/flauz/scripts/bundle-extensions.mjs
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
@@ -339,7 +344,8 @@ jobs:
         if: steps.lanes.outputs.present == 'true'
         run: |
           set -e
-          node build/npm/preinstall.ts && npm install && npm run compile
+          node build/npm/preinstall.ts && npm install && npm run compile \
+            && node build/flauz/scripts/bundle-extensions.mjs
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start

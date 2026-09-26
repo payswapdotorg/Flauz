@@ -171,6 +171,7 @@ test/unit/reporter.js
 build/flauz/merge-product.mjs
 build/flauz/merge-product.test.mjs
 build/flauz/scripts/activation-lint.mjs
+build/flauz/scripts/bundle-extensions.mjs
 build/flauz/scripts/memory-snapshot.mjs
 build/flauz/scripts/perf-log-parse.mjs
 build/flauz/scripts/proposed-api-rota.mjs
