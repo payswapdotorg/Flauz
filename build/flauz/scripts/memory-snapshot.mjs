@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
@@ -288,7 +286,7 @@ function main() {
                 report.push(`INFO  R6 stock ${label}: ${found.length ? `present (${nm(found)})` : 'absent'}`);
         }
 
-        report.push('── verdict ' + '─'.repeat(51));
+        report.push('-- verdict ' + '-'.repeat(51));
         report.push(exit === EXIT_OK ? 'MEMORY SNAPSHOT GATES GREEN (see WARN/INFO lines for [E] rows)' : 'MEMORY SNAPSHOT VIOLATIONS PRESENT');
         process.stdout.write(report.join('\n') + '\n');
         process.exit(exit);

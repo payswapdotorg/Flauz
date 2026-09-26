@@ -94,6 +94,10 @@ jobs:
 
       - name: Install dependencies (setup-electron needs vinyl-fs from node_modules)
         run: node build/npm/preinstall.ts && npm install
+        env:
+          # auto-provided workflow token: lifts api.github.com rate limits that
+          # break the ripgrep-prebuilt release fetch (403 class, round-7 flake)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Electron
         uses: ./.github/actions/setup-electron
@@ -224,6 +228,8 @@ jobs:
           # surface only — documented in C-23.md.
           pkill -f 'scripts/code.sh' 2>/dev/null || true
           echo 'C-23 boot-level canary: GREEN'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload canary artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
@@ -366,6 +372,8 @@ jobs:
           # lane-F session driver; the timing capture closes §8 q4.
           pkill -f 'scripts/code.sh' 2>/dev/null || true
           echo 'C-28 boot-level canary: GREEN'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Upload canary artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview

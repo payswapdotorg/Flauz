@@ -3,7 +3,7 @@
 # Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 #
 # fork-critical-guard.sh — FORK-CRITICAL ledger gate (DL-12 / DL-10; MIGRATION-PLAN
-# §5 local hygiene subset item 1; §6 PR review gate 1).
+# section 5 local hygiene subset item 1; section 6 PR review gate 1).
 #
 # Asserts that the diff between the pristine upstream base and the Flauz head
 # touches NOTHING under src/vs except the single additive dir
@@ -14,7 +14,7 @@
 # Modes:
 #   fork-critical-guard.sh [--base <ref>] [--head <ref>] [--repo <dir>]
 #       Default refs: base = upstream/main, falling back to origin/main, falling
-#       back to main; head = HEAD. Ref-vs-ref check (the CI shape, MIGRATION §5.1:
+#       back to main; head = HEAD. Ref-vs-ref check (the CI shape, MIGRATION section 5.1:
 #       git diff --stat upstream/main...flauz/main -- src/vs ':(exclude)src/vs/workbench/contrib/flauz'
 #       must be EMPTY).
 #
@@ -158,7 +158,7 @@ if [ "$NAME_ONLY" -ne 1 ]; then
     echo "src/vs must stay byte-identical to upstream except src/vs/workbench/contrib/flauz" >&2
     echo "(F-01 escape hatch — requires a DECISION-LOG entry with a demotion alternative)." >&2
     echo "Demote the change to an additive path (extensions/flauz-*, build/flauz/, product.flauz.json)" >&2
-    echo "or get a TL adjudicated DECISION-LOG entry BEFORE merging (MIGRATION-PLAN §6 gate 1)." >&2
+    echo "or get a TL adjudicated DECISION-LOG entry BEFORE merging (MIGRATION-PLAN section 6 gate 1)." >&2
 else
     echo "$STAT"
 fi

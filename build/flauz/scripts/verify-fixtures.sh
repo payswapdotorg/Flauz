@@ -58,13 +58,13 @@ echo "verify-fixtures: node $(node --version), repo root $ROOT"
 # ---- shared parser selftest ----
 expect "perf-log-parse --selftest"                     0 node "$S/perf-log-parse.mjs" --selftest
 
-# ---- startup-pair: §1.3 gates ----
+# ---- startup-pair: section 1.3 gates ----
 expect "startup-pair timers PASS"                      0 node "$S/startup-pair.mjs" --timers-flauz "$F/perf-timers/flauz-main.timers.tsv" --timers-upstream "$F/perf-timers/upstream-main.timers.tsv"
 expect "startup-pair markers PASS"                     0 node "$S/startup-pair.mjs" --markers-flauz "$F/perf-timers/flauz-main.markers.tsv" --markers-upstream "$F/perf-timers/upstream-main.markers.tsv"
 expect "startup-pair regressed FAIL"                   1 node "$S/startup-pair.mjs" --timers-flauz "$F/perf-timers/flauz-main.regressed.timers.tsv" --timers-upstream "$F/perf-timers/upstream-main.timers.tsv" --markers-flauz "$F/perf-timers/flauz-main.markers.regressed.tsv" --markers-upstream "$F/perf-timers/upstream-main.markers.tsv"
 expect "startup-pair too-few-runs FAIL"                1 node "$S/startup-pair.mjs" --timers-flauz "$F/perf-timers/flauz-main.too-few.timers.tsv" --timers-upstream "$F/perf-timers/upstream-main.timers.tsv"
 
-# ---- startup-pair: R6 mark integrity + §1.3 row 4 phase gate ----
+# ---- startup-pair: R6 mark integrity + section 1.3 row 4 phase gate ----
 expect "check-marks src-ok PASS"                       0 node "$S/startup-pair.mjs" --check-marks --src-root "$F/marks/src-ok"
 expect "check-marks src-missing FAIL"                  1 node "$S/startup-pair.mjs" --check-marks --src-root "$F/marks/src-missing"
 expect "check-marks no-sources SKIP"                   0 node "$S/startup-pair.mjs" --check-marks --src-root "$F/perf-timers"
@@ -72,7 +72,7 @@ expect "phase-gate src-ok PASS"                        0 node "$S/startup-pair.m
 expect "phase-gate src-phase-bad FAIL"                 1 node "$S/startup-pair.mjs" --phase-gate --src-root "$F/marks/src-phase-bad"
 expect "phase-gate no-sources SKIP"                    0 node "$S/startup-pair.mjs" --phase-gate --src-root "$F/perf-timers"
 
-# ---- memory-snapshot: §3.2 gates, all three capture paths ----
+# ---- memory-snapshot: section 3.2 gates, all three capture paths ----
 expect "memory eventually (json) PASS"                 0 node "$S/memory-snapshot.mjs" --json "$F/process-shape/eventually.json" --scenario eventually
 expect "memory after-session (json) PASS"              0 node "$S/memory-snapshot.mjs" --json "$F/process-shape/after-session.json" --scenario after-session
 expect "memory violations (json) FAIL"                 1 node "$S/memory-snapshot.mjs" --json "$F/process-shape/after-session.violations.json" --scenario after-session
@@ -80,7 +80,7 @@ expect "memory violations --enforce (R1) FAIL"         1 node "$S/memory-snapsho
 expect "memory eventually (status text) PASS"          0 node "$S/memory-snapshot.mjs" --status "$F/process-shape/eventually.status.txt" --scenario eventually
 expect "memory eventually (ps text) PASS"              0 node "$S/memory-snapshot.mjs" --ps "$F/process-shape/eventually.ps.txt" --scenario eventually
 
-# ---- activation-lint: §2.1/§2.2 rules ----
+# ---- activation-lint: section 2.1/section 2.2 rules ----
 expect "activation-lint good set PASS"                 0 node "$S/activation-lint.mjs" --root "$F/manifests/good" --manifests-glob "flauz-*/package.json" --require-manifests
 expect "activation-lint bad dir FAIL (R1-R8)"          1 node "$S/activation-lint.mjs" --root "$F/manifests/bad" --manifests-glob "*.json"
 expect "activation-lint bad-set FAIL (R3 only)"        1 node "$S/activation-lint.mjs" --root "$F/manifests/bad-set" --manifests-glob "*.json"

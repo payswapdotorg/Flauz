@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
@@ -243,7 +241,7 @@ function main() {
 		report.push('product.flauz.json / flauz-* manifests this sync, and record the churn in the');
 		report.push('sync canary report attached to the tag.');
 	}
-	report.push('── verdict ' + '─'.repeat(51));
+	report.push('-- verdict ' + '-'.repeat(51));
 	if (exit === EXIT_FAIL) {
 		report.push('PROPOSED-API ROTA: INVALID INPUT (see FAIL lines)');
 	} else if (hasDrift && !args['no-fail']) {

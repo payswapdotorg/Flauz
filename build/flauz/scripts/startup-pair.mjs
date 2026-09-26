@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
@@ -400,7 +398,7 @@ function main() {
         if (modes.length === 0) { usage(); process.exit(EXIT_USAGE); }
 
         for (const mode of modes) {
-                report.push(`── ${mode} ${'─'.repeat(Math.max(0, 60 - mode.length))}`);
+                report.push(`-- ${mode} ${'-'.repeat(Math.max(0, 60 - mode.length))}`);
                 let mExit;
                 if (mode === 'timers-pair') { mExit = runTimersPair(args, report); }
                 else if (mode === 'markers-pair') { mExit = runMarkersPair(args, budgets, report); }
@@ -410,7 +408,7 @@ function main() {
                 if (mExit !== EXIT_OK) { exit = EXIT_FAIL; }
         }
 
-        report.push(`── verdict ${'─'.repeat(53)}`);
+        report.push(`-- verdict ${'-'.repeat(53)}`);
         report.push(exit === EXIT_OK ? 'ALL STARTUP GATES GREEN' : 'STARTUP GATE VIOLATIONS PRESENT');
         process.stdout.write(report.join('\n') + '\n');
         if (args.json) {

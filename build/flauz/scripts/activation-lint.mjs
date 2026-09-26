@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
@@ -301,7 +299,7 @@ function main() {
                 if (unpinned.length) { report.push(`INFO  flauz ids not affinity-pinned (by design?): ${unpinned.join(', ')}`); }
         }
 
-        report.push('── verdict ' + '─'.repeat(51));
+        report.push('-- verdict ' + '-'.repeat(51));
         report.push(exit === EXIT_OK ? 'ACTIVATION LINT GREEN' : 'ACTIVATION LINT VIOLATIONS PRESENT');
         process.stdout.write(report.join('\n') + '\n');
         if (args.json) {
