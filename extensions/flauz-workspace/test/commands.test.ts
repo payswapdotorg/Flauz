@@ -1,12 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — test/commands.test.ts
- *
- *  The command seam against a mock vscode registry: registration surface, the
- *  create/get/list round trip, transition routing through appendEvent, malformed
- *  argument rejection, evidence append + artifact change notification, ledger
- *  verification, unknown-task errors, and openEvidence routing (file vs external).
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FIXED_TS, bootWorkspace } from './helpers.ts';

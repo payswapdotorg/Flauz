@@ -1,17 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — src/extension.ts
- *
- *  Composition root. Installs the real vscode API into globals, wires the node-backed
- *  FileSystemPort, bootstraps `.flauz/`, attaches the artifact provider to a dedicated
- *  SourceControl, and registers the command seam. Everything below the seam (services)
- *  is vscode-agnostic and node-typing-agnostic; this is the ONLY module importing
- *  'vscode' and node builtins at runtime.
- *
- *  Build note: `main` points at ./out/extension.js, produced by the upstream
- *  built-in-extension compile (CI-side per MIGRATION-PLAN section 5 — never built in this
- *  sandbox). Local verification is tsc --noEmit + node --test over src/ + test/.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { setVscodeApi } from './globals.ts';

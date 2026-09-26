@@ -1,15 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — src/api.ts
- *
- *  Shared vocabulary for the `.flauz/` contract v0: envelope types, the flauz.tasks/v0
- *  state machine, ledger row types, and the pure primitives every other module builds on
- *  (canonical JSON, deep-sorted serialization, sha256, POSIX-ish path joins).
- *
- *  This module is deliberately dependency-free (no `vscode` runtime import, no node
- *  builtins) so the whole core is testable under plain `node --test` and portable to
- *  any extension host. See README.md for the full contract.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 /** Schema identifier pinned into `.flauz/tasks.json`. */
 export const SCHEMA_ID = 'flauz.tasks/v0';
 

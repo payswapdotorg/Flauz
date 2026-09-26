@@ -1,12 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — test/ledger.test.ts
- *
- *  Hash-chain integrity: canonical stored lines, sha256 cross-check against
- *  node:crypto, chain verification over a clean chain, tamper detection across five
- *  tamper classes (payload mutation x2, row deletion, forged append, broken genesis
- *  link), and input validation.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';

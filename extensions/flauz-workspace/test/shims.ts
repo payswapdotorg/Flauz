@@ -1,13 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — test/shims.ts
- *
- *  A mock `vscode` API for the node test runtime. The src modules reach vscode only
- *  through globals.vscodeApi() and `import type` (erased at runtime), so installing
- *  this mock makes the real command registration path, the SCM artifact provider and
- *  openEvidence routing fully exercisable under plain `node --test` — no loader, no
- *  'vscode' module resolution, no built-in extensions host required.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import type * as vscode from 'vscode';
 import { setVscodeApi } from '../src/globals.ts';
 

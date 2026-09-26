@@ -1,11 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — test/stateMachine.test.ts
- *
- *  Table tests for the flauz.tasks/v0 state machine: all 9 legal transitions,
- *  representative illegal source statuses, terminal-status locking, and actor gates.
- *  Illegal transitions must reject with an error listing the allowed source statuses.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FIXED_TS, bootWorkspace, type TestWorkspace } from './helpers.ts';

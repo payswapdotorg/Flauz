@@ -1,13 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — src/globals.ts
- *
- *  Holds the ambient `vscode` API reference for the modules that need runtime access
- *  (command registration, SCM artifact provider, evidence opening). The core services
- *  never import `vscode` at runtime — only `import type` — so they stay testable under
- *  plain node. src/extension.ts installs the real API on activation; tests install a
- *  mock (test/shims.ts).
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import type * as vscode from 'vscode';
 
 let api: typeof vscode | undefined;

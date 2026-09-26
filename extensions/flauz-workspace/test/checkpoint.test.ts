@@ -1,14 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — test/checkpoint.test.ts
- *
- *  The checkpoint interop decision matrix at HEAD 9bf9ae764da:
- *    - attested: a caller-held stopId (from ChatResultStream.externalEdit within a
- *      live request) is accepted, recorded on the timeline and in `changes`;
- *    - blocked: no stopId -> {checkpointRef: null} + a gap row in the evidence ledger
- *      (never a faked reference);
- *    - unknown tasks reject.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bootWorkspace } from './helpers.ts';

@@ -1,12 +1,7 @@
 /*---------------------------------------------------------------------------------------------
- *  flauz-workspace — test/helpers.ts
- *
- *  Node-side test plumbing: the node-backed FileSystemPort (same surface as the one
- *  in src/extension.ts), temp workspaces under os.tmpdir(), deterministic fixture
- *  clocks, and a boot helper that composes the full service graph against a mock
- *  vscode with the command seam registered — exactly like extension.activate does.
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
