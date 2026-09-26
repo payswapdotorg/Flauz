@@ -177,5 +177,6 @@ build/flauz/scripts/perf-log-parse.mjs
 build/flauz/scripts/proposed-api-rota.mjs
 build/flauz/scripts/startup-pair.mjs
 build/flauz/stage-delivery.mjs
+extensions/flauz-agent/core/a2a.mjs
 extensions/flauz-agent/core/contracts.mjs
 extensions/flauz-agent/core/service.mjs
