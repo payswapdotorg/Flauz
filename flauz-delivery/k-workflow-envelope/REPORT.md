@@ -2,10 +2,9 @@
 
 Worker K (flauz-K-w4), branch `flauz/wave4/workflow-envelope`, base `a4c245147e8fe046c33b2987c322a070d161c9ba` (flauz/main @ clone time).
 
-> STATUS: IN PROGRESS — running report, refreshed at every milestone-transit.
-> Milestones: M1 envelope [DONE] -> M2 ledger hardening [DONE] -> M3 A2A
-> messaging [DONE] -> M4 triggers + chatsnapshot spec [DONE] -> M5 canary + CI
-> -> M6 final verification.
+> STATUS: COMPLETE - all milestones landed (M1-M6). Final verification sweep
+> green; see VERIFICATION-RECEIPTS (the receipts below are reproducible:
+> suites, canary, guards, determinism).
 
 ## WHAT-BUILT
 
@@ -107,6 +106,30 @@ Worker K (flauz-K-w4), branch `flauz/wave4/workflow-envelope`, base `a4c245147e8
 - Tests: `triggers.test.ts` — 6 tests (cron accept/reject matrices, mapping
   golden incl. _meta binding, authoring gates, emission drafts).
 
+
+### M5 - C-WORKFLOW canary + CI line (DONE, commits c9089de6 + 5536db85)
+
+- `build/flauz/canaries/C-WORKFLOW.md` + `build/flauz/scripts/c-workflow-canary.mjs`:
+  the scripted canary - A1 the save -> re-run round trip over the REAL
+  services (derivedFrom link, fragment history, artifact sha256), A2 the
+  DL-20 hardening live (checkpoint verifies; an on-disk truncation is
+  FLAGGED, proving the canary can fail), A3 the A2A bus round trip +
+  restart-no-replay, A4 the trigger-mapping smoke (cron gates, _meta
+  binding, idempotency key), A5 mechanical lane hygiene (headers, tabs,
+  ASCII, CR, allowlist over the lane delta). Node-only, zero-dep, no boot.
+- `.github/workflows/flauz-workflow.yml` (zero secrets): spec gate, pinned
+  actions, the canary, the four node-only suites, four typechecks
+  (typescript-only per-extension install - no root install), and the
+  fixture-determinism receipt with a committed-fixture drift gate. Gated on
+  Flauz paths + workflow_dispatch.
+- **The canary caught a real M3 bug on first run** (commit c9089de6): the
+  exact-count key check made every optional key required - a delegation
+  payload without workflowId was rejected by BOTH validators. Fixed on both
+  sides (count ranges [required, required+optional]) + regression test.
+  envelope.ts (M1, landed+verified) keeps its documented exact-key discipline
+  per the work order (do-not-redo); the distill path always serializes
+  model.params so v1 fragments round-trip stably (noted in GAPS).
+
 ## VERIFICATION-RECEIPTS
 
 - Baseline (before any edit): flauz-workspace 55/55, flauz-agent 26/26,
@@ -122,6 +145,17 @@ Worker K (flauz-K-w4), branch `flauz/wave4/workflow-envelope`, base `a4c245147e8
   f88a3a8..HEAD delta at every milestone: headers byte-exact, TAB indent
   (the ` *` docblock continuation the sole exception), ASCII-only added
   lines, new .mjs in `.eslint-allowed-javascript-files`, zero src/vs paths.
+- M5: canary 5/5 (A1-A5); suites workflow 65/65, agent 31/31, workspace
+  55/55, models 12/12; tsc green x2 (workflow, agent); yml structure
+  validated (pinned actions, no tabs, gates present); committed fixtures
+  byte-equal generator output.
+- FINAL SWEEP (M6): fork-critical-guard.sh --base f88a3a85 --head HEAD ->
+  PASS (src/vs divergence outside contrib/flauz is EMPTY; DL-12/DL-10);
+  git diff --name-only f88a3a8..HEAD -> every path is lane-K-owned
+  (extensions/flauz-{workflow,agent}, test/fixtures/workflow, build/flauz,
+  .github/workflows/flauz-workflow.yml, .eslint-allowed-javascript-files,
+  flauz-delivery/k-workflow-envelope); zero upstream paths.
+
 
 ## DECISION-LOG-PROPOSALS
 
@@ -164,3 +198,10 @@ Worker K (flauz-K-w4), branch `flauz/wave4/workflow-envelope`, base `a4c245147e8
 - Chat-editing snapshot evidence is spec-only (DL-22): see
   build/flauz/specs/chatsnapshot-api-watch.md (blocked on an upstream API
   decision; three unblocking conditions recorded).
+- v1 fragment validation follows M1's documented 'exact key sets' discipline:
+  model.params is always present in validated fragments (the distill path
+  always serializes it). The M3 hotfix made optional keys TRULY optional on
+  the A2A surfaces (a2a + messaging); the envelope keeps the landed M1
+  semantics per the work order (do-not-redo). If hand-authoring fragments
+  without params ever matters, that is a deliberate v2 schema decision.
+
