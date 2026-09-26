@@ -23,8 +23,11 @@
 import * as vscode from 'vscode';
 import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { setVscodeApi, vscodeApi } from './globals.ts';
-import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';
+import { loadCheckpointSigner } from './keys.ts';
+import type { CheckpointSigner, FileSystemPort } from '../../flauz-workspace/src/api.ts';
 import { TaskService } from '../../flauz-workspace/src/taskService.ts';
 import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';
 import { WorkflowService, type ApprovalPort, type ToolExecutorPort, type WorkflowFragment, type WorkflowToolStep } from './envelope.ts';
@@ -111,8 +114,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	}
 
 	const clock = (): number => Date.now();
+	// DL-20 hardening: load the USER checkpoint keystore (~/.flauz/keystore -
+	// the user owns the chain, SECURITY-MODEL section 3.3). v0 posture: the
+	// fixture manifest format of src/keys.ts; the real OS-backed keystore is
+	// product integration (REPORT GAPS-AND-SKIPS). No keystore -> UNHARDENED
+	// (v0 hash-chain-only behavior, documented).
+	const keystoreDir = path.join(os.homedir(), '.flauz', 'keystore');
+	const readUtf8 = async (target: string): Promise<string | undefined> => {
+		try {
+			return await fs.readFile(target, { encoding: 'utf-8' });
+		} catch {
+			return undefined;
+		}
+	};
+	let signer: CheckpointSigner | undefined;
+	try {
+		signer = await loadCheckpointSigner(keystoreDir, readUtf8, (...parts: string[]) => path.join(...parts.filter(part => part.length > 0)));
+	} catch (err) {
+		vscode.window.showWarningMessage(`flauz-workflow: checkpoint keystore at ${keystoreDir} failed to load (${err instanceof Error ? err.message : String(err)}); the ledger runs UNHARDENED.`);
+	}
 	const tasks = new TaskService({ root: workspaceRoot, fs: nodeFs, clock });
-	const ledger = new EvidenceLedger({ root: workspaceRoot, fs: nodeFs, clock });
+	const ledger = new EvidenceLedger({ root: workspaceRoot, fs: nodeFs, clock, ...(signer !== undefined ? { signer } : {}) });
+	if (signer !== undefined) {
+		vscode.window.showInformationMessage(`flauz-workflow: ledger hardening ON (signed checkpoints via ${signer.algorithm} key '${signer.keyId}')`);
+	}
 	const workflows = new WorkflowService({ root: workspaceRoot, fs: nodeFs, tasks, ledger, clock });
 	const services: WorkflowCommandServices = {
 		workflows,

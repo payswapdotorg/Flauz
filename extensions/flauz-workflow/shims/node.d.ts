@@ -12,6 +12,7 @@
  */
 
 declare module 'node:fs/promises' {
+	export function copyFile(src: string, dest: string): Promise<void>;
 	export function readFile(path: string, options: { encoding: 'utf-8' }): Promise<string>;
 	export function writeFile(path: string, data: string, options?: { encoding?: string; flag?: string }): Promise<void>;
 	export function appendFile(path: string, data: string, options?: { encoding?: string; flag?: string }): Promise<void>;
@@ -39,10 +40,40 @@ declare module 'node:child_process' {
 
 declare module 'node:os' {
 	export function tmpdir(): string;
+	export function homedir(): string;
+}
+
+declare module 'node:crypto' {
+	export interface KeyObject {
+		export(options: { format: 'pem'; type: 'spki' | 'pkcs8' }): string;
+	}
+	export function createPrivateKey(key: string | { key: Uint8Array; format: 'der'; type: 'pkcs8' }): KeyObject;
+	export function createPublicKey(key: string | KeyObject): KeyObject;
+	export function generateKeyPairSync(type: 'ed25519'): { privateKey: KeyObject; publicKey: KeyObject };
+	export function sign(algorithm: string | null, data: Uint8Array, key: KeyObject): Buffer;
+	export function verify(algorithm: string | null, data: Uint8Array, key: KeyObject, signature: Uint8Array): boolean;
+	export interface Hmac {
+		update(data: string | Uint8Array, encoding?: string): Hmac;
+		digest(encoding: 'hex'): string;
+	}
+	export function createHmac(algorithm: 'sha256', key: Uint8Array): Hmac;
+	export function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean;
+	export function createHash(algorithm: 'sha256'): { update(data: string, encoding: string): { digest(encoding: 'hex'): string } };
+}
+
+/** Minimal Buffer surface used by the node-side signer (extends Uint8Array like the real one). */
+declare const console: { log(...args: unknown[]): void };
+
+declare class Buffer extends Uint8Array {
+	static from(input: string, encoding: string): Buffer;
+	static from(input: Uint8Array): Buffer;
+	toString(encoding?: string): string;
 }
 
 declare module 'node:path' {
 	export function join(...segments: string[]): string;
+	export function dirname(p: string): string;
+	export function resolve(...segments: string[]): string;
 }
 
 declare module 'node:test' {

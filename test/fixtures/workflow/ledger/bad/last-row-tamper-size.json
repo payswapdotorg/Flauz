@@ -1,0 +1,8 @@
+{
+	"$schema": "flauz.evidence.size/v1",
+	"bytes": 1653,
+	"headSha256": "338d61271637f5512b0b922d79655747885b8579bdefa943254d33a8bed1a70b",
+	"lastCheckpointSeq": 5,
+	"rowCount": 6,
+	"updatedAt": 1740000010000
+}
