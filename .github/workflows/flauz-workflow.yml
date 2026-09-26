@@ -1,0 +1,98 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 4 - Lane K. The workflow-envelope CI line (C-WORKFLOW canary):
+#
+#   The scripted save -> re-run round trip (envelope v1 + DL-20-hardened ledger
+#   + A2A bus + AHP trigger mapping) plus the four node-only suites, the
+#   typechecks, and the fixture-generator determinism receipt.
+#
+#   Node-only and zero-dep by construction: no IDE boot, no xvfb, no electron,
+#   no root npm install (type-stripped node --test + a typescript-only install
+#   per extension for tsc). Zero secrets.
+#
+# Constraints honored (same discipline as flauz-canaries.yml): no secrets;
+# gated on Flauz paths + workflow_dispatch; ubuntu-latest; pinned actions.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Workflow (Lane K)
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-workflow/**'
+      - 'extensions/flauz-workspace/**'
+      - 'extensions/flauz-agent/**'
+      - 'extensions/flauz-models/**'
+      - 'test/fixtures/workflow/**'
+      - 'build/flauz/**'
+      - '.github/workflows/flauz-workflow.yml'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-workflow/**'
+      - 'extensions/flauz-workspace/**'
+      - 'extensions/flauz-agent/**'
+      - 'extensions/flauz-models/**'
+      - 'test/fixtures/workflow/**'
+      - 'build/flauz/**'
+      - '.github/workflows/flauz-workflow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-workflow-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow-envelope:
+    name: 'C-WORKFLOW canary: envelope save -> re-run (+ suites, tsc, determinism)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Canary spec present?
+        run: |
+          test -f build/flauz/canaries/C-WORKFLOW.md || { echo "C-WORKFLOW spec missing (build/flauz/canaries/C-WORKFLOW.md)"; exit 1; }
+          test -f build/flauz/scripts/c-workflow-canary.mjs || { echo "canary script missing (build/flauz/scripts/c-workflow-canary.mjs)"; exit 1; }
+          echo "C-WORKFLOW spec + script: OK"
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: C-WORKFLOW canary (A1 round trip, A2 hardening, A3 A2A, A4 triggers, A5 hygiene)
+        run: node build/flauz/scripts/c-workflow-canary.mjs
+
+      - name: Suites (flauz-workflow, flauz-workspace, flauz-agent, flauz-models)
+        run: |
+          set -e
+          for ext in flauz-workflow flauz-workspace flauz-agent flauz-models; do
+            echo "== node --test: $ext"
+            (cd "extensions/$ext" && npm test)
+          done
+
+      - name: Typechecks (typescript-only install per extension; no root install)
+        run: |
+          set -e
+          for ext in flauz-workflow flauz-workspace flauz-agent flauz-models; do
+            echo "== tsc --noEmit: $ext"
+            (cd "extensions/$ext" && npm install --no-audit --no-fund && npm run typecheck)
+          done
+
+      - name: Fixture-generator determinism receipt (two runs, identical sha256)
+        run: |
+          set -e
+          node extensions/flauz-workflow/test/generateA2aFixtures.ts > /dev/null
+          FIRST=$(find test/fixtures/workflow/a2a -type f | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+          node extensions/flauz-workflow/test/generateA2aFixtures.ts > /dev/null
+          SECOND=$(find test/fixtures/workflow/a2a -type f | sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+          echo "determinism: $FIRST vs $SECOND"
+          test "$FIRST" = "$SECOND"
+          git diff --exit-code -- test/fixtures/workflow/a2a || { echo "committed fixtures drifted from generator output"; exit 1; }
