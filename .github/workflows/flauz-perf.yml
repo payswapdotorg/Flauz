@@ -213,11 +213,12 @@ jobs:
           MK_FLAUZ="$GITHUB_WORKSPACE/artifacts/flauz.markers.tsv"
           MK_UP="$GITHUB_WORKSPACE/artifacts/upstream.markers.tsv"
           mkdir -p artifacts run/flauz run/upstream
-          # 2026-09-26 first-CI fix: boot with a scratch FILE argument — the
-          # standard-start criteria (startupTimings.ts _isStandardStartup) require
-          # one visible text editor + the Explorer viewlet; a bare boot is always
-          # NO_standard_start (round-8/9: 0 valid runs on both sides).
-          echo "flauz perf pair scratch" > run/perf-scratch.txt
+          # 2026-09-26 first-CI fix (round 11): a STANDARD START needs a workspace
+          # FOLDER (Explorer viewlet visible) AND exactly one open text editor —
+          # boot with both args: `code.sh <folder> <file-in-folder>` (round-10
+          # proved a bare file arg still fails the Explorer criterion).
+          mkdir -p run/perf-ws
+          echo "flauz perf pair scratch" > run/perf-ws/scratch.txt
           for i in $(seq 1 "$N"); do
             echo "::group::run $i/$N flauz"
             DISPLAY=:10 ./flauz/scripts/code.sh \
@@ -228,7 +229,7 @@ jobs:
               --extensions-dir "$GITHUB_WORKSPACE/run/flauz/exts-$i" \
               --disable-telemetry --skip-welcome --skip-release-notes \
               --disable-updates --disable-experiments --disable-workspace-trust \
-              "$GITHUB_WORKSPACE/run/perf-scratch.txt"
+              "$GITHUB_WORKSPACE/run/perf-ws" "$GITHUB_WORKSPACE/run/perf-ws/scratch.txt"
             echo "::endgroup::"
             echo "::group::run $i/$N upstream"
             DISPLAY=:10 ./upstream/scripts/code.sh \
@@ -239,7 +240,7 @@ jobs:
               --extensions-dir "$GITHUB_WORKSPACE/run/upstream/exts-$i" \
               --disable-telemetry --skip-welcome --skip-release-notes \
               --disable-updates --disable-experiments --disable-workspace-trust \
-              "$GITHUB_WORKSPACE/run/perf-scratch.txt"
+              "$GITHUB_WORKSPACE/run/perf-ws" "$GITHUB_WORKSPACE/run/perf-ws/scratch.txt"
             echo "::endgroup::"
           done
           echo "--- flauz timers ---"; cat "$TIMERS_FLAUZ" || true

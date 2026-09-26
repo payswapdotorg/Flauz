@@ -42,7 +42,7 @@ permissions:
 
 concurrency:
   group: flauz-hygiene-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false  # 2026-09-26: re-run attempts were cancelling each other mid-compile (4 shutdown-cancellations)
 
 env:
   # Mirrors .github/workflows/chat-perf.yml: binaries are fetched explicitly
