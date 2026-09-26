@@ -1,0 +1,73 @@
+{
+	"name": "flauz-environments",
+	"displayName": "Flauz Environments",
+	"description": "Flauz environment registry: typed env descriptors (.flauz/environments.json), provider adapters for SSH/container/cloud-sandbox/workspace-remote, connection-plan generation, and the env-switch session-continuity model (Wave 4 Lane J).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"private": true,
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:flauz.env.list",
+		"onCommand:flauz.env.register",
+		"onCommand:flauz.env.unregister",
+		"onCommand:flauz.env.activate",
+		"onCommand:flauz.env.deactivate",
+		"onCommand:flauz.env.showPlan",
+		"onCommand:flauz.env.switch"
+	],
+	"main": "./dist/extension.js",
+	"enabledApiProposals": [],
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.env.list",
+				"title": "List Environments",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.register",
+				"title": "Register Environment",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.unregister",
+				"title": "Unregister Environment",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.activate",
+				"title": "Activate Environment",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.deactivate",
+				"title": "Deactivate Environment",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.showPlan",
+				"title": "Show Connection Plan",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.switch",
+				"title": "Switch Environment (Re-open Continuity)",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
+}

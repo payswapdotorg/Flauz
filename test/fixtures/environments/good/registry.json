@@ -1,0 +1,137 @@
+{
+	"$schema": "flauz.environments/v0",
+	"activeId": "env-build-box",
+	"environments": [
+		{
+			"id": "env-bridge-host",
+			"kind": "ssh-local",
+			"label": "SSH with external agent host bridge",
+			"connection": {
+				"host": "bridge.example.internal",
+				"authMethod": "agent",
+				"agentHostBridge": {
+					"bridgePort": 7777,
+					"tokenRef": "vault:agent-host-bridge/env-bridge-host"
+				}
+			},
+			"trust": {
+				"posture": "unknown",
+				"inheritsWorkspaceTrust": false
+			},
+			"capabilities": {
+				"agentHost": true,
+				"browser": false,
+				"exec": true,
+				"terminal": true
+			},
+			"enabled": true,
+			"timing": {
+				"created": 1730000000000,
+				"updatedAt": 1730000050000
+			}
+		},
+		{
+			"id": "env-build-box",
+			"kind": "ssh-local",
+			"label": "Build box",
+			"connection": {
+				"host": "build.example.internal",
+				"port": 2222,
+				"user": "builder",
+				"authMethod": "key",
+				"remotePath": "/srv/workspace"
+			},
+			"trust": {
+				"posture": "unknown",
+				"inheritsWorkspaceTrust": false
+			},
+			"capabilities": {
+				"agentHost": true,
+				"browser": false,
+				"exec": true,
+				"terminal": true
+			},
+			"enabled": true,
+			"timing": {
+				"created": 1730000000000,
+				"updatedAt": 1730000100000
+			}
+		},
+		{
+			"id": "env-dev-container",
+			"kind": "container",
+			"label": "Flauz dev container",
+			"connection": {
+				"workspaceFolder": "/workspaces/flauz",
+				"name": "flauz-dev",
+				"devcontainerConfig": "/workspaces/flauz/.devcontainer/devcontainer.json"
+			},
+			"trust": {
+				"posture": "trusted",
+				"inheritsWorkspaceTrust": true
+			},
+			"capabilities": {
+				"agentHost": true,
+				"browser": false,
+				"exec": true,
+				"terminal": true
+			},
+			"enabled": true,
+			"timing": {
+				"created": 1730000000000,
+				"updatedAt": 1730000200000
+			}
+		},
+		{
+			"id": "env-e2b-main",
+			"kind": "cloud-sandbox",
+			"label": "E2B main sandbox",
+			"connection": {
+				"provider": "e2b",
+				"apiKeyRef": "vault:e2b/api-key",
+				"sandboxTemplate": "flauz-dev-64gb",
+				"region": "eu-west-1"
+			},
+			"trust": {
+				"posture": "untrusted",
+				"inheritsWorkspaceTrust": false
+			},
+			"capabilities": {
+				"agentHost": true,
+				"browser": true,
+				"exec": true,
+				"terminal": true
+			},
+			"enabled": true,
+			"timing": {
+				"created": 1730000000000,
+				"updatedAt": 1730000300000
+			}
+		},
+		{
+			"id": "env-tunnel-remote",
+			"kind": "workspace-remote",
+			"label": "Tunneled workspace server",
+			"connection": {
+				"authorityPrefix": "test",
+				"remotePath": "/srv/flauz",
+				"viaTunnel": true
+			},
+			"trust": {
+				"posture": "unknown",
+				"inheritsWorkspaceTrust": true
+			},
+			"capabilities": {
+				"agentHost": true,
+				"browser": true,
+				"exec": true,
+				"terminal": true
+			},
+			"enabled": true,
+			"timing": {
+				"created": 1730000000000,
+				"updatedAt": 1730000400000
+			}
+		}
+	]
+}

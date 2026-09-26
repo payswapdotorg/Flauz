@@ -1,0 +1,5 @@
+{
+	"$schema": "flauz.environments/v0",
+	"activeId": "env-build-box",
+	"environments": {}
+}

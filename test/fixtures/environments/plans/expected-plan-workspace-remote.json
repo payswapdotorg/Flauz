@@ -1,0 +1,98 @@
+{
+	"$schema": "flauz.connectionPlan/v0",
+	"agentHost": {
+		"mode": "embedded",
+		"treeRef": "src/vs/server/ (in-repo remote server); extensions/vscode-test-resolver/src/extension.ts:169-175 (--agent-host-port embedded spawn); src/vs/platform/agentHost/common/agentService.ts:66-72 (RemoteProxy)"
+	},
+	"authority": "test+env-tunnel-remote",
+	"budgets": {
+		"choreographyMs": 500,
+		"warmSwitchMs": 1500
+	},
+	"environmentId": "env-tunnel-remote",
+	"kind": "workspace-remote",
+	"notes": [
+		"v0 plan only -- no connection attempted (runners execute the plan; REPORT GAPS-AND-SKIPS).",
+		"in-tree machinery end-to-end (C-30/C-31): resolver API + src/vs/server + tunnels CLI; no provider extension needed for the transport itself.",
+		"authority suffix is the environment id (deterministic, unique per registry); nested a@b transit is available for chained environments."
+	],
+	"phases": [
+		{
+			"budgetMs": 50,
+			"id": "validate",
+			"marks": [],
+			"steps": [
+				{
+					"action": "validate authority prefix \"test\" (resolver registration target) + workspace trust inheritance",
+					"id": "workspace-remote-validate",
+					"treeRef": "src/vscode-dts/vscode.proposed.resolvers.d.ts:456 (registerRemoteAuthorityResolver(authorityPrefix, resolver)); src/vs/workbench/contrib/remote/browser/remoteIndicator.ts:132-133 (authority from environmentService)"
+				}
+			],
+			"title": "Authority prefix + trust validation"
+		},
+		{
+			"budgetMs": 0,
+			"id": "resolve",
+			"marks": [
+				"code/flauz/willResolveEnv",
+				"code/flauz/didResolveEnv"
+			],
+			"steps": [
+				{
+					"action": "resolve the authority over tunnel (cli/src/tunnels + remoteTunnel contrib; code-tunnel-oss naming); nested a@b chained authorities ride RemoteAuthorityResolverContext.execServer when transiting midpoints",
+					"id": "workspace-remote-resolve",
+					"treeRef": "src/vscode-dts/vscode.proposed.resolvers.d.ts:17-26 (nested authorities + execServer), :381-433 (resolver contract); src/vs/server/ (in-repo server); cli/src/tunnels/ (tunnel transport, C-31)"
+				}
+			],
+			"title": "Resolve authority (server or tunnel transport)"
+		},
+		{
+			"budgetMs": 150,
+			"id": "agent-host",
+			"marks": [
+				"code/flauz/willBridgeAgentHost",
+				"code/flauz/didBridgeAgentHost"
+			],
+			"steps": [
+				{
+					"action": "the server spawns its own agent host (--agent-host-port); AHP frames renderer <-> server ride AgentHostIpcChannels.RemoteProxy",
+					"id": "workspace-remote-agent-host",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:169-175 (--agent-host-port); src/vs/platform/agentHost/common/agentService.ts:66-72 (RemoteProxy channel)"
+				}
+			],
+			"title": "Server-side agent host (embedded spawn + RemoteProxy relay)"
+		},
+		{
+			"budgetMs": 300,
+			"id": "ready",
+			"marks": [
+				"code/flauz/willRehydrateEnvSwitch",
+				"code/flauz/didRehydrateEnvSwitch"
+			],
+			"steps": [
+				{
+					"action": "open the workspace on the resolved authority (re-open continuity: vscode.newWindow { remoteAuthority }) at \"/srv/flauz\"",
+					"id": "workspace-remote-open",
+					"treeRef": "extensions/vscode-test-resolver/src/extension.ts:396-403 (authority open pattern; managed variant :406-408)"
+				}
+			],
+			"title": "Open workspace on the resolved authority (re-open continuity kicks in)"
+		}
+	],
+	"resolver": {
+		"authorityPrefix": "test",
+		"managed": false,
+		"steps": [
+			{
+				"action": "validate authority prefix \"test\" (resolver registration target) + workspace trust inheritance",
+				"id": "workspace-remote-validate",
+				"treeRef": "src/vscode-dts/vscode.proposed.resolvers.d.ts:456 (registerRemoteAuthorityResolver(authorityPrefix, resolver)); src/vs/workbench/contrib/remote/browser/remoteIndicator.ts:132-133 (authority from environmentService)"
+			},
+			{
+				"action": "resolve the authority over tunnel (cli/src/tunnels + remoteTunnel contrib; code-tunnel-oss naming); nested a@b chained authorities ride RemoteAuthorityResolverContext.execServer when transiting midpoints",
+				"id": "workspace-remote-resolve",
+				"treeRef": "src/vscode-dts/vscode.proposed.resolvers.d.ts:17-26 (nested authorities + execServer), :381-433 (resolver contract); src/vs/server/ (in-repo server); cli/src/tunnels/ (tunnel transport, C-31)"
+			}
+		]
+	}
+}

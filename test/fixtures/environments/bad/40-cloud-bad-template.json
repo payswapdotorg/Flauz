@@ -1,0 +1,26 @@
+{
+	"capabilities": {
+		"agentHost": true,
+		"browser": true,
+		"exec": true,
+		"terminal": true
+	},
+	"connection": {
+		"apiKeyRef": "vault:e2b/api-key",
+		"provider": "e2b",
+		"region": "eu-west-1",
+		"sandboxTemplate": ""
+	},
+	"enabled": true,
+	"id": "env-e2b-main",
+	"kind": "cloud-sandbox",
+	"label": "E2B main sandbox",
+	"timing": {
+		"created": 1730000000000,
+		"updatedAt": 1730000300000
+	},
+	"trust": {
+		"inheritsWorkspaceTrust": false,
+		"posture": "untrusted"
+	}
+}

@@ -1,0 +1,25 @@
+{
+	"capabilities": {
+		"agentHost": true,
+		"browser": false,
+		"exec": true,
+		"terminal": true
+	},
+	"connection": {
+		"devcontainerConfig": "devcontainer.json",
+		"name": "flauz-dev",
+		"workspaceFolder": "/workspaces/flauz"
+	},
+	"enabled": true,
+	"id": "env-dev-container",
+	"kind": "container",
+	"label": "Flauz dev container",
+	"timing": {
+		"created": 1730000000000,
+		"updatedAt": 1730000200000
+	},
+	"trust": {
+		"inheritsWorkspaceTrust": true,
+		"posture": "trusted"
+	}
+}

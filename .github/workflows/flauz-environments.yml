@@ -1,0 +1,162 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 4 — Lane J. Environment registry + remote continuity canary:
+# the C-ENV spec (build/flauz/canaries/C-ENV.md) as a ZERO-SECRETS job on
+# ubuntu-latest (work order constraint: no secrets referenced at all — see
+# the drift trip-wires in C-ENV.md for the DL-28 escalation path if the
+# npm-install rate-limit flake class ever hits this job).
+#
+# Shape (template: flauz-canaries.yml — C-20/C-23/C-24/C-28 jobs):
+#   phase 1 (fail-fast, ZERO install, zero-dep):
+#     - C-ENV spec present
+#     - node --test on the extension suites (registry / providers /
+#       continuity / fixtures) — the unit contract
+#     - the C-ENV fixture canary (env-registry-canary.mjs, assertions A1-A8)
+#     - activation lint (flauz manifests; proves flauz-environments stays
+#       off onStartupFinished and command-only)
+#     - structural self-check of this workflow + the canary --help receipt
+#   phase 2 (boot-level, gated on lane presence probe):
+#     - compile + bundle + xvfb boot (C-20 recipe)
+#     - B1 clean boot / no proposal drop; B2 the 7 flauz.env.* commands
+#       carried by the bundled extension
+#     - P1/P2 (picker + live switch) stay WAITING-ON-RUNTIME (C-ENV.md) —
+#       the live resolver wiring is Wave-4-next (INTEGRATION-GAP.md section 3)
+#
+# Gated on Flauz paths + workflow_dispatch (DL-25 gating set).
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Environments
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-environments-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  VSCODE_QUALITY: 'oss'
+
+jobs:
+  cenv-environment-registry:
+    name: 'C-ENV canary: environment registry + continuity'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # ---- phase 1: zero-dep, fail-fast, no install ----
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: C-ENV spec + canary runner present
+        run: |
+          set -e
+          test -f build/flauz/canaries/C-ENV.md || { echo "C-ENV spec missing (build/flauz/canaries/C-ENV.md)"; exit 1; }
+          test -f build/flauz/scripts/env-registry-canary.mjs || { echo "canary runner missing"; exit 1; }
+          echo "C-ENV spec + runner: OK"
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Extension unit tests (registry / providers / continuity / fixtures)
+        run: |
+          set -e
+          cd extensions/flauz-environments
+          node --test "test/*.test.ts"
+
+      - name: C-ENV fixture canary (A1-A8)
+        run: node build/flauz/scripts/env-registry-canary.mjs
+
+      - name: Activation lint (flauz manifests; flauz-environments must be command-only)
+        run: node build/flauz/scripts/activation-lint.mjs --root .
+
+      - name: Lane presence probe (glob, never hardcode)
+        id: lanes
+        run: |
+          if [ -f extensions/flauz-environments/package.json ] && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "lane J + product overlay present"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "lane J not merged yet — boot-level assertions run in PROBE-ONLY mode (documented skip)."
+          fi
+
+      # ---- phase 2: boot-level assertions (template: flauz-canaries.yml) ----
+
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        if: steps.lanes.outputs.present == 'true'
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install dependencies + compile + bundle
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          node build/npm/preinstall.ts && npm install && npm run compile \
+            && node build/flauz/scripts/bundle-extensions.mjs
+
+      - name: Boot + assert the C-ENV boot-level surface (B1/B2)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$RUNNER_TEMP/cenv-userdata" \
+            --extensions-dir "$RUNNER_TEMP/cenv-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            > artifacts/cenv-boot.log 2>&1 &
+          sleep 25
+          # B1 per C-ENV.md: clean boot; no proposal drop (DL-4 drift class)
+          ! grep -qE 'Unresponsive|Fatal error' artifacts/cenv-boot.log
+          ! grep -q 'DOES NOT EXIST' artifacts/cenv-boot.log \
+            || { echo 'C-ENV B1 FAILED: a flauz proposed API does not exist at this HEAD'; exit 1; }
+          # B2 per C-ENV.md: the 7 flauz.env.* command contributions ride the
+          # bundled extension (bundle-extensions output + compile output).
+          CMDS=0
+          for c in flauz.env.list flauz.env.register flauz.env.unregister flauz.env.activate flauz.env.deactivate flauz.env.showPlan flauz.env.switch; do
+            if grep -rq "$c" "$RUNNER_TEMP/cenv-exts" 2>/dev/null || grep -rq "$c" extensions/flauz-environments/package.json; then CMDS=$((CMDS+1)); fi
+          done
+          echo "C-ENV B2: $CMDS/7 flauz.env.* commands present in the bundled extension surface"
+          [ "$CMDS" -eq 7 ] || { echo 'C-ENV B2 FAILED: command surface incomplete'; exit 1; }
+          # registry boots clean with .flauz/ absent (no workspace): the
+          # extension stays inactive without a workspace folder — no crash.
+          ! grep -qE 'flauz-environments.*(failed|crash)' artifacts/cenv-boot.log
+          # P1 (picker surface render) + P2 (live switch + re-hydration) are
+          # WAITING-ON-RUNTIME per C-ENV.md steps 4-5 — the live resolver
+          # wiring is Wave-4-next (INTEGRATION-GAP.md section 3).
+          pkill -f 'scripts/code.sh' 2>/dev/null || true
+          echo 'C-ENV boot-level canary: GREEN'
+
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-cenv
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

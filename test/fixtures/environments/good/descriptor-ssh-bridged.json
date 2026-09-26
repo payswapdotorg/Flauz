@@ -1,0 +1,28 @@
+{
+	"id": "env-bridge-host",
+	"kind": "ssh-local",
+	"label": "SSH with external agent host bridge",
+	"connection": {
+		"host": "bridge.example.internal",
+		"authMethod": "agent",
+		"agentHostBridge": {
+			"bridgePort": 7777,
+			"tokenRef": "vault:agent-host-bridge/env-bridge-host"
+		}
+	},
+	"trust": {
+		"posture": "unknown",
+		"inheritsWorkspaceTrust": false
+	},
+	"capabilities": {
+		"agentHost": true,
+		"browser": false,
+		"exec": true,
+		"terminal": true
+	},
+	"enabled": true,
+	"timing": {
+		"created": 1730000000000,
+		"updatedAt": 1730000050000
+	}
+}
