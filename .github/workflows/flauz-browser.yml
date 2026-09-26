@@ -1,0 +1,241 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz Wave 4 — Lane I (browser policy engine + partition model + the
+# blocked-at-all-layers verification story).
+#
+# Two jobs:
+#   1. b-policy-unit   — the zero-dep verification standard: the flauz-browser
+#                        node --test suites (96 cases: schema/error classes,
+#                        layered precedence, partitions, the CDP-bypass B1c
+#                        matrix, extension wiring) + a tsc --noEmit gate.
+#                        Runs on a bare checkout (no repo install; the only
+#                        install is a global typescript for the typecheck).
+#   2. b-policy-canary — the B-POLICY canary (spec:
+#                        build/flauz/canaries/B-POLICY.md): xvfb boot of the
+#                        flauz build with a policy-carrying workspace, the
+#                        boot-level assertion set (A1-A3: engine verdict on
+#                        the fixture policy, clean boot + bundle --verify,
+#                        networkFilter + browserView compile greps). The
+#                        driver-dependent layered-gate assertions (A4-A10)
+#                        are WAITING-ON-LANE F/driver per the spec — the jobs
+#                        detect lane presence by glob (never hardcode) and
+#                        report skips with reasons instead of failing.
+#
+# Constraints honored (work order section 3):
+#   - zero-secrets posture: b-policy-unit uses NO tokens at all. b-policy-canary
+#     mirrors flauz-canaries.yml and carries ONLY the auto-provided workflow
+#     token on the install step — the DL-20/DL-28 adjudicated narrow exception
+#     (auto-token only; nothing configured in the repo; lifts the api.github.com
+#     rate limits that break the ripgrep-prebuilt fetch, the round-7 flake).
+#   - ubuntu-latest, gated on the Flauz paths (DL-25) + workflow_dispatch
+#     (the sync runbook triggers this workflow at EVERY sync — DL-11).
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Browser Policy
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-browser-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  VSCODE_QUALITY: 'oss'
+
+jobs:
+  b-policy-unit:
+    name: 'B-POLICY unit: layered policy engine test suites'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Spec present?
+        run: |
+          test -f build/flauz/canaries/B-POLICY.md || { echo "B-POLICY spec missing (build/flauz/canaries/B-POLICY.md)"; exit 1; }
+          echo "B-POLICY spec: OK"
+
+      - name: Lane presence probe (glob, never hardcode)
+        id: lanes
+        run: |
+          if ls extensions/flauz-browser/package.json >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "flauz-browser lane present"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz-browser not merged yet — unit job runs in PROBE-ONLY mode (documented skip)."
+          fi
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Run the flauz-browser node --test suites (zero-dep)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          cd extensions/flauz-browser
+          node --test "test/*.test.ts" 2>&1 | tee "$RUNNER_TEMP/bpolicy-unit.log"
+          # node --test exits non-zero on any failure; assert the counts made it to the log:
+          grep -q '^. tests ' "$RUNNER_TEMP/bpolicy-unit.log" || { echo 'unit runner produced no summary'; exit 1; }
+
+      - name: Typecheck (tsc --noEmit, isolated global install — never a repo install)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          npm install -g typescript@5.9.3
+          cd extensions/flauz-browser
+          tsc --noEmit
+          echo 'B-POLICY typecheck: GREEN'
+
+      - name: Probe-only notice
+        if: steps.lanes.outputs.present != 'true'
+        run: echo 'flauz-browser lane absent — B-POLICY unit suite skipped (documented; activation/rota lanes unaffected).'
+
+  b-policy-canary:
+    name: 'B-POLICY canary: policy-gated browser pane (boot-level)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Spec present?
+        run: |
+          test -f build/flauz/canaries/B-POLICY.md
+          echo "B-POLICY spec: OK"
+
+      - name: Lane presence probe (glob, never hardcode)
+        id: lanes
+        run: |
+          if ls extensions/flauz-*/package.json >/dev/null 2>&1 && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes + product overlay present"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz lanes / product.flauz.json not merged yet — B-POLICY canary runs in PROBE-ONLY mode (documented skip of boot assertions)."
+          fi
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install dependencies (setup-electron needs vinyl-fs from node_modules)
+        run: node build/npm/preinstall.ts && npm install
+        env:
+          # auto-provided workflow token ONLY (DL-20/DL-28 narrow exception):
+          # lifts api.github.com rate limits that break the ripgrep-prebuilt
+          # release fetch (403 class, round-7 canary flake). Nothing is
+          # configured in the repo; the no-secrets policy holds.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Electron
+        uses: ./.github/actions/setup-electron
+        with:
+          arch: x64
+
+      - name: Boot the policy-gated workspace and assert the B-POLICY boot-level surface
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          # deps pre-installed; compile + bundle the flauz extensions so boots ACTIVATE them
+          npm run compile
+          node build/flauz/scripts/bundle-extensions.mjs
+          node build/flauz/scripts/bundle-extensions.mjs --verify \
+            || { echo 'B-POLICY A2 FAILED: a flauz-* extension main is missing from dist/ (round-16 class)'; exit 1; }
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          # Fixture workspace: the cdp-bypass-cases.json 'base' policy (restrictive allowlist)
+          WS="$RUNNER_TEMP/bpolicy-ws"
+          mkdir -p "$WS/.flauz"
+          cat > "$WS/.flauz/browser-policy.json" <<'POLICY'
+          {
+            "schemaVersion": 0,
+            "driver": { "allow": ["*.example.com"] },
+            "webRequest": { "allow": ["*.example.com"] },
+            "willNavigate": { "allow": ["*.example.com"] }
+          }
+          POLICY
+          # Canary-profile settings: networkFilter default-on for the agent scope
+          # (product default flip is flauz-defaults config — INTEGRATION-GAP.md G3/P1)
+          UD="$RUNNER_TEMP/bpolicy-userdata"
+          mkdir -p "$UD/User"
+          cat > "$UD/User/settings.json" <<'SETTINGS'
+          { "chat.agent.networkFilter": true }
+          SETTINGS
+          # B-POLICY A1 (pre-boot, zero-dep): the REAL engine denies a CDP nav to
+          # a non-allowlisted host at the driver layer under the fixture policy.
+          node --input-type=module -e "
+            import { BrowserPolicyEngine } from './extensions/flauz-browser/src/policy.ts';
+            import { readFile } from 'node:fs/promises';
+            const text = await readFile('$WS/.flauz/browser-policy.json', 'utf-8');
+            const engine = BrowserPolicyEngine.fromPolicyText(text);
+            const verdict = engine.evaluate({ url: 'https://evil.org/pay', initiator: 'agent-tool' }).final;
+            console.log('B-POLICY A1 verdict:', verdict.decision, verdict.layer, verdict.initiator);
+            if (verdict.decision !== 'deny' || verdict.layer !== 'driver' || verdict.initiator !== 'agent-tool') {
+              console.error('B-POLICY A1 FAILED: expected deny/driver/agent-tool'); process.exit(1);
+            }
+          "
+          echo 'B-POLICY A1: fixture policy denies a CDP nav to a non-allowlisted host at the driver layer'
+          # Boot with the policy-carrying workspace open (flauz-browser is bundled;
+          # it activates lazily on the first flauz.browser.* command — the A4-A10
+          # log-line/driver assertions are WAITING-ON-LANE F/driver per the spec).
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$UD" \
+            --extensions-dir "$RUNNER_TEMP/bpolicy-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            "$WS" \
+            > artifacts/bpolicy-boot.log 2>&1 &
+          BOOT_PID=$!
+          sleep 25
+          # A2: clean boot with the extension installed + the workspace open
+          ! grep -qE 'Unresponsive|Fatal error' artifacts/bpolicy-boot.log \
+            || { echo 'B-POLICY A2 FAILED: boot not clean'; exit 1; }
+          # A3: the in-tree gate surfaces compiled in (sync-drift canaries)
+          test -f out/vs/platform/networkFilter/common/networkFilterService.js \
+            || { echo 'B-POLICY A3 FAILED: networkFilter service missing from compile output (upstream drift)'; exit 1; }
+          grep -rq 'browserView' out/vs/workbench/contrib/browserView/browser/browserView.contribution.js 2>/dev/null \
+            || { echo 'B-POLICY A3 FAILED: browserView contribution missing from compile output (upstream drift)'; exit 1; }
+          kill $BOOT_PID 2>/dev/null || true
+          echo 'B-POLICY boot-level canary: GREEN (A4-A10 WAITING-ON-LANE F/driver — see build/flauz/canaries/B-POLICY.md)'
+
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-bpolicy
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

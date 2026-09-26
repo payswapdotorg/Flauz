@@ -1,0 +1,42 @@
+{
+	"schemaVersion": 0,
+	"driver": {
+		"allow": [
+			"*.example.com",
+			"docs.flauz.dev",
+			"api.example.com:8443",
+			"https://plain.example.org/path",
+			"user@credentials.example.net",
+			"[::1]",
+			"*"
+		],
+		"deny": [
+			"evil.example.com",
+			"tracker.example.net"
+		],
+		"fileRoots": [
+			"/tmp/trusted-exports",
+			".flauz"
+		]
+	},
+	"webRequest": {
+		"allow": [
+			"*.example.com"
+		],
+		"deny": [
+			"cdn.tracker.example.net"
+		]
+	},
+	"willNavigate": {
+		"allow": [
+			"*"
+		],
+		"deny": [
+			"phishing.example.org"
+		]
+	},
+	"partitions": {
+		"scope": "persist",
+		"perAgent": true
+	}
+}

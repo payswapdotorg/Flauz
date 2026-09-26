@@ -1,0 +1,61 @@
+{
+	"name": "flauz-browser",
+	"publisher": "flauz",
+	"displayName": "Flauz Browser Policy",
+	"description": "Flauz layered browser navigation policy engine (driver-side allowlist + webRequest + will-navigate + per-workspace/agent partitions) with .flauz/browser-policy.json as the per-workspace policy source.",
+	"version": "0.1.0",
+	"license": "MIT",
+	"type": "module",
+	"private": true,
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:flauz.browser.setPolicy",
+		"onCommand:flauz.browser.showPolicy",
+		"onCommand:flauz.browser.verifyPolicy",
+		"onCommand:flauz.browser.checkUrl",
+		"onCommand:flauz.browser.evaluate"
+	],
+	"main": "./dist/extension.js",
+	"enabledApiProposals": [],
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.browser.setPolicy",
+				"title": "Open (or Create) Browser Policy File",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.showPolicy",
+				"title": "Show Effective Browser Policy",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.verifyPolicy",
+				"title": "Verify Browser Policy File",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.checkUrl",
+				"title": "Check a URL Against the Browser Policy",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.evaluate",
+				"title": "Evaluate a Navigation Against the Browser Policy",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"devDependencies": {
+		"typescript": "^5.9.0"
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 0,
+	"driver": {
+		"enabled": false,
+		"allow": [
+			"*"
+		]
+	},
+	"webRequest": {
+		"allow": [
+			"*.example.com"
+		]
+	},
+	"willNavigate": {
+		"allow": [
+			"*.example.com"
+		]
+	}
+}
