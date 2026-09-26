@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Flauz workspace seam service — G side of the Lane F vertical slice.
  *
@@ -13,7 +18,7 @@
  *   F -> G: {"id":2,"cmd":"ping"}
  *   G -> F: {"id":2,"ok":true,"result":{"pong":true,"ts":1234}}
  *
- * Commands (seam contract §H): createTask / appendEvent / listTasks / getTask /
+ * Commands (seam contract section H): createTask / appendEvent / listTasks / getTask /
  * appendEvidence / createCheckpoint / verifyLedger, all under the
  * `flauz.workspace.*` namespace. State lives in the workspace:
  *   <root>/.flauz/tasks.json            — task envelope (stable key order,
@@ -191,7 +196,7 @@ export class WorkspaceSeam {
                         throw new SeamError('evidence sha256 must be a 64-character lowercase hex string');
                 }
                 // `note` is accepted per the seam contract but intentionally NOT persisted
-                // in v0 ledger rows (documented deviation, REPORT §CONTRACT-DEVIATIONS).
+                // in v0 ledger rows (documented deviation, REPORT section CONTRACT-DEVIATIONS).
                 const seq = this.ledgerLines.length + 1;
                 const previous = seq === 1 ? null : JSON.parse(this.ledgerLines[seq - 2]);
                 const line = {

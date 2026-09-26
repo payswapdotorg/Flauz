@@ -1,3 +1,7 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // Tests for build/flauz/merge-product.mjs (Wave 3 Lane F, task W3-F-R-b).
 //
 // Run with:
@@ -57,7 +61,7 @@ test('real-product-pass-through: merging the real upstream product.json keeps ba
 	assert.equal('defaultChatAgent' in base, true, 'real base product.json must have a defaultChatAgent key (product.json:90-157)');
 	assert.equal(base.defaultChatAgent.extensionId, 'GitHub.copilot');
 
-	// DEVIATION NOTE (documented in build/flauz/README.md §Deviations): the work order
+	// DEVIATION NOTE (documented in build/flauz/README.md section Deviations): the work order
 	// expected the base to also have an extensionsGallery key, but the verified in-tree
 	// evidence (worklog W3-F-r1: "no version/identifier/quality/extensionsGallery/
 	// extensionEnabledApiProposals keys"; direct enumeration: 46 top-level keys) shows the

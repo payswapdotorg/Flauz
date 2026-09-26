@@ -1,14 +1,19 @@
 #!/usr/bin/env node
+
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
-// memory-snapshot.mjs — memory budget gate (PERFORMANCE-PLAN §3.2) over a
+// memory-snapshot.mjs — memory budget gate (PERFORMANCE-PLAN section 3.2) over a
 // process snapshot of a Flauz session.
 //
 // Input formats (either):
 //   --json <file>      a resolveProcesses()-shaped JSON payload
 //                      ({ pidToNames: [[pid, name]...], processes: [{name, rootProcess: ProcessItem}] })
-//                      — the shape PERF §6.1 names for "memory snapshots in CI".
+//                      — the shape PERF section 6.1 names for "memory snapshots in CI".
 //                      Reserved for the driver path (Agent Bridge dump / telemetry
 //                      pipeline); requires `mem` fields already in MB (capture
 //                      contract — see build/flauz/README.md).
@@ -27,14 +32,14 @@
 //                      idle) or 'after-session' (after a scripted agent session).
 //                      Affects which rows are strictly enforced (see below).
 //
-// §3.2 budget rows asserted (PERFORMANCE-PLAN §3.2 table):
+// section 3.2 budget rows asserted (PERFORMANCE-PLAN section 3.2 table):
 //   R1 pinned ext host       : if affinity pinning is configured for the flauz
 //                              bridge, exactly ONE extra extension-host process may
 //                              exist; its RSS must be within [100, 250] MB.
 //                              NOTE: the 100-250 MB range is marked [E] in the plan
 //                              (estimate until the first CI baseline). Rows tagged
 //                              [E] WARN by default and FAIL only with --enforce —
-//                              absolute baseline (§8 question 1/3) converts them to
+//                              absolute baseline (section 8 question 1/3) converts them to
 //                              hard gates.
 //   R2 flauz core service    : if a flauz-core process is present, idle RSS <= 150 MB
 //                              (hard at 'eventually'; WARN under 'after-session').
@@ -80,7 +85,7 @@ const DEFAULT_PATTERNS = {
         agentHost: /agent[-_ ]?host/i,
 };
 
-// §3.2 numbers
+// section 3.2 numbers
 const EXT_HOST_RSS_MIN_MB = 100;   // [E]
 const EXT_HOST_RSS_MAX_MB = 250;   // [E]
 const FLAUZ_CORE_MAX_IDLE_MB = 150;
@@ -89,7 +94,7 @@ const MAX_BROWSER_PANES = 2;
 const FLAUZ_TOTAL_RSS_MAX_MB = 500;
 
 function usage() {
-        process.stdout.write(`memory-snapshot.mjs — Flauz memory budget gate (PERF §3.2)
+        process.stdout.write(`memory-snapshot.mjs — Flauz memory budget gate (PERF section 3.2)
 
 Usage:
   node memory-snapshot.mjs --json  <resolveProcesses-shaped.json> [--scenario eventually|after-session]
@@ -98,7 +103,7 @@ Usage:
   node memory-snapshot.mjs --json <file> --enforce        # [E] estimates become hard failures
   node memory-snapshot.mjs --json <file> --pattern extHost=/regex/i   # override a classifier
 
-Budgets (§3.2): ext-host RSS ${EXT_HOST_RSS_MIN_MB}-${EXT_HOST_RSS_MAX_MB}MB [E] · flauz-core idle <= ${FLAUZ_CORE_MAX_IDLE_MB}MB ·
+Budgets (section 3.2): ext-host RSS ${EXT_HOST_RSS_MIN_MB}-${EXT_HOST_RSS_MAX_MB}MB [E] · flauz-core idle <= ${FLAUZ_CORE_MAX_IDLE_MB}MB ·
 agent sessions <= ${MAX_AGENT_SESSIONS} · browser panes <= ${MAX_BROWSER_PANES} · flauz-added total <= ${FLAUZ_TOTAL_RSS_MAX_MB}MB.
 
 Exit codes: 0 pass (WARNs allowed) · 1 violation/invalid input · 2 usage error.
@@ -234,7 +239,7 @@ function main() {
                         pass(`R1 pinned ext-host RSS ${pinnedRSS}MB within [${EXT_HOST_RSS_MIN_MB}, ${EXT_HOST_RSS_MAX_MB}]MB [E] — ${nm([pinned])}`);
                 }
         } else {
-                fail(`R1 ${extraExtHosts} extra extension-host processes — affinity pinning must allocate EXACTLY ONE additional host (§2.1 rule 2). Hosts: ${nm(extHosts)}`);
+                fail(`R1 ${extraExtHosts} extra extension-host processes — affinity pinning must allocate EXACTLY ONE additional host (section 2.1 rule 2). Hosts: ${nm(extHosts)}`);
         }
 
         // R2 — flauz core service
@@ -243,7 +248,7 @@ function main() {
         } else if (flauzCore.length === 1) {
                 const rss = Math.round(flauzCore[0].memMB || 0);
                 if (args.scenario === 'eventually') {
-                        if (rss > FLAUZ_CORE_MAX_IDLE_MB) { fail(`R2 flauz-core idle RSS ${rss}MB > ${FLAUZ_CORE_MAX_IDLE_MB}MB (§3.2) — ${nm(flauzCore)}`); }
+                        if (rss > FLAUZ_CORE_MAX_IDLE_MB) { fail(`R2 flauz-core idle RSS ${rss}MB > ${FLAUZ_CORE_MAX_IDLE_MB}MB (section 3.2) — ${nm(flauzCore)}`); }
                         else { pass(`R2 flauz-core idle RSS ${rss}MB <= ${FLAUZ_CORE_MAX_IDLE_MB}MB`); }
                 } else {
                         // after a scripted agent session the ledger may legitimately grow; warn-only here
@@ -256,14 +261,14 @@ function main() {
 
         // R3 — agent sessions
         if (sessions.length > MAX_AGENT_SESSIONS) {
-                fail(`R3 ${sessions.length} concurrent agent sessions > ${MAX_AGENT_SESSIONS} (§3.2/§4.1: 1 executing + 1 idle) — ${nm(sessions)}`);
+                fail(`R3 ${sessions.length} concurrent agent sessions > ${MAX_AGENT_SESSIONS} (section 3.2/section 4.1: 1 executing + 1 idle) — ${nm(sessions)}`);
         } else {
                 pass(`R3 agent sessions ${sessions.length} <= ${MAX_AGENT_SESSIONS}${sessions.length ? ` — ${nm(sessions)}` : ''}`);
         }
 
         // R4 — browser panes
         if (panes.length > MAX_BROWSER_PANES) {
-                fail(`R4 ${panes.length} visible browser panes > ${MAX_BROWSER_PANES} (§3.2: dispose idle pane renderers) — ${nm(panes)}`);
+                fail(`R4 ${panes.length} visible browser panes > ${MAX_BROWSER_PANES} (section 3.2: dispose idle pane renderers) — ${nm(panes)}`);
         } else {
                 pass(`R4 browser panes ${panes.length} <= ${MAX_BROWSER_PANES}${panes.length ? ` — ${nm(panes)}` : ''}`);
         }
@@ -272,7 +277,7 @@ function main() {
         const flauzAdded = [...flauzCore, ...panes, ...sessions, ...(extraExtHosts > 0 ? extHosts.slice(STOCK_EXT_HOSTS) : [])];
         const total = Math.round(sumMB(flauzAdded));
         if (total > FLAUZ_TOTAL_RSS_MAX_MB) {
-                fail(`R5 flauz-added RSS total ${total}MB > ${FLAUZ_TOTAL_RSS_MAX_MB}MB (§3.2 floor-case total) — set: ${nm(flauzAdded)}`);
+                fail(`R5 flauz-added RSS total ${total}MB > ${FLAUZ_TOTAL_RSS_MAX_MB}MB (section 3.2 floor-case total) — set: ${nm(flauzAdded)}`);
         } else {
                 pass(`R5 flauz-added RSS total ${total}MB <= ${FLAUZ_TOTAL_RSS_MAX_MB}MB (${flauzAdded.length} process(es))`);
         }

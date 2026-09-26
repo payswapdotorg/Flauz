@@ -1,16 +1,21 @@
 #!/usr/bin/env node
+
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
 // activation-lint.mjs — activation discipline for extensions/flauz-* built-ins
-// (PERFORMANCE-PLAN §2.1 rules + §2.2 activation budget table; MIGRATION-PLAN
-// §2 layout). Runs in CI (flauz-hygiene.yml job 1) and locally (zero-dep).
+// (PERFORMANCE-PLAN section 2.1 rules + section 2.2 activation budget table; MIGRATION-PLAN
+// section 2 layout). Runs in CI (flauz-hygiene.yml job 1) and locally (zero-dep).
 //
 // Rules:
-//   R1 star           : `*` in activationEvents is FORBIDDEN (§2.2 row 1 — eager
+//   R1 star           : `*` in activationEvents is FORBIDDEN (section 2.2 row 1 — eager
 //                       activation blocks onStartupFinished for everyone,
 //                       extHostExtensionService.ts:671-687).
-//   R2 whitelist      : every activation event must match the §2.2 whitelist:
+//   R2 whitelist      : every activation event must match the section 2.2 whitelist:
 //                         onStartupFinished
 //                         onCommand:flauz.*
 //                         onView:flauz.*
@@ -24,22 +29,22 @@
 //   R3 startup cap    : at most --max-startup (default 2) flauz-* extensions may
 //                       declare onStartupFinished, and only ids on
 //                       --startup-allowed (default: flauz-agent = the Agent
-//                       Bridge, flauz-workspace — §2.2 row 2: "bridge + workspace
+//                       Bridge, flauz-workspace — section 2.2 row 2: "bridge + workspace
 //                       extensions only; <=2 flauz extensions on it").
 //   R4 affinity keys  : contributes.configurationDefaults["extensions.experimental.affinity"]
 //                       keys must be extension ids of the flauz publisher:
-//                       /^flauz\.[a-z0-9-]+$/ (DL-5/§2.1 rule 2 pins
+//                       /^flauz\.[a-z0-9-]+$/ (DL-5/section 2.1 rule 2 pins
 //                       "flauz.agent-bridge"-style ids).
 //   R5 affinity value : affinity values must be integers >= 1
 //                       (each distinct positive int allocates an ext-host slot —
 //                       extensionRunningLocationTracker.ts:167-204).
 //   R6 single slot    : ALL flauz affinity values must be exactly 1 across the
-//                       whole set — one pinned host total (§3.2 Agent Bridge row;
+//                       whole set — one pinned host total (section 3.2 Agent Bridge row;
 //                       cost model: exactly one additional ext-host process).
 //                       Override with --max-affinity-slots N only with a
 //                       DECISION-LOG entry (DL-5).
 //   R7 bridge pinned  : WARN when a flauz.agent-bridge id exists in the set but
-//                       no manifest pins it via affinity (R1 risk in PERF §7 —
+//                       no manifest pins it via affinity (R1 risk in PERF section 7 —
 //                       pinning is config, owned by flauz-defaults).
 //   R8 proposal shape : enabledApiProposals entries must be non-empty strings
 //                       (existence/renames are proposed-api-rota.mjs's job — DL-4).
@@ -85,7 +90,7 @@ const AFFINITY_SETTING = 'extensions.experimental.affinity';
 const AFFINITY_KEY_RE = /^flauz\.[a-z0-9-]+$/;
 
 function usage() {
-        process.stdout.write(`activation-lint.mjs — activation discipline for extensions/flauz-* (PERF §2.1/§2.2)
+        process.stdout.write(`activation-lint.mjs — activation discipline for extensions/flauz-* (PERF section 2.1/section 2.2)
 
 Usage:
   node activation-lint.mjs [--root <repo>] [--manifests-glob <glob>]
@@ -224,11 +229,11 @@ function main() {
                 // R1 + R2
                 const events = Array.isArray(pkg.activationEvents) ? pkg.activationEvents : [];
                 for (const ev of events) {
-                        if (ev === '*') { fail(`R1 ${m.rel} (${id}): activationEvents contains '*' — eager activation is forbidden (PERF §2.2 row 1).`); continue; }
+                        if (ev === '*') { fail(`R1 ${m.rel} (${id}): activationEvents contains '*' — eager activation is forbidden (PERF section 2.2 row 1).`); continue; }
                         const okBuiltIn = ALLOWED_EVENT_PATTERNS.some(p => p.test(ev));
                         const okExtra = allowedExtra.some(p => p.test(ev));
                         if (!okBuiltIn && !okExtra) {
-                                fail(`R2 ${m.rel} (${id}): activation event '${ev}' is not on the §2.2 whitelist (${ALLOWED_EVENT_PATTERNS.map(p => p.source).join(' | ')})${allowedExtra.length ? ` nor on the --allow-event list` : ''}.`);
+                                fail(`R2 ${m.rel} (${id}): activation event '${ev}' is not on the section 2.2 whitelist (${ALLOWED_EVENT_PATTERNS.map(p => p.source).join(' | ')})${allowedExtra.length ? ` nor on the --allow-event list` : ''}.`);
                         }
                         if (ev === 'onStartupFinished') { startupUsers.push({ rel: m.rel, id }); }
                 }
@@ -236,7 +241,7 @@ function main() {
                 // R3 id check per-declarer
                 for (const u of startupUsers.filter(u => u.rel === m.rel)) {
                         if (!startupAllowed.includes(id)) {
-                                fail(`R3 ${m.rel} (${id}): declares onStartupFinished but is not on the allowed list (${startupAllowed.join(', ')}) — §2.2 row 2: "bridge + workspace extensions only".`);
+                                fail(`R3 ${m.rel} (${id}): declares onStartupFinished but is not on the allowed list (${startupAllowed.join(', ')}) — section 2.2 row 2: "bridge + workspace extensions only".`);
                         }
                 }
 
@@ -269,7 +274,7 @@ function main() {
 
         // R3 cap
         if (startupUsers.length > maxStartup) {
-                fail(`R3 ${startupUsers.length} flauz extensions declare onStartupFinished > cap ${maxStartup} — ${startupUsers.map(u => u.id).join(', ')} (PERF §2.2 row 2).`);
+                fail(`R3 ${startupUsers.length} flauz extensions declare onStartupFinished > cap ${maxStartup} — ${startupUsers.map(u => u.id).join(', ')} (PERF section 2.2 row 2).`);
         } else if (startupUsers.length > 0) {
                 pass(`R3 onStartupFinished declarers: ${startupUsers.length} <= ${maxStartup} (${startupUsers.map(u => u.id).join(', ') || 'none'})`);
         } else {
@@ -279,7 +284,7 @@ function main() {
         // R6 single pinned slot
         const distinctSlots = new Set(affinityEntries.map(a => a.value).filter(v => Number.isInteger(v) && v >= 1));
         if (distinctSlots.size > maxAffinitySlots) {
-                fail(`R6 affinity pins ${distinctSlots.size} distinct slot(s) {${[...distinctSlots].join(',')}} > ${maxAffinitySlots} — each distinct positive integer allocates a NEW extension-host process (§2.1 rule 2; one pinned host total, §3.2). Entries: ${affinityEntries.map(a => `${a.key}=${a.value} (${a.file})`).join('; ')}`);
+                fail(`R6 affinity pins ${distinctSlots.size} distinct slot(s) {${[...distinctSlots].join(',')}} > ${maxAffinitySlots} — each distinct positive integer allocates a NEW extension-host process (section 2.1 rule 2; one pinned host total, section 3.2). Entries: ${affinityEntries.map(a => `${a.key}=${a.value} (${a.file})`).join('; ')}`);
         } else if (affinityEntries.length > 0) {
                 pass(`R6 affinity entries ${affinityEntries.length}, distinct slots {${[...distinctSlots].join(',')}} <= ${maxAffinitySlots} — ${affinityEntries.map(a => `${a.key}=${a.value}`).join(', ')}`);
         }
@@ -288,7 +293,7 @@ function main() {
         const pinnedIds = new Set(affinityEntries.map(a => a.key));
         for (const id of bridgeIdsPresent) {
                 if (/flauz[.-]agent/.test(id) && !pinnedIds.has(id)) {
-                        warn(`R7 bridge id '${id}' present but not pinned via ${AFFINITY_SETTING} — pinning is flauz-defaults config (PERF §7 R1); CI canary asserts the 'Placing extension(s) … on a separate extension host.' log line.`);
+                        warn(`R7 bridge id '${id}' present but not pinned via ${AFFINITY_SETTING} — pinning is flauz-defaults config (PERF section 7 R1); CI canary asserts the 'Placing extension(s) … on a separate extension host.' log line.`);
                 }
         }
         if (pinnedIds.size > 0) {

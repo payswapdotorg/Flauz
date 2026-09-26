@@ -1,21 +1,26 @@
 #!/usr/bin/env node
+
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
-// startup-pair.mjs — startup perf pair gate (PERFORMANCE-PLAN §1.3) + mark-pair
-// integrity check (PERF §6.3 / risk R6).
+// startup-pair.mjs — startup perf pair gate (PERFORMANCE-PLAN section 1.3) + mark-pair
+// integrity check (PERF section 6.3 / risk R6).
 //
 // Modes (composable):
 //
-//  A) TSV pair diff (§1.3 rows 1-2):
+//  A) TSV pair diff (section 1.3 rows 1-2):
 //     node startup-pair.mjs \
 //       --timers-flauz   <flauz-main append-timers TSV> \
 //       --timers-upstream <upstream-main append-timers TSV>
 //
 //     Parses both TSVs (format: perf-log-parse.mjs), keeps only standard_start
 //     runs, and asserts (deltas are Flauz - Upstream, same runner, raw ms):
-//       §1.3 row 1  first-paint delta        p50 <= +75 ms   p95 <= +150 ms
-//       §1.3 row 2  didStartWorkbench delta  p95 <= +100 ms
+//       section 1.3 row 1  first-paint delta        p50 <= +75 ms   p95 <= +150 ms
+//       section 1.3 row 2  didStartWorkbench delta  p95 <= +100 ms
 //     NOTE on semantics: the append-timers TSV exposes exactly one timing column,
 //     `ellapsed`, which the timer service defines as
 //     getDuration(startMark, 'code/didStartWorkbench') (timerService.ts:699) —
@@ -27,7 +32,7 @@
 //     fewer than --min-runs (default 5) standard runs, the gate FAILS (invalid
 //     measurement).
 //
-//  B) Duration-marker pair budgets (§1.3 rows 2-3, §6.2 flauz marks):
+//  B) Duration-marker pair budgets (section 1.3 rows 2-3, section 6.2 flauz marks):
 //     node startup-pair.mjs \
 //       --markers-flauz   <flauz-main duration-markers TSV> \
 //       --markers-upstream <upstream-main duration-markers TSV>
@@ -41,7 +46,7 @@
 //         or {deltaMaxP95: ms} (pair diff vs upstream).
 //     A budgeted pair that is ABSENT from every flauz run is a FAIL (marks never
 //     closed) — protects the drift class where timerService computes timers from
-//     marks nobody emits (PERF §6.3, evidence 01 claim 4: ellapsedWindowMaximize).
+//     marks nobody emits (PERF section 6.3, evidence 01 claim 4: ellapsedWindowMaximize).
 //
 //  C) Mark-pair integrity / source grep (R6):
 //     node startup-pair.mjs --check-marks --src-root <repo-or-src-dir>
@@ -54,7 +59,7 @@
 //     (work order: "glob whatever exists at CI time, never hardcode").
 //     Override the globs with --flauz-glob (repeatable).
 //
-//  D) Contribution-phase gate (§1.3 row 4: "Flauz work before Restored = 0"):
+//  D) Contribution-phase gate (section 1.3 row 4: "Flauz work before Restored = 0"):
 //     node startup-pair.mjs --phase-gate --src-root <repo-or-src-dir>
 //
 //     Greps flauz sources for workbench-contribution phase registrations and
@@ -77,27 +82,27 @@ import {
         parseAppendTimersTsv, parseDurationMarkersTsv, stats, fmtMs, readTextFile,
 } from './perf-log-parse.mjs';
 
-// ---- PERF §1.3 / §6.2 budget table ------------------------------------------------------------
+// ---- PERF section 1.3 / section 6.2 budget table ------------------------------------------------------------
 // marker-pair name (exactly as passed to --prof-duration-markers) -> budget.
 // `absMax`   : absolute ms budget (flauz runs only)
 // `deltaMaxP95`: p95 delta budget vs the upstream pair (flauz - upstream, same runner)
 export const STARTUP_BUDGETS = {
-        'code/didStartRenderer-code/didStartWorkbench': { deltaMaxP95: 100, note: '§1.3 row 2: didStartWorkbench delta <= +100ms p95 (renderer-start segment)' },
-        'code/flauz/willConnectCore-code/flauz/didConnectCore': { absMax: 500, note: '§1.3 row 3: core handshake <= 500ms (willConnectCore -> didConnectCore)' },
-        'code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants': { absMax: 500, note: '§6.2 mark: participant registration window' },
-        'code/flauz/willWarmModels-code/flauz/didWarmModels': { absMax: 2000, note: '§1.3 row 6 / §5.1: LM vendor warm-up <= 2s, off interactive path' },
+        'code/didStartRenderer-code/didStartWorkbench': { deltaMaxP95: 100, note: 'section 1.3 row 2: didStartWorkbench delta <= +100ms p95 (renderer-start segment)' },
+        'code/flauz/willConnectCore-code/flauz/didConnectCore': { absMax: 500, note: 'section 1.3 row 3: core handshake <= 500ms (willConnectCore -> didConnectCore)' },
+        'code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants': { absMax: 500, note: 'section 6.2 mark: participant registration window' },
+        'code/flauz/willWarmModels-code/flauz/didWarmModels': { absMax: 2000, note: 'section 1.3 row 6 / section 5.1: LM vendor warm-up <= 2s, off interactive path' },
 };
 
-// §1.3 rows 1-2, measured on the append-timers `ellapsed` column.
+// section 1.3 rows 1-2, measured on the append-timers `ellapsed` column.
 const FIRST_PAINT_P50_MAX = 75;    // +ms p50 delta
 const FIRST_PAINT_P95_MAX = 150;   // +ms p95 delta
 const DIDSTARTWORKBENCH_P95_MAX = 100; // +ms p95 delta (row 2, tighter re-gate)
 
-// §1.3 row 5 (Agent Bridge activation) is asserted from extensionActivationTimes
+// section 1.3 row 5 (Agent Bridge activation) is asserted from extensionActivationTimes
 // telemetry / bridge marks; see build/flauz/README.md job map. The bridge-side
 // marks live here so --check-marks covers them as soon as Worker F lands them:
 export const BRIDGE_ACTIVATION_MARKS = [
-        'code/flauz/willActivateBridge-code/flauz/didActivateBridge', // <= 300ms activate-resolved (§1.3 row 5)
+        'code/flauz/willActivateBridge-code/flauz/didActivateBridge', // <= 300ms activate-resolved (section 1.3 row 5)
 ];
 
 const FLAUZ_SOURCE_GLOBS_DEFAULT = [
@@ -114,18 +119,18 @@ const FORBIDDEN_PHASE_PATTERN = /WorkbenchPhase\s*\.\s*(BlockRestore|Starting|Re
 const EXIT_OK = 0, EXIT_FAIL = 1, EXIT_USAGE = 2;
 
 function usage() {
-        process.stdout.write(`startup-pair.mjs — Flauz startup perf pair gate (PERF §1.3) + mark integrity (R6)
+        process.stdout.write(`startup-pair.mjs — Flauz startup perf pair gate (PERF section 1.3) + mark integrity (R6)
 
 Modes:
   --timers-flauz <tsv> --timers-upstream <tsv>
-        Assert §1.3 row 1 (<= +${FIRST_PAINT_P50_MAX}ms p50 / +${FIRST_PAINT_P95_MAX}ms p95) and row 2
+        Assert section 1.3 row 1 (<= +${FIRST_PAINT_P50_MAX}ms p50 / +${FIRST_PAINT_P95_MAX}ms p95) and row 2
         (<= +${DIDSTARTWORKBENCH_P95_MAX}ms p95) on the ellapsed column of --prof-append-timers TSVs.
   --markers-flauz <tsv> [--markers-upstream <tsv>]
         Assert duration-marker pair budgets (see table in this file / --pairs-file).
   --check-marks --src-root <dir>
         Mark-pair integrity: every budgeted code/flauz/* mark greppable in flauz sources (R6).
   --phase-gate --src-root <dir>
-        §1.3 row 4: no flauz workbench contribution before AfterRestored/Eventually.
+        section 1.3 row 4: no flauz workbench contribution before AfterRestored/Eventually.
   --pairs-file <json>
         Extra/override budgets: { "<pair-name>": { "absMax": 500 } | { "deltaMaxP95": 100 } }
 
@@ -225,7 +230,7 @@ function runTimersPair(args, report) {
         const verdict = (label, value, max) => {
                 const ok = value <= max;
                 if (!ok) { exit = EXIT_FAIL; }
-                report.push(`${ok ? 'PASS' : 'FAIL'}  §1.3 ${label}: delta ${value >= 0 ? '+' : ''}${value.toFixed(1)}ms (budget +${max}ms)`);
+                report.push(`${ok ? 'PASS' : 'FAIL'}  section 1.3 ${label}: delta ${value >= 0 ? '+' : ''}${value.toFixed(1)}ms (budget +${max}ms)`);
         };
         verdict('row 1 first-paint p50 delta', d50, FIRST_PAINT_P50_MAX);
         verdict('row 1 first-paint p95 delta', d95, FIRST_PAINT_P95_MAX);
@@ -338,7 +343,7 @@ function runPhaseGate(args, report) {
                 checked++;
                 const m = text.match(FORBIDDEN_PHASE_PATTERN);
                 if (m) {
-                        report.push(`FAIL  §1.3 row 4 (no Flauz work before Restored): ${s.rel} registers a workbench contribution at WorkbenchPhase.${m[1]} — allowed phases: AfterRestored, Eventually.`);
+                        report.push(`FAIL  section 1.3 row 4 (no Flauz work before Restored): ${s.rel} registers a workbench contribution at WorkbenchPhase.${m[1]} — allowed phases: AfterRestored, Eventually.`);
                         exit = EXIT_FAIL;
                 }
         }

@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // Flauz product overlay merger (Wave 3 Lane F, task W3-F-R-b).
 //
 // Merges the Flauz product overlay (`product.flauz.json`, repo root) onto the

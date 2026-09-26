@@ -1,9 +1,14 @@
 #!/usr/bin/env node
+
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
-// proposed-api-rota.mjs — proposed-API churn rota (DL-4 posture; PERF §7 R5;
-// MIGRATION-PLAN §5 job 5). Runs at EVERY upstream sync (DL-11).
+// proposed-api-rota.mjs — proposed-API churn rota (DL-4 posture; PERF section 7 R5;
+// MIGRATION-PLAN section 5 job 5). Runs at EVERY upstream sync (DL-11).
 //
 // What it does:
 //   1. Builds the FLAUZ UNION of enabled proposed APIs:
@@ -33,7 +38,7 @@
 //        REGISTRY-MISMATCH — d.ts file exists but registry key absent (or vice
 //                   versa): upstream generated-file drift, always worth reporting.
 //   4. Prints a DECISION-LOG diff reminder whenever drift is present (MIGRATION
-//      §5 job 6: DECISION-LOG reviewed at every checkpoint tag).
+//      section 5 job 6: DECISION-LOG reviewed at every checkpoint tag).
 //
 // Modes:
 //   rota (default)   : assert — exit 1 on any drift, 0 when clean.
@@ -66,7 +71,7 @@ const REGISTRY_FILE = 'src/vs/platform/extensions/common/extensionsApiProposals.
 const PRODUCT_FLAUZ = 'product.flauz.json';
 
 function usage() {
-	process.stdout.write(`proposed-api-rota.mjs — proposed-API churn rota (DL-4, PERF R5, MIGRATION §5 job 5)
+	process.stdout.write(`proposed-api-rota.mjs — proposed-API churn rota (DL-4, PERF R5, MIGRATION section 5 job 5)
 
 Usage:
   node proposed-api-rota.mjs --repo-root <dir>                 # rota assert mode
@@ -233,7 +238,7 @@ function main() {
 	const hasDrift = drift.absent.length > 0 || drift.unionAdded.length > 0 || drift.unionRemoved.length > 0 || drift.inventoryAdded.length > 0 || drift.inventoryRemoved.length > 0;
 	if (hasDrift) {
 		report.push('');
-		report.push('REMINDER (MIGRATION-PLAN §5 job 6 / DL-4): the DECISION-LOG diff must be reviewed at this');
+		report.push('REMINDER (MIGRATION-PLAN section 5 job 6 / DL-4): the DECISION-LOG diff must be reviewed at this');
 		report.push('checkpoint tag. Proposed-API drift is a DL-4 tracked change: update');
 		report.push('product.flauz.json / flauz-* manifests this sync, and record the churn in the');
 		report.push('sync canary report attached to the tag.');
@@ -292,7 +297,7 @@ function main() {
 			drift.registryMismatch.length ? '### Registry/d.ts mismatch (upstream generated-file drift)' : '',
 			...drift.registryMismatch.map(d => `- \`${d.key}\` (${d.side})`),
 			'',
-			'Reminder: DECISION-LOG diff is reviewed at every checkpoint tag (MIGRATION §5 job 6).',
+			'Reminder: DECISION-LOG diff is reviewed at every checkpoint tag (MIGRATION section 5 job 6).',
 			'',
 		].filter(l => l !== '').join('\n');
 		fs.writeFileSync(path.join(dir, 'drift-report.md'), md);

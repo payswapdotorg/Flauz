@@ -1,9 +1,13 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
  * Flauz seam contract v0 — pure, zero-dependency logic shared by the core
  * service (G side) and the test harness. Imported at runtime only by Node
  * (extension source imports the TYPES from `contracts.d.mts`, never the code).
  *
- * Contract (Wave 3 Lane F work order §H, implemented verbatim):
+ * Contract (Wave 3 Lane F work order section H, implemented verbatim):
  *  - task envelope `.flauz/tasks.json`: { $schema: 'flauz.tasks/v0', tasks: [...] }
  *  - task: { id, title, status, events[], timing{created,updatedAt}, changes[] }
  *  - evidence ledger `.flauz/evidence/ledger.jsonl`: append-only, one JSON
@@ -78,7 +82,7 @@ export function allowedSourceStatuses(type) {
 /**
  * Validate an event against the transition table and compute the next status.
  *
- * Ordering (documented in REPORT §CONTRACT-DEVIATIONS): a rule matching the
+ * Ordering (documented in REPORT section CONTRACT-DEVIATIONS): a rule matching the
  * current status is required BEFORE the actor is validated, so an event with
  * a wrong actor but a valid source status reports the actor error, and an
  * event from an invalid source status reports the allowed sources.
