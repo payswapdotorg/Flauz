@@ -69,7 +69,7 @@ function isPlainObject(value) {
 
 function hasExactKeys(value, required, optional = []) {
 	const keys = Object.keys(value);
-	if (keys.length !== required.length + optional.length) {
+	if (keys.length < required.length || keys.length > required.length + optional.length) {
 		return false;
 	}
 	for (const key of required) {

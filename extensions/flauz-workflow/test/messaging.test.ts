@@ -195,3 +195,25 @@ test('AgentMessenger posts the right typed shape through the port and speaks the
 test('AgentMessenger rejects an invalid self agent id up front', () => {
 	assert.throws(() => new AgentMessenger({ self: 'not an agent id!', port: { post: async () => { throw new Error('unreachable'); }, collect: async () => [] } }), /invalid self agent id/);
 });
+
+test('optional keys are truly optional (regression: workflowId absent must validate)', () => {
+	const minimal = {
+		$schema: 'flauz.a2a/v0',
+		seq: 7,
+		id: 'M-000007',
+		kind: 'task-delegation',
+		from: 'flauz.agent',
+		to: 'flauz.agent.worker-1',
+		ts: 42,
+		inReplyTo: null,
+		payload: { taskId: 'T-001', taskDescription: 'Review package.json structure', prompt: 'Review it.' },
+	};
+	const ts = validateA2aMessage(minimal);
+	assert.equal('workflowId' in ts.payload, false, 'TS: delegation without workflowId validates');
+
+	const line = serializeA2aMessage(ts);
+	const roundTrip = validateA2aMessage(JSON.parse(line));
+	assert.ok('prompt' in roundTrip.payload && roundTrip.payload.prompt === minimal.payload.prompt, 'TS: canonical round-trip is lossless');
+	const g = validateMessage(minimal);
+	assert.ok(g.ok === true, `G: delegation without workflowId validates (got: ${g.ok === false ? g.error : 'ok'})`);
+});

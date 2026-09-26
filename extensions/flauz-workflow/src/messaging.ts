@@ -172,7 +172,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function hasKeys(value: Record<string, unknown>, required: readonly string[], optional: readonly string[] = []): boolean {
 	const actual = Object.keys(value);
-	if (actual.length !== required.length + optional.length) {
+	if (actual.length < required.length || actual.length > required.length + optional.length) {
 		return false;
 	}
 	for (const key of required) {
