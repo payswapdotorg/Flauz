@@ -1,0 +1,56 @@
+{
+	"$schema": "flauz.workflows/v1",
+	"id": "W-001",
+	"title": "ship the flauz wave 4 lane",
+	"source": {
+		"taskId": "T-001",
+		"evidenceIds": [
+			"E-000001"
+		]
+	},
+	"createdAt": 9000,
+	"updatedAt": 9000,
+	"plan": {
+		"prompt": "ship the flauz wave 4 lane",
+		"text": "## Flauz plan - T-001\n\n**Request:** ship the flauz wave 4 lane\n\n1. Run `echo flauz-golden-path-ok`."
+	},
+	"model": {
+		"model": "flauz-mock-1",
+		"params": {},
+		"provider": "flauz-mock"
+	},
+	"tools": [
+		{
+			"seq": 1,
+			"toolId": "flauz_terminal",
+			"name": "echo flauz-golden-path-ok",
+			"input": {
+				"command": "echo flauz-golden-path-ok"
+			},
+			"approval": "recorded",
+			"outcome": "skipped",
+			"evidenceId": "E-000001"
+		}
+	],
+	"approvals": [
+		{
+			"type": "approve",
+			"ts": 4000,
+			"note": null
+		}
+	],
+	"evidenceRefs": [
+		{
+			"evidenceId": "E-000001",
+			"seq": 1,
+			"kind": "command-output",
+			"uri": ".flauz/artifacts/T-001/command-output-1.txt",
+			"sha256": "d26ae3b78414097b5184cd7f7be922fcb4da0c90c718c2ddf3b90e644ac70558",
+			"derivedFrom": null
+		}
+	],
+	"rerun": {
+		"approvals": "replay"
+	},
+	"history": []
+}

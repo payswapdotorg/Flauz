@@ -1,0 +1,47 @@
+{
+	"name": "flauz-workflow",
+	"displayName": "Flauz Workflow",
+	"description": "Flauz workflow envelope v1: save a run as a git-diffable workflow fragment (.flauz/workflows/<id>.json) and re-run it from one command, with AHP automation-trigger mapping and orchestrator-level agent-to-agent messaging.",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:flauz.workflow.save",
+		"onCommand:flauz.workflow.run",
+		"onCommand:flauz.workflow.list"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.workflow.save",
+				"title": "Save Run as Workflow",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.workflow.run",
+				"title": "Run Workflow",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.workflow.list",
+				"title": "List Workflows",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test test/*.test.ts"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
+}
