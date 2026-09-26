@@ -1,0 +1,197 @@
+{
+	"$comment": "CDP-bypass navigation cases (the B1c insurance). BROWSER-ARCHITECTURE section 5 finding 1: will-navigate does NOT fire for CDP-initiated navigations, so a navigation that skips the willNavigate layer must STILL be denied by the driver + webRequest layers. Each case pins the expected combined verdict (decision + denying layer). The killSwitch policy variants prove each layer individually disabled still leaves the others denying; the allGatesOff variant pins the fail-closed no-enabled-gate deny.",
+	"policies": {
+		"base": {
+			"schemaVersion": 0,
+			"driver": {
+				"allow": ["*.example.com"]
+			},
+			"webRequest": {
+				"allow": ["*.example.com"]
+			},
+			"willNavigate": {
+				"allow": ["*.example.com"]
+			}
+		},
+		"driverOff": {
+			"schemaVersion": 0,
+			"driver": {
+				"enabled": false,
+				"allow": ["*"]
+			},
+			"webRequest": {
+				"allow": ["*.example.com"]
+			},
+			"willNavigate": {
+				"allow": ["*.example.com"]
+			}
+		},
+		"webRequestOff": {
+			"schemaVersion": 0,
+			"driver": {
+				"allow": ["*.example.com"]
+			},
+			"webRequest": {
+				"enabled": false,
+				"allow": ["*"]
+			},
+			"willNavigate": {
+				"allow": ["*.example.com"]
+			}
+		},
+		"willNavigateOff": {
+			"schemaVersion": 0,
+			"driver": {
+				"allow": ["*.example.com"]
+			},
+			"webRequest": {
+				"allow": ["*.example.com"]
+			},
+			"willNavigate": {
+				"enabled": false,
+				"allow": ["*"]
+			}
+		},
+		"allGatesOff": {
+			"schemaVersion": 0,
+			"driver": {
+				"enabled": false,
+				"allow": ["*"]
+			},
+			"webRequest": {
+				"enabled": false,
+				"allow": ["*"]
+			},
+			"willNavigate": {
+				"enabled": false,
+				"allow": ["*"]
+			}
+		},
+		"driverDenyWinsOverAllowAll": {
+			"schemaVersion": 0,
+			"driver": {
+				"allow": ["*"],
+				"deny": ["evil.example.com"]
+			},
+			"webRequest": {
+				"allow": ["*"]
+			},
+			"willNavigate": {
+				"allow": ["*"]
+			}
+		},
+		"webRequestDenyOnly": {
+			"schemaVersion": 0,
+			"driver": {
+				"allow": ["*"]
+			},
+			"webRequest": {
+				"allow": ["*"],
+				"deny": ["tracker.example.net"]
+			},
+			"willNavigate": {
+				"allow": ["*"]
+			}
+		}
+	},
+	"cases": [
+		{
+			"name": "cdp nav to non-allowlisted host, all layers on: driver denies (authoritative)",
+			"policy": "base",
+			"url": "https://evil.org/pay",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "driver" }
+		},
+		{
+			"name": "cdp nav to non-allowlisted host, driver kill-switched: webRequest still denies",
+			"policy": "driverOff",
+			"url": "https://evil.org/pay",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "webRequest" }
+		},
+		{
+			"name": "cdp nav to non-allowlisted host, webRequest kill-switched: driver still denies",
+			"policy": "webRequestOff",
+			"url": "https://evil.org/pay",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "driver" }
+		},
+		{
+			"name": "cdp nav with willNavigate kill-switched (the live default for CDP navs): driver + webRequest carry the deny",
+			"policy": "willNavigateOff",
+			"url": "https://evil.org/pay",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "driver" }
+		},
+		{
+			"name": "cdp nav to allowlisted host: allowed at every consulted layer",
+			"policy": "base",
+			"url": "https://docs.example.com/guide",
+			"initiator": "agent-tool",
+			"expect": { "decision": "allow" }
+		},
+		{
+			"name": "driver deny is authoritative: deny listed host denied at driver even though every other layer allows all",
+			"policy": "driverDenyWinsOverAllowAll",
+			"url": "https://evil.example.com/exfil",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "driver" }
+		},
+		{
+			"name": "deny-at-any-layer: webRequest-only deny still denies an agent-tool navigation the driver allows",
+			"policy": "webRequestDenyOnly",
+			"url": "https://tracker.example.net/pixel",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "webRequest" }
+		},
+		{
+			"name": "user nav to non-allowlisted host: willNavigate denies (driver is not on the user path)",
+			"policy": "base",
+			"url": "https://evil.org/pay",
+			"initiator": "user",
+			"expect": { "decision": "deny", "layer": "willNavigate" }
+		},
+		{
+			"name": "user nav, willNavigate kill-switched: webRequest still denies",
+			"policy": "willNavigateOff",
+			"url": "https://evil.org/pay",
+			"initiator": "user",
+			"expect": { "decision": "deny", "layer": "webRequest" }
+		},
+		{
+			"name": "user nav, webRequest kill-switched: willNavigate still denies",
+			"policy": "webRequestOff",
+			"url": "https://evil.org/pay",
+			"initiator": "user",
+			"expect": { "decision": "deny", "layer": "willNavigate" }
+		},
+		{
+			"name": "all gate layers kill-switched: fail-closed deny attributed to policyFile",
+			"policy": "allGatesOff",
+			"url": "https://evil.org/pay",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "policyFile" }
+		},
+		{
+			"name": "about:blank is always allowed (the reconciliation reset target)",
+			"policy": "base",
+			"url": "about:blank",
+			"initiator": "agent-tool",
+			"expect": { "decision": "allow" }
+		},
+		{
+			"name": "unparseable URL: fail-closed deny at the first consulted layer",
+			"policy": "base",
+			"url": "not a url",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "driver" }
+		},
+		{
+			"name": "non-drivable scheme at the driver layer (data:): denied even with allow-all host rules",
+			"policy": "driverDenyWinsOverAllowAll",
+			"url": "data:text/html;base64,PHNjcmlwdD5leGZpbCgpPC9zY3JpcHQ+",
+			"initiator": "agent-tool",
+			"expect": { "decision": "deny", "layer": "driver" }
+		}
+	]
+}

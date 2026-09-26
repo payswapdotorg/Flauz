@@ -1,0 +1,6 @@
+{
+	"schemaVersion": 0,
+	"driver": {
+		"fileRoots": ["../etc"]
+	}
+}

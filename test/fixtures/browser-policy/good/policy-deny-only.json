@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 0,
+	"driver": {
+		"deny": [
+			"evil.example.com"
+		]
+	},
+	"webRequest": {
+		"deny": [
+			"tracker.example.net"
+		]
+	},
+	"willNavigate": {
+		"deny": [
+			"phishing.example.org"
+		]
+	},
+	"partitions": {
+		"scope": "memory",
+		"perAgent": false
+	}
+}

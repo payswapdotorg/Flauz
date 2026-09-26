@@ -1,0 +1,6 @@
+{
+	"schemaVersion": 0,
+	"driver": {
+		"allow": ["ok.example.com", "not a host!"]
+	}
+}

@@ -1,0 +1,137 @@
+{
+	"$comment": "Partition-name fixtures (L4 isolation model): derivation inputs, valid/invalid name shapes, and containment expectations. Name shape: persist:flauz-<16 lowercase hex>[-<agent-id>] or the memory-scope form without the persist: prefix; agent ids match [A-Za-z0-9._-]{1,64}.",
+	"derivations": [
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"agentId": null,
+			"rules": { "scope": "persist", "perAgent": false },
+			"expectShape": "persist:flauz-<hash>"
+		},
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"agentId": null,
+			"rules": { "scope": "memory", "perAgent": false },
+			"expectShape": "flauz-<hash>"
+		},
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"agentId": "agent-42",
+			"rules": { "scope": "persist", "perAgent": true },
+			"expectShape": "persist:flauz-<hash>-agent-42"
+		},
+		{
+			"workspaceRoot": "/srv/workspaces/beta",
+			"agentId": "research.subagent_1",
+			"rules": { "scope": "memory", "perAgent": true },
+			"expectShape": "flauz-<hash>-research.subagent_1"
+		}
+	],
+	"perAgentMisuse": {
+		"workspaceRoot": "/home/dev/acme",
+		"agentId": "agent-42",
+		"rules": { "scope": "persist", "perAgent": false },
+		"expectError": "FLAUZ_POLICY_PARTITION"
+	},
+	"badAgentIds": ["", "has space", "../evil", "a/b", "slash/inside", "col:on", "x"],
+	"invalidAgentIdNote": "the last entry ('x') is VALID agent-id shape; every other entry must be rejected. Tests assert the exact list membership rather than this note.",
+	"names": [
+		{
+			"name": "persist:flauz-0123456789abcdef",
+			"valid": true,
+			"scope": "persist",
+			"workspaceHash": "0123456789abcdef",
+			"agentId": null
+		},
+		{
+			"name": "persist:flauz-0123456789abcdef-agent-42",
+			"valid": true,
+			"scope": "persist",
+			"workspaceHash": "0123456789abcdef",
+			"agentId": "agent-42"
+		},
+		{
+			"name": "flauz-0123456789abcdef",
+			"valid": true,
+			"scope": "memory",
+			"workspaceHash": "0123456789abcdef",
+			"agentId": null
+		},
+		{
+			"name": "flauz-0123456789abcdef-research.subagent_1",
+			"valid": true,
+			"scope": "memory",
+			"workspaceHash": "0123456789abcdef",
+			"agentId": "research.subagent_1"
+		},
+		{
+			"name": "persist:vscode-browser",
+			"valid": false
+		},
+		{
+			"name": "vscode-browser-agent-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			"valid": false
+		},
+		{
+			"name": "persist:flauz-0123456789abcde",
+			"valid": false
+		},
+		{
+			"name": "persist:flauz-0123456789abcdefg",
+			"valid": false
+		},
+		{
+			"name": "persist:flauz-0123456789ABCDEF",
+			"valid": false
+		},
+		{
+			"name": "PERSIST:FLAUZ-0123456789abcdef",
+			"valid": false
+		},
+		{
+			"name": "persist:flauz-0123456789abcdef-../evil",
+			"valid": false
+		},
+		{
+			"name": "persist:flauz-0123456789abcdef-has space",
+			"valid": false
+		},
+		{
+			"name": "persist:flauz-0123456789abcdef-a/b",
+			"valid": false
+		},
+		{
+			"name": "flauz-",
+			"valid": false
+		},
+		{
+			"name": "",
+			"valid": false
+		}
+	],
+	"containment": [
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"scope": "persist",
+			"name": "derived",
+			"expect": "allow"
+		},
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"scope": "persist",
+			"name": "persist:flauz-1111111111111111",
+			"expect": "deny"
+		},
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"scope": "memory",
+			"name": "persist:flauz-<derived-hash>",
+			"expect": "deny"
+		},
+		{
+			"workspaceRoot": "/home/dev/acme",
+			"scope": "persist",
+			"name": "flauz-<derived-hash>",
+			"expect": "deny"
+		}
+	]
+}
