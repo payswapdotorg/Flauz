@@ -1,34 +1,34 @@
 /*---------------------------------------------------------------------------------------------
-	*  Copyright (c) Microsoft Corporation. All rights reserved.
-	*  Licensed under the MIT License. See License.txt in the project root for license information.
-	*--------------------------------------------------------------------------------------------*/
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
-	* Flauz workspace seam service — G side of the Lane F vertical slice.
-	*
-	* Zero-dependency Node service. The Agent Bridge extension (F side, see
-	* `src/seamClient.ts`) spawns this file and speaks newline-delimited JSON
-	* over stdio:
-	*
-	*   F -> G: {"type":"hello","client":"flauz-agent","version":"0.1.0","globalStoragePath":"..."}
-	*   G -> F: {"type":"ready","service":"flauz-core-service","version":"0.1.0","schema":"flauz.tasks/v0"}
-	*   F -> G: {"id":1,"cmd":"flauz.workspace.createTask","args":{"title":"..."}}
-	*   G -> F: {"id":1,"ok":true,"result":{"taskId":"T-001"}}
-	*   F -> G: {"id":2,"cmd":"ping"}
-	*   G -> F: {"id":2,"ok":true,"result":{"pong":true,"ts":1234}}
-	*
-	* Commands (seam contract section H): createTask / appendEvent / listTasks / getTask /
-	* appendEvidence / createCheckpoint / verifyLedger, all under the
-	* `flauz.workspace.*` namespace. State lives in the workspace:
-	*   <root>/.flauz/tasks.json            — task envelope (stable key order,
-	*                                         2-space indent, trailing newline)
-	*   <root>/.flauz/evidence/ledger.jsonl — append-only evidence rows
-	* Every task event and evidence row is also relayed (append-only JSONL) to
-	* the extension globalStorage path supplied in the handshake, v0 event-relay.
-	*
-	* Disposal note: stdin EOF (or SIGTERM) exits 0 exactly once (single exit
-	* path guarded by `exited`; the eager exit-promise race found in the first
-	* iteration is fixed by that guard plus the setImmediate flush deferral).
-	*/
+ * Flauz workspace seam service — G side of the Lane F vertical slice.
+ *
+ * Zero-dependency Node service. The Agent Bridge extension (F side, see
+ * `src/seamClient.ts`) spawns this file and speaks newline-delimited JSON
+ * over stdio:
+ *
+ *   F -> G: {"type":"hello","client":"flauz-agent","version":"0.1.0","globalStoragePath":"..."}
+ *   G -> F: {"type":"ready","service":"flauz-core-service","version":"0.1.0","schema":"flauz.tasks/v0"}
+ *   F -> G: {"id":1,"cmd":"flauz.workspace.createTask","args":{"title":"..."}}
+ *   G -> F: {"id":1,"ok":true,"result":{"taskId":"T-001"}}
+ *   F -> G: {"id":2,"cmd":"ping"}
+ *   G -> F: {"id":2,"ok":true,"result":{"pong":true,"ts":1234}}
+ *
+ * Commands (seam contract section H): createTask / appendEvent / listTasks / getTask /
+ * appendEvidence / createCheckpoint / verifyLedger, all under the
+ * `flauz.workspace.*` namespace. State lives in the workspace:
+ *   <root>/.flauz/tasks.json            — task envelope (stable key order,
+ *                                         2-space indent, trailing newline)
+ *   <root>/.flauz/evidence/ledger.jsonl — append-only evidence rows
+ * Every task event and evidence row is also relayed (append-only JSONL) to
+ * the extension globalStorage path supplied in the handshake, v0 event-relay.
+ *
+ * Disposal note: stdin EOF (or SIGTERM) exits 0 exactly once (single exit
+ * path guarded by `exited`; the eager exit-promise race found in the first
+ * iteration is fixed by that guard plus the setImmediate flush deferral).
+ */
 
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';

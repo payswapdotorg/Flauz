@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------------------
-	*  Copyright (c) Microsoft Corporation. All rights reserved.
-	*  Licensed under the MIT License. See License.txt in the project root for license information.
-	*--------------------------------------------------------------------------------------------*/
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
 // Flauz Wave 3 — Lane H (perf harness + CI + budget enforcement)
 //
@@ -98,12 +98,12 @@ export function fmtMs(v) {
 // ---------- 1. --prof-append-timers TSV --------------------------------------------------------
 
 /**
-	* Parse the content of a `--prof-append-timers` TSV file.
-	* @param {string} text raw file content
-	* @returns {{ runs: Array<object>, errors: Array<string> }}
-	*   run = { line, ellapsed, product, commit, sessionId, standardStart, standardStartError,
-	*           perfBaselineMs, heap }
-	*/
+ * Parse the content of a `--prof-append-timers` TSV file.
+ * @param {string} text raw file content
+ * @returns {{ runs: Array<object>, errors: Array<string> }}
+ *   run = { line, ellapsed, product, commit, sessionId, standardStart, standardStartError,
+ *           perfBaselineMs, heap }
+ */
 export function parseAppendTimersTsv(text) {
 		const runs = [];
 		const errors = [];
@@ -149,12 +149,12 @@ export function parseAppendTimersTsv(text) {
 // ---------- 2. --prof-duration-markers TSV -----------------------------------------------------
 
 /**
-	* Parse the content of a `--prof-duration-markers` (or -file) TSV.
-	* Each non-empty line is a flat sequence of name/value PAIRS (startupTimings.ts
-	* pushes marker & duration together, then joins with '\t').
-	* @param {string} text raw file content
-	* @returns {{ runs: Array<{ line:number, pairs: Record<string, number> }>, errors: Array<string> }}
-	*/
+ * Parse the content of a `--prof-duration-markers` (or -file) TSV.
+ * Each non-empty line is a flat sequence of name/value PAIRS (startupTimings.ts
+ * pushes marker & duration together, then joins with '\t').
+ * @param {string} text raw file content
+ * @returns {{ runs: Array<{ line:number, pairs: Record<string, number> }>, errors: Array<string> }}
+ */
 export function parseDurationMarkersTsv(text) {
 		const runs = [];
 		const errors = [];
@@ -192,12 +192,12 @@ export function parseDurationMarkersTsv(text) {
 // ---------- 3. resolveProcesses() JSON ---------------------------------------------------------
 
 /**
-	* Normalize a `resolveProcesses()` JSON payload into flat process rows.
-	* Only the "Local" process tree (and any remote trees) are walked; utility
-	* process names are enriched from pidToNames where available.
-	* @param {string|object} json text or already-parsed object
-	* @returns {{ rows: Array<{ name, pid, ppid, load, memMB, cmd }>, errors: Array<string> }}
-	*/
+ * Normalize a `resolveProcesses()` JSON payload into flat process rows.
+ * Only the "Local" process tree (and any remote trees) are walked; utility
+ * process names are enriched from pidToNames where available.
+ * @param {string|object} json text or already-parsed object
+ * @returns {{ rows: Array<{ name, pid, ppid, load, memMB, cmd }>, errors: Array<string> }}
+ */
 export function parseResolveProcessesJson(json) {
 		const errors = [];
 		let data = json;
@@ -254,13 +254,13 @@ export function parseResolveProcessesJson(json) {
 const STATUS_HEADER = /^CPU %\tMem MB\t\s*PID\tProcess$/;
 
 /**
-	* Parse the 'Process List' section of `--status` output into flat rows.
-	* Format (diagnosticsService.ts:530): `CPU %\tMem MB\t   PID\tProcess`
-	* followed by `<load>\t<memMB>\t<pid>\t<name>` lines. Section ends at the
-	* first blank line after rows ('Workspace Stats:' or EOF).
-	* @param {string} text raw --status output
-	* @returns {{ rows: Array<{ name, pid, load, memMB }>, errors: Array<string> }}
-	*/
+ * Parse the 'Process List' section of `--status` output into flat rows.
+ * Format (diagnosticsService.ts:530): `CPU %\tMem MB\t   PID\tProcess`
+ * followed by `<load>\t<memMB>\t<pid>\t<name>` lines. Section ends at the
+ * first blank line after rows ('Workspace Stats:' or EOF).
+ * @param {string} text raw --status output
+ * @returns {{ rows: Array<{ name, pid, load, memMB }>, errors: Array<string> }}
+ */
 export function parseStatusProcessList(text) {
 		const rows = [];
 		const errors = [];

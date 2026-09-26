@@ -1,7 +1,7 @@
 /*---------------------------------------------------------------------------------------------
-	*  Copyright (c) Microsoft Corporation. All rights reserved.
-	*  Licensed under the MIT License. See License.txt in the project root for license information.
-	*--------------------------------------------------------------------------------------------*/
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 // Flauz product overlay merger (Wave 3 Lane F, task W3-F-R-b).
 //
 // Merges the Flauz product overlay (`product.flauz.json`, repo root) onto the
@@ -32,8 +32,8 @@ import { basename, dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** The overlay keys v0 knows about (all real IProductConfiguration fields at 9bf9ae764da:
-	*  src/vs/base/common/product.ts — version:100, nameShort/nameLong:105-106,
-	*  extensionEnabledApiProposals:250, defaultChatAgent:276). Anything else is warned about. */
+ *  src/vs/base/common/product.ts — version:100, nameShort/nameLong:105-106,
+ *  extensionEnabledApiProposals:250, defaultChatAgent:276). Anything else is warned about. */
 export const KNOWN_OVERLAY_KEYS = Object.freeze([
 		'nameShort',
 		'nameLong',
@@ -60,10 +60,10 @@ function isArrayOfStrings(value) {
 }
 
 /**
-	* Light structural validation of the known overlay keys. Throws an Error with an
-	* actionable message on the first violation. Unknown keys are allowed (v0 is
-	* permissive) but each one is reported on stderr so it cannot be relied on silently.
-	*/
+ * Light structural validation of the known overlay keys. Throws an Error with an
+ * actionable message on the first violation. Unknown keys are allowed (v0 is
+ * permissive) but each one is reported on stderr so it cannot be relied on silently.
+ */
 export function validateOverlay(overlay, options = {}) {
 		if (!isPlainObject(overlay)) {
 				throw new Error(`overlay must be a JSON object, got ${overlay === null ? 'null' : typeof overlay}`);
@@ -111,9 +111,9 @@ export function validateOverlay(overlay, options = {}) {
 }
 
 /**
-	* Recursive merge with NULL-DELETES semantics. Never mutates `base` or `overlay`.
-	* See the header comment for the exact rules.
-	*/
+ * Recursive merge with NULL-DELETES semantics. Never mutates `base` or `overlay`.
+ * See the header comment for the exact rules.
+ */
 export function mergeProduct(base, overlay, options = {}) {
 		validateOverlay(overlay, options);
 		return mergeNodes(base, overlay);
@@ -140,9 +140,9 @@ export function serializeProduct(merged) {
 }
 
 /**
-	* Strict JSON parse (JSON.parse rejects BOM-adjacent garbage, comments, and trailing
-	* commas) with a clear error message naming the file.
-	*/
+ * Strict JSON parse (JSON.parse rejects BOM-adjacent garbage, comments, and trailing
+ * commas) with a clear error message naming the file.
+ */
 function parseJsonFile(filePath) {
 		let raw;
 		try {

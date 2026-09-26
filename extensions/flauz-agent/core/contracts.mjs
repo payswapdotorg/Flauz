@@ -1,21 +1,21 @@
 /*---------------------------------------------------------------------------------------------
-	*  Copyright (c) Microsoft Corporation. All rights reserved.
-	*  Licensed under the MIT License. See License.txt in the project root for license information.
-	*--------------------------------------------------------------------------------------------*/
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
 /**
-	* Flauz seam contract v0 — pure, zero-dependency logic shared by the core
-	* service (G side) and the test harness. Imported at runtime only by Node
-	* (extension source imports the TYPES from `contracts.d.mts`, never the code).
-	*
-	* Contract (Wave 3 Lane F work order section H, implemented verbatim):
-	*  - task envelope `.flauz/tasks.json`: { $schema: 'flauz.tasks/v0', tasks: [...] }
-	*  - task: { id, title, status, events[], timing{created,updatedAt}, changes[] }
-	*  - evidence ledger `.flauz/evidence/ledger.jsonl`: append-only, one JSON
-	*    object per line with the seven fields seq/ts/taskId/kind/uri/sha256/prev.
-	*  - row hash (not stored) = sha256 over the canonical JSON of those seven
-	*    fields (keys sorted, no whitespace); the NEXT row's `prev` carries it;
-	*    seq 1 has prev === null. v0 is hash-chain only (Wave 4 adds signatures).
-	*/
+ * Flauz seam contract v0 — pure, zero-dependency logic shared by the core
+ * service (G side) and the test harness. Imported at runtime only by Node
+ * (extension source imports the TYPES from `contracts.d.mts`, never the code).
+ *
+ * Contract (Wave 3 Lane F work order section H, implemented verbatim):
+ *  - task envelope `.flauz/tasks.json`: { $schema: 'flauz.tasks/v0', tasks: [...] }
+ *  - task: { id, title, status, events[], timing{created,updatedAt}, changes[] }
+ *  - evidence ledger `.flauz/evidence/ledger.jsonl`: append-only, one JSON
+ *    object per line with the seven fields seq/ts/taskId/kind/uri/sha256/prev.
+ *  - row hash (not stored) = sha256 over the canonical JSON of those seven
+ *    fields (keys sorted, no whitespace); the NEXT row's `prev` carries it;
+ *    seq 1 has prev === null. v0 is hash-chain only (Wave 4 adds signatures).
+ */
 
 import { createHash } from 'node:crypto';
 
@@ -42,10 +42,10 @@ export const EVIDENCE_KINDS = ['changeset', 'screenshot', 'command-output', 'not
 export const EVENT_ACTORS = ['agent', 'human', 'tool'];
 
 /**
-	* Legal transitions. `from: null` means "from any active status".
-	* Everything not listed here is rejected with an Error that names the allowed
-	* source statuses for the event type.
-	*/
+ * Legal transitions. `from: null` means "from any active status".
+ * Everything not listed here is rejected with an Error that names the allowed
+ * source statuses for the event type.
+ */
 export const TRANSITIONS = [
 	{ type: 'submit-plan', from: 'plan', actors: ['agent'], to: 'awaiting-approval' },
 	{ type: 'approve', from: 'awaiting-approval', actors: ['human'], to: 'execute' },
@@ -80,18 +80,18 @@ export function allowedSourceStatuses(type) {
 }
 
 /**
-	* Validate an event against the transition table and compute the next status.
-	*
-	* Ordering (documented in REPORT section CONTRACT-DEVIATIONS): a rule matching the
-	* current status is required BEFORE the actor is validated, so an event with
-	* a wrong actor but a valid source status reports the actor error, and an
-	* event from an invalid source status reports the allowed sources.
-	*
-	* Event types that are not transition verbs (e.g. `created`) append freely
-	* without changing status.
-	*
-	* @returns {{ status: string, error?: string }}
-	*/
+ * Validate an event against the transition table and compute the next status.
+ *
+ * Ordering (documented in REPORT section CONTRACT-DEVIATIONS): a rule matching the
+ * current status is required BEFORE the actor is validated, so an event with
+ * a wrong actor but a valid source status reports the actor error, and an
+ * event from an invalid source status reports the allowed sources.
+ *
+ * Event types that are not transition verbs (e.g. `created`) append freely
+ * without changing status.
+ *
+ * @returns {{ status: string, error?: string }}
+ */
 export function applyTransition(status, event) {
 	if (!TRANSITION_TYPES.includes(event.type)) {
 		return { status };
@@ -143,19 +143,19 @@ export function rowHash(row) {
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 /**
-	* Verify a ledger (array of raw lines). Checks, per row, in order:
-	*  1. the line parses as JSON;
-	*  2. it has EXACTLY the seven fields;
-	*  3. seq is the 1-based position and kinds/actors/sha shapes are valid;
-	*  4. prev === rowHash(previous row) (null for seq 1).
-	*
-	* Tampering with row N's content is detected at row N+1's `prev` mismatch
-	* (row N's hash is recomputed here, never stored) — the last row's own
-	* content tampering is therefore only detectable via the caller's knowledge
-	* of its sha256 (v0 limitation, documented).
-	*
-	* @returns {{ ok: boolean, rows: object[], firstBadSeq?: number }}
-	*/
+ * Verify a ledger (array of raw lines). Checks, per row, in order:
+ *  1. the line parses as JSON;
+ *  2. it has EXACTLY the seven fields;
+ *  3. seq is the 1-based position and kinds/actors/sha shapes are valid;
+ *  4. prev === rowHash(previous row) (null for seq 1).
+ *
+ * Tampering with row N's content is detected at row N+1's `prev` mismatch
+ * (row N's hash is recomputed here, never stored) — the last row's own
+ * content tampering is therefore only detectable via the caller's knowledge
+ * of its sha256 (v0 limitation, documented).
+ *
+ * @returns {{ ok: boolean, rows: object[], firstBadSeq?: number }}
+ */
 export function validateLedgerRows(lines) {
 	const rows = [];
 	let prevHash = null;
