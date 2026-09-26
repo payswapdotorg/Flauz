@@ -204,10 +204,10 @@ jobs:
           set -e
           cd "$GITHUB_WORKSPACE"
           N="${FLAUZ_PERF_RUNS:-10}"
-          MARKERS="code/didStartRenderer-code/didStartWorkbench"
-          MARKERS="$MARKERS,code/flauz/willConnectCore-code/flauz/didConnectCore"
-          MARKERS="$MARKERS,code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants"
-          MARKERS="$MARKERS,code/flauz/willWarmModels-code/flauz/didWarmModels"
+          # duration-marker pairs are passed as REPEATED --prof-duration-markers
+          # flags: the argv type is string[] (minimist) and a comma-joined single
+          # value stays ONE element, so split('-') sees 3+ parts and every pair
+          # resolves to duration 0 -- the round-21 empty-markers root cause.
           TIMERS_FLAUZ="$GITHUB_WORKSPACE/artifacts/flauz.timers.tsv"
           TIMERS_UP="$GITHUB_WORKSPACE/artifacts/upstream.timers.tsv"
           MK_FLAUZ="$GITHUB_WORKSPACE/artifacts/flauz.markers.tsv"
@@ -219,11 +219,35 @@ jobs:
           # proved a bare file arg still fails the Explorer criterion).
           mkdir -p run/perf-ws
           echo "flauz perf pair scratch" > run/perf-ws/scratch.txt
+          # warmup pair (untimed, discarded): the first boot after compile+bundle
+          # is the coldest of the whole job (round-21 data: flauz run 1 = +360ms
+          # over its own median while p50 delta was only +4ms) -- OS page cache,
+          # not Flauz. One untimed boot per side measures the steady-state
+          # overhead the section 1.3 budgets actually gate.
+          for side in flauz upstream; do
+            echo "::group::warmup $side (untimed, discarded)"
+            DISPLAY=:10 ./$side/scripts/code.sh \
+              --prof-append-timers /dev/null \
+              --prof-duration-markers "code/didStartRenderer-code/didStartWorkbench" \
+              --prof-duration-markers "code/flauz/willConnectCore-code/flauz/didConnectCore" \
+              --prof-duration-markers "code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants" \
+              --prof-duration-markers "code/flauz/willWarmModels-code/flauz/didWarmModels" \
+              --prof-duration-markers-file /dev/null \
+              --user-data-dir "$GITHUB_WORKSPACE/run/$side/userdata-warmup" \
+              --extensions-dir "$GITHUB_WORKSPACE/run/$side/exts-warmup" \
+              --disable-telemetry --skip-welcome --skip-release-notes \
+              --disable-updates --disable-experiments --disable-workspace-trust \
+              "$GITHUB_WORKSPACE/run/perf-ws" "$GITHUB_WORKSPACE/run/perf-ws/scratch.txt"
+            echo "::endgroup::"
+          done
           for i in $(seq 1 "$N"); do
             echo "::group::run $i/$N flauz"
             DISPLAY=:10 ./flauz/scripts/code.sh \
               --prof-append-timers "$TIMERS_FLAUZ" \
-              --prof-duration-markers "$MARKERS" \
+              --prof-duration-markers "code/didStartRenderer-code/didStartWorkbench" \
+              --prof-duration-markers "code/flauz/willConnectCore-code/flauz/didConnectCore" \
+              --prof-duration-markers "code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants" \
+              --prof-duration-markers "code/flauz/willWarmModels-code/flauz/didWarmModels" \
               --prof-duration-markers-file "$MK_FLAUZ" \
               --user-data-dir "$GITHUB_WORKSPACE/run/flauz/userdata-$i" \
               --extensions-dir "$GITHUB_WORKSPACE/run/flauz/exts-$i" \
@@ -234,7 +258,10 @@ jobs:
             echo "::group::run $i/$N upstream"
             DISPLAY=:10 ./upstream/scripts/code.sh \
               --prof-append-timers "$TIMERS_UP" \
-              --prof-duration-markers "$MARKERS" \
+              --prof-duration-markers "code/didStartRenderer-code/didStartWorkbench" \
+              --prof-duration-markers "code/flauz/willConnectCore-code/flauz/didConnectCore" \
+              --prof-duration-markers "code/flauz/willRegisterParticipants-code/flauz/didRegisterParticipants" \
+              --prof-duration-markers "code/flauz/willWarmModels-code/flauz/didWarmModels" \
               --prof-duration-markers-file "$MK_UP" \
               --user-data-dir "$GITHUB_WORKSPACE/run/upstream/userdata-$i" \
               --extensions-dir "$GITHUB_WORKSPACE/run/upstream/exts-$i" \
