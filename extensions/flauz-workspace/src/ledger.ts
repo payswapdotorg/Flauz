@@ -55,12 +55,19 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+const ROW_FIELDS = ['kind', 'prev', 'seq', 'sha256', 'taskId', 'ts', 'uri'] as const;
+
+/** Own-property presence check (the eslint-blessed replacement for the `in` operator). */
+export function hasKey(obj: object, key: string): boolean {
+	return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
 export function parseLedgerRow(value: unknown): RowParseOutcome {
 	if (!isPlainObject(value)) {
 		return { ok: false, error: 'row is not a JSON object' };
 	}
 	const keys = Object.keys(value).sort();
-	if (keys.length !== 7 || !(['kind', 'prev', 'seq', 'sha256', 'taskId', 'ts', 'uri'] as readonly string[]).every(k => k in value)) {
+	if (keys.length !== 7 || !ROW_FIELDS.every(k => hasKey(value, k))) {
 		return { ok: false, error: 'row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri]' };
 	}
 	if (typeof value.seq !== 'number' || !Number.isSafeInteger(value.seq) || value.seq < 1) {
@@ -94,7 +101,7 @@ export function validateRowInput(input: unknown): LedgerRowInput {
 	if (!isPlainObject(input)) {
 		throw new Error('flauz: evidence row must be a plain object {kind, uri, sha256, note?}');
 	}
-	if (!('kind' in input) || !('uri' in input) || !('sha256' in input)) {
+	if (!hasKey(input, 'kind') || !hasKey(input, 'uri') || !hasKey(input, 'sha256')) {
 		throw new Error('flauz: evidence row must have kind, uri and sha256');
 	}
 	const kind = input.kind;

@@ -19,8 +19,7 @@ import { ok, strictEqual } from 'node:assert';
 
 import { importWithVscodeMock } from './harness/vscode-redirect.ts';
 import { lm } from './harness/vscode-mock-module.ts';
-import { createMockContext } from './harness/vscode-mock.ts';
-import type { MockExtensionContext } from './harness/vscode-mock.ts';
+import { createMockContext, type MockExtensionContext } from './harness/vscode-mock.ts';
 
 /** The slice of src/extension.ts's public surface the tests exercise. */
 interface TestableExtensionModule {

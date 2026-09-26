@@ -12,8 +12,7 @@
  * vendor pack's future adapters a reviewed starting point.
  */
 
-import { deepFreeze } from './types.ts';
-import type { VendorPlan } from './types.ts';
+import { deepFreeze, type VendorPlan } from './types.ts';
 
 export const qwenVendorPlan: VendorPlan = deepFreeze<VendorPlan>({
 	vendor: 'flauz-qwen',

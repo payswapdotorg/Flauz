@@ -132,7 +132,7 @@ test('recordEvidence adds a timeline event and a changes entry for changesets on
 	const screenshot = await ws.tasks.recordEvidence(task.id, { evidenceId: 'E-000002', seq: 2, kind: 'screenshot', uri: 'file:///w/s.png', sha256: 'b'.repeat(64) });
 	assert.equal(screenshot.changes.length, 1);
 	const screenshotEvent = screenshot.events.find(e => e.type === 'evidence' && e.payload.seq === 2);
-	assert.equal('note' in (screenshotEvent?.payload ?? {}), false);
+	assert.equal(Object.prototype.hasOwnProperty.call(screenshotEvent?.payload ?? {}, 'note'), false);
 });
 
 test('atomic writes leave no *.tmp residue under .flauz/', async () => {

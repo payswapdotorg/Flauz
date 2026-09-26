@@ -6,10 +6,9 @@ import type * as vscode from 'vscode';
 import { vscodeApi } from './globals.ts';
 import type { TaskEvent } from './api.ts';
 import type { TaskService } from './taskService.ts';
-import type { EvidenceLedger } from './ledger.ts';
 import type { CheckpointInterop } from './checkpoint.ts';
 import type { FlauzArtifactProvider } from './scmArtifactProvider.ts';
-import { validateRowInput } from './ledger.ts';
+import { hasKey, validateRowInput, type EvidenceLedger } from './ledger.ts';
 
 export const COMMAND_IDS = [
 	'flauz.workspace.createTask',
@@ -39,7 +38,7 @@ function requireArgs(arg: unknown, command: string, keys: readonly string[]): Re
 	}
 	const record = arg as Record<string, unknown>;
 	for (const key of keys) {
-		if (!(key in record)) {
+		if (!hasKey(record, key)) {
 			throw new Error(`flauz.workspace.${command}: missing required key '${key}'`);
 		}
 	}

@@ -24,6 +24,7 @@ import {
 	serializeEnvelope,
 	transitionRule,
 } from './api.ts';
+import { hasKey } from './ledger.ts';
 
 interface MutableTask {
 	id: string;
@@ -54,12 +55,12 @@ function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): 
 	if (actual.length !== keys.length) {
 		return false;
 	}
-	return keys.every(key => key in value);
+	return keys.every(key => hasKey(value, key));
 }
 
 export function validateEvent(event: unknown): TaskEvent {
 	if (!isPlainObject(event) || !hasExactKeys(event, ['ts', 'actor', 'type', 'payload'])) {
-		throw new Error("flauz.tasks/v0: invalid event: expected exactly the keys [actor, payload, ts, type]");
+		throw new Error('flauz.tasks/v0: invalid event: expected exactly the keys [actor, payload, ts, type]');
 	}
 	if (typeof event.ts !== 'number' || !Number.isSafeInteger(event.ts) || event.ts <= 0) {
 		throw new Error('flauz.tasks/v0: invalid event: ts must be a positive integer (epoch ms)');
@@ -129,7 +130,7 @@ function validateTask(value: unknown, index: number): MutableTask {
 
 export function validateEnvelope(value: unknown): MutableEnvelope {
 	if (!isPlainObject(value) || !hasExactKeys(value, ['$schema', 'tasks'])) {
-		throw new Error("flauz.tasks/v0: envelope validation failed: expected exactly the keys [$schema, tasks]");
+		throw new Error('flauz.tasks/v0: envelope validation failed: expected exactly the keys [$schema, tasks]');
 	}
 	if (value.$schema !== SCHEMA_ID) {
 		throw new Error(`flauz.tasks/v0: envelope validation failed: $schema must be '${SCHEMA_ID}' (got ${JSON.stringify(value.$schema)})`);

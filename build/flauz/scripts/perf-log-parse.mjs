@@ -365,7 +365,7 @@ function selftest() {
 		const m1 = parseDurationMarkersTsv('code/flauz/willConnectCore-code/flauz/didConnectCore\t123\tellapsed\t824\nodd\tline\n');
 		check('markers: 1 run parsed', m1.runs.length === 1);
 		check('markers: 1 error for odd field count', m1.errors.length === 1);
-		check('markers: pair values', m1.runs[0].pairs['code/flauz/willConnectCore-code/flauz/didConnectCore'] === 123 && m1.runs[0].pairs['ellapsed'] === 824);
+		check('markers: pair values', m1.runs[0].pairs['code/flauz/willConnectCore-code/flauz/didConnectCore'] === 123 && m1.runs[0].pairs.ellapsed === 824);
 
 		// percentile / stats
 		const s = stats([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);

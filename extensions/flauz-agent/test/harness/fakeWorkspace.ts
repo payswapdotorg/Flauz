@@ -110,6 +110,7 @@ export async function drive(
 ): Promise<DriveResult> {
 	const markdown: string[] = [];
 	const progress: string[] = [];
+	// eslint-disable-next-line local/code-no-dangerous-type-assertions -- partial test fake of a platform interface
 	const stream = {
 		markdown(value: string) {
 			markdown.push(value);
@@ -123,6 +124,7 @@ export async function drive(
 		reference() { /* unused */ },
 		push() { /* unused */ },
 	} as unknown as vscode.ChatResponseStream;
+	// eslint-disable-next-line local/code-no-dangerous-type-assertions -- partial test fake of a platform interface
 	const chatRequest = {
 		prompt: request.prompt ?? '',
 		command: request.command,
@@ -131,6 +133,7 @@ export async function drive(
 		toolInvocationToken: request.toolInvocationToken ?? { opaque: true },
 		model: undefined,
 	} as unknown as vscode.ChatRequest;
+	// eslint-disable-next-line local/code-no-dangerous-type-assertions -- partial test fake of a platform interface
 	await handler(chatRequest, {} as unknown as vscode.ChatContext, stream, {
 		isCancellationRequested: false,
 		onCancellationRequested: () => ({ dispose() { /* noop */ } }),
