@@ -151,6 +151,10 @@ mapped to the exact job + measurement + recalibration act that closes it.
 - `GITHUB_TOKEN` is deliberately NOT passed to the upstream compile&hygiene
   line (no-secrets constraint); if an upstream sub-step ever requires it, the
   job fails loudly → DECISION-LOG proposal for the narrow exception.
+- Chat-editing snapshot evidence (DL-22) is spec-only in Wave 4: the watch
+  spec `build/flauz/specs/chatsnapshot-api-watch.md` (Lane K, M4) records the
+  blocked path, the clone-time tree cites, and the three unblocking
+  conditions.
 
 ---
 

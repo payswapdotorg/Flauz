@@ -1,0 +1,69 @@
+{
+	"$schema": "flauz.tasks/v0",
+	"tasks": [
+		{
+			"changes": [],
+			"events": [
+				{
+					"actor": "agent",
+					"payload": {
+						"plan": "## Flauz plan - T-001\n\n**Request:** ship the flauz wave 4 lane\n\n1. Run `echo flauz-golden-path-ok`.",
+						"requestId": "req-1"
+					},
+					"ts": 2000,
+					"type": "submit-plan"
+				},
+				{
+					"actor": "human",
+					"payload": {
+						"requestId": "req-1"
+					},
+					"ts": 4000,
+					"type": "approve"
+				},
+				{
+					"actor": "tool",
+					"payload": {
+						"evidenceId": "E-000001",
+						"kind": "command-output",
+						"note": "echo flauz-golden-path-ok",
+						"seq": 1,
+						"sha256": "d26ae3b78414097b5184cd7f7be922fcb4da0c90c718c2ddf3b90e644ac70558",
+						"uri": ".flauz/artifacts/T-001/command-output-1.txt"
+					},
+					"ts": 7000,
+					"type": "evidence"
+				},
+				{
+					"actor": "agent",
+					"payload": {
+						"commandEvidenceId": "E-000001"
+					},
+					"ts": 9000,
+					"type": "report"
+				},
+				{
+					"actor": "tool",
+					"payload": {
+						"rows": 1
+					},
+					"ts": 11000,
+					"type": "verify-pass"
+				},
+				{
+					"actor": "human",
+					"payload": {},
+					"ts": 13000,
+					"type": "sign-off"
+				}
+			],
+			"id": "T-001",
+			"status": "done",
+			"timing": {
+				"created": 1000,
+				"updatedAt": 14000
+			},
+			"title": "ship the flauz wave 4 lane"
+		}
+	]
+}

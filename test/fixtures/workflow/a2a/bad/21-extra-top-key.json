@@ -1,0 +1,17 @@
+{
+	"$schema": "flauz.a2a/v0",
+	"seq": 1,
+	"id": "M-000001",
+	"kind": "task-delegation",
+	"from": "flauz.agent",
+	"to": "flauz.agent.worker-1",
+	"ts": 1000,
+	"inReplyTo": null,
+	"payload": {
+		"taskId": "T-001",
+		"taskDescription": "Review package.json structure",
+		"prompt": "Review the package.json structure.",
+		"workflowId": "W-001"
+	},
+	"priority": "high"
+}

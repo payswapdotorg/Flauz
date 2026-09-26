@@ -17,6 +17,13 @@ export const ENVELOPE_PATH = '.flauz/tasks.json';
 /** Evidence ledger path, relative to the workspace root. */
 export const LEDGER_PATH = '.flauz/evidence/ledger.jsonl';
 
+/**
+ * Ledger-size watermark path, relative to the workspace root (DL-20 Wave-4 hook:
+ * persisted rowCount + bytes + head sha256 + last checkpoint seq; checked on load
+ * so a truncated tail is a verdict class, not a silent success).
+ */
+export const SIZE_PATH = '.flauz/evidence/size.json';
+
 export const TASK_STATUSES = ['plan', 'awaiting-approval', 'execute', 'verify', 'awaiting-signoff', 'failed', 'done', 'cancelled'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
@@ -26,8 +33,35 @@ export const ACTIVE_STATUSES: readonly TaskStatus[] = ['plan', 'awaiting-approva
 export const ACTORS = ['agent', 'human', 'tool'] as const;
 export type Actor = (typeof ACTORS)[number];
 
-export const EVIDENCE_KINDS = ['changeset', 'screenshot', 'command-output', 'note'] as const;
+export const EVIDENCE_KINDS = ['changeset', 'screenshot', 'command-output', 'note', 'checkpoint'] as const;
 export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
+
+/**
+ * `checkpoint` rows are SIGNED LEDGER CHECKPOINTS (SECURITY-MODEL section 3.3,
+ * DL-20 Wave-4 hook) - distinct from the chatEditing snapshot checkpoints of
+ * src/checkpoint.ts (DL-21 decision matrix). They are minted only by
+ * EvidenceLedger.appendCheckpoint(); callers cannot append them via append().
+ */
+
+/** Signature algorithms of the v0 checkpoint keystore (fixture posture). */
+export const CHECKPOINT_ALGORITHMS = ['ed25519', 'hmac-sha256'] as const;
+export type CheckpointAlgorithm = (typeof CHECKPOINT_ALGORITHMS)[number];
+
+/**
+ * The signed payload carried by a `checkpoint` ledger row (the optional 8th
+ * field). `signature` covers exactly `signedPayload(rowSeq, headSha256)` -
+ * nothing secret ever enters the chain (SECURITY-MODEL sections 2.5/3.3).
+ */
+export interface LedgerCheckpointPayload {
+	/** seq of the last regular row this checkpoint covers (strictly less than the checkpoint row's own seq). */
+	readonly rowSeq: number;
+	/** rowHash of the covered row - the chain head at checkpoint time. */
+	readonly headSha256: string;
+	readonly algorithm: CheckpointAlgorithm;
+	/** Stable id of the signing key (user keystore owns the chain, not a Flauz service key). */
+	readonly keyId: string;
+	readonly signature: string;
+}
 
 export interface TaskEvent {
 	readonly ts: number;
@@ -68,7 +102,10 @@ export interface LedgerRowInput {
 	readonly note?: string;
 }
 
-/** Stored ledger row — exactly the 7 contract fields, nothing else. */
+/**
+ * Stored ledger row - exactly the 7 contract fields; `checkpoint` rows
+ * (kind 'checkpoint') carry exactly one optional 8th field: the signed payload.
+ */
 export interface LedgerRow {
 	readonly seq: number;
 	readonly ts: number;
@@ -77,6 +114,7 @@ export interface LedgerRow {
 	readonly uri: string;
 	readonly sha256: string;
 	readonly prev: string | null;
+	readonly checkpoint?: LedgerCheckpointPayload;
 }
 
 export interface TransitionRule {
@@ -273,3 +311,20 @@ export interface FileSystemPort {
 
 /** Injectable clock (deterministic fixtures in tests; Date.now in the host). */
 export type Clock = () => number;
+
+/**
+ * Port for signing + verifying ledger checkpoints (DL-20 Wave-4 hook).
+ *
+ * The key belongs to the USER keystore - never a Flauz service key (the user
+ * owns the chain; SECURITY-MODEL section 3.3). v0 posture: fixture keys stand
+ * in for the real keystore (documented in the Wave-4 Lane K REPORT). The
+ * implementations live in extensions/flauz-workflow/src/keys.ts (node:crypto
+ * Ed25519 where available, else HMAC-SHA256 with a documented posture
+ * downgrade); this port keeps the flauz-workspace core node-free.
+ */
+export interface CheckpointSigner {
+	readonly algorithm: CheckpointAlgorithm;
+	readonly keyId: string;
+	sign(rowSeq: number, headSha256: string): Promise<string>;
+	verify(rowSeq: number, headSha256: string, signature: string): Promise<boolean>;
+}

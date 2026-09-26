@@ -46,6 +46,7 @@ import {
 		rowHash,
 		validateLedgerRows,
 } from './contracts.mjs';
+import { A2ABus } from './a2a.mjs';
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -71,7 +72,21 @@ export class WorkspaceSeam {
 				this.relayPath = undefined;
 				this.tasks = [];
 				this.ledgerLines = [];
+				this.a2a = null;
 				this.load();
+		}
+
+		/**
+		 * Lazy A2A bus (Wave 4 Lane K, M3): constructed on the first
+		 * flauz.a2a.* command, so a corrupt a2a journal surfaces as
+		 * that command's error instead of failing the whole hello
+		 * handshake (the task envelope stays usable).
+		 */
+		getA2a() {
+				if (!this.a2a) {
+						this.a2a = new A2ABus(this.root);
+				}
+				return this.a2a;
 		}
 
 		load() {
@@ -213,6 +228,15 @@ export class WorkspaceSeam {
 				return { evidenceId: `E-${seq}`, seq };
 		}
 
+		/**
+		 * Post one typed A2A message (Wave 4 Lane K, M3). The bus mints
+		 * seq/id; the relay mirrors the v0 event-relay for bus traffic.
+		 */
+		postA2aMessage({ message }) {
+				const result = this.getA2a().post({ message });
+				this.relay('a2a-message', { id: result.id, seq: result.seq, kind: message.kind, from: message.from, to: message.to });
+				return result;
+		}
 		createCheckpoint({ taskId, requestId, stopId }) {
 				const task = this.requireTask(taskId);
 				if (typeof requestId !== 'string' || requestId.length === 0) {
@@ -272,6 +296,9 @@ function main() {
 				'flauz.workspace.appendEvidence': (args) => seam.appendEvidence(args),
 				'flauz.workspace.createCheckpoint': (args) => seam.createCheckpoint(args),
 				'flauz.workspace.verifyLedger': () => seam.verifyLedger(),
+				'flauz.a2a.post': (args) => seam.postA2aMessage(args),
+				'flauz.a2a.collect': (args) => seam.getA2a().collect(args),
+				'flauz.a2a.list': () => seam.getA2a().list(),
 				ping: () => ({ pong: true, ts: Date.now() }),
 				shutdown: () => ({ ok: true }),
 		};

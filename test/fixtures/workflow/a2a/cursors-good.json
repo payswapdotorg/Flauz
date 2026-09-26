@@ -1,0 +1,7 @@
+{
+	"$schema": "flauz.a2a.cursors/v1",
+	"cursors": {
+		"flauz.agent": 5,
+		"flauz.agent.worker-1": 5
+	}
+}

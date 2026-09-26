@@ -50,6 +50,7 @@ declare module 'node:fs' {
 	export function mkdtempSync(prefix: string): string;
 	export function readFileSync(path: string, encoding: 'utf-8'): string;
 	export function readdirSync(path: string): string[];
+	export function writeFileSync(path: string, data: string): void;
 	export function statSync(path: string): { isFile(): boolean; isDirectory(): boolean };
 }
 

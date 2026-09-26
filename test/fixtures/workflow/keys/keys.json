@@ -1,0 +1,16 @@
+{
+	"active": "flauz-fixture-ed25519-1",
+	"keys": [
+		{
+			"algorithm": "ed25519",
+			"keyId": "flauz-fixture-ed25519-1",
+			"privateKeyFile": "ed25519-private.pem",
+			"publicKeyFile": "ed25519-public.pem"
+		},
+		{
+			"algorithm": "hmac-sha256",
+			"keyId": "flauz-fixture-hmac-1",
+			"keyFile": "hmac.key"
+		}
+	]
+}
