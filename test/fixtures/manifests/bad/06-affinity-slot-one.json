@@ -1,15 +1,15 @@
 {
-  "name": "slotone",
-  "publisher": "flauz",
-  "version": "0.1.0",
-  "activationEvents": [
-    "onCommand:flauz.slotone.run"
-  ],
-  "contributes": {
-    "configurationDefaults": {
-      "extensions.experimental.affinity": {
-        "flauz.agent-bridge": 1
-      }
-    }
-  }
+	"name": "slotone",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"activationEvents": [
+		"onCommand:flauz.slotone.run"
+	],
+	"contributes": {
+		"configurationDefaults": {
+			"extensions.experimental.affinity": {
+				"flauz.agent-bridge": 1
+			}
+		}
+	}
 }

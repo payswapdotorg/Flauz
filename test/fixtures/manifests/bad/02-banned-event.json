@@ -1,10 +1,10 @@
 {
-  "name": "banned",
-  "publisher": "flauz",
-  "version": "0.1.0",
-  "activationEvents": [
-    "onDebugResolve",
-    "onLanguage:python"
-  ],
-  "main": "./out/extension.js"
+	"name": "banned",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"activationEvents": [
+		"onDebugResolve",
+		"onLanguage:python"
+	],
+	"main": "./out/extension.js"
 }

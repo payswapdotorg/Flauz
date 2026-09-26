@@ -1,9 +1,9 @@
 {
-  "name": "badproposals",
-  "publisher": "flauz",
-  "version": "0.1.0",
-  "activationEvents": [
-    "onCommand:flauz.badproposals.run"
-  ],
-  "enabledApiProposals": "chatProvider"
+	"name": "badproposals",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"activationEvents": [
+		"onCommand:flauz.badproposals.run"
+	],
+	"enabledApiProposals": "chatProvider"
 }

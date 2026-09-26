@@ -1,10 +1,10 @@
 {
-  "name": "workspace",
-  "publisher": "flauz",
-  "version": "0.1.0",
-  "activationEvents": [
-    "onStartupFinished",
-    "onView:flauz.tasks"
-  ],
-  "main": "./out/extension.js"
+	"name": "workspace",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"activationEvents": [
+		"onStartupFinished",
+		"onView:flauz.tasks"
+	],
+	"main": "./out/extension.js"
 }

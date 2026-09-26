@@ -1,23 +1,23 @@
 {
-  "name": "agent-bridge",
-  "publisher": "flauz",
-  "version": "0.1.0",
-  "engines": {
-    "vscode": "^1.117.0"
-  },
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "enabledApiProposals": [
-    "chatProvider",
-    "lmTools"
-  ],
-  "main": "./out/extension.js",
-  "contributes": {
-    "configurationDefaults": {
-      "extensions.experimental.affinity": {
-        "flauz.agent-bridge": 1
-      }
-    }
-  }
+	"name": "flauz-agent",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.117.0"
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"enabledApiProposals": [
+		"chatProvider",
+		"lmTools"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"configurationDefaults": {
+			"extensions.experimental.affinity": {
+				"flauz.flauz-agent": 1
+			}
+		}
+	}
 }
