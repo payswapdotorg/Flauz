@@ -33,6 +33,27 @@ git-diffable workflow fragment and re-run it from one command.
 - `src/commands.ts` / `src/extension.ts` - command surface + activation
   (command activation only; see `build/flauz/scripts/activation-lint.mjs`).
 
+- `src/executable.ts` - EXECUTABLE reusable workflows (TL2-005, Worker C M3):
+  - `flauz.workflows.exec/v1` specs (WS-NNN): typed inputs (string/number/
+    boolean/json params), steps with `{$param: name}` input-template refs,
+    per-step approval + onFail policy;
+  - VALIDATION: schema (strict) + SEMANTIC (tool refs exist in the
+    ToolRegistryPort, template refs resolve to declared params, steps
+    contiguous, non-empty);
+  - VERSIONING: explicit `bumpSpec` (version+1 + a recorded migration stub);
+    envelopeVersion above the supported one is a typed error - never
+    in-place reinterpretation;
+  - DURABLE RUNS: `flauz.workflow.runs/v1` envelopes (WR-NNN) under
+    `.flauz/workflow-runs/`, persisted before/after EVERY step - the run
+    envelope IS the durable-graph projection (`graphRowsOf` emits the
+    GraphRowRef seam shape Worker A's graph speaks);
+  - RECOVERY: `recover(runId)` resumes an interrupted run to a coherent
+    state - done steps never re-execute, a 'running' step (crash
+    mid-execution) re-runs at-least-once, recovery is pinned to the spec
+    version the run started with; kill-and-recover matrix pinned by tests;
+  - re-run linkage via `derivedFrom` (distilled runs link to the source
+    fragment's task + evidence rows - the house pattern).
+
 ## Conventions
 
 - Zero runtime dependencies; node >= 20 stdlib only (node-free core: all IO
