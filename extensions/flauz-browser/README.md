@@ -1,10 +1,15 @@
-# Flauz Browser Policy (extensions/flauz-browser)
+# Flauz Browser Policy & Runtime (extensions/flauz-browser)
 
-Wave 4, Lane I (worker `flauz-I-w4`). The layered browser navigation policy
-engine for Flauz's agent browser surface: driver-side allowlist (AUTHORITATIVE
-for agent-initiated navigation) + webRequest rules + will-navigate rules +
-per-workspace/agent partition containment, with
-`.flauz/browser-policy.json` as the per-workspace, git-diffable policy source.
+Wave 4, Lane I (worker `flauz-I-w4`) + TL3-001 (browser runtime): the layered
+browser navigation policy engine for Flauz's agent browser surface — driver-side
+allowlist (AUTHORITATIVE for agent-initiated navigation) + webRequest rules +
+will-navigate rules + per-workspace/agent partition containment, with
+`.flauz/browser-policy.json` as the per-workspace, git-diffable policy source —
+and, since TL3-001, the Flauz-controlled Chromium/CDP **browser runtime** that
+the policy engine has been waiting for: sessions, policy-gated navigation,
+capture, and recovery (ARCHITECTURE-LOCK section 3 browser v2 posture: CDP as
+a Flauz-controlled sidecar/service; posture P0 of INTEGRATION-GAP.md in the
+workbench).
 
 Basis: `docs/BROWSER-ARCHITECTURE.md` section 5 (branch `wave1/b-browser-ux`,
 flauz-code-lab) + DL-6 + `docs/SECURITY-MODEL.md` section 4 (branch
@@ -92,6 +97,50 @@ localhost exemption (the tree exempts localhost only on rewritten tunnel
 URLs, `browserToolHelpers.ts:239`); policy patterns require bracketed IPv6;
 the driver layer denies schemes the raw filter would pass.
 
+## The browser runtime (TL3-001)
+
+The runtime is the RUNTIME the policy engine was waiting for. Architecture
+(all under `src/`, zero runtime dependencies — Node >= 20 stdlib + the stable
+global `WebSocket` of Node 22+):
+
+| Layer | Where | What it owns |
+|---|---|---|
+| CDP client | `src/cdp/transport.ts` | The `CdpTransport` port: promise-based `send(method, params, sessionId?)` with monotonically increasing message ids + response correlation + per-command timeouts; `on(method, handler)` event fan-out (session-scoped CDP events carry the flat-protocol `sessionId`); one-shot `close()`. `WebSocketCdpTransport` implements it over a DevTools WebSocket endpoint (injectable socket factory; no `ws` package). |
+| Simulator | `src/cdp/fake.ts` | `FakeCdpTransport` — **TEST INFRASTRUCTURE, NOT PRODUCTION CODE**: a scriptable Chromium simulator (Target lifecycle, Page.navigate lifecycle with committed-URL mapping, deterministic screenshots, on-cue console/log/network events, `drop()`, wedged modes, a per-connection sent-command log that is THE policy-gating assertion surface). Browser state is shareable across connections for recovery drills. |
+| Sessions | `src/runtime/session.ts`, `src/runtime/sessionManager.ts` | The `BrowserSessionDescriptor` (schema `flauz.browser-session/v0`, an ARCHITECTURE-LOCK section 5 contract family member): `{ schemaVersion: 0, sessionId, initiator, agentId?, partition, policySourceRef, createdAt, state, tabs }`. `sessionId` is a LOGICAL id `flauz:browser:<16-hex>` — never a URL, never a path. `BrowserSessionManager`: open/list/focus/close, navigation, capture, recovery. |
+| Navigation pipeline | `src/runtime/tabs.ts` | The heart (posture P0): (1) verdict via `engine.evaluate` with the SESSION's initiator class; (2) **deny: NO CDP command is sent at all**; (3) allow: `Page.navigate` -> await the COMMITTED url -> `reconcileCommittedUrl` -> on violation return the `about:blank` forced-reset recommendation + evidence row (SECURITY-MODEL 4 F2). Wedged tabs (command timeout on a live transport) are replaced. |
+| Capture + evidence | `src/runtime/capture.ts` | Console (`Runtime.consoleAPICalled`, `Log.entryAdded`) and network (`Network.*`) capture buffers, screenshots — each mappable to an evidence row via the EXISTING `toEvidenceRow`. Artifacts flow through the injected `ArtifactWriterPort` to `.flauz/artifacts/<taskId>/` (production: `FileSystemArtifactWriter`; tests: `InMemoryArtifactWriter`). |
+| Host adapters | `src/runtime/host.ts` | The `BrowserHost` port with two implementations: `CdpEndpointHost` (an EXTERNAL Chromium over a CDP WebSocket endpoint from `FLAUZ_CDP_ENDPOINT` — the sidecar/headless/test path) and `WorkbenchBrowserHost` (posture P0: `window.openBrowserTab` + `BrowserTab.startCDPSession` through STRUCTURAL ports; the vendored `vscode-dts/vscode.proposed.browser.d.ts` is the only file carrying proposed-API types). |
+
+**Recovery model** (fail-closed, never bypassing policy): on transport drop
+the affected sessions go `suspended`; the manager reconnects (fresh transport),
+reconciles the tab list against the descriptors (existing targets re-attached
+and RESTORED, vanished targets marked LOST), re-checks every recovered tab's
+URL against the CURRENT policy (violations surface as evidence rows in the
+recovery verdict), and every subsequent navigation is gated against the
+current engine again. A failed reconnect marks the sessions `failed` (never a
+half-open state). A wedged tab is closed best-effort at the browser level,
+marked `failed` with `replacedByTabId` pointing at a fresh `about:blank` tab.
+
+**Session state machine**: `opening -> active -> suspended (drop, while
+recovering) -> closed`, plus `failed` (with an error record) for: partition
+derivation failures, denied start URLs (BEFORE any host interaction), an
+unreachable host, and failed reconnects. Human and agent sessions stay
+separated by the initiator class pinned in tests both directions.
+
+**Running against an external Chromium** (`FLAUZ_CDP_ENDPOINT`):
+
+```sh
+chromium --headless --remote-debugging-port=9222   # or a Flauz sidecar service
+# the endpoint URL is the ws://.../devtools/browser/<id> from http://127.0.0.1:9222/json/version
+FLAUZ_CDP_ENDPOINT=ws://127.0.0.1:9222/devtools/browser/<id> ./scripts/code.sh <workspace>
+```
+
+Host selection is lazy, at the first runtime command: the workbench browser
+API when the proposal is granted to this extension (product.flauz.json
+`flauz.flauz-browser: ["browser"]`, posture P0), else `FLAUZ_CDP_ENDPOINT`,
+else a fail-closed error message.
+
 ## Commands (activation: `onCommand:flauz.browser.*` only)
 
 | Command | What it does |
@@ -101,6 +150,11 @@ the driver layer denies schemes the raw filter would pass.
 | `flauz.browser.verifyPolicy` | Re-validates the file; PASS, or FAIL with code + JSON path |
 | `flauz.browser.checkUrl` | Evaluates a URL at every layer for BOTH initiator classes and logs the verdict table |
 | `flauz.browser.evaluate` | Machine surface for the Agent Bridge: `{ url, initiator?, partition?, workspaceRoot? }` -> combined verdict object |
+| `flauz.browser.openSession` | Runtime: `{ initiator: 'human' \| 'agent', agentId?, startUrl? }` -> descriptor (a denied startUrl fails the session BEFORE any CDP traffic) |
+| `flauz.browser.closeSession` | Runtime: `{ sessionId }` -> sealed descriptor (tabs closed, audit list keeps it) |
+| `flauz.browser.sessions` | Runtime: descriptor snapshots of every session |
+| `flauz.browser.navigate` | Runtime: `{ sessionId, url, tabId? }` -> the policy-gated navigation outcome (deny => ZERO CDP commands; post-commit violation => the `about:blank` reset recommendation) |
+| `flauz.browser.screenshot` | Runtime: `{ sessionId, tabId? }` -> `{ byteLength, base64, artifactPath?, evidenceRow }` (bytes land under `.flauz/artifacts/…`) |
 
 The activation log lines (`flauz.browser: effective policy ...`,
 `flauz.browser: policy file INVALID ...`) are the grep targets of the
@@ -123,8 +177,13 @@ type-stripping and inside the extension host).
 ```sh
 cd extensions/flauz-browser
 npm run typecheck   # tsc --noEmit (typescript 5.9.x)
-npm run test        # node --test "test/*.test.ts"  (96 cases)
+npm run test        # node --test "test/*.test.ts"  (156 cases: 96 policy + 60 runtime)
+node test/canaries/policy-gated-navigation.drill.ts   # the B-POLICY A-class driver drill
 ```
 
-Fixtures live at the repo root: `test/fixtures/browser-policy/` (good/bad
-policy files, the CDP-bypass case matrix, the partition-name matrix).
+Suites: `policy` / `partition` / `precedence` / `cdpBypass` / `extension`
+(the 96 legacy cases, semantics untouched) + `cdp-transport` / `cdp-fake` /
+`session-manager` / `runtime-tabs` / `capture` / `recovery` /
+`host-workbench` (the TL3-001 runtime suites). Fixtures live at the repo
+root: `test/fixtures/browser-policy/` (good/bad policy files, the CDP-bypass
+case matrix, the partition-name matrix).

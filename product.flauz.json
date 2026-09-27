@@ -9,6 +9,9 @@
 		],
 		"flauz.flauz-workspace": [
 			"scmArtifactProvider"
+		],
+		"flauz.flauz-browser": [
+			"browser"
 		]
 	},
 	"defaultChatAgent": null

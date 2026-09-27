@@ -75,7 +75,7 @@ test('activation with a broken policy file logs INVALID + code and stays fail-cl
 	void extension.deactivate();
 });
 
-test('activation registers the five command-surface + two view-surface flauz.browser.* commands', async () => {
+test('activation registers the twelve flauz.browser.* commands (5 policy + 5 runtime + 2 view)', async () => {
 	const extension = await freshActivate('{"schemaVersion":0}');
 	const names = __state().commands.map(c => c.command);
 	assert.deepEqual(names.sort(), [
@@ -86,6 +86,12 @@ test('activation registers the five command-surface + two view-surface flauz.bro
 		'flauz.browser.showPolicy',
 		'flauz.browser.verifyPolicy',
 		'flauz.focusView.browser',
+		// TL3-001 browser runtime surface (src/runtime/*):
+		'flauz.browser.openSession',
+		'flauz.browser.closeSession',
+		'flauz.browser.sessions',
+		'flauz.browser.navigate',
+		'flauz.browser.screenshot',
 	].sort());
 	// TL4-001: the activity-bar view registers too (container `flauz`).
 	assert.deepEqual(__state().treeViews.map(r => r.viewId), ['flauz.browser']);
@@ -191,8 +197,8 @@ test('activation without a workspace folder degrades gracefully (commands still 
 	const lines = channelLines(__state());
 	assert.ok(lines.some(l => l.includes('no workspace folder open')));
 	assert.equal(__state().watchers.length, 0);
-	// five command-surface commands + the two view-surface commands (TL4-001)
-	assert.equal(__state().commands.length, 7);
+	// 5 policy + 5 TL3-001 runtime + 2 TL4-001 view-surface commands
+	assert.equal(__state().commands.length, 12);
 	// the view still registers (it shows its viewsWelcome state without a folder)
 	assert.deepEqual(__state().treeViews.map(r => r.viewId), ['flauz.browser']);
 	const verdict = commandHandler('flauz.browser.evaluate')({ url: 'https://x.org/' }) as Record<string, unknown>;
