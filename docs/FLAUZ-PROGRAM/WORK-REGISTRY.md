@@ -135,8 +135,36 @@ Status stays ACTIVE until CI (flauz-compat.yml) reports green on main;
 then DONE for the L1+L2 rung (L3 runtime promotion remains follow-up).
 
 ### TL4-004 — Whole-session acceptance battery
-Status: ACTIVE (2026-09-28: Worker B2 dispatched — session created, prompt verified in-thread; site agent-spawn queue jammed at peak hours, TL4 machinery assaulting; delivery pending)
+Status: DONE (fixture rung; 2026-09-27: TL4-006-head CI green on main @ 2dd52fc6fe — flauz-session, flauz-compat, flauz-budgets, flauz-workflow, flauz-security, flauz-hygiene all GREEN on the same head; runtime promotion = follow-up)
 Run real user-session simulations spanning task creation, agent execution, browser, environment, verification, artifact and recovery.
+
+Progress note (2026-09-27, TL4 lead, station-executed — the dispatched
+worker's lane never landed; TL4 executed personally per the
+start-immediately doctrine):
+  - Suite extensions/flauz-workflow/test/session-battery.test.ts: four
+    whole-user-session journeys driving the REAL modules — J1 golden
+    (create -> plan -> approve -> tool artifact+ledger -> browser leg over
+    FakeCdpTransport with the policy engine + on-disk journal ->
+    environment lifecycle behind SimulatedRemoteExecutor -> verify ->
+    sign-off -> save fragment), J2 recovery (re-run with replay approvals:
+    new task, derivedFrom-linked evidence, fragment history), J3
+    fail-closed (denied navigation sends ZERO drive commands; actor-less
+    lifecycle op = typed ACTOR_REQUIRED rejection), J4 continuity (full
+    restart on the same root: tasks/workflows/lifecycle/journal recover;
+    re-run completes).
+  - Pinned-transcript discipline: golden-transcript.json deep-compared
+    every run; doctored variant proves failability (exit 1); determinism
+    proven across bun + node runners.
+  - Gate build/flauz/scripts/session-battery.mjs (zero-dep; --require
+    evidence mode; node >= 22.6 runner detection, SKIP semantics); CI lane
+    .github/workflows/flauz-session.yml (dedicated
+    tsconfig.session-battery.json typecheck — the suite spans three
+    extensions — + battery --require + doctored-fixture proof + fixture
+    matrix; the compiled unit-subset lane runs it as .js too).
+  - Spec docs/FLAUZ-PROGRAM/TL4-SESSION-BATTERY.md (journey catalogue,
+    transcript contract, promotion ladder: fixture -> compiled -> runtime
+    rung). Runtime rung (real CDP, LocalProcessExecutor, booted workbench)
+    activates when TL2/TL3 expose CI-driveable seams.
 
 ### TL4-005 — Performance and resource budget
 Status: DONE (fixture rung; 2026-09-28: flauz-budgets CI green on main @ 6985b2d015a; runtime promotion for the 9 pending-runtime rows remains follow-up)
@@ -166,8 +194,30 @@ activation-lint GREEN; secret sweep 0. Status stays ACTIVE until CI
 (runtime promotion for the 9 pending-runtime rows remains follow-up).
 
 ### TL4-006 — Security and release gates
-Status: ACTIVE (2026-09-28: Worker C2 dispatched — session created, prompt verified in-thread; site agent-spawn queue jammed at peak hours, TL4 machinery assaulting; delivery pending)
+Status: DONE (fixture/static rung; 2026-09-27: same-head 6-workflow CI green on main @ 2dd52fc6fe; runtime rung — npm audit delta, bundle signatures, SBOM — documented as follow-up)
 Create integrated gates for secrets, permissions, browser safety, supply chain, packaging, signing and reproducible release artifacts.
+
+Progress note (2026-09-27, TL4 lead, station-executed — the dispatched
+worker's lane never landed; TL4 executed personally):
+  - Gate build/flauz/scripts/security-gate.mjs (zero-dep): secrets row
+    (12-pattern credential battery over the Flauz additive namespace +
+    documented allowlist build/flauz/security-allowlist.json +
+    unused-entry hygiene), dependency-purity (flauz extensions: zero
+    runtime deps, devDeps allowlisted), proposed-api (composed rota),
+    packaging (double-bundle byte-identical dist hashes via the repo's
+    own esbuild = reproducible release artifacts).
+  - Fixture matrix (test/fixtures/security-gate/): clean tree (placeholders
+    never fire), planted-github/neon/connstring/key (each fires, SYNTHETIC
+    tokens), allowlist suppression + unused-entry detection — pinned in
+    verify-fixtures.sh (104 cases).
+  - CI .github/workflows/flauz-security.yml: job 1 zero-dep static rows +
+    fixture matrix (node 20); job 2 full --require after the root install
+    (the hygiene lane's own native-build preamble: libkrb5-dev,
+    libx11/libxkbfile headers, electron headers preinstall).
+  - Delegated dynamic rows (documented, never faked): DL-20
+    hardened-ledger integrity (flauz-workflow.yml hardening.test.ts),
+    browser deny-by-default (flauz-browser.yml suites + session-battery
+    J3). Spec: docs/FLAUZ-PROGRAM/TL4-SECURITY-GATE.md.
 
 ### TL4 merge-wave integration note (2026-09-27, TL4 lead)
 

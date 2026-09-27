@@ -2,11 +2,11 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 62e46ad013d (TL3 wave 2: TL3-002 browser session security + TL3-003 environment lifecycle merged, station-verified; TL1-001 upstream-sync PR #10 + TL4 DONE flips + hygiene wave integrated between waves)
+Integrated head at verification: 2dd52fc6fe3 (TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates landed with same-head 6-workflow CI green — session, compat, budgets, workflow, security, hygiene; the TL3 wave-2 chronic hygiene debt (space indentation 3866, eslint 92) cleared by the TL4 lane)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 62e46ad013d (TL4-001/002/003/005 done; TL3-001/002/003/005 done; TL1-001 active; hygiene + prep fixes c6e2d5c6df6/a8da42937b7 lineage).
+- main is the canonical Flauz product line at 2dd52fc6fe3 (ALL SIX TL4 items done: 001/002/003/004/005/006; TL3-001/002/003/005 done; TL1-001 active).
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
@@ -81,6 +81,14 @@ Do not call every adapter a production provider.
 ### Resources (TL3-005, merged)
 
 extensions/flauz-resources provides the logical resource graph: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the provenance ops ledger, persisted under .flauz/ with the sibling-envelope discipline.
+
+### Whole-session acceptance battery (TL4-004, merged)
+
+Four scripted user journeys drive the real Flauz surfaces end to end (task state machine, evidence ledger, workflow envelope save/re-run, browser session manager with policy + journal, environment lifecycle): golden session, recovery re-run with derived evidence, fail-closed denial paths, and continuity after full restart. Pinned transcript fixtures make every observable outcome machine-checked on each Flauz-relevant change; the runtime rung (real CDP, real executor) is the documented promotion.
+
+### Integrated security and release gates (TL4-006, merged)
+
+One machine-checked verdict for the release-blocking security surface: credential-pattern scan over the Flauz namespace with a documented allowlist, supply-chain dependency purity, the proposed-API permissions rota, and reproducible packaging (double-bundle byte-identical dist hashes). Dynamic rows (DL-20 ledger integrity, browser deny-by-default) run in their own CI lanes and are named in the coverage matrix.
 
 ### Workflow
 
