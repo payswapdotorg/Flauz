@@ -1,125 +1,144 @@
 {
-	"name": "flauz-workspace",
-	"displayName": "Flauz Workspace",
-	"description": "Flauz agent workspace state: .flauz/ task envelope (flauz.tasks/v0), hash-chained evidence ledger, SCM artifact exposure, chatEditing checkpoint interop.",
-	"version": "0.1.0",
-	"publisher": "flauz",
-	"license": "MIT",
-	"type": "module",
-	"engines": {
-		"vscode": "^1.140.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"enabledApiProposals": [
-		"scmArtifactProvider"
-	],
-	"activationEvents": [
-		"onStartupFinished",
-		"onView:flauz.home",
-		"onView:flauz.tasks",
-		"onCommand:flauz.workspace.createTask",
-		"onCommand:flauz.workspace.appendEvent",
-		"onCommand:flauz.workspace.listTasks",
-		"onCommand:flauz.workspace.getTask",
-		"onCommand:flauz.workspace.appendEvidence",
-		"onCommand:flauz.workspace.createCheckpoint",
-		"onCommand:flauz.workspace.verifyLedger",
-		"onCommand:flauz.workspace.openEvidence",
-		"onCommand:flauz.focusView",
-		"onCommand:flauz.focusView.home",
-		"onCommand:flauz.focusView.tasks",
-		"onCommand:flauz.workspace.refreshHome",
-		"onCommand:flauz.workspace.refreshTasks"
-	],
-	"main": "./dist/extension.js",
-	"contributes": {
-		"viewsContainers": {
-			"activitybar": [
-				{
-					"id": "flauz",
-					"title": "Flauz",
-					"icon": "$(sparkle)"
-				}
-			]
-		},
-		"views": {
-			"flauz": [
-				{
-					"id": "flauz.home",
-					"name": "Home"
-				},
-				{
-					"id": "flauz.tasks",
-					"name": "Tasks"
-				}
-			]
-		},
-		"viewsWelcome": [
-			{
-				"view": "flauz.home",
-				"contents": "Flauz turns your workspace into an agent-centric environment: tasks with human gates, hash-chained evidence, environments, browser policy and workflows — all in .flauz/.\nOpen a folder to see its Flauz state.\n[Open Folder](command:workbench.action.files.openFolder)\nNo folder yet? Learn what Flauz tracks: [View Tasks](command:flauz.focusView.tasks) · [View Environments](command:flauz.focusView.environments)"
-			},
-			{
-				"view": "flauz.tasks",
-				"contents": "No Flauz tasks yet.\nAsk the Flauz agent in Chat to plan your first task — every task lives in .flauz/tasks.json with its evidence trail attached here.\n[Open Chat](command:workbench.action.chat.open)\n[Refresh Flauz Tasks](command:flauz.workspace.refreshTasks)"
-			}
-		],
-		"commands": [
-			{
-				"command": "flauz.workspace.openEvidence",
-				"title": "Open Evidence",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.focusView",
-				"title": "Focus Flauz View",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.focusView.home",
-				"title": "Focus Flauz Home",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.focusView.tasks",
-				"title": "Focus Flauz Tasks",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.workspace.refreshHome",
-				"title": "Refresh Flauz Home",
-				"category": "Flauz",
-				"icon": "$(refresh)"
-			},
-			{
-				"command": "flauz.workspace.refreshTasks",
-				"title": "Refresh Flauz Tasks",
-				"category": "Flauz",
-				"icon": "$(refresh)"
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "flauz.workspace.refreshHome",
-					"when": "view == flauz.home",
-					"group": "navigation"
-				},
-				{
-					"command": "flauz.workspace.refreshTasks",
-					"when": "view == flauz.tasks",
-					"group": "navigation"
-				}
-			]
-		}
-	},
-	"scripts": {
-		"typecheck": "tsc --noEmit",
-		"test": "node --test test/*.test.ts"
-	},
-	"devDependencies": {
-		"typescript": "5.9.3"
-	}
+        "name": "flauz-workspace",
+        "displayName": "Flauz Workspace",
+        "description": "Flauz agent workspace state: .flauz/ task envelope (flauz.tasks/v0), hash-chained evidence ledger, SCM artifact exposure, chatEditing checkpoint interop.",
+        "version": "0.1.0",
+        "publisher": "flauz",
+        "license": "MIT",
+        "type": "module",
+        "engines": {
+                "vscode": "^1.140.0"
+        },
+        "categories": [
+                "Other"
+        ],
+        "enabledApiProposals": [
+                "scmArtifactProvider"
+        ],
+        "activationEvents": [
+                "onStartupFinished",
+                "onView:flauz.home",
+                "onView:flauz.tasks",
+                "onCommand:flauz.workspace.createTask",
+                "onCommand:flauz.workspace.appendEvent",
+                "onCommand:flauz.workspace.listTasks",
+                "onCommand:flauz.workspace.getTask",
+                "onCommand:flauz.workspace.appendEvidence",
+                "onCommand:flauz.workspace.createCheckpoint",
+                "onCommand:flauz.workspace.verifyLedger",
+                "onCommand:flauz.workspace.openEvidence",
+                "onCommand:flauz.focusView",
+                "onCommand:flauz.focusView.home",
+                "onCommand:flauz.focusView.tasks",
+                "onCommand:flauz.workspace.refreshHome",
+                "onCommand:flauz.workspace.refreshTasks",
+                "onCommand:flauz.workspace.revealTask",
+                "onCommand:flauz.workspace.openGuide"
+        ],
+        "main": "./dist/extension.js",
+        "contributes": {
+                "viewsContainers": {
+                        "activitybar": [
+                                {
+                                        "id": "flauz",
+                                        "title": "Flauz",
+                                        "icon": "$(sparkle)"
+                                }
+                        ]
+                },
+                "views": {
+                        "flauz": [
+                                {
+                                        "id": "flauz.home",
+                                        "name": "Home"
+                                },
+                                {
+                                        "id": "flauz.tasks",
+                                        "name": "Tasks"
+                                }
+                        ]
+                },
+                "viewsWelcome": [
+                        {
+                                "view": "flauz.home",
+                                "contents": "Flauz turns your workspace into an agent-centric environment: tasks with human gates, hash-chained evidence, environments, browser policy and workflows — all in .flauz/.\nOpen a folder to see its Flauz state.\n[Open Folder](command:workbench.action.files.openFolder)\nNo folder yet? Learn what Flauz tracks: [View Tasks](command:flauz.focusView.tasks) · [View Environments](command:flauz.focusView.environments)"
+                        },
+                        {
+                                "view": "flauz.tasks",
+                                "contents": "No Flauz tasks yet.\nAsk the Flauz agent in Chat to plan your first task — every task lives in .flauz/tasks.json with its evidence trail attached here.\n[Open Chat](command:workbench.action.chat.open)\n[Refresh Flauz Tasks](command:flauz.workspace.refreshTasks)"
+                        }
+                ],
+                "commands": [
+                        {
+                                "command": "flauz.workspace.openEvidence",
+                                "title": "Open Evidence",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.focusView",
+                                "title": "Focus Flauz View",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.focusView.home",
+                                "title": "Focus Flauz Home",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.focusView.tasks",
+                                "title": "Focus Flauz Tasks",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.workspace.refreshHome",
+                                "title": "Refresh Flauz Home",
+                                "category": "Flauz",
+                                "icon": "$(refresh)"
+                        },
+                        {
+                                "command": "flauz.workspace.refreshTasks",
+                                "title": "Refresh Flauz Tasks",
+                                "category": "Flauz",
+                                "icon": "$(refresh)"
+                        },
+                        {
+                                "command": "flauz.workspace.revealTask",
+                                "title": "Reveal Flauz Task",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.workspace.openGuide",
+                                "title": "Open Flauz Guide",
+                                "category": "Flauz"
+                        }
+                ],
+                "menus": {
+                        "view/title": [
+                                {
+                                        "command": "flauz.workspace.refreshHome",
+                                        "when": "view == flauz.home",
+                                        "group": "navigation"
+                                },
+                                {
+                                        "command": "flauz.workspace.refreshTasks",
+                                        "when": "view == flauz.tasks",
+                                        "group": "navigation"
+                                }
+                        ],
+                        "view/item/context": [
+                                {
+                                        "command": "flauz.workspace.openGuide",
+                                        "when": "viewItem == flauzError",
+                                        "group": "navigation"
+                                }
+                        ]
+                }
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "test": "node --test test/*.test.ts"
+        },
+        "devDependencies": {
+                "typescript": "5.9.3"
+        }
 }

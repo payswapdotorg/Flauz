@@ -43,7 +43,8 @@ with exit codes documented in its header. Never `npm install` to run them.
 |---|---|---|---|
 | `fork-critical-guard.sh` | FORK-CRITICAL ledger gate (DL-12/DL-10) | `--base/--head` refs (CI), `--staged`/`--pre-commit` (hook), `--worktree`, `--name-only`, `--quiet` | 0 empty · 1 divergence · 2 usage |
 | `activation-lint.mjs` | PERF §2.1/§2.2 manifest discipline | `--root/--manifests-glob`, `--allow-event`, `--max-startup`, `--startup-allowed`, `--max-affinity-slots`, `--require-manifests` | 0 clean/SKIP · 1 violation · 2 usage |
-| `ia-gate.mjs` | TL4-001 IA discipline (single `flauz` container, six views, welcome states, focusView family, activation cap, provider wiring) | `--root`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
+| `ia-gate.mjs` | TL4-001 IA discipline (single `flauz` container, six views, welcome states, focusView family, activation cap, provider wiring — `createTreeView` counts as wiring since TL4-002) | `--root`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
+| `premium-ux-gate.mjs` | TL4-002 premium UX discipline (welcome link+guidance, state/a11y token contract per provider file with the `no-failure-source` marker, focus family, title/sentence case, no webview/css/icon-fonts, single `formatTimestamp` implementation; spec `docs/FLAUZ-PROGRAM/TL4-PREMIUM-UX.md`) | `--root`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
 | `proposed-api-rota.mjs` | DL-4 proposed-API churn rota (job 5) | `--repo-root`, `--baseline`, `--snapshot`, `--report <dir>`, `--no-fail`, `--require` | 0 clean/SKIP · 1 drift · 2 usage |
 | `startup-pair.mjs` | §1.3 startup gates + R6 mark integrity | `--timers-flauz/--timers-upstream`, `--markers-flauz/--markers-upstream`, `--check-marks --src-root`, `--phase-gate --src-root`, `--pairs-file`, `--min-runs` | 0 pass/SKIP · 1 violation · 2 usage |
 | `memory-snapshot.mjs` | §3.2 memory budget gate | `--json` (resolveProcesses shape) / `--status` / `--ps`, `--scenario eventually|after-session`, `--enforce`, `--pattern name=regex` | 0 pass · 1 violation · 2 usage |
@@ -112,6 +113,10 @@ sh build/flauz/scripts/verify-fixtures.sh
 section — clean/over/skip/require-scoped/malformed/warn/unknown-id/unit-mismatch,
 registry self-check, and the real-data plumbing case mapping the perf fixtures
 through perf-log-parse into a curated dir with `--require enforced-ci`.)
+
+(TL4-002 addendum, 2026-09-28: the matrix grew 71 → 82 cases with the
+premium-ux-gate section — clean/real-tree/no-retry/no-welcome/webview/title-case/
+date-drift, empty-dir SKIP + `--require` flip, usage error, `--help`.)
 
 Summary (command class → exit code):
 

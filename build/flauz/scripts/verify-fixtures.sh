@@ -97,6 +97,19 @@ expect "ia-gate empty dir SKIP"                        0 node "$S/ia-gate.mjs" -
 expect "ia-gate empty dir --require FAIL"              1 node "$S/ia-gate.mjs" --root "$F/perf-timers" --require
 expect "ia-gate usage error (bad flag)"                2 node "$S/ia-gate.mjs" --definitely-not-a-flag
 
+# ---- premium-ux-gate: TL4-002 Flauz premium UX discipline ----
+expect "premium-ux-gate clean fixture PASS"            0 node "$S/premium-ux-gate.mjs" --root "$F/premium-ux-gate/clean" --require
+expect "premium-ux-gate real tree PASS"                0 node "$S/premium-ux-gate.mjs" --root "$ROOT" --require
+expect "premium-ux-gate no-retry FAIL"                 1 node "$S/premium-ux-gate.mjs" --root "$F/premium-ux-gate/fail-no-retry" --require
+expect "premium-ux-gate no-welcome FAIL"               1 node "$S/premium-ux-gate.mjs" --root "$F/premium-ux-gate/fail-no-welcome" --require
+expect "premium-ux-gate webview FAIL"                  1 node "$S/premium-ux-gate.mjs" --root "$F/premium-ux-gate/fail-webview" --require
+expect "premium-ux-gate title-case FAIL"               1 node "$S/premium-ux-gate.mjs" --root "$F/premium-ux-gate/fail-title-case" --require
+expect "premium-ux-gate date-drift FAIL"               1 node "$S/premium-ux-gate.mjs" --root "$F/premium-ux-gate/fail-date-drift" --require
+expect "premium-ux-gate empty dir SKIP"                0 node "$S/premium-ux-gate.mjs" --root "$F/perf-timers"
+expect "premium-ux-gate empty dir --require FAIL"      1 node "$S/premium-ux-gate.mjs" --root "$F/perf-timers" --require
+expect "premium-ux-gate usage error (bad flag)"        2 node "$S/premium-ux-gate.mjs" --definitely-not-a-flag
+expect "premium-ux-gate --help"                        0 node "$S/premium-ux-gate.mjs" --help
+
 # ---- proposed-api-rota: DL-4 churn gate ----
 expect "rota clean fixture PASS"                       0 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/clean"
 expect "rota dirty fixture FAIL (absent+mismatch)"     1 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty"

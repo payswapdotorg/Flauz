@@ -190,3 +190,4 @@ build/flauz/scripts/stage-j-environments.mjs
 build/flauz/scripts/compat-battery.mjs
 build/flauz/scripts/budget-gate.mjs
 build/flauz/scripts/ia-gate.mjs
+build/flauz/scripts/premium-ux-gate.mjs

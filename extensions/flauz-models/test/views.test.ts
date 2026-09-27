@@ -98,14 +98,14 @@ test('modelsRows: the registered flauz-mock provider plus the three honest desig
 	const rows = await provider.getChildren();
 	deepStrictEqual(rows.map(row => row.label), ['flauz-mock', 'flauz-claude', 'flauz-codex', 'flauz-qwen']);
 	strictEqual(rows[0]?.icon, 'sparkle');
-	ok(rows[0]?.description.startsWith('registered · echo-1'));
+	ok(rows[0]?.description.startsWith('echo-1 · registered'));
 	ok(rows[0]?.tooltip.includes('REGISTERED'));
 	const stub = provider.getTreeItem(rows[1]!);
 	strictEqual(stub.contextValue, 'flauzModelStub');
-	ok(String(stub.description).startsWith('design stub'));
+	ok(String(stub.description).includes('design stub · not registered'));
 	ok(String(stub.tooltip).includes('DESIGN-ONLY'));
 	const registeredItem = provider.getTreeItem(rows[0]!);
-	strictEqual(registeredItem.accessibilityInformation?.label, 'flauz-mock: registered · echo-1 · Flauz Mock Echo');
+	strictEqual(registeredItem.accessibilityInformation?.label, 'flauz-mock: echo-1 · registered · Flauz Mock Echo');
 });
 
 test('modelsRows: zero registered providers -> only the stub rows', async () => {
