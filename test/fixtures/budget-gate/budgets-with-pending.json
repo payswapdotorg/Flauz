@@ -1,0 +1,60 @@
+{
+	"version": 1,
+	"budgets": [
+		{
+			"id": "browser.launch.ttf.cold.p95",
+			"metric": "browser.launch.ttf.cold.p95",
+			"budget": 2500,
+			"unit": "ms",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "pending-runtime",
+			"source": "TL4-005 contract",
+			"notes": "SKIP case: no measurement in measurements-missing.jsonl"
+		},
+		{
+			"id": "model.switch.warmup.p95",
+			"metric": "model.switch.warmup.p95",
+			"budget": 2000,
+			"unit": "ms",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "pending-runtime",
+			"source": "TL4-005 contract",
+			"notes": "SKIP case"
+		},
+		{
+			"id": "multi-agent.rss.total",
+			"metric": "multi-agent.rss.total",
+			"budget": 800,
+			"unit": "MB",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "pending-runtime",
+			"source": "TL4-005 contract",
+			"notes": "SKIP case"
+		},
+		{
+			"id": "cpu.startup.seconds.flauz-added",
+			"metric": "cpu.startup.seconds.flauz-added",
+			"budget": 15,
+			"unit": "s",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "fixture",
+			"source": "TL4-005 contract",
+			"notes": "SKIP case (fixture status)"
+		},
+		{
+			"id": "memory.eventually.rss.flauz-core",
+			"metric": "memory.eventually.rss.flauz-core",
+			"budget": 150,
+			"unit": "MB",
+			"comparison": "<=",
+			"severity": "fail",
+			"status": "enforced-ci",
+			"source": "memory-snapshot.mjs R2",
+			"notes": "the one measured row (PASS) so the skip case also proves measured rows still compare"
+		}
+	]
+}

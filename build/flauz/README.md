@@ -26,6 +26,7 @@ Authoritative inputs: `docs/PERFORMANCE-PLAN.md` + `docs/MIGRATION-PLAN.md`
 | **4. Upstream-sync canaries (every sync — DL-11)** | `flauz-canaries.yml` | `c20-default-agent`, `c23-parallel-sessions`, `c24-subagents-steering`, `c28-browser-tools` | canary specs `build/flauz/canaries/C-20|23|24|28.md` (C's gated rows + U-1) | q4 (browser-tool path, C-28 job) |
 | **5. Proposed-API rota** | `flauz-rota.yml` | `rota` | DL-4 union-vs-inventory drift gate + baseline deltas (D-3) | — |
 | **6. Checkpoints** | `flauz-rota.yml` (checkpoint-reminder step; tag by sync runbook) | `rota` | DECISION-LOG diff reminder at every `flauz/sync/<date>` tag; rota `--snapshot` baseline committed at the tag | — |
+| TL4-005 unified budgets | `flauz-budgets.yml` | `budget-gate` | registry budgets (build/flauz/budgets/) across startup/activation/memory/CPU/browser/model/multi-agent; skip-vs-fail + `--require enforced-ci` over mapped perf inputs | — (recalibration landing spot for all of the above) |
 
 All four workflows: `ubuntu-latest` class (perf pair pins `ubuntu-24.04` —
 DL-16 candidate), **no secrets** (public repo, read-only perms), gated on
@@ -47,6 +48,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `memory-snapshot.mjs` | §3.2 memory budget gate | `--json` (resolveProcesses shape) / `--status` / `--ps`, `--scenario eventually|after-session`, `--enforce`, `--pattern name=regex` | 0 pass · 1 violation · 2 usage |
 | `compat-battery.mjs` | TL4-003 Code OSS compatibility battery (L1 guard invocation + L2 stock contribution-surface diff, product identity, root pkg scripts/deps, Flauz positive control; spec `docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md`) | `--root/--upstream/--product` (git ref OR tree dir), `--allowlist`, `--json`, `--layer 1|2|all`, `--no-fail`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
+| `budget-gate.mjs` | TL4-005 unified budget gate (registry `budgets/flauz-budgets.json` vs measurements) | `--budgets`, `--measurements <file-or-dir>` (records + perf-log-parse emit shapes + raw TSVs), `--require [all\|enforced\|enforced-ci\|enforced-in-repo]`, `--json`, `--root` | 0 pass/SKIP · 1 violation · 2 usage/malformed registry |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
 
 **Skip-vs-fail policy** (important): while lanes F/G are in flight, the
@@ -102,8 +104,13 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# → ALL 29 CASES AS EXPECTED (0 deviations)
+# → ALL 44 CASES AS EXPECTED (0 deviations)
 ```
+
+(TL4-005 addendum, 2026-09-27: the matrix grew 29 → 44 cases with the budget-gate
+section — clean/over/skip/require-scoped/malformed/warn/unknown-id/unit-mismatch,
+registry self-check, and the real-data plumbing case mapping the perf fixtures
+through perf-log-parse into a curated dir with `--require enforced-ci`.)
 
 Summary (command class → exit code):
 

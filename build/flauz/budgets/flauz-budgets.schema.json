@@ -1,0 +1,67 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "Flauz budget registry (build/flauz/budgets/flauz-budgets.json)",
+	"description": "Schema for the machine-checkable performance/resource budget registry consumed by build/flauz/scripts/budget-gate.mjs (TL4-005). Every metric named in docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md gets a row here; row ids align with the vocabulary of the existing measurement stack (startup-pair.mjs, memory-snapshot.mjs, activation-lint.mjs, perf-log-parse.mjs). The registry is the single source of truth the unified gate compares measurements against; when a script-side budget constant changes (e.g. STARTUP_BUDGETS), the registry row must change in the same PR (drift trip-wire: the fixture matrix in verify-fixtures.sh).",
+	"type": "object",
+	"properties": {
+		"version": {
+			"type": "integer",
+			"minimum": 1,
+			"description": "Registry schema version. Bump on structural changes (new comparison kinds, new statuses); budget-value recalibrations do NOT bump the version."
+		},
+		"budgets": {
+			"type": "array",
+			"minItems": 1,
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Budget row id (unique). The registry's identity for the row, e.g. 'startup.tsv.ellapsed.p50.delta' or 'memory.eventually.rss.flauz-core'."
+					},
+					"metric": {
+						"type": "string",
+						"minLength": 1,
+						"description": "The measurement id this row compares (defaults to the row id). Multiple rows may share one metric — e.g. PERF section 1.3 rows 1+2 re-gate the same ellapsed p95 at different tightness, and the R1 ext-host range uses one measurement for its floor and ceiling rows."
+					},
+					"budget": {
+						"type": ["number", "string", "null"],
+						"description": "Threshold: a number used with 'comparison'; null = catalogue-only row (defined, not gated: value reported INFO, never fails, exempt from --require); or a string form '>=100' / '<=250' / '<5' / '>1' that overrides the comparison for ABSOLUTE rows (delta rows require a numeric budget). The string form is how floor rows (R1 ext-host RSS floor, stock-process presence, minimum sample counts) are expressed."
+					},
+					"unit": {
+						"type": "string",
+						"description": "Unit of the threshold and the measurement ('ms', 'MB', 'count', '%', 's'). A unit mismatch between row and measurement record skips the row with a WARN rather than comparing apples to oranges."
+					},
+					"comparison": {
+						"type": "string",
+						"enum": ["<=", ">=", "delta<="],
+						"description": "'<=' value at/below budget; '>=' value at/above budget (TL4-005 extension over the minimal '<= | delta<=' pair, needed for floor rows); 'delta<=' (value - baseline) at/below budget — the measurement record must then carry 'baseline' (the upstream side of the pair)."
+					},
+					"severity": {
+						"type": "string",
+						"enum": ["fail", "warn"],
+						"description": "'fail' — over budget exits 1 (the gate fires); 'warn' — over budget emits a WARN row and the exit code stays 0 (the memory-snapshot [E]/R6 posture for estimates and informational rows)."
+					},
+					"status": {
+						"type": "string",
+						"enum": ["enforced-ci", "enforced-in-repo", "fixture", "pending-runtime"],
+						"description": "The promotion-ladder status (docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md section 4). 'enforced-ci': this gate must have a measurement in the CI budget job (--require enforced-ci flips absence to failure). 'enforced-in-repo': enforced by another in-repo gate (activation-lint.mjs in flauz-hygiene.yml), not by budget-gate measurements. 'fixture': contract + provisional budget exercised by fixtures only (CPU today). 'pending-runtime': the measuring runtime does not exist yet — budget set, gate SKIPs with that reason until a measurement exists."
+					},
+					"source": {
+						"type": "string",
+						"description": "Where the budget number comes from and where the measurement is produced (script + flag, PERF-plan row, or TL4-005 contract section in the doctrine)."
+					},
+					"notes": {
+						"type": "string",
+						"description": "Free-form honesty notes: [E] provisional marks, semantics wrinkle explanations, promotion conditions."
+					}
+				},
+				"required": ["id", "status"],
+				"additionalProperties": false
+			}
+		}
+	},
+	"required": ["version", "budgets"],
+	"additionalProperties": false
+}

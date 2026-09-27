@@ -1,0 +1,139 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL4 — Worker C (TL4-005: performance & resource budgets).
+#
+# The unified budget gate job:
+#   1. budget-gate — maps the perf artifact fixtures (test/fixtures/perf-timers +
+#      test/fixtures/process-shape) through perf-log-parse.mjs (the single source
+#      of truth for perf-log parsing) into a curated inputs dir, then runs
+#      budget-gate.mjs over the REAL registry with --require enforced-ci. This
+#      proves the input plumbing on real repo data: every enforced-ci registry row
+#      must be measured by the mapped inputs and green, or the job fails.
+#      A violations-fixture probe (expected exit 1) proves the gate fires.
+#   2. The fixture matrix — sh build/flauz/scripts/verify-fixtures.sh (every
+#      harness script against every fixture, expected outcomes asserted in both
+#      directions: a gate that cannot fail is not a gate).
+#
+# Honesty note (binding MIGRATION-PLAN section 5): no full build happens in this
+# job — the mapped artifacts are the repo's perf FIXTURES. The plumbing is
+# production-shaped: once the flauz-perf.yml jobs produce real artifacts, this
+# same gate step points at those instead (promotion ladder, doctrine section 4;
+# build/flauz/budgets/BASELINE.md records which rows are fixture-backed today).
+#
+# Constraints honored (same conventions as flauz-perf.yml / flauz-rota.yml):
+# no secrets, read-only perms, zero-dep steps, gated on Flauz paths +
+# workflow_dispatch, actions pinned to the SHAs upstream's own workflows use.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Budgets
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-budgets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  budget-gate:
+    name: Unified budget gate (TL4-005 registry vs mapped measurements)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (zero-dep script needs node >= 20 only)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      # ---- registry self-check: the real registry validates and every row SKIPs
+      # with a documented reason when no measurements are given (skip-vs-fail) ----
+      - name: Registry self-check (skip-vs-fail proof on the real registry)
+        run: node build/flauz/scripts/budget-gate.mjs --json
+
+      # ---- (a) map the perf artifact fixtures to budget measurements (input
+      # plumbing on real repo data; curated dir — the regression fixtures are
+      # deliberately NOT mapped here, they get their own probe below) ----
+      - name: Map perf fixtures to budget measurements (perf-log-parse)
+        run: |
+          set -e
+          mkdir -p artifacts/budget-inputs artifacts/budget-inputs-violations
+          node build/flauz/scripts/perf-log-parse.mjs --parse-timers \
+            test/fixtures/perf-timers/flauz-main.timers.tsv    > artifacts/budget-inputs/flauz.timers.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-timers \
+            test/fixtures/perf-timers/upstream-main.timers.tsv > artifacts/budget-inputs/upstream.timers.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-markers \
+            test/fixtures/perf-timers/flauz-main.markers.tsv    > artifacts/budget-inputs/flauz.markers.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-markers \
+            test/fixtures/perf-timers/upstream-main.markers.tsv > artifacts/budget-inputs/upstream.markers.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-process-json \
+            test/fixtures/process-shape/eventually.json    > artifacts/budget-inputs/eventually.process.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-process-json \
+            test/fixtures/process-shape/after-session.json > artifacts/budget-inputs/after-session.process.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-process-json \
+            test/fixtures/process-shape/after-session.violations.json \
+            > artifacts/budget-inputs-violations/after-session.process.json
+          ls -1 artifacts/budget-inputs artifacts/budget-inputs-violations
+
+      - name: Run budget gate over mapped fixtures (--require enforced-ci)
+        run: |
+          set +e
+          node build/flauz/scripts/budget-gate.mjs \
+            --measurements artifacts/budget-inputs \
+            --require enforced-ci \
+            --json > artifacts/budget-gate-fixture-run.json 2>&1
+          code=$?
+          set -e
+          cat artifacts/budget-gate-fixture-run.json
+          exit $code
+
+      # ---- a gate that cannot fail is not a gate: the violations fixture MUST
+      # make the unified gate exit 1 (R3/R4/R5 fire, mirroring memory-snapshot) ----
+      - name: Prove the gate fires (violations fixture must exit 1)
+        run: |
+          set +e
+          node build/flauz/scripts/budget-gate.mjs \
+            --measurements artifacts/budget-inputs-violations \
+            --json > artifacts/budget-gate-violations-run.json 2>&1
+          code=$?
+          set -e
+          cat artifacts/budget-gate-violations-run.json
+          if [ "$code" -ne 1 ]; then
+            echo "::error::budget gate unexpectedly exited $code on the violations fixture (expected 1 — the gate must fire)"
+            exit 1
+          fi
+          echo "expected: violations fixture fired the gate (exit 1)"
+
+      # ---- (b) the fixture matrix: every harness script against every fixture,
+      # expected outcomes asserted in both directions ----
+      - name: Fixture matrix (verify-fixtures.sh)
+        run: sh build/flauz/scripts/verify-fixtures.sh
+
+      - name: Upload budget gate artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-budget-gate-report
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 90

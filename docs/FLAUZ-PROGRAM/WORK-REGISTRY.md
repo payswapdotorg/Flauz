@@ -110,8 +110,23 @@ Status: TODO
 Run real user-session simulations spanning task creation, agent execution, browser, environment, verification, artifact and recovery.
 
 ### TL4-005 — Performance and resource budget
-Status: TODO
+Status: ACTIVE
 Measure startup, activation, memory, CPU, browser launch, model switching and multi-agent workloads.
+
+Progress note (2026-09-27, Worker C, branch `tl4/c-perf-budgets`):
+budget doctrine landed (docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md — metric catalogue,
+promotion ladder, enforcement policy); machine-checkable registry
+build/flauz/budgets/flauz-budgets.json (45 rows: 30 enforced-ci / 3
+enforced-in-repo / 3 fixture / 9 pending-runtime) + JSON schema; unified zero-dep
+gate build/flauz/scripts/budget-gate.mjs (skip-vs-fail policy, --require scopes,
+consumes measurement records + the perf-log-parse emit shapes); fixture matrix
+test/fixtures/budget-gate/ wired into verify-fixtures.sh (44 cases, 0 deviations);
+CI job .github/workflows/flauz-budgets.yml (registry self-check, mapped real
+perf-fixture plumbing with --require enforced-ci, violations probe, fixture
+matrix). Honest baseline: build/flauz/budgets/BASELINE.md — fixture-backed today,
+real measured numbers are CI's job once flauz-perf artifacts feed the gate;
+browser-launch/model-switch/multi-agent rows are defined, not measured (runtime
+pending TL3/TL2). Merge is the TL4 lead's job.
 
 ### TL4-006 — Security and release gates
 Status: TODO
