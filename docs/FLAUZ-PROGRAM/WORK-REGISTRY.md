@@ -33,7 +33,7 @@ Ensure a clear desktop shell and web-compatible shell story without weakening ca
 ## TL2 — Agent OS
 
 ### TL2-001 — Durable orchestration
-Status: TODO
+Status: ACTIVE
 Turn the current agent/workspace slice into durable task/agent execution with recovery, retry, cancellation and multi-agent routing.
 
 ### TL2-002 — Real model/provider adapters
@@ -59,7 +59,7 @@ Extend the current A2A seam into actual multi-agent coordination with private co
 ## TL3 — Browser and Environment OS
 
 ### TL3-001 — Real browser runtime
-Status: TODO
+Status: ACTIVE
 Build the Flauz-controlled Chromium/CDP browser runtime and integrate it into the workbench as a first-class user/agent surface.
 
 ### TL3-002 — Browser session security
@@ -85,8 +85,8 @@ Persist and restore logical session/task/context state across environment change
 ## TL4 — Product UX, Verification and Release Quality
 
 ### TL4-001 — Product information architecture
-Status: TODO
-Design the coherent shell across editor, agent, browser, task, environment and evidence surfaces.
+Status: ACTIVE
+Design and begin implementing the coherent shell across editor, agent, browser, task, environment and evidence surfaces.
 
 ### TL4-002 — Premium UX
 Status: TODO
@@ -118,7 +118,7 @@ When an interface is not implemented:
 - continue independently;
 - integrate when the real implementation becomes available.
 
-A TL may depend on another TL for final integration, but never for starting its lane.
+A TL may depend on another TL for final integration, but never for starting work.
 
 ## Current program start
 
