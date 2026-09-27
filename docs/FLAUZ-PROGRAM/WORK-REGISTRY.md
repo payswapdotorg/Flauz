@@ -87,7 +87,7 @@ Persist and restore logical session/task/context state across environment change
 ## TL4 — Product UX, Verification and Release Quality
 
 ### TL4-001 — Product information architecture
-Status: ACTIVE
+Status: DONE (fixture rung; 2026-09-28: flauz-hygiene CI green on main @ 6985b2d015a — fork-critical, activation-lint, IA gate, compile+hygiene, Flauz unit tests all PASS)
 Design and begin implementing the coherent shell across editor, agent, browser, task, environment and evidence surfaces.
 
 Progress note (2026-09-27, branch tl4/a-ia-shell, Worker A): the Flauz shell landed — one activity-bar container `flauz` ($(sparkle), owned by flauz-workspace) holding six tree views backed by real service state: flauz.home + flauz.tasks (flauz-workspace), flauz.agentSessions (flauz-agent), flauz.environments (flauz-environments), flauz.browser (flauz-browser), flauz.models (flauz-models); each with viewsWelcome empty states, error rows with Retry commands, focusView command family (category "Flauz") and view/title refresh. Machine-checkable IA gate at build/flauz/scripts/ia-gate.mjs wired into flauz-hygiene.yml and verify-fixtures.sh (fixtures under test/fixtures/ia-gate/). Spec: docs/FLAUZ-PROGRAM/TL4-IA-SPEC.md. Status stays ACTIVE pending merge-to-main + green CI (SOURCE-OF-TRUTH completion law).
@@ -102,7 +102,7 @@ fork-critical EMPTY; secret sweep 0. Status: the IA shell rung is DONE
 pending CI green on main; premium-UX rung (TL4-002) builds on these views.
 
 ### TL4-002 — Premium UX
-Status: ACTIVE
+Status: DONE (fixture rung; 2026-09-28: flauz-hygiene CI green on main @ 6985b2d015a — Premium UX gate step PASS; recorded follow-ups: reveal-runtime smoke, live file events)
 Implement and verify typography, density, hierarchy, states, focus, keyboard behavior, empty/loading/error/recovery states and polished transitions.
 
 Progress note (2026-09-28, Worker A, branch `tl4/a2-premium-ux`, base `4cee31ec504`): the premium layer landed on the TL4-001 views. Spec: docs/FLAUZ-PROGRAM/TL4-PREMIUM-UX.md (decision-first: row grammar label/description·separator/codicon, state templates with the exact token contract, keyboard/focus map with reveal navigation, a11y grammar, stock-only motion policy, perceived-performance rules, cross-surface coherence checklist). Implementation across the six extensions: shared date module src/format.ts duplicated verbatim where timestamps render (workspace/agent/environments — gate-enforced identity); last-known-good recovery for Tasks + Environments (a failed refresh keeps prior rows below the error row; Browser stays fail-closed by decision); error/degraded rows unified to contextValue `flauzError` + Retry-titled command; docs surface v1 = flauz-guide.md shipped with flauz-workspace, reachable from every error row via one stock `view/item/context` menu rule (flauz.workspace.openGuide); row-level reveal navigation flauz.workspace.revealTask (session→task, task→evidence expand) via createTreeView + getParent; ages in row descriptions + absolute UTC stamps in tooltips; a11y labels on every row (Home + Browser rows gained them); ia-gate IA6 extended to recognize createTreeView as provider wiring (clean fixture co-updated to cover both forms). Gate: build/flauz/scripts/premium-ux-gate.mjs (PU1 welcome link+guidance, PU2 state/a11y tokens per provider file with the no-failure-source marker for the Models exemption, PU3 focus family, PU4 title/sentence case, PU5 no webview/css/icon-fonts, PU6 single formatTimestamp + no ad-hoc date formatting) — fixtures under test/fixtures/premium-ux-gate/ (clean + no-retry/no-welcome/webview/title-case/date-drift fail cases), wired into verify-fixtures.sh (82 cases, 0 deviations) + flauz-hygiene.yml (`--require` step after the IA gate) + the .eslint-allowed-javascript-files allowlist line (TL4 merge-wave note convention). Branch evidence: premium-ux-gate CLEAN, ia-gate CLEAN, activation-lint GREEN, fork-critical EMPTY, all six extension suites green under `node --test` (335 tests). Status stays ACTIVE pending merge + CI green (SOURCE-OF-TRUTH completion law).
@@ -110,7 +110,7 @@ Progress note (2026-09-28, Worker A, branch `tl4/a2-premium-ux`, base `4cee31ec5
 Merge record (2026-09-28, TL4 lead): PR #9 squash-merged to main at `c0af9c3de466` (branch `tl4/a2-premium-ux`, 44 files with integration prep). **Cross-lane semantic conflict caught by the station's test-merge and resolved:** the premium-ux contract applies to every flauz surface, and the TL3 wave (browser runtime + resource graph, PRs #7/#8) landed after A2's base — the merged tree failed PU4 (flauz-resources command titles) and PU6 (flauz-browser `isoAt` ad-hoc `new Date(...).toISOString()`). Resolution, landed as prep commits on BOTH parents so the squash tree was green on arrival (zero red window): (1) branch commit `c9b8f04c10e` — format module v2: `toIsoStamp(epochMs)` protocol sibling, spec §2.4 v2 records the decision; (2) main commit `d4b1576918b` — TL3-surface compliance: flauz-resources titles title-cased (3 commands), flauz-browser gained the 4th verbatim format.ts copy and `isoAt` became a thin wrapper (TL3's `flauz.browser-session/v0` descriptor contract byte-identical before/after). Station verification (never trusting reported numbers): branch-in-isolation all gates exit 0; merged tree verify-fixtures ALL 83 CASES (0 deviations), activation-lint GREEN, ia-gate CLEAN (6 views, 42 commands), compat-battery 1887/1887 PASS, budget-gate GREEN, premium-ux-gate CLEAN (4 format.ts copies), fork-critical-guard EMPTY; full test sweep 478/478 across seven flauz extensions (agent 38, browser 161, environments 47, models 15, resources 83, workspace 69, workflow 65); secret sweep of the full merge diff 0. Station-count delta noted: worker reported 82 fixture cases, station counts 83 (both 0 deviations). Status stays ACTIVE until CI (flauz-hygiene.yml premium-ux-gate `--require` step) reports green on main; then DONE for the fixture rung (reveal-runtime smoke + live file events remain recorded follow-ups).
 
 ### TL4-003 — Code OSS compatibility battery
-Status: ACTIVE
+Status: DONE (fixture rung; 2026-09-28: flauz-compat CI green on main @ 6985b2d015a — 1887/1887 rows PASS, fixture matrix green; runtime promotion for L3 remains follow-up)
 Build a regression suite for core Code OSS functionality so Flauz additions cannot silently damage editor, terminal, git, debug, tasks, extensions or accessibility.
 
 Progress (2026-09-27, Worker B, branch `tl4/b-compat-battery`):
@@ -131,11 +131,11 @@ Status stays ACTIVE until CI (flauz-compat.yml) reports green on main;
 then DONE for the L1+L2 rung (L3 runtime promotion remains follow-up).
 
 ### TL4-004 — Whole-session acceptance battery
-Status: TODO
+Status: ACTIVE (2026-09-28: Worker B2 dispatched — session created, prompt verified in-thread; site agent-spawn queue jammed at peak hours, TL4 machinery assaulting; delivery pending)
 Run real user-session simulations spanning task creation, agent execution, browser, environment, verification, artifact and recovery.
 
 ### TL4-005 — Performance and resource budget
-Status: ACTIVE
+Status: DONE (fixture rung; 2026-09-28: flauz-budgets CI green on main @ 6985b2d015a; runtime promotion for the 9 pending-runtime rows remains follow-up)
 Measure startup, activation, memory, CPU, browser launch, model switching and multi-agent workloads.
 
 Progress note (2026-09-27, Worker C, branch `tl4/c-perf-budgets`):
@@ -162,7 +162,7 @@ activation-lint GREEN; secret sweep 0. Status stays ACTIVE until CI
 (runtime promotion for the 9 pending-runtime rows remains follow-up).
 
 ### TL4-006 — Security and release gates
-Status: TODO
+Status: ACTIVE (2026-09-28: Worker C2 dispatched — session created, prompt verified in-thread; site agent-spawn queue jammed at peak hours, TL4 machinery assaulting; delivery pending)
 Create integrated gates for secrets, permissions, browser safety, supply chain, packaging, signing and reproducible release artifacts.
 
 ### TL4 merge-wave integration note (2026-09-27, TL4 lead)

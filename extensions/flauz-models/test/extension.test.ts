@@ -18,8 +18,7 @@ import { test } from 'node:test';
 import { deepStrictEqual, ok, strictEqual } from 'node:assert';
 
 import { importWithVscodeMock } from './harness/vscode-redirect.ts';
-import { lm } from './harness/vscode-mock-module.ts';
-import { __resetViewState, __viewState } from './harness/vscode-mock-module.ts';
+import { lm, __resetViewState, __viewState } from './harness/vscode-mock-module.ts';
 import { createMockContext, type MockExtensionContext } from './harness/vscode-mock.ts';
 
 /** The slice of src/extension.ts's public surface the tests exercise. */

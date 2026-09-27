@@ -380,8 +380,8 @@ function main() {
 			continue;
 		}
 		const missing = [];
-		if (!pf.text.includes('flauzError')) { missing.push("shared error context 'flauzError'"); }
-		if (!/title:\s*['"]Retry['"]/.test(pf.text)) { missing.push("Retry-titled row command (title: 'Retry')"); }
+		if (!pf.text.includes('flauzError')) { missing.push(`shared error context 'flauzError'`); }
+		if (!/title:\s*['"]Retry['"]/.test(pf.text)) { missing.push(`Retry-titled row command (title: 'Retry')`); }
 		if (!/flauz\.[A-Za-z.]*refresh[A-Za-z]*/.test(pf.text)) { missing.push('a flauz.*refresh* retry command id'); }
 		if (!pf.text.includes('tooltip')) { missing.push('row tooltips'); }
 		if (!pf.text.includes('accessibilityInformation')) { missing.push('accessibilityInformation labels'); }

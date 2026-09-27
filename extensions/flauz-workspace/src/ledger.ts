@@ -99,7 +99,7 @@ export function parseLedgerRow(value: unknown): RowParseOutcome {
 	if (keys.length !== fieldCount || !ROW_FIELDS.every(k => hasKey(value, k))) {
 		return {
 			ok: false, error: hasCheckpointField
-				? "row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri] + checkpoint (only on kind 'checkpoint' rows)"
+				? `row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri] + checkpoint (only on kind 'checkpoint' rows)`
 				: 'row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri]'
 		};
 	}
@@ -127,7 +127,7 @@ export function parseLedgerRow(value: unknown): RowParseOutcome {
 	let checkpoint: LedgerCheckpointPayload | undefined;
 	if (value.kind === 'checkpoint') {
 		if (!hasCheckpointField) {
-			return { ok: false, error: "kind 'checkpoint' requires the 8th field 'checkpoint' (the signed payload)" };
+			return { ok: false, error: `kind 'checkpoint' requires the 8th field 'checkpoint' (the signed payload)` };
 		}
 		try {
 			checkpoint = parseCheckpointPayload(value.checkpoint);
@@ -141,7 +141,7 @@ export function parseLedgerRow(value: unknown): RowParseOutcome {
 			return { ok: false, error: 'checkpoint row sha256 must equal sha256(canonicalJson({headSha256, rowSeq})) of its payload - the digest binding' };
 		}
 	} else if (hasCheckpointField) {
-		return { ok: false, error: "the 8th field 'checkpoint' is only legal on kind 'checkpoint' rows" };
+		return { ok: false, error: `the 8th field 'checkpoint' is only legal on kind 'checkpoint' rows` };
 	}
 	return {
 		ok: true,
@@ -225,7 +225,7 @@ export class EvidenceLedger {
 		}
 		validateRowInput(input);
 		if (input.kind === 'checkpoint') {
-			throw new Error("flauz: ledger append cannot mint 'checkpoint' rows - they carry a signature and are minted only by appendCheckpoint()");
+			throw new Error(`flauz: ledger append cannot mint 'checkpoint' rows - they carry a signature and are minted only by appendCheckpoint()`);
 		}
 		const rows = await this.readRows();
 		const seq = rows.length === 0 ? 1 : (rows[rows.length - 1] as LedgerRow).seq + 1;

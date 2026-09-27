@@ -97,7 +97,7 @@ export function createWorkflowCommandHandlers(services: WorkflowCommandServices)
 			const args = requireArgs(arg, 'save', ['taskId']);
 			const taskId = requireString(args.taskId, 'save', 'taskId');
 			if (args.model !== undefined && (typeof args.model !== 'object' || args.model === null || Array.isArray(args.model))) {
-				throw new Error("flauz.workflow.save: 'model' must be an object {provider, model, params?}");
+				throw new Error(`flauz.workflow.save: 'model' must be an object {provider, model, params?}`);
 			}
 			if (args.rerunApprovals !== undefined && args.rerunApprovals !== 'replay' && args.rerunApprovals !== 'ask') {
 				throw new Error(`flauz.workflow.save: 'rerunApprovals' must be 'replay' or 'ask' (got ${JSON.stringify(args.rerunApprovals)})`);

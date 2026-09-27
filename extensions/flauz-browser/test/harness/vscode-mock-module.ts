@@ -25,8 +25,13 @@ export const TreeItem = mock.vscode.TreeItem;
 export const ThemeIcon = mock.vscode.ThemeIcon;
 export const TreeItemCollapsibleState = mock.vscode.TreeItemCollapsibleState;
 
+/** Presence guard on Partial patches (upstream local/code-no-in-operator: `in` only in predicates). */
+function carriesWorkspaceFolders(patch: Partial<MockVscodeState>): patch is Partial<MockVscodeState> & { workspaceFolders: MockVscodeState['workspaceFolders'] | undefined } {
+	return 'workspaceFolders' in patch;
+}
+
 export function __configure(patch: Partial<MockVscodeState>): void {
-	if ('workspaceFolders' in patch) {
+	if (carriesWorkspaceFolders(patch)) {
 		mock.state.workspaceFolders = patch.workspaceFolders;
 	}
 	if (patch.fsFiles !== undefined) {
@@ -44,7 +49,7 @@ export function __state(): MockVscodeState {
 export function __reset(patch: Partial<MockVscodeState> = {}): void {
 	// Presence-checked assignment (NOT ??): an explicit undefined in the patch
 	// clears the field; an absent key restores the default.
-	mock.state.workspaceFolders = 'workspaceFolders' in patch
+	mock.state.workspaceFolders = carriesWorkspaceFolders(patch)
 		? patch.workspaceFolders
 		: [{ uri: { fsPath: '/ws/acme', scheme: 'file', toString: () => 'file:///ws/acme' }, name: 'acme', index: 0 }];
 	mock.state.fsFiles = patch.fsFiles ?? new Map<string, string>();

@@ -652,10 +652,10 @@ export function parsePolicyText(text: string): PolicyParseResult {
 	if (!isPlainObject(raw)) {
 		throw new PolicyError('FLAUZ_POLICY_SCHEMA', '', 'policy document must be a JSON object');
 	}
-	if (!('schemaVersion' in raw)) {
+	if (raw.schemaVersion === undefined) {
 		throw new PolicyError('FLAUZ_POLICY_SCHEMA', 'schemaVersion', 'required key missing (expected 0)');
 	}
-	const version = raw['schemaVersion'];
+	const version = raw.schemaVersion;
 	if (typeof version !== 'number' || !Number.isInteger(version)) {
 		throw new PolicyError('FLAUZ_POLICY_SCHEMA', 'schemaVersion', `must be an integer (got ${JSON.stringify(version)})`);
 	}
@@ -1035,16 +1035,16 @@ function sortedPolicyRecord(policy: BrowserPolicy): Record<string, unknown> {
 	const layerRecord = (rules: LayerRules): Record<string, unknown> => {
 		const record: Record<string, unknown> = {};
 		if (rules.allow.length > 0) {
-			record['allow'] = [...rules.allow];
+			record.allow = [...rules.allow];
 		}
 		if (rules.deny.length > 0) {
-			record['deny'] = [...rules.deny];
+			record.deny = [...rules.deny];
 		}
 		if (rules.fileRoots.length > 0) {
-			record['fileRoots'] = [...rules.fileRoots];
+			record.fileRoots = [...rules.fileRoots];
 		}
 		if (!rules.enabled) {
-			record['enabled'] = false;
+			record.enabled = false;
 		}
 		return record;
 	};

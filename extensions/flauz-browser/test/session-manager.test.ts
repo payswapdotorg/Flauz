@@ -24,7 +24,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BrowserPolicyEngine } from '../src/policy.ts';
 import { CdpEndpointHost } from '../src/runtime/host.ts';
-import { BrowserSessionManager, isNavigationOutcome, type RecoveryVerdict } from '../src/runtime/sessionManager.ts';
+import { BrowserSessionManager, isNavigationOutcome, type RecoveryVerdict, isSessionError } from '../src/runtime/sessionManager.ts';
 import { FakeBrowserState, FakeCdpTransport } from '../src/cdp/fake.ts';
 
 const WORKSPACE_ROOT = '/ws/acme';
@@ -134,7 +134,7 @@ test('open with an ALLOWED startUrl: active session, navigation pipeline ran, co
 	assert.equal(result.navigation?.sent, true);
 	assert.equal(result.navigation?.committedUrl, 'https://docs.example.com/guide');
 	assert.equal(result.descriptor.tabs[0]?.url, 'https://docs.example.com/guide');
-	assert.ok(transports[0]?.pageNavigateCommands().some(command => (command.params['url'] as string) === 'https://docs.example.com/guide'));
+	assert.ok(transports[0]?.pageNavigateCommands().some(command => (command.params.url as string) === 'https://docs.example.com/guide'));
 });
 
 test('HUMAN/AGENT SEPARATION (pinned both directions): agents denied where humans are allowed', async () => {
@@ -163,7 +163,7 @@ test('HUMAN/AGENT SEPARATION (pinned both directions): agents denied where human
 
 	// the ZERO-command invariant, asserted on the fake's sent-command log:
 	const navigateCommands = transports.flatMap(transport => transport.pageNavigateCommands());
-	assert.equal(navigateCommands.filter(command => command.params['url'] === url).length, 1, 'exactly ONE Page.navigate (the human one)');
+	assert.equal(navigateCommands.filter(command => command.params.url === url).length, 1, 'exactly ONE Page.navigate (the human one)');
 });
 
 test('SEPARATION direction 2: willNavigate rules gate the HUMAN and never the agent', async () => {
@@ -205,7 +205,7 @@ test('close(sessionId): closes every tab via the host, seals the descriptor, sta
 	const opened = await manager.open({ initiator: 'agent', agentId: 'worker-1' });
 	const sessionId = opened.descriptor.sessionId;
 	const closed = await manager.close(sessionId);
-	assert.ok(!('error' in closed));
+	assert.ok(!isSessionError(closed));
 	assert.equal(closed.state, 'closed');
 	assert.equal(closed.tabs[0]?.state, 'closed');
 	assert.match(closed.tabs[0]?.closedAt ?? '', /^\d{4}-\d{2}-\d{2}T/);
@@ -217,10 +217,10 @@ test('close(sessionId): closes every tab via the host, seals the descriptor, sta
 	assert.equal((after as { error: { code: string } }).error.code, 'flauz.browser.session.not-active');
 	// idempotent:
 	const again = await manager.close(sessionId);
-	assert.ok(!('error' in again));
+	assert.ok(!isSessionError(again));
 	assert.equal(again.state, 'closed');
 	const unknown = await manager.close('flauz:browser:0000000000000000');
-	assert.ok('error' in unknown);
+	assert.ok(isSessionError(unknown));
 });
 
 test('focus(tabId): activates the tab target (endpoint host surface)', async () => {

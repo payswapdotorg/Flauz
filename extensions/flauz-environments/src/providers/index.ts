@@ -79,9 +79,12 @@ export function validateDescriptor(value: unknown): EnvironmentDescriptor {
 	if (!isPlainObject(value.capabilities) || !hasExactKeys(value.capabilities, ['browser', 'exec', 'agentHost', 'terminal'])) {
 		throw envelopeError('invalid descriptor: capabilities must have exactly the keys [agentHost, browser, exec, terminal]');
 	}
-	for (const flag of ['agentHost', 'browser', 'exec', 'terminal'] as const) {
-		if (typeof value.capabilities[flag] !== 'boolean') {
-			throw envelopeError(`invalid descriptor: capability '${flag}' must be a boolean (got ${JSON.stringify(value.capabilities[flag])})`);
+	// Unrolled (upstream local/code-no-dangerous-type-assertions): typed locals
+	// keep the validated booleans live so the descriptor literal type-checks.
+	const { agentHost, browser, exec, terminal } = value.capabilities;
+	for (const [flag, v] of [['agentHost', agentHost], ['browser', browser], ['exec', exec], ['terminal', terminal]] as const) {
+		if (typeof v !== 'boolean') {
+			throw envelopeError(`invalid descriptor: capability '${flag}' must be a boolean (got ${JSON.stringify(v)})`);
 		}
 	}
 	if (typeof value.enabled !== 'boolean') {
@@ -97,7 +100,25 @@ export function validateDescriptor(value: unknown): EnvironmentDescriptor {
 		throw envelopeError(`invalid descriptor: timing updatedAt must be >= created (got ${JSON.stringify(value.timing)})`);
 	}
 	const connection: EnvironmentConnection = providerFor(value.kind).validateConnection(value.connection);
-	return { ...value, connection } as EnvironmentDescriptor;
+	// Built from runtime-validated fields (upstream local/code-no-dangerous-type-assertions:
+	// no object-literal assertions) — the guards above narrowed each path.
+	const descriptor: EnvironmentDescriptor = {
+		id: value.id,
+		kind: value.kind,
+		label: value.label,
+		connection,
+		trust: {
+			posture: value.trust.posture,
+			inheritsWorkspaceTrust: value.trust.inheritsWorkspaceTrust,
+		},
+		capabilities: { agentHost, browser, exec, terminal },
+		enabled: value.enabled,
+		timing: {
+			created: value.timing.created,
+			updatedAt: value.timing.updatedAt,
+		},
+	};
+	return descriptor;
 }
 
 /** Connection-plan generation via the kind's provider adapter. */

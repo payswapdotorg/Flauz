@@ -60,11 +60,11 @@ import {
 import {
 	BrowserSessionManager,
 	isNavigationOutcome,
+	isSessionError,
 	type OpenSessionResult,
 } from './runtime/sessionManager.ts';
-import { CdpEndpointHost, WorkbenchBrowserHost, type BrowserHost } from './runtime/host.ts';
+import { CdpEndpointHost, WorkbenchBrowserHost, type BrowserHost, type WorkbenchBrowserTabLike } from './runtime/host.ts';
 import { FileSystemArtifactWriter } from './runtime/capture.ts';
-import type { WorkbenchBrowserTabLike } from './runtime/host.ts';
 import { registerBrowserView } from './views.ts';
 
 interface PolicyState {
@@ -287,17 +287,17 @@ function commandEvaluate(folder: vscode.WorkspaceFolder | undefined, arg: unknow
 		return { error: 'flauz.browser.evaluate: expected an argument object { url, initiator?, partition?, workspaceRoot? }' };
 	}
 	const record = arg as Record<string, unknown>;
-	if (typeof record['url'] !== 'string' || record['url'] === '') {
+	if (typeof record.url !== 'string' || record.url === '') {
 		return { error: 'flauz.browser.evaluate: url must be a non-empty string' };
 	}
-	const initiator: NavigationInitiator = record['initiator'] === 'user' ? 'user' : 'agent-tool';
-	const workspaceRoot = typeof record['workspaceRoot'] === 'string'
-		? record['workspaceRoot']
+	const initiator: NavigationInitiator = record.initiator === 'user' ? 'user' : 'agent-tool';
+	const workspaceRoot = typeof record.workspaceRoot === 'string'
+		? record.workspaceRoot
 		: folder?.uri.fsPath;
-	const partition = typeof record['partition'] === 'string'
-		? record['partition']
+	const partition = typeof record.partition === 'string'
+		? record.partition
 		: workspaceRoot === undefined ? undefined : safeDerive(current.engine, workspaceRoot);
-	const evaluation = current.engine.evaluate({ url: record['url'], initiator, partition, workspaceRoot });
+	const evaluation = current.engine.evaluate({ url: record.url, initiator, partition, workspaceRoot });
 	log(`flauz.browser: evaluate: ${formatVerdictLine(evaluation.final)}`);
 	return evaluation.final;
 }
@@ -323,6 +323,16 @@ export function deactivate(): void {
  * source file names a proposed-API type), else the external Chromium CDP
  * endpoint from FLAUZ_CDP_ENDPOINT, else fail-closed.
  */
+/** Type guard for the unavailable arm of getBrowserRuntime() (upstream rule: `in` only in predicates). */
+function isRuntimeUnavailable(runtime: BrowserSessionManager | { error: string }): runtime is { error: string } {
+	return 'error' in runtime;
+}
+
+/** Type guard for the unavailable arm of selectBrowserHost() (upstream rule: `in` only in predicates). */
+function isHostSelectionError(selection: { host: BrowserHost } | { error: string }): selection is { error: string } {
+	return 'error' in selection;
+}
+
 function selectBrowserHost(): { host: BrowserHost } | { error: string } {
 	const windowCandidate = vscode.window as unknown as Partial<Record<'openBrowserTab', unknown>>;
 	if (typeof windowCandidate.openBrowserTab === 'function') {
@@ -335,7 +345,7 @@ function selectBrowserHost(): { host: BrowserHost } | { error: string } {
 			}),
 		};
 	}
-	const endpoint = process.env['FLAUZ_CDP_ENDPOINT'];
+	const endpoint = process.env.FLAUZ_CDP_ENDPOINT;
 	if (typeof endpoint === 'string' && endpoint !== '') {
 		log(`flauz.browser: runtime host = cdp-endpoint (${endpoint})`);
 		return { host: new CdpEndpointHost(endpoint) };
@@ -356,7 +366,7 @@ function getBrowserRuntime(): BrowserSessionManager | { error: string } {
 	const folder = firstWorkspaceFolder();
 	const workspaceRoot = folder?.uri.fsPath;
 	const selection = selectBrowserHost();
-	if ('error' in selection) {
+	if (isHostSelectionError(selection)) {
 		browserRuntimeFailure = selection.error;
 		log(`flauz.browser: ${selection.error}`);
 		return { error: selection.error };
@@ -394,17 +404,17 @@ async function commandOpenSession(arg: unknown): Promise<OpenSessionResult | { e
 	if (record === undefined) {
 		return { error: 'flauz.browser.openSession: expected an argument object { initiator, agentId?, startUrl? }' };
 	}
-	const initiator = record['initiator'] === 'human' ? 'human' : record['initiator'] === 'agent' ? 'agent' : undefined;
+	const initiator = record.initiator === 'human' ? 'human' : record.initiator === 'agent' ? 'agent' : undefined;
 	if (initiator === undefined) {
 		return { error: 'flauz.browser.openSession: initiator must be "human" or "agent"' };
 	}
-	const agentId = asOptionalString(record['agentId']);
-	const startUrl = asOptionalString(record['startUrl']);
+	const agentId = asOptionalString(record.agentId);
+	const startUrl = asOptionalString(record.startUrl);
 	if (initiator === 'human' && agentId !== undefined) {
 		return { error: 'flauz.browser.openSession: agentId is only valid for agent sessions (human/agent separation)' };
 	}
 	const runtime = getBrowserRuntime();
-	if ('error' in runtime) {
+	if (isRuntimeUnavailable(runtime)) {
 		void vscode.window.showWarningMessage(`Flauz Browser: ${runtime.error}`);
 		return { error: `flauz.browser.openSession: ${runtime.error}` };
 	}
@@ -425,22 +435,22 @@ async function commandCloseSession(arg: unknown): Promise<unknown> {
 	if (record === undefined) {
 		return { error: 'flauz.browser.closeSession: expected an argument object { sessionId }' };
 	}
-	const sessionId = asOptionalString(record['sessionId']);
+	const sessionId = asOptionalString(record.sessionId);
 	if (sessionId === undefined) {
 		return { error: 'flauz.browser.closeSession: expected an argument object { sessionId }' };
 	}
 	const runtime = getBrowserRuntime();
-	if ('error' in runtime) {
+	if (isRuntimeUnavailable(runtime)) {
 		return { error: `flauz.browser.closeSession: ${runtime.error}` };
 	}
 	const result = await runtime.close(sessionId);
-	log(`flauz.browser: closeSession ${sessionId} -> ${'state' in result ? result.state : `error: ${result.error.message}`}`);
+	log(`flauz.browser: closeSession ${sessionId} -> ${isSessionError(result) ? `error: ${result.error.message}` : result.state}`);
 	return result;
 }
 
 function commandSessions(): unknown {
 	const runtime = getBrowserRuntime();
-	if ('error' in runtime) {
+	if (isRuntimeUnavailable(runtime)) {
 		return { error: `flauz.browser.sessions: ${runtime.error}` };
 	}
 	const sessions = runtime.list();
@@ -455,14 +465,14 @@ async function commandNavigate(arg: unknown): Promise<unknown> {
 	if (record === undefined) {
 		return { error: 'flauz.browser.navigate: expected an argument object { sessionId, url, tabId? }' };
 	}
-	const sessionId = asOptionalString(record['sessionId']);
-	const url = asOptionalString(record['url']);
+	const sessionId = asOptionalString(record.sessionId);
+	const url = asOptionalString(record.url);
 	if (sessionId === undefined || url === undefined) {
 		return { error: 'flauz.browser.navigate: expected an argument object { sessionId, url, tabId? }' };
 	}
-	const tabId = asOptionalString(record['tabId']);
+	const tabId = asOptionalString(record.tabId);
 	const runtime = getBrowserRuntime();
-	if ('error' in runtime) {
+	if (isRuntimeUnavailable(runtime)) {
 		return { error: `flauz.browser.navigate: ${runtime.error}` };
 	}
 	const result = await runtime.navigate(sessionId, url, tabId !== undefined ? { tabId } : {});
@@ -480,17 +490,17 @@ async function commandScreenshot(arg: unknown): Promise<unknown> {
 	if (record === undefined) {
 		return { error: 'flauz.browser.screenshot: expected an argument object { sessionId, tabId? }' };
 	}
-	const sessionId = asOptionalString(record['sessionId']);
+	const sessionId = asOptionalString(record.sessionId);
 	if (sessionId === undefined) {
 		return { error: 'flauz.browser.screenshot: expected an argument object { sessionId, tabId? }' };
 	}
-	const tabId = asOptionalString(record['tabId']);
+	const tabId = asOptionalString(record.tabId);
 	const runtime = getBrowserRuntime();
-	if ('error' in runtime) {
+	if (isRuntimeUnavailable(runtime)) {
 		return { error: `flauz.browser.screenshot: ${runtime.error}` };
 	}
 	const result = await runtime.screenshot(sessionId, tabId);
-	if ('error' in result) {
+	if (isSessionError(result)) {
 		log(`flauz.browser: screenshot ${sessionId} error: ${result.error.message}`);
 		return result;
 	}

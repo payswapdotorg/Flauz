@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { BrowserPolicyEngine } from '../src/policy.ts';
 import { CdpEndpointHost } from '../src/runtime/host.ts';
-import { BrowserSessionManager } from '../src/runtime/sessionManager.ts';
+import {BrowserSessionManager, isSessionError} from '../src/runtime/sessionManager.ts';
 import {
 	captureEvidenceRow,
 	decodeScreenshotBase64,
@@ -114,7 +114,7 @@ test('screenshot: bytes + evidence row + artifact written through the port under
 	const sessionId = opened.descriptor.sessionId;
 	const tabId = opened.descriptor.tabs[0]?.tabId ?? '';
 	const result = await rigInstance.manager.screenshot(sessionId, tabId);
-	assert.ok(!('error' in result), 'screenshot succeeded');
+	assert.ok(!isSessionError(result), 'screenshot succeeded');
 	assert.ok(result.byteLength > 0);
 	assert.equal(result.bytes.byteLength, result.byteLength);
 	assert.equal(atob(result.base64), `flauz-fake-screenshot:${rigInstance.manager.getSession(sessionId)?.tabs[0]?.targetId ?? ''}:1`);
@@ -146,15 +146,15 @@ test('consoleTail/networkLog through the manager: session + tab scoped', async (
 	transport?.emitRequestWillBeSent(cdpSessionId, { requestId: 'r9', request: { url: 'https://docs.example.com/log', method: 'GET' } });
 
 	const tail = rigInstance.manager.consoleTail(sessionId, tabId, 10);
-	assert.ok(!('error' in tail));
+	assert.ok(!isSessionError(tail));
 	assert.equal(tail.length, 1);
 	assert.equal(tail[0]?.text, 'hello');
 	const network = rigInstance.manager.networkLog(sessionId, tabId, 10);
-	assert.ok(!('error' in network));
+	assert.ok(!isSessionError(network));
 	assert.equal(network.length, 1);
 	assert.equal(network[0]?.url, 'https://docs.example.com/log');
 	// unknown session errors:
-	assert.ok('error' in (rigInstance.manager.consoleTail('flauz:browser:0000000000000000') ?? {}));
+	assert.ok(isSessionError(rigInstance.manager.consoleTail('flauz:browser:0000000000000000') ?? {}));
 	await rigInstance.manager.dispose();
 });
 

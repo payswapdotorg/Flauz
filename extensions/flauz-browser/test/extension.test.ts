@@ -120,12 +120,12 @@ test('activation watches the policy file and hot-reloads on change', async () =>
 test('flauz.browser.evaluate: machine surface returns the combined verdict object', async () => {
 	const extension = await freshActivate('{"schemaVersion":0,"driver":{"allow":["*.example.com"]}}');
 	const verdict = commandHandler('flauz.browser.evaluate')({ url: 'https://docs.example.com/x', initiator: 'agent-tool' }) as Record<string, unknown>;
-	assert.equal(verdict['decision'], 'deny'); // webRequest deny-all carries it
-	assert.equal(verdict['layer'], 'webRequest');
-	assert.equal(verdict['url'], 'https://docs.example.com/x');
-	assert.equal(verdict['initiator'], 'agent-tool');
+	assert.equal(verdict.decision, 'deny'); // webRequest deny-all carries it
+	assert.equal(verdict.layer, 'webRequest');
+	assert.equal(verdict.url, 'https://docs.example.com/x');
+	assert.equal(verdict.initiator, 'agent-tool');
 	const user = commandHandler('flauz.browser.evaluate')({ url: 'https://docs.example.com/x', initiator: 'user' }) as Record<string, unknown>;
-	assert.equal(user['layer'], 'willNavigate');
+	assert.equal(user.layer, 'willNavigate');
 	// argument validation:
 	assert.equal((commandHandler('flauz.browser.evaluate')('nonsense') as { error: string }).error.includes('expected an argument object'), true);
 	assert.equal((commandHandler('flauz.browser.evaluate')({}) as { error: string }).error.includes('url must be a non-empty string'), true);
@@ -135,8 +135,8 @@ test('flauz.browser.evaluate: machine surface returns the combined verdict objec
 test('flauz.browser.evaluate derives the partition from the workspace when none is given', async () => {
 	const extension = await freshActivate('{"schemaVersion":0,"driver":{"allow":["*.example.com"],"fileRoots":[".flauz"]}}');
 	const verdict = commandHandler('flauz.browser.evaluate')({ url: 'file:///ws/acme/.flauz/artifacts/T-001/shot.png' }) as Record<string, unknown>;
-	assert.equal(verdict['decision'], 'allow');
-	assert.match(String(verdict['partition']), /^persist:flauz-[0-9a-f]{16}$/);
+	assert.equal(verdict.decision, 'allow');
+	assert.match(String(verdict.partition), /^persist:flauz-[0-9a-f]{16}$/);
 	void extension.deactivate();
 });
 
@@ -202,7 +202,7 @@ test('activation without a workspace folder degrades gracefully (commands still 
 	// the view still registers (it shows its viewsWelcome state without a folder)
 	assert.deepEqual(__state().treeViews.map(r => r.viewId), ['flauz.browser']);
 	const verdict = commandHandler('flauz.browser.evaluate')({ url: 'https://x.org/' }) as Record<string, unknown>;
-	assert.equal(verdict['decision'], 'deny');
-	assert.equal(verdict['partition'], '');
+	assert.equal(verdict.decision, 'deny');
+	assert.equal(verdict.partition, '');
 	void extension.deactivate();
 });
