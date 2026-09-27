@@ -74,13 +74,13 @@ The current environment extension provides:
 - continuity model;
 - adapters/plans for local/SSH/container/cloud-style environments.
 
-The TL3-003 lifecycle is DONE (PR #11 a9f51d61): create/start/stop/attach/detach/snapshot/destroy behind the EnvironmentExecutor contract, local-real LocalProcessExecutor (fixed harness, SIGKILL escalation, real fs snapshots) + remote-simulated executors (explicit opt-in), PIN-2 lifecycle envelopes, trust-gated ops. Real providers remain TL3-004.
+The TL3-003 lifecycle is DONE (PR #11 a9f51d61): create/start/stop/attach/detach/snapshot/destroy behind the EnvironmentExecutor contract, local-real LocalProcessExecutor (fixed harness, SIGKILL escalation, real fs snapshots) + remote-simulated executors (explicit opt-in), PIN-2 lifecycle envelopes, trust-gated ops. TL3-004 rung 1 is DONE (merge 29bc28ba645): the remote kinds are REAL behind the same contract — SshCliExecutor (system ssh, fixed-harness-over-stdin), DockerCliExecutor (docker daemon, typed CLI_NOT_AVAILABLE), CloudHttpAdapter (injectable HttpPort, apiKeyRef vault-gated, mock-server drills), CliPort seam, FakeCli + skip-gated liveRemote suites. Rung 2 (live workbench resolver code + the resolvers grant, DL-33) remains the documented residual.
 
 Do not call every adapter a production provider.
 
-### Resources (TL3-005, merged)
+### Resources (TL3-005, merged; TL3-006 merged)
 
-extensions/flauz-resources provides the logical resource graph: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the provenance ops ledger, persisted under .flauz/ with the sibling-envelope discipline.
+extensions/flauz-resources provides the logical resource graph: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the provenance ops ledger, persisted under .flauz/ with the sibling-envelope discipline. TL3-006 is DONE (merge 6e014f59aa4): continuity is an EXECUTABLE capability — flauz-environments src/continuityExec/ (content-addressed bundles with the secret-redaction law, the continuity ops ledger, flauz.continuity.export/restore/verify/status typed commands, force-gated atomic restore, the planSwitch hand-off) + the flauz-resources PIN-1 journal bridge (strict READ-ONLY parser, ResourceRef minting from logical session ids, attribution-real edges, flauz.res.syncBrowserSessions).
 
 ### Whole-session acceptance battery (TL4-004, merged)
 
