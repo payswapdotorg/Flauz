@@ -22,7 +22,7 @@
 //                 behind count), classified
 //                   ADDED                    — new flauz-owned paths (the
 //                                             additive-placement namespace,
-//                                             ARCHITECTURE-LOCK §4/§6), or
+//                                             ARCHITECTURE-LOCK sections 4/6), or
 //                   MODIFIED/DELETED/RENAMED— shared upstream files: the
 //                                             FORK-CRITICAL class. Every such
 //                                             row must be covered by the
@@ -104,7 +104,7 @@ const SCRIPT_REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..'); // build/fl
 const DEFAULT_BASE = 'upstream/main';
 const DEFAULT_ALLOWLIST_REL = 'build/flauz/sync-allowlist.json';
 
-// The flauz-owned additive-placement namespace (ARCHITECTURE-LOCK §4/§6). The
+// The flauz-owned additive-placement namespace (ARCHITECTURE-LOCK sections 4/6). The
 // product line may ADD under these path prefixes without failing the report.
 // Anything added OUTSIDE them is flagged (exit 1) until the placement decision
 // is recorded. Prefix set derived from the actual product tree at the TL4
@@ -464,7 +464,7 @@ function runReport(args) {
 			lines.push(`-- census: added flauz-owned paths ${'-'.repeat(40)}`);
 			for (const row of addedOwned) { lines.push(` A  ${row.path}`); }
 			if (addedOutside.length > 0) {
-				lines.push(`-- census: added OUTSIDE the flauz namespace (placement law, ARCHITECTURE-LOCK §4/§6) ----`);
+				lines.push(`-- census: added OUTSIDE the flauz namespace (placement law, ARCHITECTURE-LOCK sections 4/6) ----`);
 				for (const row of addedOutside) { lines.push(` FAIL  A  ${row.path}`); }
 			}
 			lines.push(`-- top-level rollup ${'-'.repeat(48)}`);
@@ -556,7 +556,7 @@ function renderDeltaDocument(o) {
 	L.push(`## Census — added paths (${o.counts.addedFlauzOwned} flauz-owned)`);
 	L.push(``);
 	if (o.counts.addedOutsideNamespace > 0) {
-		L.push(`**${o.counts.addedOutsideNamespace} path(s) were added OUTSIDE the flauz-owned namespace (placement law, ARCHITECTURE-LOCK §4/§6) — the report FAILs on these:**`);
+		L.push(`**${o.counts.addedOutsideNamespace} path(s) were added OUTSIDE the flauz-owned namespace (placement law, ARCHITECTURE-LOCK sections 4/6) — the report FAILs on these:**`);
 		L.push('');
 		for (const p of o.addedOutsideNamespace) { L.push(`- \`${p}\``); }
 		L.push('');
