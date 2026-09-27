@@ -1,0 +1,313 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL3-005 (Worker C) — the logical resource graph canary: the R-RES
+# spec (build/flauz/canaries/R-RES.md) as a ZERO-SECRETS, PHASE-1-ONLY job on
+# ubuntu-latest (template: flauz-environments.yml phase 1 — the boot phase is
+# deferred: v0 has no runtime surface; no proposals, command-only activation).
+#
+# Shape:
+#   - R-RES spec present
+#   - extension unit tests (node --test; Node >= 23.6 for type-stripping)
+#   - typecheck (tsc --noEmit, isolated global typescript — never a repo install)
+#   - the R-RES fixture canary (A1-A7), implemented as YAML-EMBEDDED steps:
+#     the workflow writes the runner to $RUNNER_TEMP at runtime and executes
+#     it — NO .mjs file lands in the repo, so .eslint-allowed-javascript-files
+#     stays untouched (the flauz-browser A1 pattern, scaled up)
+#   - activation lint (flauz manifests; proves flauz-resources stays
+#     command-only and off onStartupFinished)
+#   - lane-presence probe (glob, never hardcode) — kept for the future
+#     boot-level job (bundled-extension surface grep of the 4 flauz.res.*
+#     commands) which lands with the first runtime-dependent lane
+#
+# Gated on Flauz paths + workflow_dispatch (DL-25 gating set).
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Resources
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-resources-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  VSCODE_QUALITY: 'oss'
+
+jobs:
+  rres-resource-graph:
+    name: 'R-RES canary: logical resource graph + continuity + provenance'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # ---- phase 1: zero-dep, fail-fast, no repo install ----
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: R-RES spec present
+        run: |
+          set -e
+          test -f build/flauz/canaries/R-RES.md || { echo "R-RES spec missing (build/flauz/canaries/R-RES.md)"; exit 1; }
+          echo "R-RES spec: OK"
+
+      - name: Lane presence probe (glob, never hardcode)
+        id: lanes
+        run: |
+          if ls extensions/flauz-resources/package.json >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "flauz-resources lane present"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "flauz-resources not merged yet — unit job runs in PROBE-ONLY mode (documented skip)."
+          fi
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Extension unit tests (api / graph / continuity / provenance / contract / extension)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          cd extensions/flauz-resources
+          node --test "test/*.test.ts" 2>&1 | tee "$RUNNER_TEMP/rres-unit.log"
+          grep -q 'fail 0' "$RUNNER_TEMP/rres-unit.log" || { echo 'unit runner reported failures'; exit 1; }
+
+      - name: Typecheck (tsc --noEmit, isolated global install — never a repo install)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          npm install -g typescript@5.9.3
+          cd extensions/flauz-resources
+          tsc --noEmit
+          echo 'R-RES typecheck: GREEN'
+
+      - name: R-RES fixture canary (A1-A7)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          cat > "$RUNNER_TEMP/rres-canary.mjs" <<'RRES_CANARY'
+          // R-RES fixture canary (assertions A1-A7 of build/flauz/canaries/R-RES.md).
+          // Embedded as a YAML step in .github/workflows/flauz-resources.yml: the
+          // workflow writes this script to $RUNNER_TEMP at runtime and runs it — no
+          // .mjs file lands in the repo (.eslint-allowed-javascript-files untouched).
+          // Zero secrets: the secret-shaped literal in A7 is ASSEMBLED FROM FRAGMENTS
+          // AT RUNTIME so no complete secret shape ever exists in the repository.
+          import { mkdtemp, writeFile, rm, readFile, readdir } from 'node:fs/promises';
+          import { tmpdir } from 'node:os';
+          import path from 'node:path';
+          import { ResourceGraph, verifyEnvelope } from '$REPO/extensions/flauz-resources/src/graph.ts';
+          import { ProvenanceLedger, envelopeDigest } from '$REPO/extensions/flauz-resources/src/provenance.ts';
+          import { ContinuityService } from '$REPO/extensions/flauz-resources/src/continuity.ts';
+          import { isBrowserSessionId, isResourceUrnForKind, looksSecretShaped } from '$REPO/extensions/flauz-resources/src/api.ts';
+
+          const REPO = '$REPO';
+          const FIXTURES = path.join(REPO, 'test', 'fixtures', 'resources');
+          let failures = 0;
+          const ok = (name) => console.log(`R-RES PASS ${name}`);
+          const fail = (name, detail) => { failures++; console.error(`R-RES FAIL ${name}: ${detail}`); };
+
+          // A1: the good fixture loads + verifies clean
+          {
+                  const raw = await readFile(path.join(FIXTURES, 'good', 'graph.json'), 'utf-8');
+                  const envelope = ResourceGraph.parseEnvelope(raw);
+                  const report = verifyEnvelope(envelope);
+                  if (envelope.nodes.length !== 10 || envelope.edges.length !== 10 || envelope.surfaces.length !== 8) {
+                          fail('A1 good-fixture shape', `expected 10/10/8, got ${envelope.nodes.length}/${envelope.edges.length}/${envelope.surfaces.length}`);
+                  } else if (!report.ok) {
+                          fail('A1 good-fixture verify', JSON.stringify(report.problems));
+                  } else {
+                          ok('A1 good fixture loads + verifies clean (10 nodes / 10 edges / 8 surfaces)');
+                  }
+          }
+
+          // A2: every bad fixture rejected with the schema-prefixed error
+          {
+                  const files = (await readdir(path.join(FIXTURES, 'bad'))).filter(f => f.endsWith('.json')).sort();
+                  let rejected = 0;
+                  let firstPass = '';
+                  for (const file of files) {
+                          const raw = await readFile(path.join(FIXTURES, 'bad', file), 'utf-8');
+                          try {
+                                  ResourceGraph.parseEnvelope(raw);
+                                  firstPass = firstPass === '' ? file : firstPass;
+                          } catch (err) {
+                                  if (!String(err?.message ?? '').includes('flauz.resources/v0:')) {
+                                          fail('A2 error prefix', `${file}: ${err?.message}`);
+                                  }
+                                  rejected++;
+                          }
+                  }
+                  if (files.length < 60) {
+                          fail('A2 matrix size', `only ${files.length} bad fixtures (coverage regression)`);
+                  } else if (rejected !== files.length) {
+                          fail('A2 rejection', `${files.length - rejected} fixture(s) parsed (first: ${firstPass})`);
+                  } else {
+                          ok(`A2 all ${files.length} bad fixtures rejected with flauz.resources/v0: errors`);
+                  }
+          }
+
+          // A3: the identity law + the pinned id contracts
+          {
+                  const urns = JSON.parse(await readFile(path.join(FIXTURES, 'contracts', 'urn-ids.json'), 'utf-8'));
+                  if (!isBrowserSessionId(urns.browserSessionId)) fail('A3 browser id', urns.browserSessionId);
+                  if (!isResourceUrnForKind(urns.environmentRefId, 'environment')) fail('A3 env id', urns.environmentRefId);
+                  if (!isResourceUrnForKind(urns.agentSessionId, 'agent-session')) fail('A3 agent id', urns.agentSessionId);
+                  if (!isResourceUrnForKind(urns.taskRefId, 'task')) fail('A3 task id', urns.taskRefId);
+                  let invalidOk = true;
+                  for (const bad of urns.invalid) {
+                          if (isResourceUrnForKind(bad, 'file')) { invalidOk = false; fail('A3 invalid id accepted', bad); }
+                  }
+                  if (isBrowserSessionId && invalidOk) ok('A3 identity law + pinned URN contracts hold');
+          }
+
+          // A4 + A5: a live temp workspace -- surface versioning + provenance chain
+          {
+                  const root = await mkdtemp(path.join(tmpdir(), 'rres-canary-'));
+                  const fsPort = {
+                          readFileUtf8: async target => { try { return await readFile(target, 'utf-8'); } catch (err) { if (err?.code === 'ENOENT') { return undefined; } throw err; } },
+                          writeFile: (target, contents) => writeFile(target, contents, 'utf-8'),
+                          appendFile: async (target, contents) => {
+                                  let current = '';
+                                  try { current = await readFile(target, 'utf-8'); } catch { current = ''; }
+                                  await writeFile(target, current + contents, 'utf-8');
+                          },
+                          rename: (from, to) => import('node:fs/promises').then(m => m.rename(from, to)),
+                          mkdir: target => import('node:fs/promises').then(m => m.mkdir(target, { recursive: true })),
+                  };
+                  const tick = { n: 0 };
+                  const clock = () => 1730000000000 + (tick.n++) * 1000;
+                  const graph = new ResourceGraph({ root, fs: fsPort, clock });
+                  await graph.bootstrap();
+                  const FILE = 'flauz:file:4d5e6f708192a3b4';
+                  const ARTIFACT = 'flauz:artifact:a1b2c3d4e5f60718';
+                  const BROWSER = 'flauz:browser:9c8d7e6f5a4b3c2d';
+                  await graph.addRef({ kind: 'file', id: FILE, provenance: { actor: 'agent', actorId: 'flauz-agent' } });
+                  await graph.addRef({ kind: 'artifact', id: ARTIFACT, provenance: { actor: 'tool' } });
+                  await graph.addRef({ kind: 'browser-session', id: BROWSER, provenance: { actor: 'agent' } });
+                  const v1 = await graph.addSurface(FILE, { kind: 'file-system', root: '/w', path: 'src/a.ts' }, { actor: 'agent' });
+                  const v2 = await graph.addSurface(FILE, { kind: 'file-system', root: '/w', path: 'src/moved/b.ts' }, { actor: 'agent' });
+                  if (v1.refId !== v2.refId || v2.versions.length !== 2 || v2.versions[0].surface.path !== 'src/a.ts') {
+                          fail('A4 versioning', `identity/version regression: ${JSON.stringify(v2.versions.length)}`);
+                  } else {
+                          ok('A4 identity survives a path move (prior surface retained as version 1)');
+                  }
+                  await graph.addEdge({ kind: 'snapshot-of', from: ARTIFACT, to: BROWSER }, { actor: 'tool' });
+                  const ops = await graph.ops();
+                  if (ops.length !== 6 || ops.some(o => !['agent', 'human', 'tool'].includes(o.actor))) {
+                          fail('A5 ops records', `expected 6 actor-complete records, got ${ops.length}`);
+                  } else {
+                          const ledger = new ProvenanceLedger({ root, fs: fsPort, clock });
+                          const chain = await ledger.verifyChain(envelopeDigest(graph.envelope()));
+                          if (!chain.ok) {
+                                  fail('A5 chain', JSON.stringify(chain.problems));
+                          } else {
+                                  // truncate the tail: the chain must catch it
+                                  const opsPath = path.join(root, '.flauz', 'resources-ops.jsonl');
+                                  const text = await readFile(opsPath, 'utf-8');
+                                  const lines = text.split('\n').filter(l => l !== '');
+                                  await writeFile(opsPath, lines.slice(0, 3).join('\n') + '\n', 'utf-8');
+                                  const broken = await ledger.verifyChain(envelopeDigest(graph.envelope()));
+                                  if (broken.ok) {
+                                          fail('A5 truncation', 'truncated tail not detected');
+                                  } else {
+                                          ok('A5 provenance: every mutation recorded, digests chain, truncation detected');
+                                  }
+                          }
+                  }
+                  // A6: the contract fixtures match the planner output (registry seeded)
+                  const registry = await readFile(path.join(FIXTURES, 'contracts', 'environments-registry.json'), 'utf-8');
+                  const seeded = await readFile(path.join(FIXTURES, 'good', 'graph.json'), 'utf-8');
+                  const root2 = await mkdtemp(path.join(tmpdir(), 'rres-canary2-'));
+                  await import('node:fs/promises').then(m => m.mkdir(path.join(root2, '.flauz'), { recursive: true }));
+                  await writeFile(path.join(root2, '.flauz', 'resources.json'), seeded, 'utf-8');
+                  await writeFile(path.join(root2, '.flauz', 'environments.json'), registry, 'utf-8');
+                  const graph2 = new ResourceGraph({ root: root2, fs: fsPort, clock });
+                  await graph2.bootstrap();
+                  const continuity = new ContinuityService({ graph: graph2 });
+                  const browserPlan = await continuity.planRestoration('flauz:browser:9c8d7e6f5a4b3c2d');
+                  const browserFixture = JSON.parse(await readFile(path.join(FIXTURES, 'contracts', 'browser-session-descriptor.json'), 'utf-8'));
+                  const envPlan = await continuity.planRestoration('flauz:environment:env-staging');
+                  const envFixture = JSON.parse(await readFile(path.join(FIXTURES, 'contracts', 'environment-descriptor.json'), 'utf-8'));
+                  const same = (a, b) => JSON.stringify(Object.keys(a).sort().reduce((acc, k) => ({ ...acc, [k]: a[k] }), {})) === JSON.stringify(Object.keys(b).sort().reduce((acc, k) => ({ ...acc, [k]: b[k] }), {}));
+                  if (!same(browserPlan.summary, browserFixture)) {
+                          fail('A6 browser summary', `${JSON.stringify(browserPlan.summary)} != ${JSON.stringify(browserFixture)}`);
+                  } else if (!same(envPlan.summary, envFixture)) {
+                          fail('A6 environment summary', `${JSON.stringify(envPlan.summary)} != ${JSON.stringify(envFixture)}`);
+                  } else {
+                          ok('A6 contract fixtures pinned (browser-session + environment summaries match the planner)');
+                  }
+                  await rm(root, { recursive: true, force: true });
+                  await rm(root2, { recursive: true, force: true });
+          }
+
+          // A7: vault-only policy -- a runtime-assembled secret-shaped literal is rejected
+          {
+                  const fragments = ['ghp_', 'Canary', 'Runtime', 'Assembled', 'Only9', '8888', '7777', '6666'];
+                  const secret = fragments.join('');
+                  if (!looksSecretShaped(secret)) {
+                          fail('A7 detector', 'assembled secret not detected');
+                  } else {
+                          const root = await mkdtemp(path.join(tmpdir(), 'rres-canary3-'));
+                          const fsPort = {
+                                  readFileUtf8: async () => undefined,
+                                  writeFile: async () => undefined,
+                                  appendFile: async () => undefined,
+                                  rename: async () => undefined,
+                                  mkdir: async () => undefined,
+                          };
+                          const graph = new ResourceGraph({ root, fs: fsPort, clock: () => 1 });
+                          await graph.bootstrap();
+                          await graph.addRef({ kind: 'file', id: 'flauz:file:4d5e6f708192a3b4', provenance: { actor: 'agent' } });
+                          let rejected = false;
+                          try {
+                                  await graph.addSurface('flauz:file:4d5e6f708192a3b4', { kind: 'file-system', root: '/w', path: secret }, { actor: 'agent' });
+                          } catch {
+                                  rejected = true;
+                          }
+                          if (!rejected) {
+                                  fail('A7 secret rejection', 'secret-shaped literal was not rejected');
+                          } else {
+                                  ok('A7 vault-only policy: runtime-assembled secret-shaped literal rejected at the schema level');
+                          }
+                          await rm(root, { recursive: true, force: true });
+                  }
+          }
+
+          if (failures > 0) {
+                  console.error(`R-RES canary: ${failures} FAILURE(S)`);
+                  process.exit(1);
+          }
+          console.log('R-RES canary: GREEN (A1-A7)');
+          RRES_CANARY
+          sed -i "s|\$REPO|$PWD|g" "$RUNNER_TEMP/rres-canary.mjs"
+          node "$RUNNER_TEMP/rres-canary.mjs"
+
+      - name: Activation lint (flauz manifests; flauz-resources must be command-only)
+        run: node build/flauz/scripts/activation-lint.mjs --root .
+
+      - name: Probe-only notice
+        if: steps.lanes.outputs.present != 'true'
+        run: echo 'flauz-resources lane absent — R-RES unit suite + fixture canary skipped (documented; activation lint still covers the merged manifests).'
