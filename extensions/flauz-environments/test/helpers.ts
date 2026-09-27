@@ -75,6 +75,11 @@ export function fixturePath(...segments: readonly string[]): string {
 	return path.join(path.resolve(import.meta.dirname, '..', '..', '..'), 'test', 'fixtures', 'environments', ...segments);
 }
 
+/** Repo-root fixture path for the environments-lifecycle (PIN-2) fixture set. */
+export function lifecycleFixturePath(...segments: readonly string[]): string {
+	return path.join(path.resolve(import.meta.dirname, '..', '..', '..'), 'test', 'fixtures', 'environments-lifecycle', ...segments);
+}
+
 export async function readFixture(...segments: readonly string[]): Promise<string> {
 	return await fs.readFile(fixturePath(...segments), { encoding: 'utf-8' });
 }
@@ -88,6 +93,34 @@ export async function listFixtureFiles(...segments: readonly string[]): Promise<
 	return entries.filter(entry => entry.isFile() && entry.name.endsWith('.json')).map(entry => entry.name).sort();
 }
 
+export async function readLifecycleFixture(...segments: readonly string[]): Promise<string> {
+	return await fs.readFile(lifecycleFixturePath(...segments), { encoding: 'utf-8' });
+}
+
+/**
+ * In-memory FileSystemPort (the lifecycle core is tested against this — no
+ * temp dirs, fully deterministic). Paths are opaque keys; `rename` moves
+ * bytes; `mkdir` is a no-op.
+ */
+export function memFsPort(seed: Record<string, string> = {}): FileSystemPort & { files(): Map<string, string> } {
+	const files = new Map<string, string>(Object.entries(seed));
+	return {
+		files: () => files,
+		readFileUtf8: async target => files.get(target),
+		writeFile: async (target, contents) => {
+			files.set(target, contents);
+		},
+		rename: async (from, to) => {
+			if (!files.has(from)) {
+				throw (Object.assign(new Error(`ENOENT: ${from}`), { code: 'ENOENT' }) as Error);
+			}
+			files.set(to, files.get(from)!);
+			files.delete(from);
+		},
+		mkdir: async () => undefined,
+	};
+}
+
 /** A valid ssh registration input (timing minted by the registry clock). */
 export function sshRegistrationInput(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 	return {
@@ -97,6 +130,45 @@ export function sshRegistrationInput(overrides: Record<string, unknown> = {}): R
 		connection: { host: 'test.example.internal', authMethod: 'key' },
 		trust: { posture: 'unknown', inheritsWorkspaceTrust: false },
 		capabilities: { agentHost: true, browser: false, exec: true, terminal: true },
+		...overrides,
+	};
+}
+
+/** A valid workspace-remote registration input (the local-real kind binding). */
+export function workspaceRemoteRegistrationInput(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id: 'env-test-remote',
+		kind: 'workspace-remote',
+		label: 'Test Remote',
+		connection: { authorityPrefix: 'flauz-local' },
+		trust: { posture: 'unknown', inheritsWorkspaceTrust: false },
+		capabilities: { agentHost: true, browser: true, exec: true, terminal: true },
+		...overrides,
+	};
+}
+
+/** A valid container registration input. */
+export function containerRegistrationInput(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id: 'env-test-container',
+		kind: 'container',
+		label: 'Test Container',
+		connection: { workspaceFolder: '/workspace', name: 'test-container' },
+		trust: { posture: 'trusted', inheritsWorkspaceTrust: true },
+		capabilities: { agentHost: true, browser: false, exec: true, terminal: true },
+		...overrides,
+	};
+}
+
+/** A valid cloud-sandbox registration input (DL-30 default posture: untrusted). */
+export function cloudSandboxRegistrationInput(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+	return {
+		id: 'env-test-cloud',
+		kind: 'cloud-sandbox',
+		label: 'Test Cloud',
+		connection: { provider: 'e2b', apiKeyRef: 'vault:cloud-e2b-key', sandboxTemplate: 'base' },
+		trust: { posture: 'untrusted', inheritsWorkspaceTrust: false },
+		capabilities: { agentHost: true, browser: false, exec: true, terminal: false },
 		...overrides,
 	};
 }

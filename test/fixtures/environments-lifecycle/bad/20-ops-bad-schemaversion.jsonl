@@ -1,0 +1,1 @@
+{"actor":"agent","environmentId":"env-fixture-bad","fromState":"created","op":"start","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":2,"toState":"running","ts":1730000000000}

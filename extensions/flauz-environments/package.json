@@ -22,6 +22,14 @@
 		"onCommand:flauz.env.deactivate",
 		"onCommand:flauz.env.showPlan",
 		"onCommand:flauz.env.switch",
+		"onCommand:flauz.env.create",
+		"onCommand:flauz.env.start",
+		"onCommand:flauz.env.stop",
+		"onCommand:flauz.env.attach",
+		"onCommand:flauz.env.detach",
+		"onCommand:flauz.env.snapshot",
+		"onCommand:flauz.env.destroy",
+		"onCommand:flauz.env.status",
 		"onCommand:flauz.focusView.environments",
 		"onCommand:flauz.env.refreshView"
 	],
@@ -79,6 +87,54 @@
 				"category": "Flauz"
 			},
 			{
+				"command": "flauz.env.create",
+				"title": "Create Environment",
+				"category": "Flauz",
+				"description": "Provision the lifecycle of a registered environment (creates its backing state; the registry descriptor must exist first)."
+			},
+			{
+				"command": "flauz.env.start",
+				"title": "Start Environment",
+				"category": "Flauz",
+				"description": "Start a created environment (real local harness for workspace-remote; simulated for remote kinds only with the simulated opt-in)."
+			},
+			{
+				"command": "flauz.env.stop",
+				"title": "Stop Environment",
+				"category": "Flauz",
+				"description": "Stop a running environment (graceful terminate, then force after a timeout)."
+			},
+			{
+				"command": "flauz.env.attach",
+				"title": "Attach to Environment",
+				"category": "Flauz",
+				"description": "Attach to an environment (logical connection lease with provenance; rejected fail-closed for untrusted environments)."
+			},
+			{
+				"command": "flauz.env.detach",
+				"title": "Detach from Environment",
+				"category": "Flauz",
+				"description": "Detach from an environment (releases the connection lease)."
+			},
+			{
+				"command": "flauz.env.snapshot",
+				"title": "Snapshot Environment",
+				"description": "Take a real filesystem snapshot of an environment's state (sha256 manifest under .flauz/env-snapshots).",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.destroy",
+				"title": "Destroy Environment",
+				"category": "Flauz",
+				"description": "Destroy a stopped environment (terminal; removes its backing state and reaps defensively)."
+			},
+			{
+				"command": "flauz.env.status",
+				"title": "Show Environment Status",
+				"category": "Flauz",
+				"description": "Describe an environment (lifecycle state, health verdict, last operation)."
+			},
+			{
 				"command": "flauz.focusView.environments",
 				"title": "Focus Flauz Environments",
 				"category": "Flauz"
@@ -98,6 +154,16 @@
 					"group": "navigation"
 				}
 			]
+		},
+		"configuration": {
+			"title": "Flauz Environments",
+			"properties": {
+				"flauz.environments.simulated": {
+					"type": "boolean",
+					"default": false,
+					"description": "Drive the simulated (TEST INFRASTRUCTURE) executors for the remote kinds by default. Real remote providers land in TL3-004; this lane makes no real remote connections. Per-command { simulated: true } arguments override this setting."
+				}
+			}
 		}
 	},
 	"scripts": {

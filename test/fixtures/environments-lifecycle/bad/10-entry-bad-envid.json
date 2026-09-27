@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 0,
+	"schema": "flauz.environments-lifecycle/v0",
+	"updatedAt": 1730000000000,
+	"entries": {
+		"not-an-env-id": {
+			"state": "running",
+			"updatedAt": 1730000000000,
+			"executorKind": "local-process",
+			"lastOpRef": 1
+		}
+	}
+}

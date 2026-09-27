@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 0,
+	"schema": "flauz.environments-lifecycle/v0",
+	"updatedAt": 1730000000000,
+	"entries": {
+		"env-fixture-bad": {
+			"state": "running-fast",
+			"updatedAt": 1730000000000,
+			"executorKind": "local-process",
+			"lastOpRef": 1
+		}
+	}
+}

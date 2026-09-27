@@ -19,6 +19,8 @@
 import type * as vscode from 'vscode';
 import type { EnvironmentRegistry } from './registry.ts';
 import type { EnvironmentDescriptor } from './api.ts';
+import type { EnvironmentOpRecord } from './lifecycle/types.ts';
+import type { EnvironmentLifecycleManager } from './lifecycle/manager.ts';
 import { formatAge, formatTimestamp } from './format.ts';
 
 /** View id this module serves (contributed in package.json, container `flauz`). */
@@ -32,8 +34,16 @@ export const VIEW_COMMAND_IDS = [
 
 /** Tree element union: one environment row, or an error row. */
 export type EnvironmentsTreeElement =
-	| { readonly kind: 'environment'; readonly descriptor: EnvironmentDescriptor; readonly active: boolean }
+	| { readonly kind: 'environment'; readonly descriptor: EnvironmentDescriptor; readonly active: boolean; readonly lifecycle?: RowLifecycle }
 	| { readonly kind: 'error'; readonly message: string; readonly retryCommand: string; readonly stale: boolean };
+
+/** The lifecycle slice a row renders (present when the lifecycle manager is active). */
+export interface RowLifecycle {
+	readonly state: string;
+	readonly updatedAt: number;
+	readonly executorKind: string;
+	readonly lastOp?: EnvironmentOpRecord;
+}
 
 /** Live registry context the provider reads. */
 export interface EnvironmentsViewContext {
@@ -41,6 +51,8 @@ export interface EnvironmentsViewContext {
 	readonly getRegistry: () => EnvironmentRegistry | undefined;
 	/** Set when the last bootstrap attempt failed (rendered as an error row). */
 	readonly getError: () => string | undefined;
+	/** The lifecycle manager (TL3-003); rows gain lifecycle state + last-op when present. */
+	readonly getLifecycle?: () => EnvironmentLifecycleManager | undefined;
 	/** Optional clock for the relative-age descriptions (tests pass a fixed one). */
 	readonly clock?: () => number;
 }
@@ -94,8 +106,19 @@ export class EnvironmentsTreeProvider implements vscode.TreeDataProvider<Environ
 		}
 		try {
 			await registry.bootstrap();
+			const lifecycle = this.context.getLifecycle?.();
+			if (lifecycle !== undefined) {
+				await lifecycle.bootstrap();
+			}
 			const activeId = registry.activeId();
-			const rows = registry.list().map(descriptor => ({ kind: 'environment', descriptor, active: descriptor.id === activeId }) as const);
+			const rows = registry.list().map(descriptor => {
+				const entry = lifecycle?.entryOf(descriptor.id);
+				const lastOp = entry === undefined ? undefined : lifecycle?.opAt(entry.lastOpRef);
+				const lifecycleSlice = entry === undefined
+					? (lifecycle === undefined ? undefined : { state: 'registered', updatedAt: descriptor.timing.updatedAt, executorKind: 'none' })
+					: { state: entry.state, updatedAt: entry.updatedAt, executorKind: entry.executorKind, ...(lastOp === undefined ? {} : { lastOp }) };
+				return { kind: 'environment', descriptor, active: descriptor.id === activeId, ...(lifecycleSlice === undefined ? {} : { lifecycle: lifecycleSlice }) } as const;
+			});
 			this.lastKnownGood = rows;
 			return rows;
 		} catch (err) {
@@ -116,7 +139,7 @@ export class EnvironmentsTreeProvider implements vscode.TreeDataProvider<Environ
 		const api = this.api;
 		switch (element.kind) {
 			case 'environment':
-				return this.environmentItem(element.descriptor, element.active);
+				return this.environmentItem(element.descriptor, element.active, element.lifecycle);
 			case 'error': {
 				const item = new api.TreeItem('Unable to Load Environments', api.TreeItemCollapsibleState.None);
 				item.id = 'flauz.environments/error';
@@ -133,25 +156,69 @@ export class EnvironmentsTreeProvider implements vscode.TreeDataProvider<Environ
 		}
 	}
 
-	private environmentItem(descriptor: EnvironmentDescriptor, active: boolean): vscode.TreeItem {
+	private environmentItem(descriptor: EnvironmentDescriptor, active: boolean, lifecycle: RowLifecycle | undefined): vscode.TreeItem {
 		const api = this.api;
 		const now = this.context.clock?.() ?? Date.now();
 		const item = new api.TreeItem(descriptor.label, api.TreeItemCollapsibleState.None);
 		item.id = `flauz.environments/${descriptor.id}`;
-		item.description = `${descriptor.id} · ${descriptor.kind}${active ? ' · active' : descriptor.enabled ? '' : ' · disabled'} · updated ${formatAge(descriptor.timing.updatedAt, now)}`;
-		item.tooltip = [
+		// row grammar: id · kind · lifecycle state · active/disabled · last op age · updated age
+		const descriptionParts = [descriptor.id, descriptor.kind];
+		if (lifecycle !== undefined) {
+			descriptionParts.push(lifecycle.state);
+		}
+		if (active) {
+			descriptionParts.push('active');
+		} else if (!descriptor.enabled) {
+			descriptionParts.push('disabled');
+		}
+		if (lifecycle?.lastOp !== undefined) {
+			descriptionParts.push(`${lifecycle.lastOp.op} ${formatAge(lifecycle.lastOp.ts, now)}`);
+		}
+		descriptionParts.push(`updated ${formatAge(lifecycle?.updatedAt ?? descriptor.timing.updatedAt, now)}`);
+		item.description = descriptionParts.join(' · ');
+		const tooltipLines = [
 			`Environment ${descriptor.id} — ${descriptor.label}`,
 			`Kind: ${descriptor.kind}`,
 			`Trust: ${descriptor.trust.posture}`,
 			`Status: ${active ? 'active' : descriptor.enabled ? 'enabled (not active)' : 'disabled'}`,
-			`Created: ${formatTimestamp(descriptor.timing.created)} UTC (${descriptor.timing.created})`,
-			`Updated: ${formatTimestamp(descriptor.timing.updatedAt)} UTC (${descriptor.timing.updatedAt})`,
-			'Connection plans are generated by the Flauz environment commands (flauz.env.showPlan).',
-		].join('\n');
-		item.iconPath = new api.ThemeIcon(active ? 'circle-filled' : descriptor.enabled ? 'server' : 'circle');
+		];
+		if (lifecycle !== undefined) {
+			tooltipLines.push(`Lifecycle: ${lifecycle.state} (${lifecycle.executorKind})`);
+			if (lifecycle.lastOp !== undefined) {
+				const op = lifecycle.lastOp;
+				tooltipLines.push(`Last op: ${op.op} by ${op.actor} — ${op.result}${op.error === undefined ? '' : ` (${op.error.code})`} (${formatTimestamp(op.ts)} UTC (${op.ts}))`);
+			}
+			tooltipLines.push(`Lifecycle updated: ${formatTimestamp(lifecycle.updatedAt)} UTC (${lifecycle.updatedAt})`);
+		}
+		tooltipLines.push(`Created: ${formatTimestamp(descriptor.timing.created)} UTC (${descriptor.timing.created})`, `Updated: ${formatTimestamp(descriptor.timing.updatedAt)} UTC (${descriptor.timing.updatedAt})`, 'Connection plans are generated by the Flauz environment commands (flauz.env.showPlan).');
+		item.tooltip = tooltipLines.join('\n');
+		item.iconPath = new api.ThemeIcon(this.iconFor(descriptor, active, lifecycle));
 		item.contextValue = active ? 'flauzEnvironmentActive' : 'flauzEnvironment';
-		item.accessibilityInformation = { label: `Environment ${descriptor.id}, ${descriptor.label}, kind ${descriptor.kind}${active ? ', active' : ''}` };
+		const a11yParts = [
+			`Environment ${descriptor.id}, ${descriptor.label}, kind ${descriptor.kind}`,
+			lifecycle === undefined ? undefined : `lifecycle ${lifecycle.state}`,
+			active ? 'active' : undefined,
+		].filter(part => part !== undefined);
+		item.accessibilityInformation = { label: a11yParts.join(', ') };
 		return item;
+	}
+
+	/** Codicon discipline: lifecycle phase drives the glyph; registry selection (active) only pre-lifecycle. */
+	private iconFor(descriptor: EnvironmentDescriptor, active: boolean, lifecycle: RowLifecycle | undefined): string {
+		if (lifecycle === undefined) {
+			return active ? 'circle-filled' : descriptor.enabled ? 'server' : 'circle';
+		}
+		switch (lifecycle.state) {
+			case 'running':
+			case 'running/attached':
+			case 'starting': return 'play';
+			case 'stopping': return 'sync';
+			case 'failed': return 'error';
+			case 'destroyed': return 'circle-slash';
+			case 'stopped':
+			case 'stopped/attached': return active ? 'circle-filled' : 'circle';
+			default: return active ? 'circle-filled' : descriptor.enabled ? 'server' : 'circle';
+		}
 	}
 }
 
