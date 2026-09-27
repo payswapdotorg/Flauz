@@ -105,6 +105,14 @@ Progress (2026-09-27, Worker B, branch `tl4/b-compat-battery`):
 
 Acceptance remains open until merged to main and the L3 ladder rung is promoted.
 
+Merge record (2026-09-27, TL4 lead): PR #4 squash-merged to main at
+`2ed7dc3c337` (branch `tl4/b-compat-battery`, 213 files). Station-verified
+independently post-merge at `0d663e600c3`: compat-battery `--require`
+1887/1887 PASS; verify-fixtures ALL 64 CASES (0 deviations, both waves'
+fixtures coexist); activation-lint GREEN; secret sweep of the diff 0.
+Status stays ACTIVE until CI (flauz-compat.yml) reports green on main;
+then DONE for the L1+L2 rung (L3 runtime promotion remains follow-up).
+
 ### TL4-004 — Whole-session acceptance battery
 Status: TODO
 Run real user-session simulations spanning task creation, agent execution, browser, environment, verification, artifact and recovery.
@@ -127,6 +135,14 @@ matrix). Honest baseline: build/flauz/budgets/BASELINE.md — fixture-backed tod
 real measured numbers are CI's job once flauz-perf artifacts feed the gate;
 browser-launch/model-switch/multi-agent rows are defined, not measured (runtime
 pending TL3/TL2). Merge is the TL4 lead's job.
+
+Merge record (2026-09-27, TL4 lead): PR #5 squash-merged to main at
+`0d663e600c3` (branch `tl4/c-perf-budgets`, 19 files). Station-verified
+independently post-merge: budget-gate fixtures green (pass/over/skip/--require
+behaviors all proven); verify-fixtures ALL 64 CASES (0 deviations);
+activation-lint GREEN; secret sweep 0. Status stays ACTIVE until CI
+(flauz-budgets.yml) reports green on main; then DONE for the fixture rung
+(runtime promotion for the 9 pending-runtime rows remains follow-up).
 
 ### TL4-006 — Security and release gates
 Status: TODO
