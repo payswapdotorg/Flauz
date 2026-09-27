@@ -1,0 +1,24 @@
+{
+	"id": "MEM-S-000001",
+	"tier": "session",
+	"taskId": "T-001",
+	"agentId": "flauz.agent",
+	"kind": "observation",
+	"content": "",
+	"tags": [
+		"build",
+		"ci"
+	],
+	"pinned": false,
+	"timing": {
+		"created": 1740000000000,
+		"updatedAt": 1740000000000
+	},
+	"provenance": {
+		"actor": "agent",
+		"origin": "task-event",
+		"contentHash": "1111111111111111111111111111111111111111111111111111111111111111",
+		"ts": 1740000000000,
+		"evidenceId": null
+	}
+}
