@@ -2,11 +2,11 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 4a9358e4338 (2026-09-27, wave-3 verification: TL4-008 compat L3 runtime boot smoke landed via PR #14, station-green squash-merge c1d9414ec13b; TL3-004 rung 1 + TL3-006 continuity landed; TL4-007/009 runtime rungs in flight; preceding TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates with same-head 6-workflow CI green — session, compat, budgets, workflow, security, hygiene; TL3 chronic hygiene debt cleared by the TL4 lane)
+Integrated head at verification: 72e0f66c289 (2026-09-27, wave-3 close-out: TL4-008 compat L3 runtime boot smoke landed via PR #14 (station-green squash-merge c1d9414ec13b) with the CI hygiene allowlist hotfix 23c3a568b2b; TL4-009 security runtime rung landed via PR #15 (337aac0df5d8) with station-completion bundle-manifest pins 46e36ba71e4 and the TL4-station fixture-coverage restore (144/144, 0 deviations); architect control-plane reconciliation merged (PR #13, 76cc28e2a3cf); TL4-007 session-battery runtime rung re-dispatched and in flight; preceding TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates with same-head 6-workflow CI green)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 4a9358e4338 (TL4: 001-006 done, 008 done, 007/009 active; TL3-001/002/003/005 + TL3-004 rung 1 + TL3-006 done; TL1-001 active). Existing TL1-TL4 ownership remains unchanged.
+- main is the canonical Flauz product line at 72e0f66c289 (TL4: 001-006 + 008 + 009 done, 007 active (re-dispatched); TL3-001/002/003/005 + TL3-004 rung 1 + TL3-006 done; TL1-001 active). Existing TL1-TL4 ownership remains unchanged.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
@@ -112,8 +112,8 @@ Later workflow capabilities must be re-established from current code and tests b
 6. Real environment providers beyond the fixed local harness and explicitly simulated remote executors.
 7. Cross-surface continuity/restoration across agent task, browser, environment and resource state.
 8. Browser runtime promotion from fixture/driver coverage to real-workbench E2E and remaining partition/default-policy work.
-9. Whole-session acceptance promotion from fixture-backed simulation to real product/runtime coverage.
-10. Runtime performance/security/release promotion for currently fixture-backed or pending-runtime gates.
+9. Whole-session acceptance promotion from fixture-backed simulation to real product/runtime coverage (TL4-007 runtime rung in flight on branch tl4/a3-session-runtime).
+10. Runtime performance/security/release promotion for currently fixture-backed or pending-runtime gates (advanced by TL4-009: audit delta + SBOM + pinned bundle manifest landed; runtime CI confirmation in flight).
 11. TL1-003's versioned native Flauz service protocol and packaging/release parity.
 12. Upstream synchronization as an ongoing maintenance lane plus web/desktop verification.
 
