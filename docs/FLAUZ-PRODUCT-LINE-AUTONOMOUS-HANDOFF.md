@@ -14,10 +14,10 @@ Read:
 - docs/FLAUZ-PROGRAM/TL3-HANDOFF.md
 - docs/FLAUZ-PROGRAM/TL4-HANDOFF.md
 
-Active implementation branch: flauz/main
+Active implementation branch: main
 Repository: payswapdotorg/Flauz
 
-The product branch contains the integrated Flauz extension line. The upstream main branch is reference-only.
+The repository default main contains the integrated Flauz extension line. The upstream/main branch is the reference-only Code OSS mirror.
 
 The four TL lanes are intentionally parallel:
 - TL1: Code OSS substrate, upstream sync, product build and client/service integration.
