@@ -2,7 +2,7 @@
 
 Repository: payswapdotorg/Flauz
 Product branch: main
-Current product head at program reset: 76b7e1a789a0dfa7b900be1fa801016deca7bd99
+Current product head at program reset: f03dba95ecbe6dc43ad9395ffa3d1360ee8de75f
 
 This repository and the product branch are sufficient to operate the Flauz engineering program without prior chat history.
 
@@ -13,7 +13,7 @@ This repository and the product branch are sufficient to operate the Flauz engin
 - Product work starts from main.
 - Every product PR targets main.
 - Upstream synchronization is owned by TL1 and must be recorded in the work registry.
-- Never infer product state from upstream main.
+- Never infer product state from upstream/main.
 - Never create another Code OSS fork for Flauz.
 
 ## Authority order
