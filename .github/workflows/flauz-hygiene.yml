@@ -81,6 +81,9 @@ jobs:
       - name: Premium UX gate (TL4-002 — state/a11y/typography discipline)
         run: node build/flauz/scripts/premium-ux-gate.mjs --root . --require
 
+      - name: Verify product shell (TL1-002 — merged product posture)
+        run: node build/flauz/scripts/verify-product.mjs --root . --require
+
       # ---- upstream hygiene pipeline (shaped on .github/workflows/pr.yml) ----
 
       - name: Setup Node.js

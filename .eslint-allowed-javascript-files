@@ -197,3 +197,7 @@ build/flauz/sync-upstream.test.mjs
 build/flauz/scripts/premium-ux-gate.mjs
 build/flauz/scripts/session-battery.mjs
 build/flauz/scripts/security-gate.mjs
+
+# Flauz TL1-002 product build/release shell (zero-dep .mjs gate + node:test suite)
+build/flauz/scripts/verify-product.mjs
+build/flauz/verify-product.test.mjs

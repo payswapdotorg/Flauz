@@ -287,6 +287,38 @@ expect "security-gate allowlist suppression PASS"      0 node "$S/security-gate.
 expect "security-gate repo mode PASS"                 0 node "$S/security-gate.mjs" --root "$ROOT"
 expect "security-gate --list exit 0"                   0 node "$S/security-gate.mjs" --list
 
+# ---- verify-product (TL1-002): merged product posture gate ----
+# Every rule family has a fixture that makes it FAIL (a gate that cannot fail
+# is not a gate); fixtures under test/fixtures/product-shell/. Content-level
+# assertions live in node --test build/flauz/verify-product.test.mjs.
+VP="$S/verify-product.mjs"
+VPF="$F/product-shell"
+expect "verify-product clean fixture PASS"            0 node "$VP" --root "$VPF/clean" --require
+expect "verify-product real tree PASS"                0 node "$VP" --root "$ROOT" --require
+expect "verify-product branding FAIL (VS Code name)"  1 node "$VP" --root "$VPF/fail-branding" --require
+expect "verify-product branding FAIL (msft url)"      1 node "$VP" --root "$VPF/fail-branding-url" --require
+expect "verify-product copilot agent FAIL"            1 node "$VP" --root "$VPF/fail-copilot-agent" --require
+expect "verify-product copilot residue FAIL"          1 node "$VP" --root "$VPF/fail-copilot-residue" --require
+expect "verify-product proposal missing FAIL"         1 node "$VP" --root "$VPF/fail-proposal-missing" --require
+expect "verify-product proposal drift FAIL"           1 node "$VP" --root "$VPF/fail-proposal-drift" --require
+expect "verify-product unknown proposal FAIL"         1 node "$VP" --root "$VPF/fail-unknown-proposal" --require
+expect "verify-product invented grant FAIL"           1 node "$VP" --root "$VPF/fail-invented-grant" --require
+expect "verify-product stale grant FAIL"              1 node "$VP" --root "$VPF/fail-stale-grant" --require
+expect "verify-product inclusion builtin FAIL"        1 node "$VP" --root "$VPF/fail-inclusion-builtin" --require
+expect "verify-product excluded-list FAIL"            1 node "$VP" --root "$VPF/fail-excluded-list" --require
+expect "verify-product missing src FAIL"              1 node "$VP" --root "$VPF/fail-missing-src" --require
+expect "verify-product missing manifest FAIL"         1 node "$VP" --root "$VPF/fail-missing-manifest" --require
+expect "verify-product main convention FAIL"          1 node "$VP" --root "$VPF/fail-main-convention" --require
+expect "verify-product invalid overlay FAIL"          1 node "$VP" --root "$VPF/fail-invalid-overlay" --require
+expect "verify-product unknown key WARN (exit 0)"     0 node "$VP" --root "$VPF/warn-unknown-key" --require
+expect "verify-product no-overlay SKIP"               0 node "$VP" --root "$VPF/fail-no-overlay"
+expect "verify-product no-overlay --require FAIL"     1 node "$VP" --root "$VPF/fail-no-overlay" --require
+expect "verify-product empty dir SKIP"                0 node "$VP" --root "$F/perf-timers"
+expect "verify-product empty dir --require FAIL"      1 node "$VP" --root "$F/perf-timers" --require
+expect "verify-product usage error (bad flag)"        2 node "$VP" --bogus
+expect "verify-product --help"                        0 node "$VP" --help
+expect "node --test verify-product.test.mjs"          0 node --test "$ROOT/build/flauz/verify-product.test.mjs"
+
 # ---- verdict ----
 echo "----------------------------------------------------------------"
 if [ "$FAIL" -eq 0 ]; then

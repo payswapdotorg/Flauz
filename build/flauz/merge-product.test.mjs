@@ -95,3 +95,65 @@ test('validation-and-format: invalid extensionEnabledApiProposals throws; valid 
 	assert.ok(serialized.includes('\n\t"nameShort"'), 'output must use TAB indentation');
 	assert.deepEqual(JSON.parse(serialized), merged, 'round-trip must be lossless');
 });
+
+// ---------------------------------------------------------------------------
+// TL1-002 additions (overlay surface grew: rebrand set + Copilot-residue cleanup).
+// The five tests above are untouched; these extend the suite additively.
+// ---------------------------------------------------------------------------
+
+test('tl1-002 real overlay: validates and lands the full rebrand + Copilot cleanup on the real base', () => {
+	const base = JSON.parse(readFileSync(realProductPath, 'utf8'));
+	const overlayPath = join(repoRoot, 'product.flauz.json');
+	const overlay = JSON.parse(readFileSync(overlayPath, 'utf8'));
+	const merged = mergeProduct(base, overlay, { overlayName: 'product.flauz.json' });
+
+	// identity rebrand landed
+	assert.equal(merged.nameShort, 'Flauz');
+	assert.equal(merged.nameLong, 'Flauz');
+	assert.equal(merged.applicationName, 'flauz');
+	assert.equal(merged.dataFolderName, '.flauz');
+	assert.equal(merged.win32DirName, 'Flauz');
+	assert.equal(merged.darwinBundleIdentifier, 'flauz.flauz');
+	assert.equal(merged.urlProtocol, 'flauz');
+	assert.equal(merged.reportIssueUrl, 'https://github.com/payswapdotorg/Flauz/issues/new');
+
+	// Copilot removal: null-delete + residue cleanup
+	assert.equal('defaultChatAgent' in merged, false, 'defaultChatAgent must be null-deleted');
+	assert.deepEqual(merged.builtInExtensionsEnabledWithAutoUpdates, [], 'copilot-chat auto-update residue must clear to [] (never null — scanner crash)');
+	assert.deepEqual(merged.trustedExtensionAuthAccess, { microsoft: ['vscode.github-authentication'] }, 'github/github-enterprise copilot grants null-deleted; functional microsoft grant kept');
+
+	// audited proposal posture (manifests: browser [browser], workspace [scmArtifactProvider], agent [] + documented DL-4 grant)
+	assert.deepEqual(
+		merged.extensionEnabledApiProposals,
+		{
+			'flauz.flauz-agent': ['defaultChatParticipant', 'chatParticipantAdditions'],
+			'flauz.flauz-workspace': ['scmArtifactProvider'],
+			'flauz.flauz-browser': ['browser'],
+		}
+	);
+});
+
+test('tl1-002 null-delete trap: builtInExtensionsEnabledWithAutoUpdates null THROWS (scanner crash), [] passes', () => {
+	// null would delete the key -> extensionsScannerService.ts:113 iterates undefined -> crash.
+	assert.throws(
+		() => mergeProduct({ builtInExtensionsEnabledWithAutoUpdates: ['GitHub.copilot-chat'] }, { builtInExtensionsEnabledWithAutoUpdates: null }),
+		/builtInExtensionsEnabledWithAutoUpdates.*must NOT be null.*CRASH the scanner/
+	);
+	// [] is the safe residue cleanup and replaces the base value wholesale.
+	const merged = mergeProduct({ builtInExtensionsEnabledWithAutoUpdates: ['GitHub.copilot-chat'] }, { builtInExtensionsEnabledWithAutoUpdates: [] });
+	assert.deepEqual(merged.builtInExtensionsEnabledWithAutoUpdates, []);
+});
+
+test('tl1-002 trustedExtensionAuthAccess: nested null-deletes per provider; malformed grants throw', () => {
+	const base = { trustedExtensionAuthAccess: { github: ['GitHub.copilot-chat'], 'github-enterprise': ['GitHub.copilot-chat'], microsoft: ['vscode.github-authentication'] } };
+
+	// surgical nested null-delete removes only the copilot grants
+	const merged = mergeProduct(base, { trustedExtensionAuthAccess: { github: null, 'github-enterprise': null } });
+	assert.deepEqual(merged.trustedExtensionAuthAccess, { microsoft: ['vscode.github-authentication'] });
+
+	// malformed: grant list must be null or an array of strings
+	assert.throws(
+		() => mergeProduct({}, { trustedExtensionAuthAccess: { github: 'not-a-list' } }),
+		/trustedExtensionAuthAccess.*github.*must be null.*or an array of extension-id strings/
+	);
+});

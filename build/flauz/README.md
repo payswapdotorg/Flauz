@@ -54,6 +54,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
 | `budget-gate.mjs` | TL4-005 unified budget gate (registry `budgets/flauz-budgets.json` vs measurements) | `--budgets`, `--measurements <file-or-dir>` (records + perf-log-parse emit shapes + raw TSVs), `--require [all\|enforced\|enforced-ci\|enforced-in-repo]`, `--json`, `--root` | 0 pass/SKIP · 1 violation · 2 usage/malformed registry |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
+| `verify-product.mjs` | TL1-002 merged product posture gate (merges product.json + product.flauz.json via the mergeProduct API, then asserts identity/branding sweep, Copilot wiring, exact proposal grants + registry existence, and the REAL extension-inclusion mechanisms; runbook `build/flauz/RELEASE-SHELL.md`) | `--root`, `--require`, `--no-fail`, `--json` | 0 clean/SKIP · 1 violation · 2 usage |
 
 **Skip-vs-fail policy** (important): while lanes F/G are in flight, the
 zero-dep gates SKIP with a recorded reason instead of failing (empty flauz
@@ -112,7 +113,7 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# → ALL 82 CASES AS EXPECTED (0 deviations)
+# → ALL 130 CASES AS EXPECTED (0 deviations)
 ```
 
 (TL4-005 addendum, 2026-09-27: the matrix grew 29 → 44 cases with the budget-gate
@@ -133,6 +134,18 @@ assertion fail, added-outside-namespace, empty-census SKIP, --out document).)
 (TL4-002 addendum, 2026-09-28: the premium-ux-gate section adds 11 cases —
 clean/real-tree/no-retry/no-welcome/webview/title-case/
 date-drift, empty-dir SKIP + `--require` flip, usage error, `--help`.)
+
+(TL1-002 addendum, 2026-09-27: the verify-product section adds 25 cases (105 → 130) —
+clean fixture + real tree under `--require`; one FAIL case per rule family
+(branding by name, branding by URL, copilot defaultChatAgent surviving, copilot
+auto-update residue, proposal missing, proposal drift, unknown proposal /
+registry drift, invented grant, stale grant, builtInExtensions listing a flauz
+name, excludedExtensions listing a flauz name, missing src/extension.ts,
+missing package.json, main-convention drift, invalid overlay); the DL-17
+unknown-key WARN posture (exit 0); no-overlay + empty-dir SKIP and their
+`--require` flips; usage error; `--help`; plus the `node --test
+build/flauz/verify-product.test.mjs` content-level suite [24 tests] driving the
+same committed fixtures.)
 
 Summary (command class → exit code):
 
@@ -155,6 +168,12 @@ Summary (command class → exit code):
 | sync-upstream --plan with constructed conflict | 0 (conflicts are data; shared.txt listed, both sides MODIFIED) |
 | sync-upstream usage errors (--bogus / no mode) | 2 / 2 |
 | `node --test build/flauz/sync-upstream.test.mjs` | 12 pass / 0 fail |
+| verify-product clean fixture / real tree (`--require`) | 0 / 0 (real tree: 27 PASS rows — PS1-PS5 all green, 0 skip) |
+| verify-product fail cases (15 fixtures: branding×2, copilot×2, proposals×5, inclusion×5, invalid overlay) | 1 each (the target rule fires with its citation) |
+| verify-product unknown-key WARN posture | 0 (WARN row on stdout, DL-17) |
+| verify-product no-overlay / empty-dir SKIP + `--require` flips | 0 / 1 |
+| verify-product usage error / `--help` | 2 / 0 |
+| `node --test build/flauz/verify-product.test.mjs` | 24 pass / 0 fail |
 | `git diff --name-only 9bf9ae764da..HEAD` | ONLY new paths under `build/flauz/`, `test/fixtures/`, `.github/workflows/flauz-*` |
 | Workflow YAML validation (python3 + pyyaml 6.0.3) | 4/4 OK + structural checks (triggers/paths/permissions/timeouts/steps, no secrets) |
 
@@ -254,16 +273,23 @@ validation.
 | `nameShort` / `nameLong` | `"Flauz"` | Real product keys: `product.json:2-3`; type decl `src/vs/base/common/product.ts:105-106` | Identity rebrand of the IDE (window title, about dialog, etc.). |
 | `version` | `"0.1.0"` | **NOT** a key of the shipped upstream `product.json` — version is stamped at build time from `package.json` by `build/gulpfile.vscode.ts:176-205` (runtime fallback `platform/product/common/product.ts:53-60`, W3-F-r1) | Included per the v0 work-order spec; **flagged as DL-18** (version stamping conflict): the gulp build overwrites `json.version` at `:205`, so CI must reconcile the overlay value with the build stamping or the overlay's version is silently replaced in packaged builds. |
 | `identifier` | *(omitted)* | No such field exists in `IProductConfiguration` (`src/vs/base/common/product.ts:99-306`) and no consumer (`grep product.identifier` → 0 hits, worklog W3-F-r1) | Deliberately **omitted** — documented as **DL-17**. The merger also warns on any such unknown key. |
-| `extensionEnabledApiProposals` | `{ "flauz.flauz-agent": ["defaultChatParticipant", "chatParticipantAdditions"] }` | `src/vs/workbench/services/extensions/common/extensionsProposedApi.ts:43-55` (product-key ingestion, keys are `"publisher.name"` case-insensitive), `:80-102` (the product list **REPLACES** the extension's own — empty — declaration; unknown proposal names are dropped with a warning at `:46-52`); participant parsing gates: `src/vs/workbench/contrib/chat/browser/chatParticipant.contribution.ts:268-274` (isDefault/modes require `defaultChatParticipant`; locations require `chatParticipantAdditions`) | Force-enables the two proposals for the `flauz.flauz-agent` built-in so its statically-contributed `isDefault` participant + `locations`/`modes` parse. This is the **DL-4** pattern: enable-for-built-ins via product overlay, zero promotion / zero fork. |
+| `extensionEnabledApiProposals` | `{ "flauz.flauz-agent": ["defaultChatParticipant", "chatParticipantAdditions"], "flauz.flauz-workspace": ["scmArtifactProvider"], "flauz.flauz-browser": ["browser"] }` | `src/vs/workbench/services/extensions/common/extensionsProposedApi.ts:43-55` (product-key ingestion, keys are `"publisher.name"` case-insensitive), `:80-102` (the product list **REPLACES** the extension's own — empty — declaration; unknown proposal names are dropped with a warning at `:46-52`); participant parsing gates: `src/vs/workbench/contrib/chat/browser/chatParticipant.contribution.ts:268-274` (isDefault/modes require `defaultChatParticipant`; locations require `chatParticipantAdditions`) | **TL1-002 audited exactly**: flauz-browser declares `[browser]` and flauz-workspace declares `[scmArtifactProvider]` in their manifests — the product entries mirror them EXACTLY (a declared-but-uncovered proposal is the runtime "WILL BE BROKEN" error at `extensionsProposedApi.ts:91-97`). flauz-agent's empty manifest + the two-proposal grant is the **DL-4** pattern: enable-for-built-ins via product overlay, zero promotion / zero fork. The other flauz extensions declare nothing and get NO entry (do not invent). verify-product PS4 machine-checks all of this, including proposal existence against the registry (`src/vs/platform/extensions/common/extensionsApiProposals.ts`). |
 | `defaultChatAgent` | `null` | Merger null-deletes the upstream key (`product.json:90-157`: `extensionId: "GitHub.copilot"`, `chatExtensionId: "GitHub.copilot-chat"`, entitlement URLs, provider map). With the key absent, `src/vs/workbench/services/chat/common/chatEntitlementService.ts:458-460` returns early and the whole Copilot setup/entitlement stack no-ops; `src/vs/workbench/contrib/chat/common/participants/chatAgents.ts:478-484` then resolves the (non-core) `flauz.agent` participant as the sole default agent | Removes the Copilot wiring so **flauz.agent becomes the sole default agent**. Every surface this touches is enumerated with citations in `canaries/default-agent-checklist.md` (D1–D11). |
 | `extensionsGallery` | *(not set)* | Upstream base ships **without** a gallery (see Deviations below); `src/vs/base/common/product.ts:147-155` (optional field) | v0 intentionally neither sets nor strips a gallery — the merged output keeps the base's (absent) posture. |
+| `applicationName` / `dataFolderName` / `sharedDataFolderName` / `win32MutexName` / `win32DirName` / `win32NameVersion` / `win32RegValueName` / `win32AppUserModelId` / `win32ShellNameShort` / `win32TunnelServiceMutex` / `win32TunnelMutex` / `serverApplicationName` / `serverDataFolderName` / `tunnelApplicationName` / `darwinBundleIdentifier` / `linuxDesktopName` / `linuxIconName` / `urlProtocol` | `flauz`-family values (full table in `RELEASE-SHELL.md`) | Real product keys, enumerated from the actual base `product.json` (46 top-level keys at 9bf9ae764da); consumers cited per key in `RELEASE-SHELL.md` (e.g. `build/gulpfile.vscode.ts:187` for applicationName) | **TL1-002 identity rebrand**: every identity-bearing scalar whose base value names a Microsoft/VS Code product (`code-oss`, `.vscode-oss`, `vscodeoss`, "Microsoft Code OSS", `Microsoft.CodeOSS`, `com.visualstudio.code.oss`, …) is rebranded; the verify-product PS2 sweep enumerates the keys at runtime so new upstream identity keys land in the sweep automatically. |
+| `reportIssueUrl` | `https://github.com/payswapdotorg/Flauz/issues/new` | User-visible Report-Issue target; the Flauz repository is `payswapdotorg/Flauz` (`docs/FLAUZ-PROGRAM/SOURCE-OF-TRUTH.md`) | The base points at `github.com/microsoft/vscode` — reporting Flauz issues to Microsoft's repo is the "accidental Microsoft product branding" class. |
+| `builtInExtensionsEnabledWithAutoUpdates` | `[]` | Typed **non-optional** (`src/vs/base/common/product.ts:258`) and iterated **unguarded** at `src/vs/platform/extensionManagement/common/extensionsScannerService.ts:113`; no defaults in the product-service hydration (`src/vs/platform/product/common/productService.ts`) | The base value `["GitHub.copilot-chat"]` is inert Copilot residue (no copilot-chat ships; auto-update is quality-gated to stable at `extensionsWorkbenchService.ts:343` + needs a gallery). **Value-replaced with `[]`, NEVER null-deleted** — null would remove the key and crash the scanner (the trap is encoded in `merge-product.mjs` validateOverlay). |
+| `trustedExtensionAuthAccess` | `{ "github": null, "github-enterprise": null }` | All consumers guarded: `src/vs/workbench/services/authentication/browser/authenticationAccessService.ts:51-59`, `src/vs/workbench/contrib/chat/browser/actions/chatLanguageModelActions.ts:78-79` | **Surgical nested null-deletes** of the two grants that trusted `GitHub.copilot-chat` (inert without a gallery or a shipped copilot-chat). The `microsoft -> vscode.github-authentication` grant is functional in-tree wiring and stays. |
 
 ## Schema
 
 `product.flauz.schema.json` (draft-07) describes the overlay: `nameShort`/`nameLong`/`version`
-strings, `extensionEnabledApiProposals` as object of string→array-of-string, `defaultChatAgent`
-as `["object", "null"]`, and `additionalProperties: true` (v0 permissive — the merger warns on
-unknown keys). The schema's `description` documents the null-deletes merge semantics.
+strings, the full TL1-002 rebrand family, `extensionEnabledApiProposals` as object of
+string→array-of-string, `defaultChatAgent` as `["object", "null"]`,
+`builtInExtensionsEnabledWithAutoUpdates` as array-of-string (never null — the scanner
+crash trap), `trustedExtensionAuthAccess` as object of providerId → null-or-array, and
+`additionalProperties: true` (v0 permissive — the merger warns on unknown keys). The
+schema's `description` documents the null-deletes merge semantics.
 
 ## Canary
 
@@ -286,6 +312,24 @@ scope, MIGRATION-PLAN §5), 2 N/A, 2 DOCUMENTED-DEBT.
   canary item D4. This also makes D4's documentation concretely relevant: any *future* overlay
   that re-adds `defaultChatAgent` without adding a gallery would hit the D4 setup-failure
   surfaces immediately.
+
+- **TL1-002 bundled-extension inclusion is NOT a product key (the DL-17 discipline applied):** the
+  work order asked whether packaging consumes a product key for flauz-extension inclusion (e.g. an
+  inclusion list). The verified in-tree evidence: it does not. Upstream packaging discovers local
+  built-ins by **directory glob** — `glob.sync('extensions/*/package.json')` in
+  `build/lib/extensions.ts:413-427`, minus the hardcoded `excludedExtensions` list (`:318-326`)
+  minus names listed in `product.json` `builtInExtensions` (`:425`) — and the Flauz bundling step
+  (`build/flauz/scripts/bundle-extensions.mjs`) discovers `extensions/flauz-*/src/extension.ts`
+  the same way (directory scan, `:76-84`). The overlay therefore sets **nothing** for inclusion;
+  `verify-product.mjs` PS5 asserts the REAL mechanisms instead (manifest + src/extension.ts
+  presence, the `./dist/extension.js` main convention, no flauz name in
+  `builtInExtensions`/`webBuiltInExtensions`, no flauz name in `excludedExtensions`).
+
+- **TL1-002 "six bundled Flauz extensions" is now seven:** the work order and the WORK-REGISTRY
+  TL1-002 acceptance speak of six flauz extensions; the tree at the pinned base carries **seven**
+  (`flauz-resources` landed with TL3-005, PR #8). The gate and its discovery are glob-driven
+  (`extensions/flauz-*`, never a hardcoded list), so the seventh is covered automatically — it
+  declares no proposals and gets no product entry, per the audit.
 
 ## Transit staging
 

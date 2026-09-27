@@ -1,37 +1,150 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"title": "Flauz product overlay (product.flauz.json)",
-	"description": "Schema for the Flauz product overlay consumed by build/flauz/merge-product.mjs. The overlay is merged onto the upstream Code OSS product.json with null-deletes semantics: an explicit JSON null DELETES the key from the merged product (e.g. \"defaultChatAgent\": null removes the Copilot setup/entitlement wiring), plain objects merge recursively, arrays and scalars replace wholesale. v0 is permissive (additionalProperties: true) — unknown keys pass through the merge but are warned about on stderr by the merger because the pinned upstream tree (9bf9ae764da) has no IProductConfiguration consumer for them. See build/flauz/README.md for the key-by-key rationale and canaries/default-agent-checklist.md for the runtime posture.",
+	"description": "Schema for the Flauz product overlay consumed by build/flauz/merge-product.mjs. The overlay is merged onto the upstream Code OSS product.json with null-deletes semantics: an explicit JSON null DELETES the key from the merged product (e.g. \"defaultChatAgent\": null removes the Copilot setup/entitlement wiring), plain objects merge recursively, arrays and scalars replace wholesale. v0 is permissive (additionalProperties: true) — unknown keys pass through the merge but are warned about on stderr by the merger because the pinned upstream tree (9bf9ae764da) has no IProductConfiguration consumer for them. TL1-002 grew the surface from the minimal identity set to the complete product shell: the rebrand family, the Copilot-residue cleanup, and the audited proposal grants. See build/flauz/README.md Appendix Lane F for the key-by-key rationale and build/flauz/RELEASE-SHELL.md for the release runbook.",
 	"type": "object",
 	"properties": {
 		"nameShort": {
 			"type": "string",
 			"minLength": 1,
-			"description": "Product short name (IProductConfiguration.nameShort, src/vs/base/common/product.ts:105). Rebrands the IDE identity (window titles, about dialog)."
+			"description": "Product short name (IProductConfiguration.nameShort, src/vs/base/common/product.ts:105). Rebrands the IDE identity (window titles, about dialog). Must be \"Flauz\" — enforced by verify-product.mjs PS2."
 		},
 		"nameLong": {
 			"type": "string",
 			"minLength": 1,
-			"description": "Product long name (IProductConfiguration.nameLong, src/vs/base/common/product.ts:106)."
+			"description": "Product long name (IProductConfiguration.nameLong, src/vs/base/common/product.ts:106). Must be \"Flauz\" — enforced by verify-product.mjs PS2."
 		},
 		"version": {
 			"type": "string",
-			"description": "NOT a key of the shipped upstream product.json — upstream stamps version at build time from package.json (build/gulpfile.vscode.ts:176-205). Included in the overlay per the v0 work-order spec; flagged as DL-18 (version stamping conflict) — CI must reconcile this value with the build stamping."
+			"description": "NOT a key of the shipped upstream product.json — upstream stamps version at build time from package.json (build/gulpfile.vscode.ts:176-205). Included in the overlay per the v0 work-order spec; flagged as DL-18 (version stamping conflict) — CI must reconcile this value with the build stamping (see RELEASE-SHELL.md §version stamping)."
+		},
+		"applicationName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Binary/executable name (product.ts; consumed by build/gulpfile.vscode.ts:187 for the linux desktopName and by the packaging pipelines). Rebrand: code-oss -> flauz."
+		},
+		"dataFolderName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "User data folder name (product.ts). Visible on every user's machine and separates Flauz user data from Code OSS's. Rebrand: .vscode-oss -> .flauz."
+		},
+		"sharedDataFolderName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Shared user data folder name (product.ts). Rebrand: .vscode-oss-shared -> .flauz-shared."
+		},
+		"win32MutexName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows single-instance mutex (product.ts). Functional identity: sharing the base value would make Flauz and Code OSS mutually exclusive on one machine. Rebrand: vscodeoss -> flauz."
+		},
+		"win32DirName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows install directory name (product.ts). The base value literally names a Microsoft product. Rebrand: \"Microsoft Code OSS\" -> \"Flauz\"."
+		},
+		"win32NameVersion": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows version-resource name (product.ts; shows in file properties / installer dialogs). Rebrand: \"Microsoft Code OSS\" -> \"Flauz\"."
+		},
+		"win32RegValueName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows uninstall registry value name (product.ts). Rebrand: CodeOSS -> Flauz."
+		},
+		"win32AppUserModelId": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows AppUserModelID for taskbar grouping/notifications (product.ts). Rebrand: Microsoft.CodeOSS -> Flauz.Flauz (publisher.product shape; no Flauz-owned company prefix exists yet — re-own when a Windows packaging lane lands)."
+		},
+		"win32ShellNameShort": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows Start Menu shortcut name (product.ts). Rebrand: \"C&ode - OSS\" -> \"Flauz\"."
+		},
+		"win32TunnelServiceMutex": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows tunnel-service single-instance mutex (product.ts). Same functional-identity class as win32MutexName. Rebrand: vscodeoss-tunnelservice -> flauz-tunnelservice."
+		},
+		"win32TunnelMutex": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Windows tunnel single-instance mutex (product.ts). Rebrand: vscodeoss-tunnel -> flauz-tunnel."
+		},
+		"serverApplicationName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Remote-server binary name (product.ts). Rebrand: code-server-oss -> flauz-server."
+		},
+		"serverDataFolderName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Remote-server data folder name (product.ts). Rebrand: .vscode-server-oss -> .flauz-server."
+		},
+		"tunnelApplicationName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Tunnel binary name (product.ts). Rebrand: code-tunnel-oss -> flauz-tunnel."
+		},
+		"darwinBundleIdentifier": {
+			"type": "string",
+			"minLength": 1,
+			"description": "macOS bundle identifier (product.ts). Rebrand: com.visualstudio.code.oss -> flauz.flauz. A Flauz-controlled reverse-DNS domain must replace this when macOS signing/packaging lands (documented follow-up)."
+		},
+		"linuxDesktopName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Linux .desktop file basename (product.ts). Rebrand: com.visualstudio.CodeOSS -> flauz.flauz."
+		},
+		"linuxIconName": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Linux desktop icon name (product.ts). Rebrand: code-oss -> flauz."
+		},
+		"urlProtocol": {
+			"type": "string",
+			"minLength": 1,
+			"description": "URL protocol handler scheme (product.ts). Rebrand: code-oss -> flauz (flauz:// links)."
+		},
+		"reportIssueUrl": {
+			"type": "string",
+			"minLength": 1,
+			"description": "Report-Issue target (product.ts; user-visible menu action). Rebrand: github.com/microsoft/vscode -> github.com/payswapdotorg/Flauz (the product repository per docs/FLAUZ-PROGRAM/SOURCE-OF-TRUTH.md)."
 		},
 		"extensionEnabledApiProposals": {
 			"type": "object",
-			"description": "Force-enables API proposals for extensions by \"publisher.name\" key (case-insensitive). The product list REPLACES the extension's own package.json declaration (src/vs/workbench/services/extensions/common/extensionsProposedApi.ts:80-102). This is the DL-4 pattern: enable proposed APIs for trusted Flauz built-ins via product overlay, zero promotion/fork.",
+			"description": "Force-enables API proposals for extensions by \"publisher.name\" key (case-insensitive). The product list REPLACES the extension's own package.json declaration (src/vs/workbench/services/extensions/common/extensionsProposedApi.ts:80-102); an extension declaring proposals the product list lacks hits the runtime \"WILL BE BROKEN\" error at :91-97. This is the DL-4 pattern: enable proposed APIs for trusted Flauz built-ins via product overlay, zero promotion/fork. verify-product.mjs PS4 asserts every flauz-* manifest's declared proposals are covered EXACTLY, and that no undeclared grant exists beyond the documented flauz-agent default-participant pattern.",
 			"additionalProperties": {
 				"type": "array",
 				"items": {
 					"type": "string"
 				},
-				"description": "List of API proposal names (unknown names are silently dropped with a log warning by extensionsProposedApi.ts:46-52)."
+				"description": "List of API proposal names. Unknown names are silently dropped with a log warning by extensionsProposedApi.ts:46-52 — verify-product.mjs PS4 cross-checks them against src/vs/platform/extensions/common/extensionsApiProposals.ts so a typo cannot pass silently."
 			}
 		},
 		"defaultChatAgent": {
 			"type": ["object", "null"],
 			"description": "The upstream Copilot default-agent product block (product.json:90-157; IDefaultChatAgent at src/vs/base/common/product.ts). In the Flauz overlay this is ALWAYS null, which the merger translates into a key DELETION: the merged product has no defaultChatAgent, which no-ops the whole Copilot setup/entitlement stack (src/vs/workbench/services/chat/common/chatEntitlementService.ts:458-460) so that the statically-contributed flauz.agent participant becomes the sole default chat agent. See canaries/default-agent-checklist.md (D1-D11) for every surface this touches."
+		},
+		"builtInExtensionsEnabledWithAutoUpdates": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Built-in extension ids that may auto-update (product.ts:258). MUST be an array (use [] to clear), NEVER null: the key is typed non-optional and iterated unguarded at src/vs/platform/extensionManagement/common/extensionsScannerService.ts:113 with no product-service defaults — a null-delete would crash the scanner (TL1-002 finding, encoded in merge-product.mjs validateOverlay). The base value [\"GitHub.copilot-chat\"] is inert Copilot residue (no copilot-chat ships; auto-update is quality-gated to stable at extensionsWorkbenchService.ts:343 and needs a gallery, which the base lacks) — the overlay clears it to []."
+		},
+		"trustedExtensionAuthAccess": {
+			"type": "object",
+			"description": "Auth-provider trust grants (product.ts:189): providerId -> list of extension ids allowed provider access without prompting. The overlay surgically null-deletes the github/github-enterprise entries that granted GitHub.copilot-chat (inert without a gallery or a shipped copilot-chat); the microsoft -> vscode.github-authentication grant is functional in-tree wiring and stays. All consumers are guarded (authenticationAccessService.ts:51-59, chatLanguageModelActions.ts:78-79), so nested null-deletes are safe.",
+			"additionalProperties": {
+				"type": ["array", "null"],
+				"items": {
+					"type": "string"
+				},
+				"description": "null deletes the provider's grant list from the merged product; an array replaces it wholesale."
+			}
 		}
 	},
 	"additionalProperties": true
