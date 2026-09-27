@@ -2,7 +2,7 @@
 
 Repository: payswapdotorg/Flauz
 Product branch: main
-Current product head at program reset: f03dba95ecbe6dc43ad9395ffa3d1360ee8de75f
+Current product head at verification: acc40d609d482597387d75a3764221cdf3dbec44
 
 This repository and the product branch are sufficient to operate the Flauz engineering program without prior chat history.
 
