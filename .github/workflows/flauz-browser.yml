@@ -4,9 +4,14 @@
 #
 # Two jobs:
 #   1. b-policy-unit   — the zero-dep verification standard: the flauz-browser
-#                        node --test suites (96 cases: schema/error classes,
-#                        layered precedence, partitions, the CDP-bypass B1c
-#                        matrix, extension wiring) + a tsc --noEmit gate.
+#                        node --test suites (156 cases as of TL3-001: the 96
+#                        legacy policy cases + the browser-runtime suites —
+#                        cdp transport/fake, session manager, navigation
+#                        pipeline, capture, recovery, workbench host) + the
+#                        A-class DRIVER DRILL (policy-gated navigation with
+#                        the FakeCdpTransport: deny sends ZERO CDP commands)
+#                        + a tsc --noEmit gate. The glob `test/*.test.ts`
+#                        picks up every suite automatically (no file list).
 #                        Runs on a bare checkout (no repo install; the only
 #                        install is a global typescript for the typecheck).
 #   2. b-policy-canary — the B-POLICY canary (spec:
@@ -16,9 +21,12 @@
 #                        the fixture policy, clean boot + bundle --verify,
 #                        networkFilter + browserView compile greps). The
 #                        driver-dependent layered-gate assertions (A4-A10)
-#                        are WAITING-ON-LANE F/driver per the spec — the jobs
-#                        detect lane presence by glob (never hardcode) and
-#                        report skips with reasons instead of failing.
+#                        are SATISFIED AT THE UNIT LEVEL by the TL3-001
+#                        runtime (fake-driver drills in job 1) — the
+#                        boot-level greps that still need a real workbench
+#                        are marked as such in the spec. The jobs detect
+#                        lane presence by glob (never hardcode) and report
+#                        skips with reasons instead of failing.
 #
 # Constraints honored (work order section 3):
 #   - zero-secrets posture: b-policy-unit uses NO tokens at all. b-policy-canary
@@ -101,6 +109,21 @@ jobs:
           node --test "test/*.test.ts" 2>&1 | tee "$RUNNER_TEMP/bpolicy-unit.log"
           # node --test exits non-zero on any failure; assert the counts made it to the log:
           grep -q '^. tests ' "$RUNNER_TEMP/bpolicy-unit.log" || { echo 'unit runner produced no summary'; exit 1; }
+
+      - name: B-POLICY driver drill — policy-gated navigation with the FakeCdpTransport (A-class)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          cd extensions/flauz-browser
+          # A5/A7/A9/A10 unit-level driver assertions (spec: build/flauz/canaries/B-POLICY.md):
+          # the REAL runtime over the scriptable simulator — zero secrets, zero network.
+          # Probe by glob (never hardcode a lane file list):
+          test -f test/canaries/policy-gated-navigation.drill.ts \
+            || { echo 'B-POLICY driver drill script missing (test/canaries/policy-gated-navigation.drill.ts)'; exit 1; }
+          node test/canaries/policy-gated-navigation.drill.ts 2>&1 | tee "$RUNNER_TEMP/bpolicy-drill.log"
+          grep -q 'driver drill: GREEN' "$RUNNER_TEMP/bpolicy-drill.log" \
+            || { echo 'B-POLICY driver drill did not report GREEN'; exit 1; }
+          echo 'B-POLICY driver drill: GREEN (deny sends ZERO CDP commands — pinned)'
 
       - name: Typecheck (tsc --noEmit, isolated global install — never a repo install)
         if: steps.lanes.outputs.present == 'true'
@@ -229,7 +252,7 @@ jobs:
           grep -rq 'browserView' out/vs/workbench/contrib/browserView/browser/browserView.contribution.js 2>/dev/null \
             || { echo 'B-POLICY A3 FAILED: browserView contribution missing from compile output (upstream drift)'; exit 1; }
           kill $BOOT_PID 2>/dev/null || true
-          echo 'B-POLICY boot-level canary: GREEN (A4-A10 WAITING-ON-LANE F/driver — see build/flauz/canaries/B-POLICY.md)'
+          echo 'B-POLICY boot-level canary: GREEN (A4-A10 satisfied at the unit level by the TL3-001 driver drill in b-policy-unit; boot-level residuals marked in build/flauz/canaries/B-POLICY.md)'
 
       - name: Upload canary artifacts
         if: always()

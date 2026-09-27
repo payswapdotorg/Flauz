@@ -1,0 +1,6 @@
+{
+	"kind": "note",
+	"uri": ".flauz/artifacts/T-001/browser-verdict-3f2ab10c.json",
+	"sha256": "5d41402abc4b2a76b9719d911017c592a8c8bbf84e34c1e9d70e2f3d2e1f0c3a",
+	"note": "deny driver evil.example.com (initiator agent-tool; layered browser policy verdict)"
+}

@@ -1,0 +1,7 @@
+{
+	"environmentId": "env-staging",
+	"providerKind": "container",
+	"registryState": "present",
+	"enabled": true,
+	"active": false
+}

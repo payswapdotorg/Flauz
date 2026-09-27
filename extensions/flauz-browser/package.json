@@ -1,8 +1,8 @@
 {
 	"name": "flauz-browser",
 	"publisher": "flauz",
-	"displayName": "Flauz Browser Policy",
-	"description": "Flauz layered browser navigation policy engine (driver-side allowlist + webRequest + will-navigate + per-workspace/agent partitions) with .flauz/browser-policy.json as the per-workspace policy source.",
+	"displayName": "Flauz Browser Policy & Runtime",
+	"description": "Flauz layered browser navigation policy engine (driver-side allowlist + webRequest + will-navigate + per-workspace/agent partitions) with .flauz/browser-policy.json as the per-workspace policy source, plus the Flauz-controlled Chromium/CDP browser runtime (sessions, policy-gated navigation, capture, recovery).",
 	"version": "0.1.0",
 	"license": "MIT",
 	"type": "module",
@@ -20,11 +20,18 @@
 		"onCommand:flauz.browser.verifyPolicy",
 		"onCommand:flauz.browser.checkUrl",
 		"onCommand:flauz.browser.evaluate",
+		"onCommand:flauz.browser.openSession",
+		"onCommand:flauz.browser.closeSession",
+		"onCommand:flauz.browser.sessions",
+		"onCommand:flauz.browser.navigate",
+		"onCommand:flauz.browser.screenshot",
 		"onCommand:flauz.focusView.browser",
 		"onCommand:flauz.browser.refreshView"
 	],
 	"main": "./dist/extension.js",
-	"enabledApiProposals": [],
+	"enabledApiProposals": [
+		"browser"
+	],
 	"contributes": {
 		"views": {
 			"flauz": [
@@ -37,7 +44,7 @@
 		"viewsWelcome": [
 			{
 				"view": "flauz.browser",
-				"contents": "The Flauz browser policy is not active here.\nBrowser policy lives in .flauz/browser-policy.json inside a workspace folder — Flauz enforces it fail-closed (deny-all by default) for both human and agent browsing.\n[Open Folder](command:workbench.action.files.openFolder)\n[Open (or Create) Browser Policy File](command:flauz.browser.setPolicy)"
+				"contents": "The Flauz browser policy is not active here.\nBrowser policy lives in .flauz/browser-policy.json inside a workspace folder \u2014 Flauz enforces it fail-closed (deny-all by default) for both human and agent browsing.\n[Open Folder](command:workbench.action.files.openFolder)\n[Open (or Create) Browser Policy File](command:flauz.browser.setPolicy)"
 			}
 		],
 		"commands": [
@@ -64,6 +71,31 @@
 			{
 				"command": "flauz.browser.evaluate",
 				"title": "Evaluate a Navigation Against the Browser Policy",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.openSession",
+				"title": "Open a Flauz Browser Session",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.closeSession",
+				"title": "Close a Flauz Browser Session",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.sessions",
+				"title": "List Flauz Browser Sessions",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.navigate",
+				"title": "Navigate a Flauz Browser Tab (Policy-Gated)",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.screenshot",
+				"title": "Capture a Flauz Browser Tab Screenshot",
 				"category": "Flauz"
 			},
 			{

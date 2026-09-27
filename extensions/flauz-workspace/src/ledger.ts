@@ -97,9 +97,11 @@ export function parseLedgerRow(value: unknown): RowParseOutcome {
 	const hasCheckpointField = hasKey(value, 'checkpoint');
 	const fieldCount = hasCheckpointField ? 8 : 7;
 	if (keys.length !== fieldCount || !ROW_FIELDS.every(k => hasKey(value, k))) {
-		return { ok: false, error: hasCheckpointField
-			? "row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri] + checkpoint (only on kind 'checkpoint' rows)"
-			: 'row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri]' };
+		return {
+			ok: false, error: hasCheckpointField
+				? "row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri] + checkpoint (only on kind 'checkpoint' rows)"
+				: 'row must have exactly the 7 fields [kind, prev, seq, sha256, taskId, ts, uri]'
+		};
 	}
 	if (typeof value.seq !== 'number' || !Number.isSafeInteger(value.seq) || value.seq < 1) {
 		return { ok: false, error: 'seq must be a positive integer' };

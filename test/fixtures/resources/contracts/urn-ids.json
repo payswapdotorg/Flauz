@@ -1,0 +1,15 @@
+{
+	"browserSessionId": "flauz:browser:3f9a2b1c8d7e4f60",
+	"agentSessionId": "flauz:agent:1a2b3c4d5e6f7a8b",
+	"environmentRefId": "flauz:environment:env-staging",
+	"taskRefId": "flauz:task:T-001",
+	"invalid": [
+		"/work/acme/src/app.ts",
+		"src/app.ts",
+		"https://example.com/res",
+		"file:///work/acme/app.ts",
+		"task:T-001",
+		"flauz:file:src/app.ts",
+		"flauz:file:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	]
+}

@@ -19,6 +19,7 @@
 		"src/**/*.ts",
 		"test/**/*.ts",
 		"shims/**/*.d.ts",
-		"vscode-dts/vscode.d.ts"
+		"vscode-dts/vscode.d.ts",
+		"vscode-dts/vscode.proposed.browser.d.ts"
 	]
 }

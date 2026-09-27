@@ -1,0 +1,57 @@
+{
+	"$schema": "flauz.resources/v0",
+	"nodes": [
+		{
+			"schemaVersion": 0,
+			"kind": "task",
+			"id": "flauz:task:T-001",
+			"displayName": "Fix login flow",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"createdAt": 1730000000000
+		},
+		{
+			"schemaVersion": 0,
+			"kind": "file",
+			"id": "flauz:file:4d5e6f708192a3b4",
+			"provenance": {
+				"actor": "agent",
+				"bogus": 1
+			},
+			"createdAt": 1730000001000
+		}
+	],
+	"edges": [
+		{
+			"kind": "depends-on",
+			"from": "flauz:task:T-001",
+			"to": "flauz:file:4d5e6f708192a3b4",
+			"provenance": {
+				"actor": "agent"
+			},
+			"createdAt": 1730000002000
+		}
+	],
+	"surfaces": [
+		{
+			"refId": "flauz:file:4d5e6f708192a3b4",
+			"family": "file-system",
+			"versions": [
+				{
+					"surface": {
+						"kind": "file-system",
+						"root": "/work/acme",
+						"path": "src/app.ts",
+						"contentSha256": "5d41402abc4b2a76b9719d911017c592a8c8bbf84e34c1e9d70e2f3d2e1f0c3a"
+					},
+					"provenance": {
+						"actor": "human"
+					},
+					"updatedAt": 1730000003000
+				}
+			]
+		}
+	]
+}

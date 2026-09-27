@@ -30,6 +30,7 @@ declare module 'node:assert' {
 }
 
 declare module 'node:assert/strict' {
+	export function rejects(promiseOrFn: unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): Promise<void>;
 	export function ok(value: unknown, message?: string): asserts value;
 	export function equal(actual: unknown, expected: unknown, message?: string): void;
 	export function notEqual(actual: unknown, expected: unknown, message?: string): void;
@@ -73,6 +74,7 @@ declare module 'node:crypto' {
 		digest(encoding: 'hex'): string;
 	}
 	export function createHash(algorithm: 'sha256'): ShimHash;
+	export function randomBytes(size: number): { toString(encoding: 'hex'): string; toString(): string; readonly length: number };
 }
 
 declare module 'node:url' {
@@ -110,8 +112,22 @@ declare const console: {
 	error(...args: unknown[]): void;
 };
 
-/** Timer globals used by the async test scaffolding. */
+/** Timer globals used by the async test scaffolding and the CDP transports. */
 declare function setTimeout(handler: () => void, ms: number): { unref(): void };
+declare function clearTimeout(timer: { unref(): void } | undefined): void;
+
+/** Base64 globals (Node 16+); used by the fake screenshot payloads and screenshot decoding. */
+declare function btoa(data: string): string;
+declare function atob(data: string): string;
+
+/** The structured-clone global (Node 17+); used for descriptor snapshots. */
+declare function structuredClone<T>(value: T): T;
+
+/** The `process` global (Node and the extension host); FLAUZ_CDP_ENDPOINT lives here. */
+declare const process: {
+	readonly env: Record<string, string | undefined>;
+	exit(code?: number): never;
+};
 declare function queueMicrotask(task: () => void): void;
 
 interface ImportMeta {

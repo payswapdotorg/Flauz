@@ -194,3 +194,4 @@ build/flauz/scripts/ia-gate.mjs
 # Flauz TL1 upstream-sync lane (zero-dep .mjs tool + node:test suite)
 build/flauz/scripts/sync-upstream.mjs
 build/flauz/sync-upstream.test.mjs
+build/flauz/scripts/premium-ux-gate.mjs
