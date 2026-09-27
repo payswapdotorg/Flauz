@@ -14,6 +14,7 @@
 		"Other"
 	],
 	"activationEvents": [
+		"onView:flauz.browser",
 		"onCommand:flauz.browser.setPolicy",
 		"onCommand:flauz.browser.showPolicy",
 		"onCommand:flauz.browser.verifyPolicy",
@@ -23,13 +24,29 @@
 		"onCommand:flauz.browser.closeSession",
 		"onCommand:flauz.browser.sessions",
 		"onCommand:flauz.browser.navigate",
-		"onCommand:flauz.browser.screenshot"
+		"onCommand:flauz.browser.screenshot",
+		"onCommand:flauz.focusView.browser",
+		"onCommand:flauz.browser.refreshView"
 	],
 	"main": "./dist/extension.js",
 	"enabledApiProposals": [
 		"browser"
 	],
 	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.browser",
+					"name": "Browser"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.browser",
+				"contents": "The Flauz browser policy is not active here.\nBrowser policy lives in .flauz/browser-policy.json inside a workspace folder \u2014 Flauz enforces it fail-closed (deny-all by default) for both human and agent browsing.\n[Open Folder](command:workbench.action.files.openFolder)\n[Open (or Create) Browser Policy File](command:flauz.browser.setPolicy)"
+			}
+		],
 		"commands": [
 			{
 				"command": "flauz.browser.setPolicy",
@@ -80,8 +97,28 @@
 				"command": "flauz.browser.screenshot",
 				"title": "Capture a Flauz Browser Tab Screenshot",
 				"category": "Flauz"
+			},
+			{
+				"command": "flauz.focusView.browser",
+				"title": "Focus Flauz Browser",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.browser.refreshView",
+				"title": "Refresh Browser View",
+				"category": "Flauz",
+				"icon": "$(refresh)"
 			}
-		]
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "flauz.browser.refreshView",
+					"when": "view == flauz.browser",
+					"group": "navigation"
+				}
+			]
+		}
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",

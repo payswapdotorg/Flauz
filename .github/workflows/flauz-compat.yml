@@ -1,0 +1,100 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL4 (product-quality lane) — Worker B, task TL4-003.
+#
+# "Flauz Compat Battery" — the Code OSS compatibility regression gate:
+#   1. compat          — zero-dep compat-battery.mjs (layers 1+2) against
+#                        origin/upstream/main vs HEAD with --require (nothing
+#                        may skip), then the full fixture matrix via
+#                        verify-fixtures.sh (proves every rule can fire).
+#   2. l3-runtime-smoke — wiring SKELETON only (spec section 11 of
+#                        docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md): the L3
+#                        runtime smoke needs a compiled build on the runner;
+#                        it is PENDING and runs probe-only on manual dispatch.
+#
+# Constraints honored (flauz-hygiene.yml discipline):
+#   - ubuntu-latest, NO secrets (public repo, read-only perms)
+#   - zero-dep steps: node >= 20 stdlib only (build/flauz/scripts/*) — no
+#     npm install anywhere in this workflow
+#   - pinned actions (same SHAs the other flauz-* workflows use)
+#   - gated on the paths the battery protects + workflow_dispatch
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Compat Battery
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/compat-battery/**'
+      - 'product*.json'
+      - '.github/workflows/flauz-compat.yml'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/compat-battery/**'
+      - 'product*.json'
+      - '.github/workflows/flauz-compat.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-compat-${{ github.ref }}
+  cancel-in-progress: false  # same rationale as flauz-hygiene: re-run attempts were cancelling each other
+
+jobs:
+  compat:
+    name: Code OSS compatibility battery (L1+L2, --require)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # full history so origin/upstream/main (the pristine Code OSS
+          # reference line) resolves for the battery's default upstream side
+          fetch-depth: 0
+
+      - name: Setup Node.js (zero-dep script needs node >= 20 only)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      - name: Verify upstream reference resolves (never gate product-vs-product)
+        run: |
+          git rev-parse --verify origin/upstream/main^{commit} \
+            || { echo 'flauz-compat: origin/upstream/main did not resolve —'; \
+                 echo 'the battery refuses to guess an upstream side (a product'; \
+                 echo 'branch would vacuously pass). Fetch the reference line.'; exit 1; }
+          echo "upstream reference: $(git rev-parse origin/upstream/main)"
+
+      - name: Run the compatibility battery (origin/upstream/main vs HEAD, --require)
+        run: node build/flauz/scripts/compat-battery.mjs --require
+
+      - name: Run the fixture matrix (every battery rule must be able to fail)
+        run: sh build/flauz/scripts/verify-fixtures.sh
+
+  l3-runtime-smoke:
+    name: 'L3 runtime smoke (PENDING — spec section 11)'
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe-only notice (wiring skeleton)
+        run: |
+          echo "=================================================================="
+          echo "L3 runtime smoke: PENDING (TL4-COMPAT-BATTERY.md section 11)."
+          echo "Promotion requires, on a CI runner (never a worker sandbox):"
+          echo "  1. compile the workbench (npm install + npm run compile +"
+          echo "     flauz extension bundling — see flauz-browser.yml job shape)"
+          echo "  2. boot under xvfb with a temp user-data-dir + flauz exts active"
+          echo "  3. pillar smoke assertions (terminal, SCM, palette, settings,"
+          echo "     notebook/debug/remote as compile-output greps until a driver)"
+          echo "  4. fixture-checked parsers BEFORE any assertion gates CI"
+          echo "This skeleton job stays green and manual-dispatch-only until then."
+          echo "=================================================================="

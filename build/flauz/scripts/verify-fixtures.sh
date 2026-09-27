@@ -87,12 +87,66 @@ expect "activation-lint bad-set FAIL (R3 only)"        1 node "$S/activation-lin
 expect "activation-lint empty dir SKIP"                0 node "$S/activation-lint.mjs" --root "$F/perf-timers" --manifests-glob "flauz-*/package.json"
 expect "activation-lint empty dir --require FAIL"      1 node "$S/activation-lint.mjs" --root "$F/perf-timers" --manifests-glob "flauz-*/package.json" --require-manifests
 
+# ---- ia-gate: TL4-001 Flauz shell manifest discipline ----
+expect "ia-gate clean fixture PASS"                    0 node "$S/ia-gate.mjs" --root "$F/ia-gate/clean" --require
+expect "ia-gate real tree PASS"                        0 node "$S/ia-gate.mjs" --root "$ROOT"
+expect "ia-gate duplicate container FAIL"              1 node "$S/ia-gate.mjs" --root "$F/ia-gate/fail-duplicate-container" --require
+expect "ia-gate missing welcome FAIL"                  1 node "$S/ia-gate.mjs" --root "$F/ia-gate/fail-missing-welcome" --require
+expect "ia-gate startup activation FAIL"               1 node "$S/ia-gate.mjs" --root "$F/ia-gate/fail-startup-activation" --require
+expect "ia-gate empty dir SKIP"                        0 node "$S/ia-gate.mjs" --root "$F/perf-timers"
+expect "ia-gate empty dir --require FAIL"              1 node "$S/ia-gate.mjs" --root "$F/perf-timers" --require
+expect "ia-gate usage error (bad flag)"                2 node "$S/ia-gate.mjs" --definitely-not-a-flag
+
 # ---- proposed-api-rota: DL-4 churn gate ----
 expect "rota clean fixture PASS"                       0 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/clean"
 expect "rota dirty fixture FAIL (absent+mismatch)"     1 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty"
 expect "rota dirty + baseline FAIL (deltas)"           1 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty" --baseline "$F/rota/baseline-snapshot.json"
 expect "rota dirty --no-fail (informational)"          0 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty" --no-fail
 expect "rota real mirror (no lanes) SKIP"              0 node "$S/proposed-api-rota.mjs" --repo-root "$ROOT"
+
+# ---- budget-gate: TL4-005 unified budget gate ----
+BG="$S/budget-gate.mjs"
+BGF="$F/budget-gate"
+expect "budget-gate clean fixture PASS"                0 node "$BG" --budgets "$BGF/budgets-clean.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate over-budget FAIL"                  1 node "$BG" --budgets "$BGF/budgets-over.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate skip case (no --require)"          0 node "$BG" --budgets "$BGF/budgets-with-pending.json" --measurements "$BGF/measurements-missing.jsonl"
+expect "budget-gate skip case (--require)"             1 node "$BG" --budgets "$BGF/budgets-with-pending.json" --measurements "$BGF/measurements-missing.jsonl" --require
+expect "budget-gate skip case (--require enforced-ci)" 0 node "$BG" --budgets "$BGF/budgets-with-pending.json" --measurements "$BGF/measurements-missing.jsonl" --require enforced-ci
+expect "budget-gate malformed budgets"                 2 node "$BG" --budgets "$BGF/malformed-budgets.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate warn-severity over (exit 0)"       0 node "$BG" --budgets "$BGF/budgets-warn.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate unknown measurement id WARN"       0 node "$BG" --budgets "$BGF/budgets-clean.json" --measurements "$BGF/measurements-unknown-id.jsonl"
+expect "budget-gate unit mismatch SKIP+WARN"           0 node "$BG" --budgets "$BGF/budgets-clean.json" --measurements "$BGF/measurements-unit-mismatch.jsonl"
+expect "budget-gate usage error (unknown flag)"         2 node "$BG" --bogus
+expect "budget-gate --help"                            0 node "$BG" --help
+expect "budget-gate registry self-check (no input)"    0 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json"
+
+# real-data input plumbing: map the perf fixtures through perf-log-parse (the
+# single source of truth for perf-log parsing) into a CURATED temp dir, then run
+# the unified gate over it with --require enforced-ci — proves every enforced-ci
+# registry row is measured by the mapped repo data and green (TL4-005 D5a).
+BGIN="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-bg-$$")"
+BGINV="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-bgv-$$")"
+mkdir -p "$BGIN" "$BGINV"
+if (
+    set -e
+    node "$S/perf-log-parse.mjs" --parse-timers     "$F/perf-timers/flauz-main.timers.tsv"   > "$BGIN/flauz.timers.json"
+    node "$S/perf-log-parse.mjs" --parse-timers     "$F/perf-timers/upstream-main.timers.tsv" > "$BGIN/upstream.timers.json"
+    node "$S/perf-log-parse.mjs" --parse-markers    "$F/perf-timers/flauz-main.markers.tsv"   > "$BGIN/flauz.markers.json"
+    node "$S/perf-log-parse.mjs" --parse-markers    "$F/perf-timers/upstream-main.markers.tsv" > "$BGIN/upstream.markers.json"
+    node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/eventually.json"      > "$BGIN/eventually.process.json"
+    node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/after-session.json"   > "$BGIN/after-session.process.json"
+    node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/after-session.violations.json" > "$BGINV/after-session.process.json"
+); then
+    PASS=$((PASS + 1))
+    [ "$QUIET" -eq 0 ] && printf '  ok    %-52s mapped 7 inputs\n' "budget-gate input mapping (perf-log-parse)"
+else
+    FAIL=$((FAIL + 1))
+    printf '  DEVIATED  %-52s mapping failed\n' "budget-gate input mapping (perf-log-parse)" >&2
+fi
+expect "budget-gate perf-fixture plumbing PASS"        0 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGIN" --require enforced-ci
+expect "budget-gate violations fixture FAIL"           1 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGINV"
+expect "budget-gate ps-text input rejected"            2 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$F/process-shape/eventually.ps.txt"
+rm -rf "$BGIN" "$BGINV"
 
 # ---- fork-critical guard ----
 if git -C "$ROOT" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
@@ -101,6 +155,36 @@ else
     echo "  note  fork-critical guard refs test needs local 'upstream/main' — skipped here"
 fi
 expect "fork-critical guard usage error (no base)"     2 sh "$S/fork-critical-guard.sh" --repo "$F/rota/clean" --base does-not-exist --head HEAD
+
+# ---- compat-battery: TL4-003 L1+L2 contribution-surface diff (fixture matrix) ----
+# Tree-mode sides (upstream/ + product/ dirs); L1 SKIPs in tree mode by design
+# (no git history) — the fail cases below prove every L2 rule can fire.
+CB="$F/compat-battery"
+expect "compat-battery clean-additive PASS"            0 node "$S/compat-battery.mjs" --upstream "$CB/clean-additive/upstream" --product "$CB/clean-additive/product"
+expect "compat-battery removed-command FAIL"           1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-command/upstream" --product "$CB/fail-removed-command/product"
+expect "compat-battery removed-config FAIL"            1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-config/upstream" --product "$CB/fail-removed-config/product"
+expect "compat-battery removed-keybinding FAIL"        1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-keybinding/upstream" --product "$CB/fail-removed-keybinding/product"
+expect "compat-battery removed-menu FAIL"              1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-menu/upstream" --product "$CB/fail-removed-menu/product"
+expect "compat-battery removed-submenu FAIL"           1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-submenu/upstream" --product "$CB/fail-removed-submenu/product"
+expect "compat-battery retyped-view FAIL"              1 node "$S/compat-battery.mjs" --upstream "$CB/fail-retyped-view/upstream" --product "$CB/fail-retyped-view/product"
+expect "compat-battery removed-viewscontainer FAIL"    1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-viewscontainer/upstream" --product "$CB/fail-removed-viewscontainer/product"
+expect "compat-battery deleted-extension FAIL"         1 node "$S/compat-battery.mjs" --upstream "$CB/fail-deleted-extension/upstream" --product "$CB/fail-deleted-extension/product"
+expect "compat-battery product-identity FAIL"          1 node "$S/compat-battery.mjs" --upstream "$CB/fail-product-identity/upstream" --product "$CB/fail-product-identity/product"
+expect "compat-battery root-script-removed FAIL"       1 node "$S/compat-battery.mjs" --upstream "$CB/fail-root-script-removed/upstream" --product "$CB/fail-root-script-removed/product"
+expect "compat-battery non-flauz-addition FAIL"        1 node "$S/compat-battery.mjs" --upstream "$CB/fail-non-flauz-addition/upstream" --product "$CB/fail-non-flauz-addition/product"
+expect "compat-battery flauz-vanished FAIL (pos-ctl)"  1 node "$S/compat-battery.mjs" --upstream "$CB/flauz-vanished/upstream" --product "$CB/flauz-vanished/product"
+expect "compat-battery allowlist suppression PASS"     0 node "$S/compat-battery.mjs" --upstream "$CB/allowlist-case/upstream" --product "$CB/allowlist-case/product" --allowlist "$CB/allowlist-case/allowlist.json"
+expect "compat-battery allowlist-case sans list FAIL"  1 node "$S/compat-battery.mjs" --upstream "$CB/allowlist-case/upstream" --product "$CB/allowlist-case/product"
+expect "compat-battery --require flips tree SKIP FAIL" 1 node "$S/compat-battery.mjs" --upstream "$CB/clean-additive/upstream" --product "$CB/clean-additive/product" --require
+expect "compat-battery --no-fail reports only"         0 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-command/upstream" --product "$CB/fail-removed-command/product" --no-fail
+expect "compat-battery usage error (bad spec)"         2 node "$S/compat-battery.mjs" --upstream "$F/does-not-exist-anywhere"
+
+# ---- compat-battery: the real mirror (origin/upstream/main vs HEAD, --require) ----
+if git -C "$ROOT" rev-parse --verify --quiet origin/upstream/main >/dev/null 2>&1; then
+    expect "compat-battery real repo (--require) PASS" 0 node "$S/compat-battery.mjs" --root "$ROOT" --require
+else
+    echo "  note  compat-battery real-repo case needs local 'origin/upstream/main' — skipped here"
+fi
 
 # ---- verdict ----
 echo "----------------------------------------------------------------"

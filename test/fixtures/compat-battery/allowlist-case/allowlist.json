@@ -1,0 +1,10 @@
+{
+	"entries": [
+		{
+			"path": "extensions/git/package.json",
+			"key": "commands/git.commit",
+			"reason": "fixture: proves allowlist suppression of an intentional divergence",
+			"date": "2026-09-27"
+		}
+	]
+}

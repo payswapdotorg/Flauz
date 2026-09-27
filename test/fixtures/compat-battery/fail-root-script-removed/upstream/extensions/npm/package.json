@@ -1,0 +1,36 @@
+{
+	"name": "npm",
+	"publisher": "vscode",
+	"version": "1.0.0",
+	"contributes": {
+		"views": {
+			"explorer": [
+				{
+					"id": "npm",
+					"name": "NPM Scripts",
+					"when": "npm:showScriptExplorer"
+				}
+			]
+		},
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "npm-explorer",
+					"title": "NPM",
+					"icon": "icon.svg"
+				}
+			]
+		},
+		"configuration": [
+			{
+				"title": "NPM",
+				"properties": {
+					"npm.exclude": {
+						"type": "string",
+						"default": ""
+					}
+				}
+			}
+		]
+	}
+}

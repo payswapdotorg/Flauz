@@ -11,8 +11,11 @@
         },
         "activationEvents": [
                 "onStartupFinished",
+                "onView:flauz.agentSessions",
                 "onCommand:flauz.showTasks",
-                "onCommand:flauz.verifyLedger"
+                "onCommand:flauz.verifyLedger",
+                "onCommand:flauz.focusView.agentSessions",
+                "onCommand:flauz.agent.refreshSessions"
         ],
         "main": "./dist/extension.js",
         "enabledApiProposals": [],
@@ -76,6 +79,20 @@
                                 }
                         }
                 ],
+                "views": {
+                        "flauz": [
+                                {
+                                        "id": "flauz.agentSessions",
+                                        "name": "Agent Sessions"
+                                }
+                        ]
+                },
+                "viewsWelcome": [
+                        {
+                                "view": "flauz.agentSessions",
+                                "contents": "The Flauz agent bridge is not active.\nOpen a workspace folder, then ask the Flauz agent in Chat to plan a task — this view shows the live bridge status and the active task.\n[Open Folder](command:workbench.action.files.openFolder)\n[Focus Flauz Tasks](command:flauz.focusView.tasks)"
+                        }
+                ],
                 "commands": [
                         {
                                 "command": "flauz.showTasks",
@@ -84,8 +101,28 @@
                         {
                                 "command": "flauz.verifyLedger",
                                 "title": "Verify Flauz Evidence Ledger"
+                        },
+                        {
+                                "command": "flauz.focusView.agentSessions",
+                                "title": "Focus Agent Sessions",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.agent.refreshSessions",
+                                "title": "Refresh Agent Sessions",
+                                "category": "Flauz",
+                                "icon": "$(refresh)"
                         }
-                ]
+                ],
+                "menus": {
+                        "view/title": [
+                                {
+                                        "command": "flauz.agent.refreshSessions",
+                                        "when": "view == flauz.agentSessions",
+                                        "group": "navigation"
+                                }
+                        ]
+                }
         },
         "scripts": {
                 "typecheck": "tsc --noEmit",

@@ -14,17 +14,34 @@
 		"Other"
 	],
 	"activationEvents": [
+		"onView:flauz.environments",
 		"onCommand:flauz.env.list",
 		"onCommand:flauz.env.register",
 		"onCommand:flauz.env.unregister",
 		"onCommand:flauz.env.activate",
 		"onCommand:flauz.env.deactivate",
 		"onCommand:flauz.env.showPlan",
-		"onCommand:flauz.env.switch"
+		"onCommand:flauz.env.switch",
+		"onCommand:flauz.focusView.environments",
+		"onCommand:flauz.env.refreshView"
 	],
 	"main": "./dist/extension.js",
 	"enabledApiProposals": [],
 	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.environments",
+					"name": "Environments"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.environments",
+				"contents": "No Flauz environments registered.\nEnvironments (local, SSH, container, cloud sandbox) live in .flauz/environments.json and carry trust, capabilities and connection plans.\n[Refresh Environments View](command:flauz.env.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
+			}
+		],
 		"commands": [
 			{
 				"command": "flauz.env.list",
@@ -60,8 +77,28 @@
 				"command": "flauz.env.switch",
 				"title": "Switch Environment (Re-open Continuity)",
 				"category": "Flauz"
+			},
+			{
+				"command": "flauz.focusView.environments",
+				"title": "Focus Flauz Environments",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.env.refreshView",
+				"title": "Refresh Environments View",
+				"category": "Flauz",
+				"icon": "$(refresh)"
 			}
-		]
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "flauz.env.refreshView",
+					"when": "view == flauz.environments",
+					"group": "navigation"
+				}
+			]
+		}
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",

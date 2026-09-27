@@ -23,6 +23,10 @@ export const window = mock.vscode.window;
 export const workspace = mock.vscode.workspace;
 export const commands = mock.vscode.commands;
 export const Uri = mock.vscode.Uri;
+export const EventEmitter = mock.vscode.EventEmitter;
+export const TreeItem = mock.vscode.TreeItem;
+export const ThemeIcon = mock.vscode.ThemeIcon;
+export const TreeItemCollapsibleState = mock.vscode.TreeItemCollapsibleState;
 
 export function __configure(patch: Partial<MockVscodeState>): void {
 	Object.assign(mock.state, patch);
@@ -46,4 +50,6 @@ export function __reset(patch?: Partial<MockVscodeState>): void {
 	mock.state.workspaceFolders = fresh.state.workspaceFolders;
 	mock.state.confirmationPolicy = fresh.state.confirmationPolicy;
 	mock.state.terminalOutput = fresh.state.terminalOutput;
+	mock.state.treeViews = fresh.state.treeViews;
+	mock.state.executedCommands = fresh.state.executedCommands;
 }

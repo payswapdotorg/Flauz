@@ -5,12 +5,13 @@
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { setVscodeApi } from './globals.ts';
-import type { FileSystemPort } from './api.ts';
+import { joinPath, type FileSystemPort } from './api.ts';
 import { TaskService } from './taskService.ts';
 import { EvidenceLedger } from './ledger.ts';
 import { CheckpointInterop } from './checkpoint.ts';
 import { FlauzArtifactProvider } from './scmArtifactProvider.ts';
 import { registerWorkspaceCommands, type WorkspaceServices } from './commands.ts';
+import { registerWorkspaceViews } from './views.ts';
 
 const nodeFs: FileSystemPort = {
 	readFileUtf8: async path => {
@@ -33,8 +34,26 @@ export function activate(context: vscode.ExtensionContext): void {
 	setVscodeApi(vscode);
 
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+	// TL4-001: the activity-bar shell (container `flauz`, views flauz.home +
+	// flauz.tasks) registers BEFORE any early return so the views — and their
+	// viewsWelcome states — exist even without a workspace folder. The services
+	// attach below when a folder is open.
+	const servicesRef: { current?: WorkspaceServices } = {};
+	const views = registerWorkspaceViews({
+		getServices: () => servicesRef.current,
+		getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+		readFile: async relativePath => {
+			const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+			return root === undefined ? undefined : nodeFs.readFileUtf8(joinPath(root, relativePath));
+		},
+	});
+
 	if (workspaceRoot === undefined) {
 		vscode.window.showWarningMessage('flauz-workspace: no workspace folder open — .flauz/ state stays inactive.');
+		for (const disposable of views.disposables) {
+			context.subscriptions.push(disposable);
+		}
 		return;
 	}
 
@@ -48,7 +67,8 @@ export function activate(context: vscode.ExtensionContext): void {
 	sourceControl.artifactProvider = artifacts;
 
 	const services: WorkspaceServices = { tasks, ledger, checkpoints, artifacts };
-	for (const disposable of [sourceControl, artifacts, ...registerWorkspaceCommands(services)]) {
+	servicesRef.current = services;
+	for (const disposable of [...views.disposables, sourceControl, artifacts, ...registerWorkspaceCommands(services)]) {
 		context.subscriptions.push(disposable);
 	}
 
@@ -56,6 +76,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		try {
 			await tasks.bootstrap();
 			await ledger.ensure();
+			views.refresh();
 		} catch (err) {
 			vscode.window.showErrorMessage(`flauz-workspace: failed to bootstrap .flauz/ state: ${err instanceof Error ? err.message : String(err)}`);
 		}
