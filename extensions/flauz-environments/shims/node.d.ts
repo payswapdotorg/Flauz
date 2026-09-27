@@ -5,7 +5,10 @@
 /**
  * Minimal ambient declarations for the Node built-in modules and globals used
  * by this extension's source and tests (TL3-003 added child_process, crypto,
- * the process global and the timer globals for the local-real executor).
+ * the process global and the timer globals for the local-real executor;
+ * TL3-004 rung 1 added the test-context parameter of node:test, the fetch/
+ * AbortSignal globals for the cloud HTTP port, and node:http for the local
+ * mock-server drill).
  *
  * Zero-dependency discipline (no `@types/node`): only the exact surface we
  * call. At runtime the real Node implementations are loaded; these types
@@ -36,8 +39,15 @@ declare module 'node:path' {
 }
 
 declare module 'node:test' {
+	/** The test-context subset the live suites use (runtime skip lines). */
+	export interface TestContext {
+		skip(message?: string): void;
+		diagnostic(message: string): void;
+	}
 	export function test(name: string, fn: () => void | Promise<void>): void;
+	export function test(name: string, fn: (t: TestContext) => void | Promise<void>): void;
 	export function test(name: string, options: { only?: boolean; skip?: boolean | string }, fn: () => void | Promise<void>): void;
+	export function test(name: string, options: { only?: boolean; skip?: boolean | string }, fn: (t: TestContext) => void | Promise<void>): void;
 }
 
 declare module 'node:assert' {
@@ -86,6 +96,29 @@ declare module 'node:crypto' {
 	export function createHash(algorithm: 'sha256'): ShimHash;
 }
 
+declare module 'node:http' {
+	export interface IncomingMessage {
+		method?: string;
+		url?: string;
+		headers: Record<string, string | string[] | undefined>;
+		on(event: 'data', listener: (chunk: { toString(encoding?: string): string }) => void): void;
+		on(event: 'end', listener: () => void): void;
+		setEncoding(encoding: string): void;
+	}
+	export interface ServerResponse {
+		statusCode: number;
+		writeHead(statusCode: number, headers?: Record<string, string>): void;
+		end(data?: string): void;
+	}
+	export type RequestListener = (req: IncomingMessage, res: ServerResponse) => void;
+	export interface Server {
+		listen(port: number, host: string, callback?: () => void): Server;
+		close(callback?: () => void): void;
+		address(): { port: number };
+	}
+	export function createServer(listener: RequestListener): Server;
+}
+
 declare const process: {
 	execPath: string;
 	argv: string[];
@@ -109,6 +142,12 @@ declare function setTimeout(handler: (...args: never[]) => void, ms: number): { 
 declare function clearTimeout(timer: { unref(): void } | undefined): void;
 declare function setInterval(handler: (...args: never[]) => void, ms: number): { unref(): void };
 declare function clearInterval(timer: { unref(): void } | undefined): void;
+
+/** The fetch subset the cloud HTTP port uses (Node stdlib global, >= 18). */
+declare function fetch(url: string, init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: unknown }): Promise<{ ok: boolean; status: number; statusText: string; text(): Promise<string>; json(): Promise<unknown> }>;
+
+/** AbortSignal.timeout for wall-clock request budgets. */
+declare const AbortSignal: { timeout(milliseconds: number): unknown };
 
 /** Import meta surface used for module-path resolution (value and type). */
 interface ImportMeta {

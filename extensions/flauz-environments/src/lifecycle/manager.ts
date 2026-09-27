@@ -31,9 +31,15 @@
  * Executor resolution (honesty law): real executors serve by default; the
  * simulated remote executors require an EXPLICIT opt-in (`simulated: true`
  * on the request, or the manager's `simulatedDefault` wired from the
- * flauz.environments.simulated setting). Remote kinds without an opt-in fail
- * closed with SIMULATED_NOT_OPTED_IN — this lane makes NO fake claims of
- * real remote control (real providers = TL3-004).
+ * flauz.environments.simulated setting). Remote kinds without an opt-in
+ * resolve their REAL executor (TL3-004 rung 1: ssh-local -> ssh-cli,
+ * container -> docker-cli, cloud-sandbox -> cloud-http) — which fails
+ * closed with typed `CLI_NOT_AVAILABLE` / `DAEMON_UNREACHABLE` /
+ * `VAULT_REF_UNRESOLVED` errors when the binary/daemon/keys are absent
+ * (capability detection is first-class: never a silent fallback, never a
+ * crash). A kind served ONLY by a simulated executor with no opt-in still
+ * fails closed with SIMULATED_NOT_OPTED_IN — no fake claims of real
+ * remote control.
  */
 import type { Clock, EnvironmentDescriptor, EnvironmentKind, FileSystemPort } from '../api.ts';
 import { EnvironmentRegistry } from '../registry.ts';
@@ -70,7 +76,7 @@ export interface EnvironmentLifecycleManagerOptions {
 	/**
 	 * Default simulated opt-in (wired from the flauz.environments.simulated
 	 * setting in extension.ts; per-request `simulated` wins). Default false.
-         */
+	 */
 	readonly simulatedDefault?: boolean;
 }
 
@@ -167,7 +173,7 @@ export class EnvironmentLifecycleManager {
 	private resolveExecutor(kind: EnvironmentKind, simulated: boolean | undefined): EnvironmentExecutor {
 		const serving = this.executors.filter(executor => executor.kinds.includes(kind));
 		if (serving.length === 0) {
-			throw new EnvironmentLifecycleError('NO_EXECUTOR', `no executor serves kind '${kind}' (real providers land in TL3-004; this lane ships local-real for workspace-remote + simulated remote executors)`);
+			throw new EnvironmentLifecycleError('NO_EXECUTOR', `no executor serves kind '${kind}' in this manager (TL3-004 rung 1 ships real executors — ssh-cli, docker-cli, cloud-http — plus local-process and the simulated drills; check the wiring in extension.ts bootManagers)`);
 		}
 		const wantSimulated = simulated ?? this.simulatedDefault;
 		const pick = wantSimulated
@@ -179,7 +185,7 @@ export class EnvironmentLifecycleManager {
 		if (wantSimulated) {
 			throw new EnvironmentLifecycleError('NO_EXECUTOR', `no simulated executor serves kind '${kind}'`);
 		}
-		throw new EnvironmentLifecycleError('SIMULATED_NOT_OPTED_IN', `kind '${kind}' has no real provider in this lane (real providers = TL3-004; no fake claims of real remote control) — pass { simulated: true } (or enable flauz.environments.simulated) to drive the TEST-INFRASTRUCTURE simulated executor`);
+		throw new EnvironmentLifecycleError('SIMULATED_NOT_OPTED_IN', `kind '${kind}' is served in this manager only by TEST-INFRASTRUCTURE simulated executors (no real executor instance was provided — the real remote providers landed in TL3-004 rung 1 as ssh-cli/docker-cli/cloud-http, which fail closed with CLI_NOT_AVAILABLE/VAULT_REF_UNRESOLVED when the binary/keys are absent) — pass { simulated: true } (or enable flauz.environments.simulated) to drive the drill executor`);
 	}
 
 	private descriptorFor(id: string): EnvironmentDescriptor {
@@ -197,7 +203,7 @@ export class EnvironmentLifecycleManager {
 	 * typed errors; every accepted attempt (success OR failure) is recorded
 	 * in the ops ledger with MANDATORY provenance and returned as a typed
 	 * outcome.
-         */
+	 */
 	async perform(op: unknown, request: LifecycleOpRequest): Promise<EnvironmentOpOutcome> {
 		if (typeof op !== 'string' || !(ENVIRONMENT_OPS as readonly string[]).includes(op)) {
 			throw new EnvironmentLifecycleError('OP_UNKNOWN', `unknown lifecycle op ${JSON.stringify(op)} (expected one of ${ENVIRONMENT_OPS.join('|')})`);
@@ -336,7 +342,7 @@ export class EnvironmentLifecycleManager {
 	 * liveness but the executor's probe says the truth is gone, the
 	 * `stale` (or `orphan`) verdict is surfaced, and no state is mutated —
 	 * reconciliation is an explicit stop/destroy.
-         */
+	 */
 	async describe(request: { readonly id: string }): Promise<DescribeReport> {
 		const descriptor = this.descriptorFor(request.id);
 		const envelope = this.assertBootstrapped();
