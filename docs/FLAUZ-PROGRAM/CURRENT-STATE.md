@@ -2,11 +2,11 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 33e0af4ea9a (TL4 wave-1 merge: PRs #4/#5/#6 station-verified; hygiene allowlist fix 0304e375f63)
+Integrated head at verification: c0af9c3de466 (TL4 wave-1 + wave-2 TL4-002 merged: PRs #4/#5/#6/#9 station-verified; TL3 wave PRs #7/#8 integrated; premium-ux compliance prep d4b1576918b)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 33e0af4ea9a (TL4-001/003/005 merged) plus the hygiene-allowlist fix at 0304e375f63.
+- main is the canonical Flauz product line at c0af9c3de466 (TL4-001/002/003/005 merged, TL3-001/005 integrated, hygiene fixes 0304e375f63/e8a55b21ce0/d4b1576918b).
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
