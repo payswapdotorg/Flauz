@@ -75,6 +75,15 @@ git-diffable workflow fragment and re-run it from one command.
     loopback through the REAL core service (`flauz.a2a.*` over
     core/service.mjs) - pinned by tests.
 
+- `test/recovery-matrix.test.ts` - THE KILL-AND-RECOVER MATRIX: the full
+  stateful substrate (tasks + hardened ledger + fragments + exec runs +
+  memory + A2A over the real on-disk bus journal + watermarks + checkpoints
+  + claims) with simulated process deaths at five axes - mid-run step 2,
+  step 1, after completion (no-op), double kill, and mid-memory-promotion -
+  each followed by a full instance rebuild from disk and a coherent-state
+  recovery pass (memory/ledger/checkpoint verification, run resumption,
+  watermark deltas, contract verification, claim replay).
+
 ## Conventions
 
 - Zero runtime dependencies; node >= 20 stdlib only (node-free core: all IO

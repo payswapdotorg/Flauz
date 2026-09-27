@@ -5,6 +5,32 @@ Flauz durable memory substrate (TL2-003, Worker C): the tiered memory under
 checkpoint/watermark/claims state family. Everything the Agent OS lane calls
 "durable memory" lives here.
 
+## What lives here (M5 - checkpoints / watermarks / claims / decisions)
+
+- `src/checkpoints.ts` - agent-activity checkpoints tied to GRAPH MILESTONES
+  (task-created / plan-approved / step-completed / task-reported /
+  task-signed-off / contract-verified), SIGNED with the user-keystore
+  CheckpointSigner (the DL-20 discipline), hash-chained at
+  `.flauz/checkpoints.jsonl`. NEVER FABRICATED: minting goes through a
+  MilestoneVerifier that checks the REAL state (task envelope events, run
+  envelopes, contracts) - the service refuses to mint when the milestone
+  has not verifiably completed.
+- `src/watermarks.ts` - high-water marks per stream
+  (task-events / a2a-mailbox / memory-writes / workflow-runs) at
+  `.flauz/watermarks.json` (atomic writes). Watermarks NEVER regress;
+  `catchUp(streamId)` reads only the rows AFTER the high-water mark
+  through the injected StreamJournalPort - incremental catch-up after
+  restart, exactly-once to the consumer.
+- `src/claims.ts` - the claims ledger + decision records:
+  - claims (`.flauz/claims.jsonl`): append-only REVISIONS; current state
+    derives by replay (restart-safe). Lifecycle law: claimed -> observed
+    (evidence linked) -> verified; contradiction, staleness and the honest
+    unknown reset; every row carries provenance (actor, origin,
+    contentHash, ts, note). Queryable by state/taskId/actor.
+  - decisions (`.flauz/decisions.jsonl`): the DECISION-LOG posture as
+    durable state - title, context, options with exactly one chosen,
+    decision, consequences + provenance. Queryable.
+
 ## What lives here (M2 - context compilation + retrieval)
 
 - `src/retrieval.ts` - the PURE retrieval function over the memory index:
@@ -128,7 +154,7 @@ npm run typecheck          # tsc --noEmit (strict)
 npm test                   # node --test test/*.test.ts
 ```
 
-## v0 non-goals (M1/M2 scope)
+## v0 non-goals (M1/M2/M5 scope)
 
 No embeddings/vector retrieval (ranking is deterministic and recorded), no
 cross-workspace service persistence yet (ARCHITECTURE-LOCK persistence layer
