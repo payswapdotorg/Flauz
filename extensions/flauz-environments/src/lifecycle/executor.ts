@@ -59,7 +59,7 @@ export interface EnvironmentExecutor {
 	 * Health/state probe (the `describe` backing-truth check): NEVER reports
 	 * healthy when the persisted state outruns the truth (crash
 	 * reconciliation => `stale`; pid alive but not ours => `orphan`).
-         */
+		 */
 	probe(descriptor: EnvironmentDescriptor): Promise<DescribeVerdict>;
 }
 

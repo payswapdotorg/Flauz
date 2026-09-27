@@ -7,18 +7,18 @@
  * validation (structure + kind-specific connection shape).
  */
 import {
-        isEnvironmentKind,
-        isPlainObject,
-        isPositiveEpochMs,
-        isBoundedString,
-        isEnvironmentId,
-        isTrustPosture,
-        hasExactKeys,
-        hasKey,
-        SCHEMA_ID,
-        type EnvironmentConnection,
-        type EnvironmentDescriptor,
-        type EnvironmentKind,
+	isEnvironmentKind,
+	isPlainObject,
+	isPositiveEpochMs,
+	isBoundedString,
+	isEnvironmentId,
+	isTrustPosture,
+	hasExactKeys,
+	hasKey,
+	SCHEMA_ID,
+	type EnvironmentConnection,
+	type EnvironmentDescriptor,
+	type EnvironmentKind,
 } from '../api.ts';
 import { sshProvider } from './ssh.ts';
 import { containerProvider } from './container.ts';
@@ -27,25 +27,25 @@ import { workspaceRemoteProvider } from './workspaceRemote.ts';
 import { envelopeError, type ConnectionPlan, type EnvironmentProvider } from './types.ts';
 
 const PROVIDERS_BY_KIND: ReadonlyMap<EnvironmentKind, EnvironmentProvider> = new Map<EnvironmentKind, EnvironmentProvider>([
-        [sshProvider.kind, sshProvider],
-        [containerProvider.kind, containerProvider],
-        [cloudSandboxProvider.kind, cloudSandboxProvider],
-        [workspaceRemoteProvider.kind, workspaceRemoteProvider],
+	[sshProvider.kind, sshProvider],
+	[containerProvider.kind, containerProvider],
+	[cloudSandboxProvider.kind, cloudSandboxProvider],
+	[workspaceRemoteProvider.kind, workspaceRemoteProvider],
 ]);
 
 /** All four v0 provider adapters (deterministic order for reports/tests). */
 export const PROVIDERS: readonly EnvironmentProvider[] = [sshProvider, containerProvider, cloudSandboxProvider, workspaceRemoteProvider];
 
 export function providerFor(kind: EnvironmentKind): EnvironmentProvider {
-        const provider = PROVIDERS_BY_KIND.get(kind);
-        if (provider === undefined) {
-                throw envelopeError(`no provider adapter registered for kind '${kind}'`);
-        }
-        return provider;
+	const provider = PROVIDERS_BY_KIND.get(kind);
+	if (provider === undefined) {
+		throw envelopeError(`no provider adapter registered for kind '${kind}'`);
+	}
+	return provider;
 }
 
 export function providerIdForKind(kind: EnvironmentKind): string {
-        return providerFor(kind).id;
+	return providerFor(kind).id;
 }
 
 /**
@@ -55,84 +55,84 @@ export function providerIdForKind(kind: EnvironmentKind): string {
  * message on the first violation.
  */
 export function validateDescriptor(value: unknown): EnvironmentDescriptor {
-        if (!isPlainObject(value) || !hasExactKeys(value, ['id', 'kind', 'label', 'connection', 'trust', 'capabilities', 'enabled', 'timing'])) {
-                throw envelopeError('invalid descriptor: expected exactly the keys [capabilities, connection, enabled, id, kind, label, timing, trust]');
-        }
-        if (!isEnvironmentId(value.id)) {
-                throw envelopeError(`invalid descriptor: id must match /^env-[a-z0-9][a-z0-9-]{0,47}$/ (got ${JSON.stringify(value.id)})`);
-        }
-        if (!isEnvironmentKind(value.kind)) {
-                throw envelopeError(`invalid descriptor: kind must be one of ssh-local|container|cloud-sandbox|workspace-remote (got ${JSON.stringify(value.kind)})`);
-        }
-        if (!isBoundedString(value.label, 100)) {
-                throw envelopeError(`invalid descriptor: label must be a non-empty string (<= 100 chars) (got ${JSON.stringify(value.label)})`);
-        }
-        if (!isPlainObject(value.trust) || !hasExactKeys(value.trust, ['posture', 'inheritsWorkspaceTrust'])) {
-                throw envelopeError(`invalid descriptor: trust must have exactly the keys [inheritsWorkspaceTrust, posture]`);
-        }
-        if (!isTrustPosture(value.trust.posture)) {
-                throw envelopeError(`invalid descriptor: trust posture must be one of trusted|untrusted|unknown (got ${JSON.stringify(value.trust.posture)})`);
-        }
-        if (typeof value.trust.inheritsWorkspaceTrust !== 'boolean') {
-                throw envelopeError(`invalid descriptor: trust inheritsWorkspaceTrust must be a boolean (got ${JSON.stringify(value.trust.inheritsWorkspaceTrust)})`);
-        }
-        if (!isPlainObject(value.capabilities) || !hasExactKeys(value.capabilities, ['browser', 'exec', 'agentHost', 'terminal'])) {
-                throw envelopeError('invalid descriptor: capabilities must have exactly the keys [agentHost, browser, exec, terminal]');
-        }
-        // Unrolled (upstream local/code-no-dangerous-type-assertions): direct
-        // typeof guards on each destructured local narrow it to boolean so the
-        // descriptor literal below type-checks (a for..of over copies validates
-        // runtime behavior but cannot narrow the originals).
-        const { agentHost, browser, exec, terminal } = value.capabilities;
-        if (typeof agentHost !== 'boolean') {
-                throw envelopeError(`invalid descriptor: capability 'agentHost' must be a boolean (got ${JSON.stringify(agentHost)})`);
-        }
-        if (typeof browser !== 'boolean') {
-                throw envelopeError(`invalid descriptor: capability 'browser' must be a boolean (got ${JSON.stringify(browser)})`);
-        }
-        if (typeof exec !== 'boolean') {
-                throw envelopeError(`invalid descriptor: capability 'exec' must be a boolean (got ${JSON.stringify(exec)})`);
-        }
-        if (typeof terminal !== 'boolean') {
-                throw envelopeError(`invalid descriptor: capability 'terminal' must be a boolean (got ${JSON.stringify(terminal)})`);
-        }
-        if (typeof value.enabled !== 'boolean') {
-                throw envelopeError(`invalid descriptor: enabled must be a boolean (got ${JSON.stringify(value.enabled)})`);
-        }
-        if (!isPlainObject(value.timing) || !hasExactKeys(value.timing, ['created', 'updatedAt'])) {
-                throw envelopeError('invalid descriptor: timing must have exactly the keys [created, updatedAt]');
-        }
-        if (!isPositiveEpochMs(value.timing.created) || !isPositiveEpochMs(value.timing.updatedAt)) {
-                throw envelopeError(`invalid descriptor: timing created/updatedAt must be positive epoch-ms integers (got ${JSON.stringify(value.timing)})`);
-        }
-        if (value.timing.updatedAt < value.timing.created) {
-                throw envelopeError(`invalid descriptor: timing updatedAt must be >= created (got ${JSON.stringify(value.timing)})`);
-        }
-        const connection: EnvironmentConnection = providerFor(value.kind).validateConnection(value.connection);
-        // Built from runtime-validated fields (upstream local/code-no-dangerous-type-assertions:
-        // no object-literal assertions) — the guards above narrowed each path.
-        const descriptor: EnvironmentDescriptor = {
-                id: value.id,
-                kind: value.kind,
-                label: value.label,
-                connection,
-                trust: {
-                        posture: value.trust.posture,
-                        inheritsWorkspaceTrust: value.trust.inheritsWorkspaceTrust,
-                },
-                capabilities: { agentHost, browser, exec, terminal },
-                enabled: value.enabled,
-                timing: {
-                        created: value.timing.created,
-                        updatedAt: value.timing.updatedAt,
-                },
-        };
-        return descriptor;
+	if (!isPlainObject(value) || !hasExactKeys(value, ['id', 'kind', 'label', 'connection', 'trust', 'capabilities', 'enabled', 'timing'])) {
+		throw envelopeError('invalid descriptor: expected exactly the keys [capabilities, connection, enabled, id, kind, label, timing, trust]');
+	}
+	if (!isEnvironmentId(value.id)) {
+		throw envelopeError(`invalid descriptor: id must match /^env-[a-z0-9][a-z0-9-]{0,47}$/ (got ${JSON.stringify(value.id)})`);
+	}
+	if (!isEnvironmentKind(value.kind)) {
+		throw envelopeError(`invalid descriptor: kind must be one of ssh-local|container|cloud-sandbox|workspace-remote (got ${JSON.stringify(value.kind)})`);
+	}
+	if (!isBoundedString(value.label, 100)) {
+		throw envelopeError(`invalid descriptor: label must be a non-empty string (<= 100 chars) (got ${JSON.stringify(value.label)})`);
+	}
+	if (!isPlainObject(value.trust) || !hasExactKeys(value.trust, ['posture', 'inheritsWorkspaceTrust'])) {
+		throw envelopeError(`invalid descriptor: trust must have exactly the keys [inheritsWorkspaceTrust, posture]`);
+	}
+	if (!isTrustPosture(value.trust.posture)) {
+		throw envelopeError(`invalid descriptor: trust posture must be one of trusted|untrusted|unknown (got ${JSON.stringify(value.trust.posture)})`);
+	}
+	if (typeof value.trust.inheritsWorkspaceTrust !== 'boolean') {
+		throw envelopeError(`invalid descriptor: trust inheritsWorkspaceTrust must be a boolean (got ${JSON.stringify(value.trust.inheritsWorkspaceTrust)})`);
+	}
+	if (!isPlainObject(value.capabilities) || !hasExactKeys(value.capabilities, ['browser', 'exec', 'agentHost', 'terminal'])) {
+		throw envelopeError('invalid descriptor: capabilities must have exactly the keys [agentHost, browser, exec, terminal]');
+	}
+	// Unrolled (upstream local/code-no-dangerous-type-assertions): direct
+	// typeof guards on each destructured local narrow it to boolean so the
+	// descriptor literal below type-checks (a for..of over copies validates
+	// runtime behavior but cannot narrow the originals).
+	const { agentHost, browser, exec, terminal } = value.capabilities;
+	if (typeof agentHost !== 'boolean') {
+		throw envelopeError(`invalid descriptor: capability 'agentHost' must be a boolean (got ${JSON.stringify(agentHost)})`);
+	}
+	if (typeof browser !== 'boolean') {
+		throw envelopeError(`invalid descriptor: capability 'browser' must be a boolean (got ${JSON.stringify(browser)})`);
+	}
+	if (typeof exec !== 'boolean') {
+		throw envelopeError(`invalid descriptor: capability 'exec' must be a boolean (got ${JSON.stringify(exec)})`);
+	}
+	if (typeof terminal !== 'boolean') {
+		throw envelopeError(`invalid descriptor: capability 'terminal' must be a boolean (got ${JSON.stringify(terminal)})`);
+	}
+	if (typeof value.enabled !== 'boolean') {
+		throw envelopeError(`invalid descriptor: enabled must be a boolean (got ${JSON.stringify(value.enabled)})`);
+	}
+	if (!isPlainObject(value.timing) || !hasExactKeys(value.timing, ['created', 'updatedAt'])) {
+		throw envelopeError('invalid descriptor: timing must have exactly the keys [created, updatedAt]');
+	}
+	if (!isPositiveEpochMs(value.timing.created) || !isPositiveEpochMs(value.timing.updatedAt)) {
+		throw envelopeError(`invalid descriptor: timing created/updatedAt must be positive epoch-ms integers (got ${JSON.stringify(value.timing)})`);
+	}
+	if (value.timing.updatedAt < value.timing.created) {
+		throw envelopeError(`invalid descriptor: timing updatedAt must be >= created (got ${JSON.stringify(value.timing)})`);
+	}
+	const connection: EnvironmentConnection = providerFor(value.kind).validateConnection(value.connection);
+	// Built from runtime-validated fields (upstream local/code-no-dangerous-type-assertions:
+	// no object-literal assertions) — the guards above narrowed each path.
+	const descriptor: EnvironmentDescriptor = {
+		id: value.id,
+		kind: value.kind,
+		label: value.label,
+		connection,
+		trust: {
+			posture: value.trust.posture,
+			inheritsWorkspaceTrust: value.trust.inheritsWorkspaceTrust,
+		},
+		capabilities: { agentHost, browser, exec, terminal },
+		enabled: value.enabled,
+		timing: {
+			created: value.timing.created,
+			updatedAt: value.timing.updatedAt,
+		},
+	};
+	return descriptor;
 }
 
 /** Connection-plan generation via the kind's provider adapter. */
 export function buildConnectionPlan(descriptor: EnvironmentDescriptor): ConnectionPlan {
-        return providerFor(descriptor.kind).buildConnectionPlan(descriptor);
+	return providerFor(descriptor.kind).buildConnectionPlan(descriptor);
 }
 
 /** Envelope schema id re-export (single import site for consumers). */

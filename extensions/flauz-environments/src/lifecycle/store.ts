@@ -292,7 +292,7 @@ export class LifecycleStore {
 	 * Appends one record to the ledger (returns its 1-based line number).
 	 * The existing content is fully re-validated, then preserved byte-for-
 	 * byte — appends never rewrite history.
-         */
+		 */
 	async appendOp(record: EnvironmentOpRecord): Promise<number> {
 		const raw = await this.fs.readFileUtf8(this.opsPath);
 		const existing = raw === undefined || raw.trim().length === 0 ? '' : raw;

@@ -106,7 +106,7 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 	 * Simulates a hard crash: the backing sim file disappears while the
 	 * lifecycle state still claims whatever it claims (drives the
 	 * describe-crash-reconciliation drills).
-         */
+		 */
 	async simulateCrash(envId: string): Promise<void> {
 		await this.fs.rm(this.simPath(envId));
 	}

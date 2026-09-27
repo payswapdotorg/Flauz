@@ -44,20 +44,20 @@ export const FLAUZ_DOWNLOAD_BEHAVIOR = 'deny' as const;
 
 /** Typed hardening error (fail-closed session-error taxonomy). */
 export class BrowserHardeningError extends Error {
-        readonly step: 'download-policy' | 'user-agent';
-        constructor(step: 'download-policy' | 'user-agent', message: string) {
-                super(message);
-                this.name = 'BrowserHardeningError';
-                this.step = step;
-        }
+	readonly step: 'download-policy' | 'user-agent';
+	constructor(step: 'download-policy' | 'user-agent', message: string) {
+		super(message);
+		this.name = 'BrowserHardeningError';
+		this.step = step;
+	}
 }
 
 /** What one hardening pass applied (audit shape; surfaced in tests via the sent-command log). */
 export interface SessionHardeningReport {
-        /** Always 'deny' (3.2; v0 has no allow surface). */
-        readonly downloadBehavior: typeof FLAUZ_DOWNLOAD_BEHAVIOR;
-        /** The UA override applied (agent sessions only; undefined for human sessions). */
-        readonly userAgentOverride: string | undefined;
+	/** Always 'deny' (3.2; v0 has no allow surface). */
+	readonly downloadBehavior: typeof FLAUZ_DOWNLOAD_BEHAVIOR;
+	/** The UA override applied (agent sessions only; undefined for human sessions). */
+	readonly userAgentOverride: string | undefined;
 }
 
 /**
@@ -67,31 +67,31 @@ export interface SessionHardeningReport {
  * never leaks into a request header).
  */
 export function flauzAgentUserAgent(baseUserAgent: string): string {
-        const trimmed = baseUserAgent.trim();
-        if (trimmed === '') {
-                return FLAUZ_AGENT_UA_TOKEN;
-        }
-        return `${trimmed} ${FLAUZ_AGENT_UA_TOKEN}`;
+	const trimmed = baseUserAgent.trim();
+	if (trimmed === '') {
+		return FLAUZ_AGENT_UA_TOKEN;
+	}
+	return `${trimmed} ${FLAUZ_AGENT_UA_TOKEN}`;
 }
 
 /** True when a UA string carries the Flauz agent token (machine-checkable distinguishability). */
 export function isFlauzAgentUserAgent(userAgent: string): boolean {
-        return userAgent.split(' ').includes(FLAUZ_AGENT_UA_TOKEN);
+	return userAgent.split(' ').includes(FLAUZ_AGENT_UA_TOKEN);
 }
 
 /** Reads the target's current user agent via `Runtime.evaluate navigator.userAgent`. */
 async function queryBaseUserAgent(transport: CdpTransport): Promise<string> {
-        let response: { result?: { type?: string; value?: unknown } };
-        try {
-                response = await transport.send<{ result?: { type?: string; value?: unknown } }>('Runtime.evaluate', { expression: 'navigator.userAgent', returnByValue: true });
-        } catch (err) {
-                throw new BrowserHardeningError('user-agent', `reading the base user agent failed: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        const value = response.result?.value;
-        if (typeof value !== 'string' || value === '') {
-                throw new BrowserHardeningError('user-agent', `the target did not return a usable navigator.userAgent (got ${JSON.stringify(value)})`);
-        }
-        return value;
+	let response: { result?: { type?: string; value?: unknown } };
+	try {
+		response = await transport.send<{ result?: { type?: string; value?: unknown } }>('Runtime.evaluate', { expression: 'navigator.userAgent', returnByValue: true });
+	} catch (err) {
+		throw new BrowserHardeningError('user-agent', `reading the base user agent failed: ${err instanceof Error ? err.message : String(err)}`);
+	}
+	const value = response.result?.value;
+	if (typeof value !== 'string' || value === '') {
+		throw new BrowserHardeningError('user-agent', `the target did not return a usable navigator.userAgent (got ${JSON.stringify(value)})`);
+	}
+	return value;
 }
 
 /**
@@ -100,24 +100,24 @@ async function queryBaseUserAgent(transport: CdpTransport): Promise<string> {
  * fails the session/tab activation (never a half-hardened open).
  */
 export async function applySessionHardening(transport: CdpTransport, descriptor: BrowserSessionDescriptor): Promise<SessionHardeningReport> {
-        // 3.2: downloads denied for EVERY session (human + agent), fail-closed.
-        try {
-                await transport.send('Browser.setDownloadBehavior', { behavior: FLAUZ_DOWNLOAD_BEHAVIOR });
-        } catch (err) {
-                throw new BrowserHardeningError('download-policy', `Browser.setDownloadBehavior {behavior:'${FLAUZ_DOWNLOAD_BEHAVIOR}'} failed: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        // 3.1: agent sessions only. Human sessions are never sent the override
-        // (pinned by tests: zero Emulation.setUserAgentOverride commands on the
-        // human path).
-        if (descriptor.initiator !== 'agent') {
-                return { downloadBehavior: FLAUZ_DOWNLOAD_BEHAVIOR, userAgentOverride: undefined };
-        }
-        const base = await queryBaseUserAgent(transport);
-        const userAgent = flauzAgentUserAgent(base);
-        try {
-                await transport.send('Emulation.setUserAgentOverride', { userAgent });
-        } catch (err) {
-                throw new BrowserHardeningError('user-agent', `Emulation.setUserAgentOverride failed: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        return { downloadBehavior: FLAUZ_DOWNLOAD_BEHAVIOR, userAgentOverride: userAgent };
+	// 3.2: downloads denied for EVERY session (human + agent), fail-closed.
+	try {
+		await transport.send('Browser.setDownloadBehavior', { behavior: FLAUZ_DOWNLOAD_BEHAVIOR });
+	} catch (err) {
+		throw new BrowserHardeningError('download-policy', `Browser.setDownloadBehavior {behavior:'${FLAUZ_DOWNLOAD_BEHAVIOR}'} failed: ${err instanceof Error ? err.message : String(err)}`);
+	}
+	// 3.1: agent sessions only. Human sessions are never sent the override
+	// (pinned by tests: zero Emulation.setUserAgentOverride commands on the
+	// human path).
+	if (descriptor.initiator !== 'agent') {
+		return { downloadBehavior: FLAUZ_DOWNLOAD_BEHAVIOR, userAgentOverride: undefined };
+	}
+	const base = await queryBaseUserAgent(transport);
+	const userAgent = flauzAgentUserAgent(base);
+	try {
+		await transport.send('Emulation.setUserAgentOverride', { userAgent });
+	} catch (err) {
+		throw new BrowserHardeningError('user-agent', `Emulation.setUserAgentOverride failed: ${err instanceof Error ? err.message : String(err)}`);
+	}
+	return { downloadBehavior: FLAUZ_DOWNLOAD_BEHAVIOR, userAgentOverride: userAgent };
 }

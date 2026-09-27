@@ -70,7 +70,7 @@ export interface EnvironmentLifecycleManagerOptions {
 	/**
 	 * Default simulated opt-in (wired from the flauz.environments.simulated
 	 * setting in extension.ts; per-request `simulated` wins). Default false.
-         */
+		 */
 	readonly simulatedDefault?: boolean;
 }
 
@@ -197,7 +197,7 @@ export class EnvironmentLifecycleManager {
 	 * typed errors; every accepted attempt (success OR failure) is recorded
 	 * in the ops ledger with MANDATORY provenance and returned as a typed
 	 * outcome.
-         */
+		 */
 	async perform(op: unknown, request: LifecycleOpRequest): Promise<EnvironmentOpOutcome> {
 		if (typeof op !== 'string' || !(ENVIRONMENT_OPS as readonly string[]).includes(op)) {
 			throw new EnvironmentLifecycleError('OP_UNKNOWN', `unknown lifecycle op ${JSON.stringify(op)} (expected one of ${ENVIRONMENT_OPS.join('|')})`);
@@ -336,7 +336,7 @@ export class EnvironmentLifecycleManager {
 	 * liveness but the executor's probe says the truth is gone, the
 	 * `stale` (or `orphan`) verdict is surfaced, and no state is mutated —
 	 * reconciliation is an explicit stop/destroy.
-         */
+		 */
 	async describe(request: { readonly id: string }): Promise<DescribeReport> {
 		const descriptor = this.descriptorFor(request.id);
 		const envelope = this.assertBootstrapped();
