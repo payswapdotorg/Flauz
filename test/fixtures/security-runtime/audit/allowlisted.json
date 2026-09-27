@@ -1,0 +1,44 @@
+{
+	"auditReportVersion": 2,
+	"vulnerabilities": {
+		"flauz-devtool-c": {
+			"name": "flauz-devtool-c",
+			"severity": "high",
+			"isDirect": true,
+			"via": [
+				{
+					"title": "Synthetic fixture advisory: command injection in flauz-devtool-c",
+					"url": "https://github.com/advisories/GHSA-gggg-hhhh-iiii",
+					"severity": "high",
+					"cwe": ["CWE-78"],
+					"cvss": {
+						"score": 7.2,
+						"vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+					}
+				}
+			],
+			"effects": [],
+			"range": "<0.9.5",
+			"nodes": ["node_modules/flauz-devtool-c"],
+			"fixAvailable": {
+				"isSemVerMajor": false,
+				"name": "flauz-devtool-c",
+				"version": "0.9.5"
+			}
+		}
+	},
+	"metadata": {
+		"vulnerabilities": {
+			"info": 0,
+			"low": 0,
+			"moderate": 0,
+			"high": 1,
+			"critical": 0
+		},
+		"dependencies": {
+			"prod": 4,
+			"dev": 2
+		},
+		"totalDependencies": 6
+	}
+}

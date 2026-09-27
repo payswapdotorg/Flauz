@@ -1,8 +1,10 @@
 # Flauz Browser Policy — integration gap analysis (extension-land vs product-side)
 
 **Lane:** Wave 4 / Worker I (`flauz-I-w4`), branch `flauz/wave4/browser-policy`;
-updated by TL3-001 (browser runtime, Worker A) and TL3-002 (browser session
-security, Worker A, branch `tl3/a2-browser-security`).
+updated by TL3-001 (browser runtime, Worker A), TL3-002 (browser session
+security, Worker A, branch `tl3/a2-browser-security`) and TL3-003 (the
+real-Chromium hardening drill + the G3/P1 verification, Worker A, branch
+`tl3/a3-browser-real`).
 **Scope:** what `extensions/flauz-browser` owns today vs. what only a
 product-side change can wire into the in-tree browser platform. Tree
 citations are repo-relative `path:line` against the flauz/main base
@@ -29,6 +31,7 @@ below is analysis + proposal; the only code this lane ships lives under
 | Post-commit reconciliation verdicts (SECURITY-MODEL section 4 F2) | `src/policy.ts` `reconcileCommittedUrl` | Computes the violation + the `about:blank` reset recommendation. **TL3-002: the EXECUTION is now RUNTIME-SIDE** — `src/runtime/tabs.ts` `runForcedReset` navigates the offending runtime-owned tab to `about:blank` THROUGH the policy engine when `security.enforceReset` is true (the default, fail-closed; explicit `false` opt-outs are recorded in the verdict). What remains product-side is the MAIN-PROCESS loadURL authority for tabs the runtime does not own (gap G6 residual). |
 | **The browser RUNTIME (TL3-001)** — CDP client, sessions, policy-gated navigation, capture, recovery | `src/cdp/`, `src/runtime/` | The runtime posture P0 was waiting for: `BrowserSessionDescriptor` (flauz.browser-session/v0), the navigation pipeline (deny => ZERO CDP commands; post-commit violation => the F2 reset recommendation), console/network/screenshot capture + evidence rows, drop/wedged recovery, `CdpEndpointHost` (FLAUZ_CDP_ENDPOINT) + `WorkbenchBrowserHost` (proposed browser API). Pinned by 60 new node --test cases + the driver drill. |
 | **Session security hardening (TL3-002)** — per-session UA discipline, download deny, popup/new-target gate, G6 reset execution, partition-scoped tab ownership, the session journal, the untrusted-content marker | `src/runtime/hardening.ts`, `src/runtime/journal.ts`, `src/runtime/sessionManager.ts`, `src/runtime/tabs.ts`, `src/runtime/capture.ts` | Items 3.1-3.7 of the TL3-002 work order, all fail-closed, all extension-land: `Browser.setDownloadBehavior {behavior:'deny'}` on every session (v0 has NO allow surface); `Emulation.setUserAgentOverride` with the `FlauzAgent/<v>` product token on agent sessions only (humans keep the browser default — distinguishable on the wire); `Target.setAutoAttach` popup gate closing denied targets before use; the narrow typed `runForcedReset` (only about:blank, through the engine) driven by the ADDITIVE policy key `security.enforceReset`; the target-ownership registry + typed cross-partition/foreign-session tab-use errors; the append-only `.flauz/browser-sessions.jsonl` journal (PIN-1 contract, mandatory actor); the `untrusted-content:` boundary marker on capture-derived evidence rows (a MARKER, not sanitization). Pinned by 40 new node --test cases + the extended drill. |
+| **The REAL-Chromium verification (TL3-003)** — the optional real-endpoint drill `test/canaries/real-chromium-hardening.drill.ts` | `test/canaries/real-chromium-hardening.drill.ts` | The "FakeCdpTransport pins the shapes, not Chromium's behavior" closure: the REAL runtime (CdpEndpointHost + BrowserSessionManager + hardening + popup gate + recovery) driven against a real Chromium over a real CDP WebSocket, asserting real wire frames / committed URLs / PNG bytes / navigator.userAgent / download state machines / popup timing / recovery — and PINNING the five real-Chromium divergences from the fake's contract (F-DELIVERY, F-POPUP-URL, F-RELEASE-CMD, F-OPENER-BLOCK, F-RECOVERY-DOMAINS; see "What remains"). SKIP without `FLAUZ_CDP_ENDPOINT`; never fails a gate for lacking a browser. |
 
 ## 2. The in-tree gate inventory (verified at this HEAD)
 
@@ -82,12 +85,59 @@ drives its own tabs through the proposed browser API and gates them itself.
 (`chat.shared.contribution.ts:1551`), so L2 is off unless the user/enterprise
 enables it (the setting is `restricted` + backed by an enterprise policy,
 `ChatAgentNetworkFilter`, `:1554-1563` — the tree's own managed floor, cf.
-SECURITY-MODEL section 2.4). The Flauz default-on posture for agent scope
-(SECURITY-MODEL section 4 F3) is reachable WITHOUT a fork via
-`contributes.configurationDefaults` in a future `flauz-defaults` built-in
-(the pinning pattern the C-20 canary already uses for
-`extensions.experimental.affinity`). Lossy: application-scope only, not
-per-workspace; combine with P0 for workspace granularity.
+SECURITY-MODEL section 2.4).
+
+**VERIFIED BLOCKER (TL3-003, branch `tl3/a3-browser-real`, read-only tree
+analysis — DELIVERED-AS-FINDING):** the candidate zero-fork fix — a future
+`flauz-defaults` built-in contributing `configurationDefaults` pinning
+`chat.agent.networkFilter: true` — is IMPOSSIBLE. The `configurationDefaults`
+extension-point handler builds `allowedScopes =
+[MACHINE_OVERRIDABLE, WINDOW, RESOURCE, LANGUAGE_OVERRIDABLE]`
+(`src/vs/workbench/api/common/configurationExtensionPoint.ts:217`) and DELETES
+any contributed default whose registered property's scope is outside that
+list, warning "Cannot register configuration defaults for '{0}'. Only
+defaults for machine-overridable, window, resource and language overridable
+scoped settings are supported." (`:227-232`). `chat.agent.networkFilter` is
+`scope: ConfigurationScope.APPLICATION` (`chat.shared.contribution.ts:1552`;
+the enum value is 1, `configurationRegistry.ts:184-188`) — not in the list.
+Notably the `restricted: true` flag is NOT the blocker for defaults (the
+handler consults only `disallowConfigurationDefault` — absent on this
+setting — and the scope); the APPLICATION scope is. The pinning pattern the
+C-20 canary/activation-lint R4 anticipates for
+`extensions.experimental.affinity` transfers because that setting has NO
+explicit scope (`src/vs/workbench/contrib/extensions/browser/extensions.contribution.ts:269-285`
+→ WINDOW → allowed); networkFilter cannot use the same mechanism.
+
+**The P1 posture therefore needs one of the product-side alternatives**
+(exact, with tree citations):
+
+1. **Enterprise policy `ChatAgentNetworkFilter`** (declared at
+   `chat.shared.contribution.ts:1554-1563`): policy values ride the policy
+   service and override everything at read time
+   (`src/vs/platform/configuration/common/configurations.ts:202-203`, where
+   `config.policy` value/managedSettings/restrictedValue are merged ahead of
+   all other layers). Zero fork — but shippable only as a DEPLOYMENT-level
+   (managed settings / OS policy) decision, not as in-repo product code.
+2. **A product-side defaults layer (fork-critical, DL-12 class):** an in-tree
+   workbench contribution calling
+   `configurationRegistry.registerDefaultConfigurations(...)` directly — the
+   registry API carries no scope restriction (the gate exists only at the
+   extension point, `configurationExtensionPoint.ts:215-236`); the in-repo
+   precedent is `ConfigurationDefaultOverridesContribution`
+   (`src/vs/workbench/services/configuration/browser/configurationService.ts:1351+`,
+   which registers experimental-setting defaults exactly this way). A Flauz
+   `src/vs` contribution pinning `{ 'chat.agent.networkFilter': true }` is
+   therefore possible but is a FORK-CRITICAL ledger entry requiring the TL's
+   adjudication.
+3. **Zero-fork provisioning pin:** APPLICATION scope means "can be configured
+   only in default profile user settings" (`configurationRegistry.ts:185-187`)
+   — so the Flauz packaging/first-boot layer can pin the value by seeding the
+   default profile's `settings.json` (the exact mechanism the B-POLICY canary
+   already proves per-boot, `build/flauz/canaries/B-POLICY.md` setup step 1).
+   Per-install posture, not a repo default.
+
+Until one of those lands, extension-land's defense is posture P0 (LANDED:
+the runtime gates its OWN tabs through the policy engine per-workspace).
 
 ### G4 — will-navigate as a security gate
 
@@ -131,7 +181,7 @@ upstream-proposal issue).
 | Posture | Fork cost | What it gives | Status |
 |---|---|---|---|
 | **P0 — extension-driven tabs (proposed API)** | zero (DL-19 product grant `extensionEnabledApiProposals["flauz.flauz-browser"] = ["browser"]`) | The extension opens agent browser tabs itself via `window.openBrowserTab` + `startCDPSession` (proposed `vscode.proposed.browser.d.ts:64-91`) and consults its OWN driver-layer verdict BEFORE any `Page.navigate` — the driver-side allowlist is then genuinely authoritative for the Flauz agent path, per-workspace, zero fork. L2 still needs G3/P1 for defense-in-depth. | **LANDED (TL3-001)**: the grant is live in `product.flauz.json` (plus the manifest `enabledApiProposals: ["browser"]`), `WorkbenchBrowserHost` implements the adapter over structural ports, and the runtime + driver drill satisfy the DL-33 no-dead-config discipline (live code path behind the grant). Workbench-level boot verification stays with the B-POLICY canary's boot assertions. |
-| **P1 — config-only default-on L2** | zero (`flauz-defaults` configurationDefaults, or enterprise policy `ChatAgentNetworkFilter`) | Turns the in-tree webRequest filter on for all agent sessions (application scope) | No code yet; documented for the flauz-defaults lane |
+| **P1 — config-only default-on L2** | zero (`flauz-defaults` configurationDefaults, or enterprise policy `ChatAgentNetworkFilter`) | Turns the in-tree webRequest filter on for all agent sessions (application scope) | **BLOCKED-AS-SPECIFIED (TL3-003 finding):** the `flauz-defaults` configurationDefaults mechanism CANNOT pin `chat.agent.networkFilter` — APPLICATION scope is rejected at the extension point (`configurationExtensionPoint.ts:217,227-232`; details in G3 above). The posture needs one of the named product-side alternatives: enterprise policy `ChatAgentNetworkFilter`, a fork-critical in-tree `registerDefaultConfigurations` contribution (DL-12 class, precedent `configurationService.ts:1351+`), or the zero-fork default-profile settings.json provisioning pin (the B-POLICY canary pattern) |
 | **P2 — minimal src/vs hook (provider interface)** | FORK-CRITICAL ledger entry (DL-12/DL-10) | Per-workspace verdicts feed the tree's own L1/L2 gates directly (G2/G5/G6 closure) | DECISION-LOG proposal only (DL-31); demotion alternative = P0+P1 |
 
 ## 5. The evidence-ledger seam (no file changes required)
@@ -161,36 +211,105 @@ The browser platform is in-tree and agent-native (DL-1/DL-6); the policy
 ENGINE, the per-workspace policy SOURCE, the partition NAMING CONTRACT, the
 verdict/audit objects, the evidence-row seam, — since TL3-001 — the BROWSER
 RUNTIME itself (posture P0 LANDED: sessions, policy-gated navigation,
-capture, recovery), and — since TL3-002 — the SESSION SECURITY HARDENING
+capture, recovery), — since TL3-002 — the SESSION SECURITY HARDENING
 (per-session UA discipline, deny-by-default downloads, the popup/new-target
 gate, the EXECUTED G6 reset, partition-scoped tab ownership, the PIN-1
-session journal, the untrusted-content boundary marker) are extension-land
-facts. The remaining wiring is precisely enumerated above (G1-G6 residuals)
-with zero-fork postures (P0 landed / P1) ranked ahead of any src/vs hook
-(P2), keeping the FORK-CRITICAL ledger empty (DL-12) unless the TL
-adjudicates DL-31.
+session journal, the untrusted-content boundary marker), and — since TL3-003
+— the REAL-CHROMIUM verification of that runtime (the optional real-endpoint
+drill, GREEN against Chrome for Testing 153, pinning five real-Chromium
+divergences from the FakeCdpTransport contract) plus the VERIFIED G3/P1
+answer (the `flauz-defaults` configurationDefaults posture is impossible for
+`chat.agent.networkFilter`; the alternatives are named in G3) are
+extension-land facts. The remaining wiring is precisely enumerated above
+(G1-G6 residuals) with zero-fork postures (P0 landed / P1
+blocked-as-specified with product-side alternatives) ranked ahead of any
+src/vs hook (P2), keeping the FORK-CRITICAL ledger empty (DL-12) unless the
+TL adjudicates DL-31.
 
-**What remains for TL3-002 follow-ups (state after the TL3-002 delivery):**
+**What remains (state after the TL3-003 delivery — branch `tl3/a3-browser-real`):**
 
-- SHIPPED (this lane, `tl3/a2-browser-security`): 3.1 per-session
+- SHIPPED (TL3-002, `tl3/a2-browser-security`): 3.1 per-session
   user-agent discipline, 3.2 deny-by-default downloads (no allow surface by
   design), 3.3 the popup/new-target gate, 3.4 the G6 forced-reset EXECUTION
   runtime-side (`security.enforceReset`, additive v0 key), 3.5
   partition-scoped tab ownership (typed cross-partition/foreign-session
   errors; ownership-guarded recovery re-attach), 3.6 the session journal
   (PIN-1 contract + fixtures), 3.7 the untrusted-content boundary marker,
-  3.8 these docs.
+  3.8 those docs.
+- SHIPPED (TL3-003, `tl3/a3-browser-real`): the REAL-Chromium hardening
+  drill `test/canaries/real-chromium-hardening.drill.ts` — the REAL runtime
+  (CdpEndpointHost + BrowserSessionManager + hardening + popup gate +
+  recovery) driven against a real Chromium over a real CDP WebSocket
+  (verified: Chrome for Testing 153.0.8010.12, headless). GREEN with 43
+  assertions, SKIP without `FLAUZ_CDP_ENDPOINT`. It COVERS, with real
+  observed evidence: the transport E2E (real wire frames, real committed
+  URLs, real PNG screenshot bytes), the UA discipline both directions
+  (agent token present and cross-session observable; human default
+  preserved; zero override frames on the human path), the download deny
+  (command accepted on real page sessions, EFFECT observable via
+  `Browser.downloadWillBegin` -> `Browser.downloadProgress` state
+  `canceled`, per-session scoping), and the recovery path (real-socket kill
+  -> suspend -> reconnect -> re-attach -> re-HARDENING (wire + UA evidence)
+  -> current-policy recheck against REAL browser state, including the
+  hot-swapped-deny variant flagging the real committed URL).
+- REAL-CHROMIUM FINDINGS pinned by the TL3-003 drill (asserted as
+  observed — divergences between real Chromium and the FakeCdpTransport
+  contract, recorded for the TL, NOT papered over):
+  - **F-DELIVERY**: `Target.setAutoAttach` on a PAGE session (the popup
+    gate's placement) does NOT deliver `window.open` popups on real
+    Chromium — popups are browser-level targets and free-run past the
+    page-level gate. The fake models popup delivery to the opener
+    target's sessions; real Chromium does not provide it.
+  - **F-POPUP-URL**: at browser-level attach (`waitForDebuggerOnStart`),
+    a `window.open` popup arrives with `targetInfo.url` EMPTY — the
+    pending navigation URL is NOT available at gate time.
+  - **F-RELEASE-CMD**: `Runtime.run` is NOT a real CDP method (real
+    Chromium rejects it with "'Runtime.run' wasn't found"); the real
+    release command is `Runtime.runIfWaitingForDebugger`. The gate's
+    allow-path (`sessionManager.ts` `handleAttachedTarget`) sends
+    `Runtime.run`.
+  - **F-OPENER-BLOCK**: `window.open` BLOCKS the opener's JS while the
+    popup is held; the call returns only after release — and never
+    returns if the held popup is closed without release (the deny-path
+    shape). The browser-level deny-path PRIMITIVE (close a held popup
+    before use via `Target.closeTarget` -> target destroyed) and the
+    allow-path primitive (`Runtime.runIfWaitingForDebugger` release)
+    both hold on real Chromium.
+  - **F-RECOVERY-DOMAINS**: the recovery re-attach does not re-send the
+    domain enables (`Page.enable` et al. — `activateLiveTab` runs them
+    only at mint time), so on real Chromium `Page.frameNavigated` never
+    flows on the fresh session and the post-recovery commit OBSERVATION
+    times out (the security-relevant post-commit reconciliation is
+    skipped after recovery). The fake cannot catch this: it emits Page
+    events without modeling domain-enable state. The current-policy
+    recheck itself is browser-state based (`Target.getTargets`) and
+    survives.
+  These are the exact fix candidates for the TL station to adjudicate
+  (browser-level auto-attach placement / URL-observation strategy;
+  release-command rename; domain re-enable on recovery) — each changes
+  landed TL3-001/TL3-002 runtime semantics pinned by the unit suites, so
+  they are recorded, not patched, by this lane.
 - OPEN — G5 (partition NAMING control): the workbench host still cannot
   mint Electron partitions with the flauz names; the endpoint host gets
   whatever partition the external Chromium/sidecar configures. Extension-land
   enforces ownership/isolation over the targets it mints; the Electron
   cookie-jar minting stays product-side (do not attempt extension-side).
-- OPEN — boot-level workbench verification of the P0 surface (real
-  `window.openBrowserTab` under the grant — the B-POLICY boot residuals),
-  which also covers the REAL-Chromium behavior of the TL3-002 hardening
-  commands (`Emulation.setUserAgentOverride` base-UA read, per-session
-  `Browser.setDownloadBehavior` scoping, `Target.setAutoAttach` popup
-  delivery) — the FakeCdpTransport pins the shapes, not Chromium's behavior.
-- OPEN — the in-tree L2 default-on posture (G3/P1, flauz-defaults).
+- OPEN — the in-tree L2 default-on posture (G3/P1): **DELIVERED-AS-FINDING
+  (TL3-003)** — the `flauz-defaults` `configurationDefaults` mechanism is
+  IMPOSSIBLE for `chat.agent.networkFilter` (APPLICATION scope rejected at
+  the extension point; see G3 above for the verified enforcement path and
+  the three named product-side alternatives).
 - OPEN — G6 residual: main-process `loadURL` authority for targets the
   Flauz runtime does not own.
+- OPEN — boot-level workbench verification of the P0 surface (real
+  `window.openBrowserTab` under the grant — the B-POLICY boot residuals).
+  The TL3-003 real-Chromium drill covers the REAL-Chromium behavior of the
+  TL3-002 hardening commands (download deny acceptance/effect/scoping, UA
+  override effectiveness + cross-session visibility, base-UA sources, popup
+  interception mechanics, recovery primitives) — the part of that residual
+  that does NOT need a workbench. What REMAINS with the B-POLICY canary is
+  exactly the workbench-boot surface: the real `window.openBrowserTab` +
+  `BrowserTab.startCDPSession` under the product grant, the
+  `flauz.browser.*` command surface activation log lines, and the
+  in-tree L1/L2 surfaces (the `ERR_BLOCKED_BY_CLIENT` webRequest log line
+  class).

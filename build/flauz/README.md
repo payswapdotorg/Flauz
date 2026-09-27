@@ -28,6 +28,7 @@ Authoritative inputs: `docs/PERFORMANCE-PLAN.md` + `docs/MIGRATION-PLAN.md`
 | **5. Proposed-API rota** | `flauz-rota.yml` | `rota` | DL-4 union-vs-inventory drift gate + baseline deltas (D-3) | — |
 | **6. Checkpoints** | `flauz-rota.yml` (checkpoint-reminder step; tag by sync runbook) | `rota` | DECISION-LOG diff reminder at every `flauz/sync/<date>` tag; rota `--snapshot` baseline committed at the tag | — |
 | TL4-005 unified budgets | `flauz-budgets.yml` | `budget-gate` | registry budgets (build/flauz/budgets/) across startup/activation/memory/CPU/browser/model/multi-agent; skip-vs-fail + `--require enforced-ci` over mapped perf inputs | — (recalibration landing spot for all of the above) |
+| TL4-008 compat L3 runtime boot smoke | `flauz-compat.yml` | `compat-l3` | the battery's layer 3 (TL4-COMPAT-BATTERY section 11): compile on the runner + xvfb boot with flauz built-ins active + `compat-l3-smoke.mjs --require`; trigger = workflow_dispatch + weekly schedule only (compile cost, never per-push) | - |
 
 All four workflows: `ubuntu-latest` class (perf pair pins `ubuntu-24.04` —
 DL-16 candidate), **no secrets** (public repo, read-only perms), gated on
@@ -51,8 +52,10 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `startup-pair.mjs` | §1.3 startup gates + R6 mark integrity | `--timers-flauz/--timers-upstream`, `--markers-flauz/--markers-upstream`, `--check-marks --src-root`, `--phase-gate --src-root`, `--pairs-file`, `--min-runs` | 0 pass/SKIP · 1 violation · 2 usage |
 | `memory-snapshot.mjs` | §3.2 memory budget gate | `--json` (resolveProcesses shape) / `--status` / `--ps`, `--scenario eventually|after-session`, `--enforce`, `--pattern name=regex` | 0 pass · 1 violation · 2 usage |
 | `compat-battery.mjs` | TL4-003 Code OSS compatibility battery (L1 guard invocation + L2 stock contribution-surface diff, product identity, root pkg scripts/deps, Flauz positive control; spec `docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md`) | `--root/--upstream/--product` (git ref OR tree dir), `--allowlist`, `--json`, `--layer 1|2|all`, `--no-fail`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
+| `compat-l3-smoke.mjs` | TL4-008 the battery's layer 3: the runtime boot smoke driver (attach mode: CDP readiness + workbench target, log-corpus fatal scan, source-pinned extension-host + flauz activation markers, compiled pillar rows in the B-POLICY A3 pattern; child mode: `--cmd` process-group ownership + natural exit code; spec section 11, baseline `build/flauz/compat-l3-baseline.md`) | `--cdp-port/--http-url/--log/--log-dir/--compile-root` (attach), `--cmd/--arg/--env/--cwd` (child), `--target-regex`, `--boot-timeout/--settle-timeout/--poll-interval/--kill-timeout`, `--ext-host-regex/--ext-activation-regex`, `--fatal-regex`, `--require`, `--json`, `--out`, `--no-fail` | 0 pass/SKIP, 1 divergence, 2 usage |
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
 | `budget-gate.mjs` | TL4-005 unified budget gate (registry `budgets/flauz-budgets.json` vs measurements) | `--budgets`, `--measurements <file-or-dir>` (records + perf-log-parse emit shapes + raw TSVs), `--require [all\|enforced\|enforced-ci\|enforced-in-repo]`, `--json`, `--root` | 0 pass/SKIP · 1 violation · 2 usage/malformed registry |
+| `security-runtime-gate.mjs` | TL4-009 RUNTIME rung of the security gate (sibling of the frozen security-gate.mjs): audit-delta (npm audit filtered to the flauz-added dependency delta vs `upstream/main`), sbom (CycloneDX 1.5 emission + drift verify vs the committed pin), bundle-manifest (pinned sha256 of the reproducible bundles; verify re-bundles, `--generate` pins) | `--row audit\|sbom\|manifest`, `--generate`, `--sbom-out`, `--verify-sbom`, `--audit-json`, `--manifest`, fixture overrides (require `--row`), `--json`, `--out`, `--require`, `--no-fail` | 0 clean/SKIP · 1 FAIL/divergence · 2 usage |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
 | `verify-product.mjs` | TL1-002 merged product posture gate (merges product.json + product.flauz.json via the mergeProduct API, then asserts identity/branding sweep, Copilot wiring, exact proposal grants + registry existence, and the REAL extension-inclusion mechanisms; runbook `build/flauz/RELEASE-SHELL.md`) | `--root`, `--require`, `--no-fail`, `--json` | 0 clean/SKIP · 1 violation · 2 usage |
 
@@ -113,8 +116,28 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# → ALL 130 CASES AS EXPECTED (0 deviations)
+# -> ALL 168 CASES AS EXPECTED (0 deviations)
 ```
+
+(TL4-009 addendum, 2026-09-27: the security-runtime-gate section adds 28
+cases — audit clean/critical/high/moderate/outside-delta/allowlisted,
+delta product/upstream, manifest pinned-match/drift/incomplete +
+repo-mode shapes, sbom expected/drifted/missing/invalid/missing-extension,
+usage/flag/--help/--list — taking the matrix 116 to 144. Station-of-record
+note, same day: an interim commit briefly dropped the compat-l3 block;
+the TL4 station restored it verbatim and re-proved the full matrix
+144/144 (0 deviations) before pushing.)
+
+(TL4-008 addendum, 2026-09-27: the compat-l3-smoke section adds 12 cases
+(104 to 116) - clean logs+compile PASS, no-logs SKIP census PASS, fatal log
+FAIL, no-ext-marker FAIL,
+flauz-vanished FAIL (the runtime positive control), missing pillar FAIL,
+absent compile-root FAIL, --no-fail informational, --require sans channel
+(usage), usage error, --help, plus the `node --test
+build/flauz/compat-l3-smoke.test.mjs` suite (17 content-level cases: fake
+CDP servers, child-mode stubs, report modes) run as one matrix case. The
+82-case headline had drifted: the security-gate and session-battery
+sections had grown the matrix to 104 before TL4-008.)
 
 (TL4-005 addendum, 2026-09-27: the matrix grew 29 → 44 cases with the budget-gate
 section — clean/over/skip/require-scoped/malformed/warn/unknown-id/unit-mismatch,
@@ -146,6 +169,16 @@ unknown-key WARN posture (exit 0); no-overlay + empty-dir SKIP and their
 `--require` flips; usage error; `--help`; plus the `node --test
 build/flauz/verify-product.test.mjs` content-level suite [24 tests] driving the
 same committed fixtures.)
+(TL4-009 addendum, 2026-09-28: the security-runtime section adds 27 cases
+(105 → 132 total) — `security-runtime-gate.mjs` (the RUNTIME rung; the
+TL4-006 gate stays frozen): audit-delta over synthetic npm-audit reports
+(clean, high/critical-in-delta FAIL, moderate-in-delta + outside-delta
+informational PASS, allowlisted suppression, unused-entry hygiene),
+delta-computation json-content assertions, sbom verify postures
+(match/missing-extension/invalid/drift) + emit determinism byte-match,
+manifest fixture verify (match/drift/unpinned), usage contracts, and the
+repo-mode skip-vs-fail shapes (pre-install contexts; post-install
+contexts run the real rows in flauz-security job 2).)
 
 Summary (command class → exit code):
 

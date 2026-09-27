@@ -41,6 +41,11 @@
   (+ job `b-policy-unit` for the zero-dep `node --test` suites, which include
   the TL3-001 runtime suites; and the A-class driver drill
   `test/canaries/policy-gated-navigation.drill.ts` in the unit job).
+- **OPTIONAL real-endpoint drill (TL3-003, NOT CI-required)**:
+  `extensions/flauz-browser/test/canaries/real-chromium-hardening.drill.ts`
+  — the real-Chromium verification of the runtime + hardening the fake drill
+  cannot provide ("the FakeCdpTransport pins the shapes, not Chromium's
+  behavior"). See the "Optional real-endpoint drill" section below.
 
 ## Setup
 
@@ -143,6 +148,59 @@
 | A8 | Each layer individually kill-switched: the others still deny (B1c insurance, 3 variants + user-path variant) | the legacy 96-case matrix (`test/cdpBypass.test.ts`, unchanged) + runtime re-gating (`test/recovery.test.ts`) | **LANDED (unit level)** (engine matrix unchanged; the runtime adds post-recovery re-gating) |
 | A9 | Partition name in the verdicts matches `persist:flauz-<16hex>` and the workspace hash | `test/session-manager.test.ts` (partition shapes per initiator) + drill A9 rows | **LANDED (unit level) by TL3-001** |
 | A10 | Denied attempts land as evidence rows; ledger verifies | evidence-row production LANDED (unit level: `test/runtime-tabs.test.ts`, `test/capture.test.ts`, drill A10 row); the `flauz.workspace.appendEvidence` ledger append + `verifyLedger` check stays product-side (Agent Bridge seam) | **PARTIALLY LANDED (unit level)**; ledger append stays boot-level — exact reason: the append is the bridge's command flow, not the browser runtime's |
+
+## Optional real-endpoint drill (TL3-003 — NOT CI-required)
+
+`extensions/flauz-browser/test/canaries/real-chromium-hardening.drill.ts` is
+an OPTIONAL drill that drives the REAL runtime (`CdpEndpointHost` +
+`BrowserSessionManager` + the TL3-002 hardening + the popup gate + the
+recovery) against a REAL Chromium over a real CDP WebSocket. It runs ONLY
+when a real endpoint is reachable; otherwise it SKIPs with exit 0 (never
+fail a gate for lacking a browser):
+
+```sh
+chromium --headless=new --no-sandbox --disable-gpu --disable-popup-blocking \
+         --remote-debugging-port=9222 --user-data-dir=/tmp/flauz-chrome about:blank
+# --disable-popup-blocking: Runtime.evaluate runs without a user gesture, so
+# Chrome's popup blocker would block window.open before the gate shapes can
+# be observed.
+export FLAUZ_CDP_ENDPOINT=$(curl -s http://127.0.0.1:9222/json/version \
+  | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).webSocketDebuggerUrl))")
+cd extensions/flauz-browser
+node test/canaries/real-chromium-hardening.drill.ts   # exit 0 = green; SKIP notice + exit 0 without a browser
+```
+
+**What it proves** (real observed evidence; verified GREEN — 43 assertions —
+against Chrome for Testing 153.0.8010.12 headless): the transport E2E over
+the real WebSocket (real wire frames, real committed URLs, real PNG
+screenshot bytes, ZERO `Page.navigate` frames on a policy deny — asserted on
+the real wire); the UA discipline both directions (agent tabs carry
+`FlauzAgent/<v>` — cross-session observable; human tabs keep the browser
+default, zero override frames); the download deny (command accepted on real
+page sessions, EFFECT observable: `Browser.downloadWillBegin` ->
+`Browser.downloadProgress` state `canceled`, per-session scoping); and the
+recovery path (real-socket kill -> suspend -> reconnect -> re-attach ->
+re-hardening -> current-policy recheck against REAL browser state, including
+a hot-swapped-deny variant that flags the real committed URL).
+
+**What it PINS as real-Chromium divergences** from the FakeCdpTransport
+contract (asserted as observed — if Chromium's behavior changes, the drill
+fails loudly; recorded in `extensions/flauz-browser/INTEGRATION-GAP.md`
+"What remains" for the TL): F-DELIVERY (page-session auto-attach does not
+deliver `window.open` popups), F-POPUP-URL (popup `targetInfo.url` is empty
+at attach), F-RELEASE-CMD (`Runtime.run` is not a real CDP method — the real
+release is `Runtime.runIfWaitingForDebugger`), F-OPENER-BLOCK (`window.open`
+blocks the opener while a popup is held), and F-RECOVERY-DOMAINS (recovery
+does not re-send `Page.enable`, so post-recovery commit observation times
+out). These are the exact real-Chromium facts the workbench-boot residuals
+now rest on: the workbench side (real `window.openBrowserTab` under the
+grant, the command-surface activation log lines, the in-tree
+`ERR_BLOCKED_BY_CLIENT` L2 surface) remains with the B-POLICY boot
+canary.
+
+CI MUST NOT require this drill: no real browser is guaranteed on CI runners.
+Adding it to a job is a decision for the TL when a real-Chromium sidecar
+lands in CI (it SKIPs harmlessly until then, which is also acceptable).
 
 ## Drift trip-wires
 

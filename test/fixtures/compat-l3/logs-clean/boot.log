@@ -1,0 +1,7 @@
+[main 2026-09-29T04:23:01.102Z] Starting Flauz (code-oss dev) --user-data-dir /tmp/compat-l3-userdata --extensions-dir /tmp/compat-l3-exts
+[main 2026-09-29T04:23:01.118Z] workbench#openInternal: window opened (workspace: /tmp/compat-l3-ws)
+[main 2026-09-29T04:23:01.220Z] RemoteAuthorityResolverService#resolve: no authority - local window
+[renderer1 2026-09-29T04:23:02.401Z] info: Settings profile service initialized
+[renderer1 2026-09-29T04:23:02.918Z] info] Workbench layout service initialized
+[renderer1 2026-09-29T04:23:03.812Z] info: Extension host with pid 4242 started
+[renderer1 2026-09-29T04:23:04.001Z] info: Viewlet activitybar ready

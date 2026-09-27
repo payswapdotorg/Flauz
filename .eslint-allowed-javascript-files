@@ -201,3 +201,22 @@ build/flauz/scripts/security-gate.mjs
 # Flauz TL1-002 product build/release shell (zero-dep .mjs gate + node:test suite)
 build/flauz/scripts/verify-product.mjs
 build/flauz/verify-product.test.mjs
+build/flauz/scripts/security-runtime-gate.mjs
+# Flauz TL4-008 compat L3 runtime boot smoke (zero-dep driver + black-box test; build/flauz/README.md conventions)
+build/flauz/scripts/compat-l3-smoke.mjs
+build/flauz/compat-l3-smoke.test.mjs
+# Flauz TL4-008 compat-l3 fake compiled-output fixtures (test drivers scan them
+# as out/-tree stand-ins; lint-ignored like the copilot fixture pattern)
+test/fixtures/compat-l3/fake-out/vs/platform/remote/common/remoteHosts.js
+test/fixtures/compat-l3/fake-out/vs/workbench/contrib/debug/browser/debug.contribution.js
+test/fixtures/compat-l3/fake-out/vs/workbench/contrib/notebook/browser/notebook.contribution.js
+test/fixtures/compat-l3/fake-out/vs/workbench/contrib/preferences/browser/preferences.contribution.js
+test/fixtures/compat-l3/fake-out/vs/workbench/contrib/quickaccess/browser/quickAccess.contribution.js
+test/fixtures/compat-l3/fake-out/vs/workbench/contrib/scm/browser/scm.contribution.js
+test/fixtures/compat-l3/fake-out/vs/workbench/contrib/terminal/browser/terminal.contribution.js
+test/fixtures/compat-l3/fake-out-missing/vs/platform/remote/common/remoteHosts.js
+test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/debug/browser/debug.contribution.js
+test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/notebook/browser/notebook.contribution.js
+test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/preferences/browser/preferences.contribution.js
+test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/quickaccess/browser/quickAccess.contribution.js
+test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/scm/browser/scm.contribution.js
