@@ -5,17 +5,22 @@
 /**
  * Flauz Agent Bridge — extension entry point (activation wiring).
  *
- * PERF-PLAN section 1.2/section 2.1: activation is `onStartupFinished` + two narrow
- * `onCommand:flauz.*` events (never `*`). The activation sequence emits the
- * documented marks, in order (timerService only aggregates `code/`-prefixed
- * marks, PERFORMANCE-PLAN section 6.2):
+ * PERF-PLAN section 1.2/section 2.1: activation is `onStartupFinished` + narrow
+ * `onCommand:flauz.*` / `onView:flauz.agentSessions` events (never `*`). The
+ * activation sequence emits the documented marks, in order (timerService only
+ * aggregates `code/`-prefixed marks, PERFORMANCE-PLAN section 6.2):
  *
- *   code/flauz/willConnectCore      -> fork core/service.mjs (hello/ready)
+ *   code/flauz/willActivateBridge      -> wraps the whole activation (pair row 5)
+ *   code/flauz/willConnectCore         -> fork core/service.mjs (hello/ready)
  *   code/flauz/didConnectCore
  *   code/flauz/willRegisterParticipants -> flauz.agent participant + flauz_terminal tool
  *   code/flauz/didRegisterParticipants
- *   code/flauz/willWarmModels       -> one selectChatModels call
+ *   code/flauz/willWarmModels           -> one selectChatModels call
  *   code/flauz/didWarmModels
+ *   code/flauz/didActivateBridge
+ *
+ * TL4-001: activation also registers the `flauz.agentSessions` view FIRST —
+ * the tree reflects the bridge status object updated at each milestone below.
  *
  * Without an open workspace folder the bridge degrades gracefully: the core
  * service is not started and only an explanatory log line is written (the
@@ -29,8 +34,17 @@ import { selectPreferredModels, type ModelSelection } from './models.ts';
 import { Orchestrator, type ToolResultLike } from './orchestrator.ts';
 import { registerTerminalTool } from './tools/terminalTool.ts';
 import { registerParticipant, PARTICIPANT_ID } from './participant.ts';
+import { registerAgentSessionsView, type BridgeStatus } from './sessionsView.ts';
+import type { Task } from './types.ts';
 
 let activeSeam: SeamClient | undefined;
+
+/** Probes the seam for the most recent non-terminal task (the view's active-task row). */
+async function activeTaskFromSeam(seam: SeamClient): Promise<Task | undefined> {
+	const { tasks } = await seam.listTasks();
+	const active = tasks.filter(task => !['done', 'failed', 'cancelled'].includes(task.status));
+	return active[active.length - 1];
+}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	// PERF section 1.3 row 5: the bridge-activation budget pair (added at first-CI
@@ -52,6 +66,38 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 	const folders = vscode.workspace.workspaceFolders;
 	const workspaceRoot = folders !== undefined && folders.length > 0 ? folders[0].uri.fsPath : undefined;
 
+	// TL4-001: the flauz.agentSessions view registers FIRST so the shell surface
+	// exists whatever happens below. The status object is the view's single
+	// source of truth — every milestone updates it and refreshes the tree
+	// (observed state only, never fabricated; see src/sessionsView.ts).
+	const statusRef: { current: BridgeStatus } = {
+		current: {
+			coreConnected: false,
+			participantRegistered: false,
+			terminalToolRegistered: false,
+			workspaceOpen: workspaceRoot !== undefined,
+		},
+	};
+	const sessionsView = registerAgentSessionsView(
+		{
+			registerTreeDataProvider: (viewId, provider) => vscode.window.registerTreeDataProvider(viewId, provider),
+			registerCommand: (command, handler) => vscode.commands.registerCommand(command, handler),
+			executeCommand: (command, ...args) => vscode.commands.executeCommand(command, ...args),
+			EventEmitter: vscode.EventEmitter,
+			TreeItem: vscode.TreeItem,
+			ThemeIcon: vscode.ThemeIcon,
+			TreeItemCollapsibleState: vscode.TreeItemCollapsibleState,
+		},
+		() => statusRef.current,
+	);
+	for (const disposable of sessionsView.disposables) {
+		context.subscriptions.push(disposable);
+	}
+	const updateStatus = (patch: Partial<BridgeStatus>): void => {
+		statusRef.current = { ...statusRef.current, ...patch };
+		sessionsView.provider.refresh();
+	};
+
 	let seam: SeamClient | undefined;
 	if (workspaceRoot !== undefined) {
 		mark(FlauzMarks.willConnectCore);
@@ -61,8 +107,10 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 				globalStoragePath: context.globalStorageUri.fsPath,
 				logger: log,
 			});
+			updateStatus({ coreConnected: true, activeTask: () => activeTaskFromSeam(seam!) });
 		} catch (error) {
 			log(`core service failed to start: ${error instanceof Error ? error.message : String(error)}`);
+			updateStatus({ coreError: error instanceof Error ? error.message : String(error) });
 		}
 		mark(FlauzMarks.didConnectCore);
 	} else {
@@ -79,6 +127,7 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 		},
 	);
 	context.subscriptions.push(toolHandle);
+	updateStatus({ terminalToolRegistered: true });
 
 	if (seam !== undefined && workspaceRoot !== undefined) {
 		const selection: { current: ModelSelection } = { current: { models: [], status: 'no-models' } };
@@ -98,6 +147,7 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 			{ orchestrator, getModelSelection: () => selection.current, logger: log },
 		);
 		context.subscriptions.push(participantHandle);
+		updateStatus({ participantRegistered: true });
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand('flauz.showTasks', async () => {
@@ -118,6 +168,7 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 		mark(FlauzMarks.willWarmModels);
 		selection.current = await selectPreferredModels((selector) => vscode.lm.selectChatModels(selector));
 		mark(FlauzMarks.didWarmModels);
+		updateStatus({ modelSelection: selection.current });
 		log(`models: ${selection.current.status}${selection.current.models.length > 0 ? ` (${selection.current.models.map((model) => `${model.vendor}/${model.id}`).join(', ')})` : ''}`);
 	} else {
 		mark(FlauzMarks.didRegisterParticipants);

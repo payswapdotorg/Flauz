@@ -75,6 +75,9 @@ jobs:
       - name: Activation lint (PERF §2.1/§2.2 — extensions/flauz-* manifests)
         run: node build/flauz/scripts/activation-lint.mjs --root .
 
+      - name: IA gate (TL4-001 — Flauz shell manifest discipline)
+        run: node build/flauz/scripts/ia-gate.mjs --root . --require
+
       # ---- upstream hygiene pipeline (shaped on .github/workflows/pr.yml) ----
 
       - name: Setup Node.js

@@ -15,10 +15,11 @@
  */
 
 import { test } from 'node:test';
-import { ok, strictEqual } from 'node:assert';
+import { deepStrictEqual, ok, strictEqual } from 'node:assert';
 
 import { importWithVscodeMock } from './harness/vscode-redirect.ts';
 import { lm } from './harness/vscode-mock-module.ts';
+import { __resetViewState, __viewState } from './harness/vscode-mock-module.ts';
 import { createMockContext, type MockExtensionContext } from './harness/vscode-mock.ts';
 
 /** The slice of src/extension.ts's public surface the tests exercise. */
@@ -39,15 +40,22 @@ test('activate registers exactly one language model chat provider for vendor fla
 
 test('activate pushes the provider disposable onto context.subscriptions', async () => {
 	lm.reset();
+	__resetViewState();
 	const extension = await importWithVscodeMock<TestableExtensionModule>(EXTENSION_URL);
 	const context = createMockContext();
 	await extension.activate(context);
-	strictEqual(context.subscriptions.length, 1, 'exactly one disposable is pushed');
+	// TL4-001: the provider disposable FIRST, then the view disposables
+	// (tree data provider + the two view commands).
+	strictEqual(context.subscriptions.length, 4, 'provider + view provider + 2 view commands');
 	const disposable = context.subscriptions[0];
 	ok(disposable, 'subscriptions[0] must exist');
 	ok(typeof disposable.dispose === 'function', 'the pushed value must be a Disposable');
 	disposable.dispose();
 	strictEqual(lm.registrations[0].disposed, true, 'disposing the pushed disposable unregisters the provider');
+	// the view wired through the redirect mock records its registration
+	strictEqual(__viewState.treeViews.length, 1, 'the flauz.models view registers');
+	strictEqual(__viewState.treeViews[0]?.viewId, 'flauz.models');
+	deepStrictEqual(__viewState.commands.map(record => record.command).sort(), ['flauz.focusView.models', 'flauz.models.refreshView']);
 });
 
 test('deactivate is exported as a no-op', async () => {

@@ -20,6 +20,10 @@ export const workspace = mock.vscode.workspace;
 export const commands = mock.vscode.commands;
 export const Uri = mock.vscode.Uri;
 export const RelativePattern = mock.vscode.RelativePattern;
+export const EventEmitter = mock.vscode.EventEmitter;
+export const TreeItem = mock.vscode.TreeItem;
+export const ThemeIcon = mock.vscode.ThemeIcon;
+export const TreeItemCollapsibleState = mock.vscode.TreeItemCollapsibleState;
 
 export function __configure(patch: Partial<MockVscodeState>): void {
 	if ('workspaceFolders' in patch) {
@@ -53,4 +57,6 @@ export function __reset(patch: Partial<MockVscodeState> = {}): void {
 	mock.state.shownDocuments = [];
 	mock.state.messages = [];
 	mock.state.inputBoxResponse = patch.inputBoxResponse;
+	mock.state.treeViews = [];
+	mock.state.executedCommands = [];
 }

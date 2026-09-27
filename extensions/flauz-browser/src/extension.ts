@@ -38,6 +38,7 @@ import {
 	policyTemplate,
 	formatVerdictLine,
 } from './policy.ts';
+import { registerBrowserView } from './views.ts';
 
 interface PolicyState {
 	engine: BrowserPolicyEngine;
@@ -65,6 +66,36 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 		log('flauz.browser: no workspace folder open; the builtin deny-all default policy is in effect (the policy file and partitions need a workspace root)');
 	}
 
+	// TL4-001: the flauz.browser view registers FIRST (before the engine load)
+	// so the shell surface exists whatever happens below. `reload` is the real
+	// retry path — the same one the policy-file watcher rides (see views.ts).
+	const reload = async (): Promise<void> => {
+		const reloaded = await loadEngine(folder);
+		state = { engine: reloaded };
+		log(`flauz.browser: policy file changed on disk; reloaded (source=${reloaded.source}${reloaded.sourceError !== undefined ? ` error=${reloaded.sourceError.code}` : ''})`);
+		logEffectivePolicy(reloaded);
+		browserView.provider.refresh();
+	};
+	const browserView = registerBrowserView(
+		{
+			registerTreeDataProvider: (viewId, provider) => vscode.window.registerTreeDataProvider(viewId, provider),
+			registerCommand: (command, handler) => vscode.commands.registerCommand(command, handler),
+			executeCommand: (command, ...args) => vscode.commands.executeCommand(command, ...args),
+			EventEmitter: vscode.EventEmitter,
+			TreeItem: vscode.TreeItem,
+			ThemeIcon: vscode.ThemeIcon,
+			TreeItemCollapsibleState: vscode.TreeItemCollapsibleState,
+		},
+		{
+			getEngine: () => state?.engine,
+			getFolderOpen: () => folder !== undefined,
+			reload,
+		},
+	);
+	for (const disposable of browserView.disposables) {
+		context.subscriptions.push(disposable);
+	}
+
 	const initial = await loadEngine(folder);
 	state = { engine: initial };
 	logEffectivePolicy(initial);
@@ -81,15 +112,12 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 		const watcher = vscode.workspace.createFileSystemWatcher(
 			new vscode.RelativePattern(folder, POLICY_PATH),
 		);
-		const reload = async () => {
-			const reloaded = await loadEngine(folder);
-			state = { engine: reloaded };
-			log(`flauz.browser: policy file changed on disk; reloaded (source=${reloaded.source}${reloaded.sourceError !== undefined ? ` error=${reloaded.sourceError.code}` : ''})`);
-			logEffectivePolicy(reloaded);
+		const onFileChange = () => {
+			void reload();
 		};
-		watcher.onDidChange(() => void reload());
-		watcher.onDidCreate(() => void reload());
-		watcher.onDidDelete(() => void reload());
+		watcher.onDidChange(onFileChange);
+		watcher.onDidCreate(onFileChange);
+		watcher.onDidDelete(onFileChange);
 		context.subscriptions.push(watcher);
 	}
 }

@@ -1,0 +1,23 @@
+{
+	"name": "flauz-environments",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"activationEvents": [
+		"onView:flauz.environments",
+		"onCommand:flauz.focusView.environments"
+	],
+	"contributes": {
+		"views": {
+			"flauz": [
+				{ "id": "flauz.environments", "name": "Environments" }
+			]
+		},
+		"viewsWelcome": [
+			{ "view": "flauz.environments", "contents": "No Flauz environments registered. [Refresh Environments View](command:flauz.focusView.environments)" }
+		],
+		"commands": [
+			{ "command": "flauz.focusView.environments", "title": "Focus Flauz Environments", "category": "Flauz" }
+		]
+	}
+}

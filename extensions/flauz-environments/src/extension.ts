@@ -6,9 +6,14 @@
  * Extension wiring (v0). Thin: the registry/providers/continuity core is
  * pure TypeScript (zero deps, testable under `node --test`); this file only
  * binds the FileSystemPort to node, resolves the workspace root, and
- * registers the `flauz.env.*` commands. Activation is command-driven only
- * (activation-lint R3: the onStartupFinished cap is already spent by
- * flauz-agent + flauz-workspace).
+ * registers the `flauz.env.*` commands. Activation is command- and
+ * view-driven only (activation-lint R3: the onStartupFinished cap is already
+ * spent by flauz-agent + flauz-workspace).
+ *
+ * TL4-001: activation also registers the `flauz.environments` view FIRST —
+ * the tree renders the live registry state, a retryable error row when the
+ * bootstrap failed, and refreshes after every mutating command (see
+ * src/views.ts and docs/FLAUZ-PROGRAM/TL4-IA-SPEC.md section 5).
  *
  * v0 boundary: NO resolver registration and NO live connection happen here
  * (see INTEGRATION-GAP.md -- the `resolvers` proposal grant via
@@ -20,6 +25,7 @@ import * as fs from 'node:fs/promises';
 import type { FileSystemPort } from './api.ts';
 import { EnvironmentRegistry } from './registry.ts';
 import { planSwitch } from './continuity.ts';
+import { registerEnvironmentsView, type EnvironmentsViewApi } from './views.ts';
 
 const nodeFs: FileSystemPort = {
 	readFileUtf8: async path => {
@@ -37,13 +43,51 @@ const nodeFs: FileSystemPort = {
 	mkdir: path => fs.mkdir(path, { recursive: true }),
 };
 
-let registry: EnvironmentRegistry | undefined;
+/** Live extension state the view + commands read (single source of truth). */
+const state: {
+	registry: EnvironmentRegistry | undefined;
+	error: string | undefined;
+	view: { refresh(): void } | undefined;
+	workspaceRoot: string | undefined;
+	fs: FileSystemPort;
+	clock: () => number;
+} = {
+	registry: undefined,
+	error: undefined,
+	view: undefined,
+	workspaceRoot: undefined,
+	fs: nodeFs,
+	clock: () => Date.now(),
+};
 
 function currentRegistry(): EnvironmentRegistry {
-	if (registry === undefined) {
+	if (state.registry === undefined) {
 		throw new Error('flauz.env: registry inactive (no workspace folder or failed bootstrap)');
 	}
-	return registry;
+	return state.registry;
+}
+
+/** Real recovery: re-attempts the registry bootstrap from scratch. */
+async function retryBootstrap(): Promise<void> {
+	if (state.workspaceRoot === undefined) {
+		state.registry = undefined;
+		state.error = undefined;
+		return;
+	}
+	const fresh = new EnvironmentRegistry({ root: state.workspaceRoot, fs: state.fs, clock: state.clock });
+	try {
+		await fresh.bootstrap();
+		state.registry = fresh;
+		state.error = undefined;
+	} catch (err) {
+		state.registry = undefined;
+		state.error = err instanceof Error ? err.message : String(err);
+	}
+}
+
+/** Refreshes the view after a mutation (or a state change). */
+function refreshView(): void {
+	state.view?.refresh();
 }
 
 function describeEnvironment(descriptor: { id: string; label: string; kind: string; enabled: boolean; active: boolean }): string {
@@ -54,24 +98,52 @@ function describeEnvironment(descriptor: { id: string; label: string; kind: stri
 	return `${descriptor.id} -- ${descriptor.label} (${descriptor.kind}, ${flags.join(', ')})`;
 }
 
+/** The vscode slices handed to the view module (kept here for clarity). */
+function viewApi(): EnvironmentsViewApi {
+	return {
+		registerTreeDataProvider: (viewId, provider) => vscode.window.registerTreeDataProvider(viewId, provider),
+		registerCommand: (command, handler) => vscode.commands.registerCommand(command, handler),
+		executeCommand: (command, ...args) => vscode.commands.executeCommand(command, ...args),
+		EventEmitter: vscode.EventEmitter,
+		TreeItem: vscode.TreeItem,
+		ThemeIcon: vscode.ThemeIcon,
+		TreeItemCollapsibleState: vscode.TreeItemCollapsibleState,
+	};
+}
+
 export function activate(context: vscode.ExtensionContext): void {
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	state.workspaceRoot = workspaceRoot;
+
+	// TL4-001: the view registers before any early return so the shell surface
+	// (welcome/error/retry states) exists even without a workspace folder.
+	const view = registerEnvironmentsView(viewApi(), {
+		getRegistry: () => state.registry,
+		getError: () => state.error,
+		retry: () => retryBootstrap().finally(refreshView),
+	});
+	state.view = view.provider;
+	for (const disposable of view.disposables) {
+		context.subscriptions.push(disposable);
+	}
+
 	if (workspaceRoot === undefined) {
 		// command handlers surface this on use; boot stays silent otherwise
 		void vscode.window.showWarningMessage('flauz-environments: no workspace folder open -- the environment registry stays inactive.');
 		return;
 	}
 
-	const clock = (): number => Date.now();
-	registry = new EnvironmentRegistry({ root: workspaceRoot, fs: nodeFs, clock });
+	const registry = new EnvironmentRegistry({ root: workspaceRoot, fs: state.fs, clock: state.clock });
 
 	void (async () => {
 		try {
-			await registry!.bootstrap();
+			await registry.bootstrap();
+			state.registry = registry;
 		} catch (err) {
-			registry = undefined;
+			state.error = err instanceof Error ? err.message : String(err);
 			void vscode.window.showErrorMessage(`flauz-environments: failed to bootstrap .flauz/environments.json: ${err instanceof Error ? err.message : String(err)}`);
 		}
+		refreshView();
 	})();
 
 	const commands: [string, (arg?: unknown) => unknown][] = [
@@ -84,6 +156,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			// arg: EnvironmentRegistration (id/kind/label/connection/trust/capabilities[/enabled])
 			const reg = currentRegistry();
 			const descriptor = await reg.register(arg as never);
+			refreshView();
 			void vscode.window.showInformationMessage(`flauz-environments: registered ${descriptor.id} (${descriptor.kind})`);
 			return descriptor;
 		}],
@@ -93,6 +166,7 @@ export function activate(context: vscode.ExtensionContext): void {
 				throw new Error('flauz.env.unregister: expected the environment id (string or { id })');
 			}
 			await currentRegistry().unregister(id);
+			refreshView();
 			void vscode.window.showInformationMessage(`flauz-environments: unregistered ${id}`);
 		}],
 		['flauz.env.activate', async (arg?: unknown) => {
@@ -103,10 +177,14 @@ export function activate(context: vscode.ExtensionContext): void {
 			const reg = currentRegistry();
 			const plan = await reg.activate(id);
 			const descriptor = reg.get(id)!;
+			refreshView();
 			void vscode.window.showInformationMessage(`flauz-environments: ${id} active -- connection plan ready (${plan.authority}, agent host: ${plan.agentHost.mode})`);
 			return plan;
 		}],
-		['flauz.env.deactivate', () => currentRegistry().deactivate()],
+		['flauz.env.deactivate', async () => {
+			await currentRegistry().deactivate();
+			refreshView();
+		}],
 		['flauz.env.showPlan', (arg?: unknown) => {
 			const id = typeof arg === 'string' ? arg : (arg as { id?: string } | undefined)?.id;
 			if (typeof id !== 'string') {
@@ -127,6 +205,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			const active = reg.active();
 			const plan = await reg.activate(id);
 			const switchPlan = planSwitch(active ?? null, target);
+			refreshView();
 			void vscode.window.showInformationMessage(`flauz-environments: switch planned ${switchPlan.fromEnvironmentId ?? 'local'} -> ${id} (re-open on ${switchPlan.toAuthority}; see flauz.env.showPlan)`);
 			return switchPlan;
 		}],
@@ -138,5 +217,8 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
-	registry = undefined;
+	state.registry = undefined;
+	state.error = undefined;
+	state.view = undefined;
+	state.workspaceRoot = undefined;
 }

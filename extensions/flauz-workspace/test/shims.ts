@@ -24,6 +24,32 @@ export interface MockSourceControl {
 	dispose(): void;
 }
 
+/** Structural mock of vscode.TreeItem (the slice views.ts populates). */
+export interface MockTreeItem {
+	label: string;
+	id?: string;
+	description?: string | boolean;
+	tooltip?: string;
+	iconPath?: { id: string };
+	command?: { command: string; title: string; arguments?: unknown[] };
+	contextValue?: string;
+	accessibilityInformation?: { label: string; role?: string };
+	collapsibleState: number;
+}
+
+/** Structural mock of vscode.TreeDataProvider<T>. */
+export interface MockTreeDataProvider {
+	onDidChangeTreeData?: (listener: (e: unknown) => void) => { dispose(): void };
+	getTreeItem(element: unknown): unknown;
+	getChildren(element?: unknown): Promise<unknown[]> | unknown[];
+}
+
+/** A recorded window.registerTreeDataProvider call. */
+export interface MockTreeViewRegistration {
+	readonly viewId: string;
+	readonly provider: MockTreeDataProvider;
+}
+
 export interface MockVscode {
 	readonly commands: {
 		registerCommand(id: string, handler: (arg?: unknown) => unknown): { dispose(): void };
@@ -37,6 +63,8 @@ export interface MockVscode {
 	readonly window: {
 		readonly showTextDocumentCalls: MockUri[];
 		showTextDocument(document: { uri: MockUri }): Promise<unknown>;
+		readonly treeViews: MockTreeViewRegistration[];
+		registerTreeDataProvider(viewId: string, provider: MockTreeDataProvider): { dispose(): void };
 	};
 	readonly workspace: {
 		readonly openTextDocumentCalls: MockUri[];
@@ -55,6 +83,9 @@ export interface MockVscode {
 		readonly created: MockSourceControl[];
 		createSourceControl(id: string, label: string): MockSourceControl;
 	};
+	TreeItem: new (label: string, collapsibleState?: number) => MockTreeItem;
+	ThemeIcon: new (id: string) => { id: string };
+	TreeItemCollapsibleState: { None: number; Collapsed: number; Expanded: number };
 }
 
 class MockEventEmitter<T> {
@@ -82,6 +113,8 @@ class MockEventEmitter<T> {
 	}
 }
 
+const TREE_ITEM_COLLAPSIBLE_STATE = { None: 0, Collapsed: 1, Expanded: 2 } as const;
+
 function makeUri(scheme: string, rest: string, display: string): MockUri {
 	const path = rest.replace(/^\/\//, '');
 	return { scheme, path, fsPath: path, toString: () => display };
@@ -93,6 +126,7 @@ export function createMockVscode(): MockVscode {
 	const openTextDocumentCalls: MockUri[] = [];
 	const openExternalCalls: MockUri[] = [];
 	const created: MockSourceControl[] = [];
+	const treeViews: MockTreeViewRegistration[] = [];
 
 	const mock: MockVscode = {
 		commands: {
@@ -125,6 +159,11 @@ export function createMockVscode(): MockVscode {
 				showTextDocumentCalls.push(document.uri);
 				return document;
 			},
+			treeViews,
+			registerTreeDataProvider: (viewId, provider) => {
+				treeViews.push({ viewId, provider });
+				return { dispose: () => undefined };
+			},
 		},
 		workspace: {
 			openTextDocumentCalls,
@@ -141,6 +180,30 @@ export function createMockVscode(): MockVscode {
 			},
 		},
 		EventEmitter: MockEventEmitter,
+		TreeItem: class MockTreeItemImpl implements MockTreeItem {
+			label: string;
+			collapsibleState: number;
+			id?: string;
+			description?: string | boolean;
+			tooltip?: string;
+			iconPath?: { id: string };
+			command?: { command: string; title: string; arguments?: unknown[] };
+			contextValue?: string;
+			accessibilityInformation?: { label: string; role?: string };
+
+			constructor(label: string, collapsibleState = TREE_ITEM_COLLAPSIBLE_STATE.None) {
+				this.label = label;
+				this.collapsibleState = collapsibleState;
+			}
+		},
+		ThemeIcon: class MockThemeIcon {
+			readonly id: string;
+
+			constructor(id: string) {
+				this.id = id;
+			}
+		},
+		TreeItemCollapsibleState: TREE_ITEM_COLLAPSIBLE_STATE,
 		scm: {
 			created,
 			createSourceControl: (id, label) => {
