@@ -1,0 +1,60 @@
+# TL3 Handoff — Browser and Environment OS
+
+## Mission
+
+Make browser and execution environments first-class Flauz resources without forking Electron or duplicating Code OSS remote infrastructure unnecessarily.
+
+## First reads
+
+- SOURCE-OF-TRUTH.md
+- ARCHITECTURE-LOCK.md
+- CURRENT-STATE.md
+- WORK-REGISTRY.md
+- PARALLEL-EXECUTION.md
+- extensions/flauz-browser/README.md
+- extensions/flauz-environments/README.md
+- the INTEGRATION-GAP files in both extensions
+
+## Three workers
+
+### Worker A — Browser runtime
+Own:
+- Chromium/CDP control;
+- tabs/navigation;
+- screenshots;
+- console/network capture;
+- user versus agent session separation;
+- first-class browser UI;
+- recovery.
+
+The existing browser policy engine is security infrastructure, not the complete browser product.
+
+### Worker B — Environment runtime
+Own:
+- create/start/stop/attach/detach/snapshot/destroy;
+- local/SSH/container/cloud/E2B-style providers;
+- capability/trust declarations;
+- provider health and recovery.
+
+### Worker C — Resource/continuity layer
+Own:
+- ResourceRef/access-surface model;
+- environment/browser/resource continuity;
+- cross-environment restoration;
+- identity/provenance of resource mutations.
+
+## First sprint
+
+Start TL3-001 through TL3-006 immediately using mock drivers/adapters where real providers are unavailable.
+
+## Hard rules
+
+- Browser policy remains fail-closed.
+- Do not bypass trust boundaries to make demos easier.
+- Do not embed credentials in browser/environment descriptors.
+- Do not reimplement remote authorities that Code OSS already provides.
+- Keep resource identity distinct from access surface.
+
+## Done means
+
+An agent and a human can use a browser and an execution environment as first-class task resources, with policy, provenance, recovery and continuity.
