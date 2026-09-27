@@ -1,0 +1,9 @@
+{
+	"schemaVersion": 0,
+	"driver": {
+		"allow": ["*.example.com"]
+	},
+	"security": {
+		"enforceReset": false
+	}
+}

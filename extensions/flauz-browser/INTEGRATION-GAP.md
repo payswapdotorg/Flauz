@@ -1,7 +1,8 @@
 # Flauz Browser Policy — integration gap analysis (extension-land vs product-side)
 
 **Lane:** Wave 4 / Worker I (`flauz-I-w4`), branch `flauz/wave4/browser-policy`;
-updated by TL3-001 (browser runtime, Worker A).
+updated by TL3-001 (browser runtime, Worker A) and TL3-002 (browser session
+security, Worker A, branch `tl3/a2-browser-security`).
 **Scope:** what `extensions/flauz-browser` owns today vs. what only a
 product-side change can wire into the in-tree browser platform. Tree
 citations are repo-relative `path:line` against the flauz/main base
@@ -25,8 +26,9 @@ below is analysis + proposal; the only code this lane ships lives under
 | Verdict objects (allow/deny/layer/reason + audit context) and the evidence-row mapping | `src/policy.ts` `PolicyVerdict` / `toEvidenceRow` | Row shape = the flauz-workspace `LedgerRowInput` (`extensions/flauz-workspace/src/api.ts:63-69`); seam = the `flauz.workspace.appendEvidence` command (`extensions/flauz-workspace/src/commands.ts:89-106`). |
 | Command surface + activation discipline | `src/extension.ts`, `package.json` | Lazy `onCommand:flauz.browser.*` activation only (no `onStartupFinished`; activation-lint R1-R3 clean). Policy file hot-reload via FileSystemWatcher. |
 | Host-pattern matcher mirroring the tree filter semantics | `src/policy.ts` `isDomainAllowed` | Byte-for-byte the same algorithm as `src/vs/platform/networkFilter/common/domainMatcher.ts:257-275` + `networkFilterService.ts:26-35`, so extension-land verdicts agree with the in-tree gate wherever both run. |
-| Post-commit reconciliation verdicts (SECURITY-MODEL section 4 F2) | `src/policy.ts` `reconcileCommittedUrl` | Computes the violation + the `about:blank` reset recommendation; the actual forced reset is product-side (gap G6). |
+| Post-commit reconciliation verdicts (SECURITY-MODEL section 4 F2) | `src/policy.ts` `reconcileCommittedUrl` | Computes the violation + the `about:blank` reset recommendation. **TL3-002: the EXECUTION is now RUNTIME-SIDE** — `src/runtime/tabs.ts` `runForcedReset` navigates the offending runtime-owned tab to `about:blank` THROUGH the policy engine when `security.enforceReset` is true (the default, fail-closed; explicit `false` opt-outs are recorded in the verdict). What remains product-side is the MAIN-PROCESS loadURL authority for tabs the runtime does not own (gap G6 residual). |
 | **The browser RUNTIME (TL3-001)** — CDP client, sessions, policy-gated navigation, capture, recovery | `src/cdp/`, `src/runtime/` | The runtime posture P0 was waiting for: `BrowserSessionDescriptor` (flauz.browser-session/v0), the navigation pipeline (deny => ZERO CDP commands; post-commit violation => the F2 reset recommendation), console/network/screenshot capture + evidence rows, drop/wedged recovery, `CdpEndpointHost` (FLAUZ_CDP_ENDPOINT) + `WorkbenchBrowserHost` (proposed browser API). Pinned by 60 new node --test cases + the driver drill. |
+| **Session security hardening (TL3-002)** — per-session UA discipline, download deny, popup/new-target gate, G6 reset execution, partition-scoped tab ownership, the session journal, the untrusted-content marker | `src/runtime/hardening.ts`, `src/runtime/journal.ts`, `src/runtime/sessionManager.ts`, `src/runtime/tabs.ts`, `src/runtime/capture.ts` | Items 3.1-3.7 of the TL3-002 work order, all fail-closed, all extension-land: `Browser.setDownloadBehavior {behavior:'deny'}` on every session (v0 has NO allow surface); `Emulation.setUserAgentOverride` with the `FlauzAgent/<v>` product token on agent sessions only (humans keep the browser default — distinguishable on the wire); `Target.setAutoAttach` popup gate closing denied targets before use; the narrow typed `runForcedReset` (only about:blank, through the engine) driven by the ADDITIVE policy key `security.enforceReset`; the target-ownership registry + typed cross-partition/foreign-session tab-use errors; the append-only `.flauz/browser-sessions.jsonl` journal (PIN-1 contract, mandatory actor); the `untrusted-content:` boundary marker on capture-derived evidence rows (a MARKER, not sanitization). Pinned by 40 new node --test cases + the extended drill. |
 
 ## 2. The in-tree gate inventory (verified at this HEAD)
 
@@ -112,13 +114,17 @@ the future wiring) — DL-29 candidate records the name shape as normative.
 ### G6 — Post-commit forced reset (the committed-URL residual)
 
 Wave-1 probe B1c: canceling the request does not roll back the committed
-URL. The in-tree reconciliation trigger would live in the main-process
-navigation-event path (`browserView.ts` navigation events, e.g.
-`fireNavigationEvent` near `:352`; `did-navigate` handlers) with
-`webContents.loadURL(RESET_URL)`-class authority — no extension surface
-reaches it. The engine's `reconcileCommittedUrl` computes the verdict +
-reset target; the enforcement wiring is a product-side change (another
-DL-31-adjacent candidate, or an upstream-proposal issue).
+URL. **TL3-002 status: EXECUTED runtime-side.** The runtime's navigation
+pipeline now executes the recommended `about:blank` reset on its OWN tabs
+through the policy engine (`runForcedReset` — the narrow typed operation that
+can navigate nowhere else), driven by the ADDITIVE policy key
+`security.enforceReset` (default true = fail-closed; explicit `false` records
+the opt-out in the verdict). The remaining product-side surface: the
+main-process navigation-event path (`browserView.ts` `fireNavigationEvent`
+near `:352`; `did-navigate` handlers) with `webContents.loadURL(RESET_URL)`-class
+authority for targets the Flauz runtime does NOT own — no extension surface
+reaches that (the residual stays a DL-31-adjacent candidate or an
+upstream-proposal issue).
 
 ## 4. Ranked integration postures
 
@@ -153,21 +159,38 @@ is proposed and the row mapping is pinned by tests
 
 The browser platform is in-tree and agent-native (DL-1/DL-6); the policy
 ENGINE, the per-workspace policy SOURCE, the partition NAMING CONTRACT, the
-verdict/audit objects, the evidence-row seam, and — since TL3-001 — the
-BROWSER RUNTIME itself (posture P0 LANDED: sessions, policy-gated
-navigation, capture, recovery) are extension-land facts. The remaining
-wiring is precisely enumerated above (G1-G6) with zero-fork postures (P0
-landed / P1) ranked ahead of any src/vs hook (P2), keeping the
-FORK-CRITICAL ledger empty (DL-12) unless the TL adjudicates DL-31.
+verdict/audit objects, the evidence-row seam, — since TL3-001 — the BROWSER
+RUNTIME itself (posture P0 LANDED: sessions, policy-gated navigation,
+capture, recovery), and — since TL3-002 — the SESSION SECURITY HARDENING
+(per-session UA discipline, deny-by-default downloads, the popup/new-target
+gate, the EXECUTED G6 reset, partition-scoped tab ownership, the PIN-1
+session journal, the untrusted-content boundary marker) are extension-land
+facts. The remaining wiring is precisely enumerated above (G1-G6 residuals)
+with zero-fork postures (P0 landed / P1) ranked ahead of any src/vs hook
+(P2), keeping the FORK-CRITICAL ledger empty (DL-12) unless the TL
+adjudicates DL-31.
 
-**What remains for TL3-002 (browser session security hardening):** G5
-(partition NAMING control — the workbench host cannot yet mint Electron
-partitions with the flauz names; the endpoint host gets whatever partition
-the external Chromium/sidecar configures), the boot-level workbench
-verification of the P0 surface (real `window.openBrowserTab` under the
-grant — the B-POLICY boot residuals), the in-tree L2 default-on posture
-(G3/P1, flauz-defaults), the forced-reset EXECUTION wiring (G6 — the
-runtime returns the recommendation and offers `flauz.browser.navigate` to
-`about:blank`; main-process loadURL authority stays product-side), and
-session-level hardening drills (credential isolation, per-session user
-agents, download/popup policy) that build on this runtime.
+**What remains for TL3-002 follow-ups (state after the TL3-002 delivery):**
+
+- SHIPPED (this lane, `tl3/a2-browser-security`): 3.1 per-session
+  user-agent discipline, 3.2 deny-by-default downloads (no allow surface by
+  design), 3.3 the popup/new-target gate, 3.4 the G6 forced-reset EXECUTION
+  runtime-side (`security.enforceReset`, additive v0 key), 3.5
+  partition-scoped tab ownership (typed cross-partition/foreign-session
+  errors; ownership-guarded recovery re-attach), 3.6 the session journal
+  (PIN-1 contract + fixtures), 3.7 the untrusted-content boundary marker,
+  3.8 these docs.
+- OPEN — G5 (partition NAMING control): the workbench host still cannot
+  mint Electron partitions with the flauz names; the endpoint host gets
+  whatever partition the external Chromium/sidecar configures. Extension-land
+  enforces ownership/isolation over the targets it mints; the Electron
+  cookie-jar minting stays product-side (do not attempt extension-side).
+- OPEN — boot-level workbench verification of the P0 surface (real
+  `window.openBrowserTab` under the grant — the B-POLICY boot residuals),
+  which also covers the REAL-Chromium behavior of the TL3-002 hardening
+  commands (`Emulation.setUserAgentOverride` base-UA read, per-session
+  `Browser.setDownloadBehavior` scoping, `Target.setAutoAttach` popup
+  delivery) — the FakeCdpTransport pins the shapes, not Chromium's behavior.
+- OPEN — the in-tree L2 default-on posture (G3/P1, flauz-defaults).
+- OPEN — G6 residual: main-process `loadURL` authority for targets the
+  Flauz runtime does not own.
