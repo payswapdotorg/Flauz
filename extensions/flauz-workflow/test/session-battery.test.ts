@@ -3,10 +3,10 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 /**
- * TL4-004 — the whole-session acceptance battery (fixture rung).
+ * TL4-004 -- the whole-session acceptance battery (fixture rung).
  *
  * A green unit-test suite is not a green product. This battery drives WHOLE
- * user sessions across the REAL Flauz surfaces — the flauz.tasks/v0 state
+ * user sessions across the REAL Flauz surfaces -- the flauz.tasks/v0 state
  * machine (flauz-workspace TaskService), the evidence ledger, the workflow
  * envelope (save + re-run with replay approvals), the browser session
  * manager over a FakeCdpTransport (policy-gated navigation, journal on
@@ -15,24 +15,24 @@
  *
  * Four journeys (spec: docs/FLAUZ-PROGRAM/TL4-SESSION-BATTERY.md):
  *
- *   J1 golden      — create task -> plan -> approve -> tool -> browser leg
+ *   J1 golden      -- create task -> plan -> approve -> tool -> browser leg
  *                    (agent session, allowed navigation) -> environment leg
  *                    (create/start/describe/stop/destroy) -> verify -> sign
  *                    off -> save workflow fragment. Everything observable
  *                    lands on disk at the workspace root.
- *   J2 recovery    — re-run the saved fragment (replay approvals): a NEW
+ *   J2 recovery    -- re-run the saved fragment (replay approvals): a NEW
  *                    task, NEW evidence rows linked to the ORIGINAL run via
  *                    derivedFrom, fragment history records the re-run.
- *   J3 fail-closed — denied navigation (zero CDP drive commands past the
+ *   J3 fail-closed -- denied navigation (zero CDP drive commands past the
  *                    gate) + the provenance law (actor-less lifecycle op is
  *                    a typed rejection, not a silent no-op).
- *   J4 continuity  — a full restart (fresh service instances on the SAME
+ *   J4 continuity  -- a full restart (fresh service instances on the SAME
  *                    root): tasks, workflows, lifecycle state and the
  *                    browser journal are all recovered from disk; work
  *                    continues; nothing is lost.
  *
  * Fixture discipline: each journey distills an observable transcript
- * (state/event sequences, row counts, artifact uris + sha256, verdicts —
+ * (state/event sequences, row counts, artifact uris + sha256, verdicts --
  * volatile ids normalized to stable markers). The assembled document is
  * deep-compared against the pinned fixture
  * test/fixtures/session-battery/golden-transcript.json. FLAUZ_SESSION_BATTERY_RECORD=1
@@ -468,7 +468,7 @@ test('J1 golden whole-session: task -> plan -> approve -> tool -> browser -> env
 	}
 });
 
-test('J2 recovery: re-run the saved fragment with replay approvals — new task, derived evidence, history records', async () => {
+test('J2 recovery: re-run the saved fragment with replay approvals -- new task, derived evidence, history records', async () => {
 	const ws = await bootSessionWorkspace();
 	try {
 		// seed: the golden journey's first half (task + tool + evidence), then save
@@ -572,7 +572,7 @@ test('J3 fail-closed: denied navigation sends ZERO drive commands; actor-less li
 	}
 });
 
-test('J4 continuity: full restart on the same root — everything recovers from disk, work continues', async () => {
+test('J4 continuity: full restart on the same root -- everything recovers from disk, work continues', async () => {
 	const first = await bootSessionWorkspace();
 	const root = first.root;
 	try {
@@ -718,7 +718,7 @@ test('the whole-session transcript matches the pinned fixture', async () => {
 	try {
 		raw = await nodeFs.readFile(goldenPath, { encoding: 'utf-8' });
 	} catch (err) {
-		assert.fail(`session-battery: pinned fixture not found at ${goldenPath} (regenerate with FLAUZ_SESSION_BATTERY_RECORD=1) — ${err instanceof Error ? err.message : String(err)}`);
+		assert.fail(`session-battery: pinned fixture not found at ${goldenPath} (regenerate with FLAUZ_SESSION_BATTERY_RECORD=1) -- ${err instanceof Error ? err.message : String(err)}`);
 	}
 	const pinned = JSON.parse(raw) as SessionBatteryTranscript;
 	assert.deepEqual(transcript, pinned, 'the whole-session transcript matches the pinned fixture');

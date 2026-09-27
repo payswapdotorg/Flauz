@@ -3,12 +3,12 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 // ---------------------------------------------------------------------------------------------
-// Flauz TL4 (product-quality lane) — task TL4-004.
+// Flauz TL4 (product-quality lane) -- task TL4-004.
 //
-// session-battery.mjs — the whole-session acceptance gate (fixture rung).
+// session-battery.mjs -- the whole-session acceptance gate (fixture rung).
 //
 // Mission: a green unit-test suite is not a green product. This gate runs
-// the whole-session battery — four scripted user journeys that drive the
+// the whole-session battery -- four scripted user journeys that drive the
 // REAL Flauz surfaces end to end (flauz.tasks/v0 state machine, evidence
 // ledger, workflow envelope save + re-run, browser session manager over a
 // FakeCdpTransport with the policy engine + on-disk journal, environment
@@ -17,19 +17,19 @@
 // test/fixtures/session-battery/golden-transcript.json.
 //
 // The journeys (spec: docs/FLAUZ-PROGRAM/TL4-SESSION-BATTERY.md):
-//   J1 golden      — create task -> plan -> approve -> tool -> browser leg
+//   J1 golden      -- create task -> plan -> approve -> tool -> browser leg
 //                    (allowed navigation) -> environment leg (lifecycle) ->
 //                    verify -> sign-off -> save fragment.
-//   J2 recovery    — re-run the saved fragment (replay approvals): new
+//   J2 recovery    -- re-run the saved fragment (replay approvals): new
 //                    task, derived evidence (derivedFrom), history row.
-//   J3 fail-closed — denied navigation sends ZERO drive commands; the
+//   J3 fail-closed -- denied navigation sends ZERO drive commands; the
 //                    provenance law rejects actor-less lifecycle ops.
-//   J4 continuity  — full restart on the same root: tasks, workflows,
+//   J4 continuity  -- full restart on the same root: tasks, workflows,
 //                    lifecycle state, browser journal all recover; work
 //                    continues.
 //
 // Runner model: the battery suite is a node:test file importing the real
-// extension sources (.ts) — it needs node >= 22.6 (--experimental-strip-types).
+// extension sources (.ts) -- it needs node >= 22.6 (--experimental-strip-types).
 // On older nodes the gate reports SKIP rows (the battery itself is still
 // exercised in CI's compiled unit-test subset, where the suite runs as
 // compiled .js). With --require a SKIP is a FAIL (CI evidence mode).
@@ -49,7 +49,7 @@
 //   --require         evidence mode: SKIP verdicts FAIL the gate.
 //   --no-fail         always exit 0 (reporting only).
 //
-// Exit codes: 0 = battery green · 1 = battery FAIL/SKIP-with-require ·
+// Exit codes: 0 = battery green * 1 = battery FAIL/SKIP-with-require *
 // 2 = usage/environment error.
 // ---------------------------------------------------------------------------------------------
 
@@ -172,8 +172,10 @@ function runBattery(root, fixturesDir) {
 		return { verdict: 'SKIP', reason: 'this node rejects --experimental-strip-types (need >= 22.6)', pass: 0, fail: 0, output: run.stderr };
 	}
 	const output = `${run.stdout ?? ''}\n${run.stderr ?? ''}`;
-	const passMatches = output.match(/^# pass (\d+)$/m) ?? output.match(/^ℹ pass (\d+)$/mu);
-	const failMatches = output.match(/^# fail (\d+)$/m) ?? output.match(/^ℹ fail (\d+)$/mu);
+	// TAP pipes emit "# pass N"; the spec reporter pipes emit "pass N" behind a
+	// one-glyph status mark -- accept both without embedding non-ASCII.
+	const passMatches = output.match(/^# pass (\d+)$/m) ?? output.match(/^.{0,2}pass (\d+)\s*$/m);
+	const failMatches = output.match(/^# fail (\d+)$/m) ?? output.match(/^.{0,2}fail (\d+)\s*$/m);
 	const pass = passMatches !== null ? Number.parseInt(passMatches[1], 10) : -1;
 	const fail = failMatches !== null ? Number.parseInt(failMatches[1], 10) : -1;
 	if (run.status === 0) {
@@ -199,9 +201,9 @@ function main() {
 			return `PASS  ${journey.id} ${journey.name}`;
 		}
 		if (result.verdict === 'SKIP' || result.verdict === 'ERROR') {
-			return `${result.verdict}  ${journey.id} ${journey.name} — ${result.reason}`;
+			return `${result.verdict}  ${journey.id} ${journey.name} -- ${result.reason}`;
 		}
-		return `FAIL  ${journey.id} ${journey.name} — battery run failed`;
+		return `FAIL  ${journey.id} ${journey.name} -- battery run failed`;
 	});
 	const fixtureRow = result.verdict === 'PASS'
 		? 'PASS  fixture  golden transcript matched (0 deviations)'
@@ -217,9 +219,9 @@ function main() {
 		}
 		console.log(fixtureRow);
 		console.log('-- verdict ---------------------------------------------------------------');
-		let verdictLine = `session-battery: ${result.verdict} — ${result.reason}`;
+		let verdictLine = `session-battery: ${result.verdict} -- ${result.reason}`;
 		if (result.verdict === 'SKIP' && options.require) {
-			verdictLine = `session-battery: FAIL (SKIP promoted by --require) — ${result.reason}`;
+			verdictLine = `session-battery: FAIL (SKIP promoted by --require) -- ${result.reason}`;
 		}
 		console.log(verdictLine);
 	}

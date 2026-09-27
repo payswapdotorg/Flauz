@@ -262,10 +262,30 @@ else
 fi
 
 # ---- session-battery (TL4-004): whole-session acceptance gate ----
-expect "session-battery golden PASS"                    0 node "$S/session-battery.mjs" --root "$ROOT"
-expect "session-battery doctored fixture FAIL"          1 node "$S/session-battery.mjs" --root "$ROOT" --fixtures "$F/session-battery-doctored"
+# The battery runner needs node >= 22.6 (type stripping). On older nodes the
+# gate SKIPs (exit 0) -- the run/failability cases only apply where the
+# runner can actually run; the flauz-session CI lane pins node 22 and runs
+# the full matrix. The --list/usage cases are runner-independent.
+NODE_MAJOR_SB="$(node -p 'process.versions.node.split(".")[0]')"
+NODE_MINOR_SB="$(node -p 'process.versions.node.split(".")[1]')"
+if [ "$NODE_MAJOR_SB" -gt 22 ] || { [ "$NODE_MAJOR_SB" -eq 22 ] && [ "$NODE_MINOR_SB" -ge 6 ]; }; then
+    expect "session-battery golden PASS"                0 node "$S/session-battery.mjs" --root "$ROOT"
+    expect "session-battery doctored fixture FAIL"      1 node "$S/session-battery.mjs" --root "$ROOT" --fixtures "$F/session-battery-doctored"
+else
+    echo "  note  session-battery run cases need node >= 22.6 (runner has $(node --version)) -- covered by the flauz-session CI lane"
+fi
 expect "session-battery --list exit 0"                  0 node "$S/session-battery.mjs" --list
 expect "session-battery usage error (unknown flag)"     2 node "$S/session-battery.mjs" --bogus-flag
+
+# ---- security-gate (TL4-006): integrated security + release gate ----
+expect "security-gate clean fixture PASS"              0 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/clean"
+expect "security-gate planted-github FAIL"             1 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/planted-github"
+expect "security-gate planted-neon FAIL"               1 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/planted-neon"
+expect "security-gate planted-connstring FAIL"         1 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/planted-connstring"
+expect "security-gate planted-key FAIL"                1 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/planted-key"
+expect "security-gate allowlist suppression PASS"      0 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/allowlist-case" --allowlist "$F/security-gate/allowlist-case/allowlist.json"
+expect "security-gate repo mode PASS"                 0 node "$S/security-gate.mjs" --root "$ROOT"
+expect "security-gate --list exit 0"                   0 node "$S/security-gate.mjs" --list
 
 # ---- verdict ----
 echo "----------------------------------------------------------------"

@@ -1,0 +1,111 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL4 — TL4-006: integrated security + release gates.
+#
+# Two jobs:
+#   1. security-gate (zero-dep, no install): the static rows — secrets scan
+#      over the Flauz namespace (credential battery + documented allowlist +
+#      unused-entry hygiene), dependency purity (flauz extensions: zero
+#      runtime deps, allowlisted devDeps), the proposed-API permissions rota
+#      (composed). The packaging row SKIPs pre-install (documented).
+#   2. packaging-reproducibility (after the root npm install): the full gate
+#      with --require — the packaging row bundles every flauz extension
+#      TWICE with the repo's own esbuild and asserts byte-identical dist
+#      artifacts (reproducible release artifacts) + --verify (every flauz
+#      main exists on disk).
+#
+# Failability proof: the fixture matrix (verify-fixtures.sh) plants synthetic
+# credentials (GitHub PAT, Neon key, connection string, private key block),
+# asserts each fires the gate (exit 1), and proves allowlist suppression +
+# unused-allowlist-entry detection. A gate that cannot fail is not a gate.
+#
+# Delegated dynamic rows (documented in the spec, never faked): DL-20
+# hardened-ledger integrity (tamper/wrong-key/truncated-tail) runs in
+# flauz-workflow.yml (hardening.test.ts); browser deny-by-default + session
+# hardening runs in flauz-browser.yml.
+#
+# Constraints honored (same conventions as flauz-budgets.yml): no secrets,
+# read-only perms, actions pinned to the SHAs upstream's own workflows use.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Security
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/security-gate/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/security-gate/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-gate:
+    name: Security gate (secrets, supply chain, permissions — zero-dep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      # ---- the static rows: secrets scan + allowlist hygiene + dependency
+      # purity + proposed-API rota. FAIL is FAIL (no --require needed); the
+      # packaging row SKIPs pre-install by design (job 2 enforces it). ----
+      - name: Run the security gate (static rows)
+        run: node build/flauz/scripts/security-gate.mjs --root .
+
+      # ---- failability proof: every planted synthetic credential fires,
+      # allowlist suppression + unused-entry detection work ----
+      - name: Fixture matrix (verify-fixtures.sh, security subset)
+        run: sh build/flauz/scripts/verify-fixtures.sh --quiet
+
+  packaging-reproducibility:
+    name: Packaging reproducibility (double-bundle, byte-identical dist)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      # ---- the repo's own node_modules provides esbuild (same install the
+      # hygiene lane performs; ELECTRON_SKIP mirrors the upstream pipeline) ----
+      - name: Setup Node.js (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install (esbuild for the bundler)
+        run: npm install --no-audit --no-fund
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      # ---- evidence mode: every row must run — the packaging row bundles
+      # every flauz extension TWICE and asserts byte-identical artifacts ----
+      - name: Run the full security gate (--require)
+        run: node build/flauz/scripts/security-gate.mjs --root . --require

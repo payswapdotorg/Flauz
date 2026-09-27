@@ -1,0 +1,10 @@
+{
+	"$schema": "flauz.security-allowlist/v0",
+	"allow": [
+		{
+			"file": "test/fixtures/workflow/keys/ed25519-private.pem",
+			"pattern": "private-key",
+			"reason": "deliberate test fixture: the DL-20 hardened-ledger verification key pair (consumed by extensions/flauz-workflow/test/hardening.test.ts); a generated fixture pair, never a production credential"
+		}
+	]
+}
