@@ -1,4 +1,4 @@
-# Flauz Environments (Wave 4, Lane J + TL3-003)
+# Flauz Environments (Wave 4, Lane J + TL3-003 + TL3-004 + TL3-006)
 
 The Flauz environment registry: typed environment descriptors persisted at
 `.flauz/environments.json` (`flauz.environments/v0`), descriptor-level
@@ -9,6 +9,17 @@ environment **lifecycle** behind executors
 (`src/lifecycle/`): `create | start | stop | attach | detach | snapshot |
 destroy` + the `describe` health probe, with MANDATORY provenance, fail-closed
 trust enforcement, and two NEW sibling state envelopes (the PIN-2 contract).
+Since TL3-004 rung 1, the remote kinds are REAL behind the same contract:
+`ssh-local` drives the system `ssh` binary (`ssh-cli`), `container` drives
+the system `docker` daemon (`docker-cli`), and `cloud-sandbox` speaks the
+Flauz cloud-sandbox wire contract v0 over HTTP (`cloud-http`) — all behind
+injectable `CliPort`/`HttpPort` seams, all fail-closed with typed capability
+errors when the binary/daemon/keys/endpoint are absent.
+trust enforcement, and two NEW sibling state envelopes (the PIN-2 contract)
+— and, since TL3-006, continuity as an EXECUTABLE capability
+(`src/continuityExec/`): export -> carry -> restore -> verify over
+content-addressed bundles with the secret-redaction law and a NEW
+append-only continuity ops ledger.
 
 ## Layout
 
@@ -26,8 +37,25 @@ trust enforcement, and two NEW sibling state envelopes (the PIN-2 contract).
   bridge handshake (`VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN` +
   `--agent-host-bridge-port`, mutually exclusive with `--agent-host-port`).
 - `src/continuity.ts` — the N-8 model: persists/re-hydrates/lost artifact
-  canon (16 surfaces), the switch state machine, `planSwitch` documents,
-  and the PERF 5.5 overhead-accounting hooks (`code/flauz/*` mark pairs).
+  canon (16 surfaces), the switch state machine, `planSwitch` documents
+  (TL3-006: an ADDITIVE optional `continuityBundleId` lets a plan reference
+  a bundle to carry), and the PERF 5.5 overhead-accounting hooks
+  (`code/flauz/*` mark pairs).
+- `src/continuityExec/` — TL3-006, the continuity EXECUTION layer:
+  - `types.ts` — the two NEW sibling-envelope shapes
+    (`flauz.continuity-bundle/v0` + `flauz.continuity-ops/v0`), typed
+    error codes, outcome envelopes, the bundleId grammar
+    (`flauz:continuity:<16-hex>`, the browser-session id discipline).
+  - `surfaces.ts` — the CLOSED surface table: the 16-surface N-8 canon
+    materialized from actual `.flauz/` state + the post-canon state
+    surfaces (PIN-1 journal, PIN-2 lifecycle pair, resources graph + ops,
+    workflow state); the secret-shape classification (`captured` ->
+    redacted by law).
+  - `store.ts` — strict parsing (closed table, cross-field rules,
+    path-traversal rejection, re-derived redaction path hashes), canonical
+    serialization, pure-TS sha256, the append-only ops ledger.
+  - `manager.ts` — `ContinuityManager`: export / restore / verify / status
+    (typed outcomes, provenance law, atomic staging + commit rename).
 - `src/lifecycle/` — TL3-003, the environment lifecycle:
   - `types.ts` — the PIN-2 shapes, typed states, provenance actors, typed
     error codes, describe verdicts, op outcomes.
@@ -42,22 +70,64 @@ trust enforcement, and two NEW sibling state envelopes (the PIN-2 contract).
   - `executor.ts` — the `EnvironmentExecutor` port (typed ops + probe).
   - `localProcess.ts` — the LOCAL-REAL executor (see the binding decision
     below): real node processes, real fs snapshots, terminate/reap.
+  - `cliPort.ts` — **the `CliPort` seam (TL3-004)**: EVERY process the real
+    remote executors spawn goes through `spawnCli(argv, {stdin, timeoutMs})`
+    (bounded, SIGKILL-on-timeout, typed `spawnError` for the ENOENT class);
+    includes the harness stdio-protocol parser (`parseHarnessStdio`). The
+    production `NodeCliPort` wraps `node:child_process`; `test/fakeCli.ts`
+    scripts it (records argv + canned results — every failure class provable
+    without real binaries). This is the audit point: grep `spawnCli(` to find
+    every place a provider process comes from.
+  - `sshCli.ts` — **`SshCliExecutor`** (`executorKind: 'ssh-cli'`, REAL
+    effects, kind `ssh-local`): probe `ssh -V`; create = `ssh <target>
+    true` connectivity/auth probe; start ships the FIXED harness over stdin
+    (`ssh <target> 'mkdir -p <dir> && nohup node - --state-dir ... >
+    <dir>/harness.out 2>&1 &'` — command-free pipe, argv tokens
+    executor-constructed only); stop/destroy = graceful `kill -15` then
+    `kill -9` on the harness-reported pid ONLY (never-signal-foreign-pids);
+    snapshot = `ssh cat` -> the canonical manifest; describe = crash
+    reconciliation against the remote state file (`kill -0` liveness).
+  - `dockerCli.ts` — **`DockerCliExecutor`** (`executorKind: 'docker-cli'`,
+    REAL effects, kind `container`): probe `docker info` (typed
+    `DAEMON_UNREACHABLE` when the daemon is down); start = `docker run -d`
+    keep-alive holder + `docker cp` the FIXED harness in + `docker exec
+    sh -c 'tail -f /dev/null | node /flauz/env-agent.ts ...'` (the stdin
+    pipe-holder keeps the fixed program alive — its EOF law); stop/destroy =
+    harness-signal escalation then the blessed container-scoped
+    `docker stop --time <grace>`/`docker rm` (pid-namespace bounded);
+    snapshot = `docker cp` out; describe = reconciliation against real
+    `docker inspect`.
+  - `cloudHttp.ts` — **`CloudHttpExecutor`** (`executorKind: 'cloud-http'`,
+    REAL effects, kind `cloud-sandbox`): the Flauz cloud-sandbox wire
+    contract v0 over the injectable `HttpPort` (production = stdlib fetch +
+    `AbortSignal.timeout`). `apiKeyRef` resolves ONLY through the injectable
+    `SecretResolverPort` (`env:<NAME>` from the process environment,
+    `vault:<NAME>` from the host secret storage; literal keys are rejected
+    at the descriptor schema level). The endpoint is executor WIRING (the
+    `flauz.environments.cloudApiBaseUrl` setting; empty = typed
+    `CLOUD_UNREACHABLE` fail-closed) — never descriptor data (DL-29).
   - `simulated.ts` — `SimulatedRemoteExecutor`: **TEST INFRASTRUCTURE — NOT
     PRODUCTION CODE** (deterministic remote-kind drills, styled after
-    flauz-browser's FakeCdpTransport).
-- `fixtures/env-agent.ts` — the FIXED harness script the local-real executor
-  spawns (a stdio-protocol sleeper/state-tracker; the ONLY executable the
-  executor will ever run — descriptor-supplied execution is forbidden).
+    flauz-browser's FakeCdpTransport), still wired behind the explicit
+    `simulated` opt-in.
+- `fixtures/env-agent.ts` — the FIXED harness script the executors run
+  (a stdio-protocol sleeper/state-tracker; the ONLY executable ANY executor
+  will ever run — local, over ssh, or in a container — descriptor-supplied
+  execution is forbidden).
 - `src/extension.ts` — the thin vscode wiring: command-driven activation
   only (`onCommand:flauz.env.*` + `onView:flauz.environments`; activation-lint
-  R3 keeps this extension off `onStartupFinished`). No resolver registration
-  and no live remote connections in this lane — see `INTEGRATION-GAP.md`
-  (real providers = TL3-004; the `resolvers` grant stays absent per DL-33).
+  R3 keeps this extension off `onStartupFinished`). TL3-004 wires the REAL
+  remote executors (ssh-cli/docker-cli/cloud-http + the production
+  vault-reference resolver); no resolver registration yet — see
+  `INTEGRATION-GAP.md` (rung-2 residual + the `resolvers` grant, DL-33).
 - `test/` — `node --test` suites (registry / providers / continuity /
   fixtures / **lifecycle / localProcess / simulated / fixtures-lifecycle** /
-  views). Zero dependencies; Node >= 23.6 (type stripping). The repo
-  fixture matrices live at `test/fixtures/environments/` and
-  `test/fixtures/environments-lifecycle/` (repo root).
+  **sshCli / dockerCli / cloudHttp** + the skip-gated `liveRemote` LIVE drills
+  + `fakeCli.ts` the scriptable `CliPort` double / **continuityExec /
+  fixtures-continuity** / views). Zero dependencies; Node >= 23.6 (type
+  stripping). The repo fixture matrices live at `test/fixtures/environments/`,
+  `test/fixtures/environments-lifecycle/` and `test/fixtures/continuity/`
+  (repo root).
 
 ## The lifecycle (TL3-003)
 
@@ -92,6 +162,98 @@ ledger record; `result:'error'` requires the `{code, message}` payload and
 `result:'ok'` forbids it. Both shapes are pinned by the fixtures at
 `test/fixtures/environments-lifecycle/` (valid + invalid samples).
 
+## The continuity EXECUTION layer (TL3-006)
+
+`src/continuity.ts` classifies the 16-surface canon; `src/continuityExec/`
+makes it REAL: export -> carry -> restore -> verify, with provenance and
+typed outcomes. `planSwitch` output gains an ADDITIVE optional
+`continuityBundleId` (the switch state machine and the PIN-2 files are
+untouched).
+
+### The continuity bundle (`.flauz/continuity-bundles/<bundleId>/`)
+
+A content-addressed export of the workspace's logical state, identified by
+a LOGICAL id (`flauz:continuity:<16-hex>` — the browser-session id grammar
+discipline; never a path, never a URL):
+
+- `manifest.json` — envelope `flauz.continuity-bundle/v0`:
+  `{schemaVersion, schema, bundleId, createdAt, actor, sourceEnvironmentId?,
+  switchPlanRef?, surfaces: {<surfaceName>: {status:
+  'carried'|'lost'|'redacted', artifactPath?, sha256?, bytes?, note?}}}`
+  (DL-9/DL-32 canonical serialization, atomic writes).
+- The CLOSED surface table materializes every surface from ACTUAL `.flauz/`
+  state: the 16 N-8 canon surfaces + the post-canon state surfaces (the
+  PIN-1 browser journal, the PIN-2 lifecycle pair, the resources graph +
+  ops ledger, the workflow state). A surface with no file on disk is a
+  typed `lost` entry with the canon name — never an error, never
+  fabricated. Carried surfaces are copied into `surfaces/` with sha256
+  recorded (directory surfaces carry a per-file tree manifest too).
+- Every manifest covers the FULL table (22 surfaces in v0) — lost surfaces
+  are typed entries, never dropped keys.
+
+### THE SECRET-REDACTION LAW
+
+A continuity bundle carries STATE, never secrets. Surfaces whose content
+model admits secret-shaped material — the evidence ledger (captured
+network/console rows), the artifacts directory (arbitrary captured bytes),
+the browser session journal (tab URLs can embed tokens) — are exported as
+typed `redacted` entries: their PRESENCE is recorded together with the
+sha256 of their PATH, and the payload is NEVER copied into the bundle (the
+parser re-derives the path hash — a fabricated redacted entry is
+`BUNDLE_CORRUPT`). Structurally-validated envelopes (the vault-only policy
+surfaces) are `carried`; as defense-in-depth the export deep-scans every
+carried payload and fails closed with `EXPORT_SECRET_DETECTED` if a
+secret-shaped literal is ever found (a source-envelope contract violation,
+never a carryable state). Redacted surfaces ride the SCM surface or the
+source environment instead of the bundle — the documented trade-off.
+
+### The ops ledger (`.flauz/continuity-ops.jsonl`)
+
+Append-only, one canonical JSON line per op, envelope
+`flauz.continuity-ops/v0`: `{schemaVersion, schema, ts, actor, op:
+'export'|'restore'|'verify', bundleId, result: 'ok'|'error', details?
+{fromEnvironmentId?, toEnvironmentId?, surfacesCarried, surfacesLost,
+surfacesRedacted}, error? {code, message}}` (MANDATORY actor — a missing
+actor is a schema rejection; the existing content is re-validated and
+preserved byte-for-byte before extension). Both new shapes are pinned by
+the fixtures at `test/fixtures/continuity/` (valid + a 35-case invalid
+matrix).
+
+### Commands + the switch hand-off flow
+
+- `flauz.continuity.export` — `{ actor?, environmentId?, switchPlanRef? }`
+  -> the bundle manifest (materializes the bundle; journals the op).
+- `flauz.continuity.restore` — `{ bundleId, actor?, targetEnvironmentId?,
+  force? }` -> typed outcome: re-hydrates state files atomically (tmp+rename
+  per file; all-or-nothing PER SURFACE with per-surface results), FAILS
+  CLOSED on untrusted target environments, REQUIRES `force` to overwrite
+  non-empty existing state (else typed `RESTORE_TARGET_NOT_EMPTY`), and
+  records every surface outcome (`carried`/`lost`/`redacted`/`skipped` — a
+  failed surface leaves the prior target state untouched).
+- `flauz.continuity.verify` — `{ bundleId }` -> integrity check (manifest
+  hashes re-verified against the bundle artifacts; the re-derivable path
+  hash for redacted surfaces; typed per-surface verdicts).
+- `flauz.continuity.status` — lists bundles + the ops ledger (read-only;
+  staging leftovers and manifest-less dirs are flagged incomplete, never
+  restorable).
+
+The switch hand-off (documented flow, re-open model UNCHANGED — N-8):
+
+1. **export at the source** — `flauz.continuity.export` (the bundle rides
+   the workspace or is carried out-of-band);
+2. **switch** — `flauz.env.switch { id, continuityBundleId }` -> the plan
+   references the bundle; the workspace re-opens on the target authority
+   (the switch state machine is untouched);
+3. **restore at the target** — `flauz.continuity.restore { bundleId,
+   targetEnvironmentId, force? }` (v0 boundary: restore re-hydrates the
+   CURRENT workspace root's `.flauz/` state; `targetEnvironmentId` is the
+   provenance/trust attribute — carrying bytes to a REMOTE filesystem is
+   the TL3-004 provider lane).
+
+Provenance at the command boundary: palette invocations default to actor
+`human`; programmatic callers (agents/tools) pass `actor` explicitly — the
+manager rejects any op without a valid actor (fail-closed).
+
 ### Executors
 
 - **Local-real — `LocalProcessExecutor`** (`executorKind: 'local-process'`,
@@ -99,18 +261,39 @@ ledger record; `result:'error'` requires the `{code, message}` payload and
   documented LOCAL-LOOPBACK posture — the descriptor's authorityPrefix is
   realized in this lane by a loopback agent-host stand-in (the fixed
   harness), not a remote authority resolver; the v0 kind vocabulary is NOT
-  mutated, and real resolvers for all four kinds land in TL3-004. The
-  executor is also KIND-AGNOSTIC infrastructure (a `kinds` option lets drills
-  reuse the process/snapshot machinery). It spawns EXACTLY ONE executable —
-  `fixtures/env-agent.ts` run via `node` (in the extension host with
-  `ELECTRON_RUN_AS_NODE=1` when `process.execPath` is Electron — the
-  standard pattern) — never a descriptor-derived command; pids are tracked
-  in-memory; stop/destroy is graceful-SIGTERM-then-SIGKILL with full reaping;
-  snapshots are REAL fs copies to `.flauz/env-snapshots/<envId>/<epochMs>/`
-  with a canonical `manifest.json` (sha256 per file,
-  `flauz.env-snapshot-manifest/v0`); attach/detach mint a logical connection
-  lease (id + held-since) recorded in the lifecycle state — no process
-  effect, a REAL state transition with provenance.
+  mutated, and the real authority resolver lands with the `resolvers` grant
+  (rung 2; INTEGRATION-GAP.md). The executor is also KIND-AGNOSTIC
+  infrastructure (a `kinds` option lets drills reuse the process/snapshot
+  machinery). It spawns EXACTLY ONE executable — `fixtures/env-agent.ts`
+  run via `node` (in the extension host with `ELECTRON_RUN_AS_NODE=1` when
+  `process.execPath` is Electron — the standard pattern) — never a
+  descriptor-derived command; pids are tracked in-memory; stop/destroy is
+  graceful-SIGTERM-then-SIGKILL with full reaping; snapshots are REAL fs
+  copies to `.flauz/env-snapshots/<envId>/<epochMs>/` with a canonical
+  `manifest.json` (sha256 per file, `flauz.env-snapshot-manifest/v0`);
+  attach/detach mint a logical connection lease (id + held-since) recorded
+  in the lifecycle state — no process effect, a REAL state transition with
+  provenance.
+- **Real remote (TL3-004 rung 1)** — `SshCliExecutor` (`ssh-local`),
+  `DockerCliExecutor` (`container`), `CloudHttpExecutor` (`cloud-sandbox`):
+  REAL effects behind the same `EnvironmentExecutor` contract, resolved by
+  the manager WITHOUT any opt-in (the `simulated` request flag / setting
+  still selects the drill executors on demand). Every process/socket goes
+  through the `CliPort`/`HttpPort` seams; every argv/url token is
+  executor-constructed from registry-VALIDATED descriptor DATA fields
+  (host/port/user are data; there are no command/shell/script fields to
+  abuse — the injection law). The fixed-harness invariant is EXTENDED to
+  every execution surface: the ONLY program any executor runs — locally,
+  over ssh, or inside a container — is `fixtures/env-agent.ts` (byte-for-byte
+  the shipped file; descriptor-supplied execution is forbidden everywhere).
+  Capability detection is first-class and fail-closed: absent ssh binary =>
+  typed `CLI_NOT_AVAILABLE`; absent docker daemon => typed
+  `DAEMON_UNREACHABLE`; unresolvable `apiKeyRef` => typed
+  `VAULT_REF_UNRESOLVED`; unset cloud endpoint => typed `CLOUD_UNREACHABLE`
+  (never a silent fallback, never a crash). Never-signal-foreign-pids holds
+  on every surface: a live pid/container backing state this executor
+  instance did not start is surfaced as `orphan` and NEVER signalled
+  directly (container recovery is the pid-namespace-bounded `docker stop`).
 - **Remote-simulated — `SimulatedRemoteExecutor`**
   (`executorKind: 'simulated-<kind>'`, **TEST INFRASTRUCTURE — NOT
   PRODUCTION CODE**) for `ssh-local` / `container` / `cloud-sandbox`:
@@ -118,9 +301,10 @@ ledger record; `result:'error'` requires the `{code, message}` payload and
   shareable across instances for host-restart drills), injectable latency +
   failure cues, NO live connections. It is driven ONLY behind an explicit
   opt-in: the per-request `{ simulated: true }` argument or the
-  `flauz.environments.simulated` setting (default `false`). Remote kinds
-  without the opt-in fail closed with a typed `SIMULATED_NOT_OPTED_IN`
-  error — this lane makes NO fake claims of real remote control.
+  `flauz.environments.simulated` setting (default `false`). A kind served
+  only by simulated executors with no opt-in still fails closed with a
+  typed `SIMULATED_NOT_OPTED_IN` error — no fake claims of real remote
+  control.
 
 ### Security posture
 
@@ -133,11 +317,13 @@ ledger record; `result:'error'` requires the `{code, message}` payload and
 - Secrets are never persisted: bridge tokens and cloud API keys are
   vault-style references (`vault:...` / `env:...`), validated at the schema
   level (literal keys are rejected) — SECURITY-MODEL 3.5.
-- NO command/shell/script fields in descriptors EVER: the local-real
-  executor runs ONLY the fixed harness shipped inside this extension;
-  descriptor-supplied execution is forbidden (fail-closed against
-  injection). The executor refuses to signal any pid it did not spawn
-  (`orphan` verdicts; `PROCESS_NOT_OWNED` rejections).
+- NO command/shell/script fields in descriptors EVER: the fixed-harness
+  invariant covers EVERY execution surface — the ONLY program any executor
+  runs (local, over ssh, in a container) is the fixed
+  `fixtures/env-agent.ts` shipped inside this extension; descriptor-supplied
+  execution is forbidden (fail-closed against injection). The executors
+  refuse to signal any pid they did not start (`orphan` verdicts;
+  `PROCESS_NOT_OWNED` rejections).
 
 ## Commands
 
@@ -156,6 +342,13 @@ surface); programmatic callers (agents/tools) pass `actor` explicitly. The
 descriptions (premium-ux row grammar; ages in descriptions, UTC stamps in
 tooltips; codicons per phase).
 
+Continuity (TL3-006 — typed results, never raw throws):
+`flauz.continuity.export` / `flauz.continuity.restore` /
+`flauz.continuity.verify` / `flauz.continuity.status` (see the continuity
+EXECUTION section above; the same palette-defaults-to-human provenance
+rule). `flauz.env.switch` accepts an ADDITIVE `{ continuityBundleId }`
+argument that rides the returned switch plan.
+
 ## Development
 
 ```
@@ -163,6 +356,16 @@ npm run typecheck   # tsc --noEmit (uses the vendored vscode.d.ts)
 npm run test        # node --test "test/*.test.ts"
 node build/flauz/scripts/env-registry-canary.mjs   # from the repo root
 ```
+
+Test discipline (TL3-004): every scripted drill runs against `FakeCli` /
+`HttpPort` stubs / a local mock cloud server — NO real binaries needed, and
+NO wall-clock readiness windows: the executor poll loops take an injectable
+latency cue and the rigs drive VIRTUAL TIME (the latency advance moves the
+injected clock), so a readiness/stop window expires in bounded iterations
+with zero real waiting (a test never depends on a real timeout). The LIVE
+drills (`test/liveRemote.test.ts`) exercise the real ssh binary + sshd and
+the real docker daemon, each SKIP-GATED with an explicit printed SKIP line
+when the binary/daemon is absent — they never fabricate a pass.
 
 Known residual: the harness path resolves relative to `src/extension.ts`
 (`../fixtures/env-agent.ts`); the TL1 bundler must ship `fixtures/` next to
