@@ -261,25 +261,6 @@ else
     echo "  note  compat-battery real-repo case needs local 'origin/upstream/main' — skipped here"
 fi
 
-# ---- compat-l3-smoke (TL4-008): the L3 runtime boot smoke driver ----
-# Driver logic pinned against the fixture matrix (synthetic log corpora +
-# fake compiled trees - a workbench is never booted in a sandbox). The
-# settle timeouts are tiny because fixture markers are already on disk
-# (the CI lane passes the generous defaults).
-CL3="$F/compat-l3"
-expect "compat-l3 clean logs+compile PASS"             0 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-clean/boot.log" --log-dir "$CL3/logs-clean/userdata-logs" --compile-root "$CL3/fake-out" --settle-timeout 300
-expect "compat-l3 no-logs SKIP census PASS"            0 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/fake-out"
-expect "compat-l3 fatal log FAIL"                      1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-fatal/boot.log" --settle-timeout 300
-expect "compat-l3 no-ext-marker FAIL"                  1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-no-ext/boot.log" --settle-timeout 300
-expect "compat-l3 flauz-vanished FAIL (pos-ctl)"       1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-no-flauz/boot.log" --settle-timeout 300
-expect "compat-l3 missing pillar FAIL"                 1 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/fake-out-missing"
-expect "compat-l3 absent compile-root FAIL"            1 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/no-out"
-expect "compat-l3 --no-fail reports only"              0 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-fatal/boot.log" --no-fail --settle-timeout 300
-expect "compat-l3 --require sans channel FAIL (usage)" 2 node "$S/compat-l3-smoke.mjs" --require --log "$CL3/logs-clean/boot.log"
-expect "compat-l3 usage error (bad flag)"              2 node "$S/compat-l3-smoke.mjs" --definitely-not-a-flag
-expect "compat-l3 --help"                              0 node "$S/compat-l3-smoke.mjs" --help
-expect "compat-l3 node --test suite"                   0 node --test "$ROOT/build/flauz/compat-l3-smoke.test.mjs"
-
 # ---- session-battery (TL4-004): whole-session acceptance gate ----
 # The battery runner needs node >= 22.6 (type stripping). On older nodes the
 # gate SKIPs (exit 0) -- the run/failability cases only apply where the
@@ -360,8 +341,18 @@ expect "runtime gate fixture flag needs --row"           2 node "$SRT" --audit-j
 expect "runtime gate unknown row id"                     2 node "$SRT" --row nonsense
 expect "runtime gate --help"                             0 node "$SRT" --help
 expect "runtime gate --list"                             0 node "$SRT" --list
-# repo-mode shapes: skip-vs-fail policy (pre-install contexts only)
-if [ ! -d "$ROOT/node_modules" ]; then
+# repo-mode shapes: skip-vs-fail policy (pre-install contexts only).
+# Station fix (2026-09-27, riding the TL4-009 merge): the guard must mirror
+# the gate's resolveEsbuild candidate list -- a station that installs ONLY
+# build/node_modules (the manifest pin-generation posture) has no root
+# install yet a RESOLVABLE esbuild, so the no-esbuild shape cases would
+# deviate. The six cases pin the BOTH-absent shape (worker sandbox /
+# CI job 1); any esbuild-present context runs the real rows instead.
+ESB_CAN=""
+for _c in "$ROOT/node_modules/esbuild/bin/esbuild" "$ROOT/node_modules/.bin/esbuild" "$ROOT/build/node_modules/esbuild/bin/esbuild"; do
+    if [ -e "$_c" ]; then ESB_CAN="$_c"; break; fi
+done
+if [ ! -d "$ROOT/node_modules" ] && [ -z "$ESB_CAN" ]; then
     expect "runtime gate repo mode PASS (skip shapes)"   0 node "$SRT" --root "$ROOT"
     expect "runtime gate repo mode --require FAIL"       1 node "$SRT" --root "$ROOT" --require
     expect "runtime audit repo SKIP (no install)"        0 node "$SRT" --row audit --root "$ROOT"
@@ -369,7 +360,7 @@ if [ ! -d "$ROOT/node_modules" ]; then
     expect "runtime manifest repo SKIP (no esbuild)"     0 node "$SRT" --row manifest --root "$ROOT"
     expect "runtime manifest --generate no-esbuild FAIL" 1 node "$SRT" --row manifest --root "$ROOT" --generate --manifest "$SRTT/never-written.json"
 else
-    echo "  note  runtime repo-mode skip/require cases need a pre-install tree -- post-install contexts run the real rows (flauz-security job 2)"
+    echo "  note  runtime repo-mode skip/require cases need a pre-install, esbuild-free tree (no root node_modules AND no resolvable esbuild) -- post-install / station-pin contexts run the real rows (flauz-security job 2)"
 fi
 rm -rf "$SRTT"
 

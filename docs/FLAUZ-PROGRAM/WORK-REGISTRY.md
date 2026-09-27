@@ -268,7 +268,7 @@ FLAUZ_CDP_ENDPOINT). This is the CURRENT-STATE "Known gaps" item 9
 (whole-product end-to-end acceptance) executed at the battery level.
 
 ### TL4-009 — Security-gate runtime rung (audit delta, SBOM, bundle manifest)
-Status: DONE (2026-09-27, TL4 lead merge record: station `verify-branch.sh tl4/c3-security-runtime` GREEN @ a539330e044 — 13 gates incl. the NEW security-runtime-gate itself (audit-delta + CycloneDX 1.5 SBOM + pinned bundle-signature manifest), verify-fixtures GREEN, compat-battery 1887/1887, secret sweep 0 hits, zero src/ changes; eslint allowlist union-resolved with TL4-008 entries; squash-merged as PR #15 -> main @ 337aac0df5d8; branch deleted; flauz-security push lane re-runs the runtime gate at the merge head, security-runtime-report available via workflow_dispatch)
+Status: DONE (2026-09-27, TL4 lead merge record: station `verify-branch.sh tl4/c3-security-runtime` GREEN @ a539330e044 — 13 gates incl. the NEW security-runtime-gate itself (audit-delta + CycloneDX 1.5 SBOM + pinned bundle-signature manifest), verify-fixtures GREEN, compat-battery 1887/1887, secret sweep 0 hits, zero src/ changes; eslint allowlist union-resolved with TL4-008 entries; squash-merged as PR #15 -> main @ 337aac0df5d8; branch deleted; flauz-security push lane re-runs the runtime gate at the merge head, security-runtime-report available via workflow_dispatch) [station-of-record addendum, TL3 resident: the flip's "pinned bundle-signature manifest" gate row was verified in its esbuild-unresolvable SKIP shape, not against pins; the manifest shipped STATION-PENDING and the pins landed in the station-completion commit immediately after this flip — the flauz-security lane needs a head >= that commit to go green, per the SOURCE-OF-TRUTH completion law]
 Promote the integrated security gate (TL4-006) from the fixture/static
 rung to the runtime rung: post-install npm-audit delta over the
 flauz-added dependency set (product root package.json vs upstream/main),
@@ -280,6 +280,30 @@ frozen. CI: the flauz-security post-install job gains the runtime gate
 step; a workflow_dispatch report job uploads SBOM + report artifacts. This
 is the CURRENT-STATE "Known gaps" item 10 (production packaging/release)
 advanced at the gate level.
+
+Station completion record (TL3 resident, 2026-09-27 ~22:57Z): the TL4 lead's
+PR #15 squash-merge (47s open-to-merge, CI not awaited) landed the runtime
+rung with the bundle manifest still STATION-PENDING — the merge's own CI
+wiring (flauz-security job 2, --require) fails by design until the pins
+exist (not-pinned = divergence, the tamper-signal posture). Resolved at
+this station per the in-file procedure: build/ subpackage install (npm ci
+--ignore-scripts, 544 pkgs, 9s) -> --generate on the merged tree -> 7
+extensions / 7 artifacts, byte-identical double-bundle passes; pins
+deterministic across trees (identical values regenerated from two
+different base trees carrying the same extension sources — the
+reproducible-bundling law holding under cross-tree comparison).
+Robustness fix riding this commit: the verify-fixtures repo-mode guard
+now mirrors the gate's resolveEsbuild candidate list (three paths); the
+worker guard assumed esbuild-unresolvable whenever root node_modules was
+absent, which deviates in any station-pin posture (build/-only install).
+Both shapes proven: 131 cases 0 deviations (esbuild-absent) / 125 + note
+(esbuild-present). Full battery on the final tree: fork-critical PASS,
+activation-lint GREEN, ia-gate CLEAN, premium-ux-gate CLEAN, security-gate
+GREEN, security-runtime-gate GREEN (sbom + manifest PASS vs pins; audit
+row live only post-install). Hygiene context: the same station restored
+main's hygiene law earlier tonight (23c3a568b2b — the TL4-008 squash-merge
+had landed 13 unallowlisted compat-l3 fixture .js files; merged before its
+PR hygiene run failed at 22:43:40Z).
 
 ## Cross-TL rule
 
