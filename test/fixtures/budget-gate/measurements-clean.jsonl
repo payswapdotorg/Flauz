@@ -1,0 +1,8 @@
+{"id": "startup.tsv.ellapsed.p50", "value": 851, "baseline": 828, "unit": "ms", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: perf-timers pair (flauz-main vs upstream-main)"}
+{"id": "startup.marker.code/flauz/willConnectCore-code/flauz/didConnectCore.p95", "value": 178, "unit": "ms", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: flauz-main.markers.tsv"}
+{"id": "memory.eventually.rss.flauz-core", "value": 128, "unit": "MB", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: process-shape/eventually.json"}
+{"id": "memory.after-session.count.agent-sessions", "value": 2, "unit": "count", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: process-shape/after-session.json"}
+{"id": "cpu.steady.load.flauz-core", "value": 3.2, "unit": "%", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: sampling-driver shape (doctrine section 6.3), synthetic sample series"}
+{"id": "browser.launch.ttf.warm.p95", "value": 380, "unit": "ms", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: TL3 runtime pending — synthetic value, NOT a product measurement"}
+{"id": "model.switch.ready.p95", "value": 420, "unit": "ms", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: provider runtime pending — synthetic value, NOT a product measurement"}
+{"id": "multi-agent.eventloop.lag.p95", "value": 31, "unit": "ms", "measuredAt": "2026-09-27T00:00:00Z", "source": "fixture: workload driver pending — synthetic value, NOT a product measurement"}

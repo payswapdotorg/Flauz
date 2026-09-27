@@ -1,0 +1,93 @@
+{
+	"version": 1,
+	"budgets": [
+		{
+			"id": "startup.tsv.ellapsed.p50.delta",
+			"metric": "startup.tsv.ellapsed.p50",
+			"budget": 75,
+			"unit": "ms",
+			"comparison": "delta<=",
+			"severity": "fail",
+			"status": "enforced-ci",
+			"source": "startup-pair.mjs (PERF section 1.3 row 1, p50)",
+			"notes": "fixture mirror of the registry row (real registry: build/flauz/budgets/flauz-budgets.json)"
+		},
+		{
+			"id": "startup.marker.code/flauz/willConnectCore-code/flauz/didConnectCore.p95",
+			"metric": "startup.marker.code/flauz/willConnectCore-code/flauz/didConnectCore.p95",
+			"budget": 500,
+			"unit": "ms",
+			"comparison": "<=",
+			"severity": "fail",
+			"status": "enforced-ci",
+			"source": "startup-pair.mjs STARTUP_BUDGETS row 2",
+			"notes": "fixture mirror of the registry row"
+		},
+		{
+			"id": "memory.eventually.rss.flauz-core",
+			"metric": "memory.eventually.rss.flauz-core",
+			"budget": 150,
+			"unit": "MB",
+			"comparison": "<=",
+			"severity": "fail",
+			"status": "enforced-ci",
+			"source": "memory-snapshot.mjs R2 at 'eventually'",
+			"notes": "fixture mirror of the registry row"
+		},
+		{
+			"id": "memory.after-session.count.agent-sessions",
+			"metric": "memory.after-session.count.agent-sessions",
+			"budget": 2,
+			"unit": "count",
+			"comparison": "<=",
+			"severity": "fail",
+			"status": "enforced-ci",
+			"source": "memory-snapshot.mjs R3, after-session scenario",
+			"notes": "fixture mirror of the registry row"
+		},
+		{
+			"id": "cpu.steady.load.flauz-core",
+			"metric": "cpu.steady.load.flauz-core",
+			"budget": 2,
+			"unit": "%",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "fixture",
+			"source": "TL4-005 contract (doctrine section 6.3)",
+			"notes": "WARN-severity case: over budget but severity warn \u2014 exit stays 0 with a WARN row"
+		},
+		{
+			"id": "browser.launch.ttf.warm.p95",
+			"metric": "browser.launch.ttf.warm.p95",
+			"budget": 400,
+			"unit": "ms",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "pending-runtime",
+			"source": "TL4-005 contract (doctrine section 6.1)",
+			"notes": "pending-runtime row WITH a fixture measurement \u2014 proves the gate compares pending rows when a measurement exists instead of blindly skipping"
+		},
+		{
+			"id": "model.switch.ready.p95",
+			"metric": "model.switch.ready.p95",
+			"budget": 500,
+			"unit": "ms",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "pending-runtime",
+			"source": "TL4-005 contract (doctrine section 6.2)",
+			"notes": "pending-runtime row with a fixture measurement"
+		},
+		{
+			"id": "multi-agent.eventloop.lag.p95",
+			"metric": "multi-agent.eventloop.lag.p95",
+			"budget": 50,
+			"unit": "ms",
+			"comparison": "<=",
+			"severity": "warn",
+			"status": "pending-runtime",
+			"source": "TL4-005 contract (doctrine section 6.4)",
+			"notes": "pending-runtime row with a fixture measurement"
+		}
+	]
+}

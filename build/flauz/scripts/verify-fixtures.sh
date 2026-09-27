@@ -94,6 +94,50 @@ expect "rota dirty + baseline FAIL (deltas)"           1 node "$S/proposed-api-r
 expect "rota dirty --no-fail (informational)"          0 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty" --no-fail
 expect "rota real mirror (no lanes) SKIP"              0 node "$S/proposed-api-rota.mjs" --repo-root "$ROOT"
 
+# ---- budget-gate: TL4-005 unified budget gate ----
+BG="$S/budget-gate.mjs"
+BGF="$F/budget-gate"
+expect "budget-gate clean fixture PASS"                0 node "$BG" --budgets "$BGF/budgets-clean.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate over-budget FAIL"                  1 node "$BG" --budgets "$BGF/budgets-over.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate skip case (no --require)"          0 node "$BG" --budgets "$BGF/budgets-with-pending.json" --measurements "$BGF/measurements-missing.jsonl"
+expect "budget-gate skip case (--require)"             1 node "$BG" --budgets "$BGF/budgets-with-pending.json" --measurements "$BGF/measurements-missing.jsonl" --require
+expect "budget-gate skip case (--require enforced-ci)" 0 node "$BG" --budgets "$BGF/budgets-with-pending.json" --measurements "$BGF/measurements-missing.jsonl" --require enforced-ci
+expect "budget-gate malformed budgets"                 2 node "$BG" --budgets "$BGF/malformed-budgets.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate warn-severity over (exit 0)"       0 node "$BG" --budgets "$BGF/budgets-warn.json" --measurements "$BGF/measurements-clean.jsonl"
+expect "budget-gate unknown measurement id WARN"       0 node "$BG" --budgets "$BGF/budgets-clean.json" --measurements "$BGF/measurements-unknown-id.jsonl"
+expect "budget-gate unit mismatch SKIP+WARN"           0 node "$BG" --budgets "$BGF/budgets-clean.json" --measurements "$BGF/measurements-unit-mismatch.jsonl"
+expect "budget-gate usage error (unknown flag)"         2 node "$BG" --bogus
+expect "budget-gate --help"                            0 node "$BG" --help
+expect "budget-gate registry self-check (no input)"    0 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json"
+
+# real-data input plumbing: map the perf fixtures through perf-log-parse (the
+# single source of truth for perf-log parsing) into a CURATED temp dir, then run
+# the unified gate over it with --require enforced-ci — proves every enforced-ci
+# registry row is measured by the mapped repo data and green (TL4-005 D5a).
+BGIN="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-bg-$$")"
+BGINV="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-bgv-$$")"
+mkdir -p "$BGIN" "$BGINV"
+if (
+    set -e
+    node "$S/perf-log-parse.mjs" --parse-timers     "$F/perf-timers/flauz-main.timers.tsv"   > "$BGIN/flauz.timers.json"
+    node "$S/perf-log-parse.mjs" --parse-timers     "$F/perf-timers/upstream-main.timers.tsv" > "$BGIN/upstream.timers.json"
+    node "$S/perf-log-parse.mjs" --parse-markers    "$F/perf-timers/flauz-main.markers.tsv"   > "$BGIN/flauz.markers.json"
+    node "$S/perf-log-parse.mjs" --parse-markers    "$F/perf-timers/upstream-main.markers.tsv" > "$BGIN/upstream.markers.json"
+    node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/eventually.json"      > "$BGIN/eventually.process.json"
+    node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/after-session.json"   > "$BGIN/after-session.process.json"
+    node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/after-session.violations.json" > "$BGINV/after-session.process.json"
+); then
+    PASS=$((PASS + 1))
+    [ "$QUIET" -eq 0 ] && printf '  ok    %-52s mapped 7 inputs\n' "budget-gate input mapping (perf-log-parse)"
+else
+    FAIL=$((FAIL + 1))
+    printf '  DEVIATED  %-52s mapping failed\n' "budget-gate input mapping (perf-log-parse)" >&2
+fi
+expect "budget-gate perf-fixture plumbing PASS"        0 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGIN" --require enforced-ci
+expect "budget-gate violations fixture FAIL"           1 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGINV"
+expect "budget-gate ps-text input rejected"            2 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$F/process-shape/eventually.ps.txt"
+rm -rf "$BGIN" "$BGINV"
+
 # ---- fork-critical guard ----
 if git -C "$ROOT" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
     expect "fork-critical guard on this branch PASS"   0 sh "$S/fork-critical-guard.sh" --repo "$ROOT" --base upstream/main --head HEAD
