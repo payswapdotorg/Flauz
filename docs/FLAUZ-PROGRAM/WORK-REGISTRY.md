@@ -2,6 +2,14 @@
 
 Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 
+## Architect control-plane note — 2026-09-27
+
+- Verified integrated `main`: `2dd52fc6fe39b3ff8cada7a0e4ead33477e7ff8f`.
+- No open PRs were present at verification time.
+- The detailed TL work sections below are preserved to avoid stealing or reassigning active TL work.
+- Any progress paragraph carrying a date later than 2026-09-27 is stale metadata; determine present status from the exact commit/PR/CI evidence on `main`.
+- This note does not add a new active TL lane. CopilotKit/OpenMuse integration is intentionally not a dependency; any future AG-UI adapter is downstream of TL1-003 and must be additive.
+
 ## TL1 — Substrate, upstream compatibility and product integration
 
 ### TL1-001 — Upstream synchronization lane

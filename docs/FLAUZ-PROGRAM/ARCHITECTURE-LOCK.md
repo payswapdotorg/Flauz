@@ -212,3 +212,34 @@ Do not:
 - turn mock providers into fake production claims;
 - present browser policy as equivalent to a fully integrated browser;
 - declare production readiness from unit tests alone.
+
+
+## 9. External agent-UI interoperability boundary
+
+Flauz owns the authoritative execution and state model. External agent UI/runtime frameworks are integration clients, not the Flauz control plane.
+
+### Native-first rule
+
+- The versioned Flauz service protocol is the authoritative boundary for commands, events, health, lifecycle, authorization and durable state.
+- Feature extensions and external clients must not invent a competing task/session/approval/evidence state model.
+- Policy, leases, provenance and evidence remain enforced by Flauz at the authoritative execution boundary.
+
+### AG-UI / CopilotKit
+
+AG-UI may be implemented later as an additive event/projection adapter at the Flauz service boundary.
+
+- CopilotKit is optional client technology; it is not a Flauz runtime dependency.
+- AG-UI is not a replacement for FlauzEventEnvelope or the native service protocol.
+- An AG-UI adapter must preserve Flauz task/session/approval/evidence semantics and route consequential commands through the same Flauz authorization, lease and policy paths.
+- Do not begin AG-UI implementation until TL1-003 has established the versioned native service protocol.
+- Prefer extension/service land; no new src/vs core dependency is implied.
+
+### OpenMuse
+
+OpenMuse is a reference product/interoperability target for agentic browser/terminal/files UX, not a Flauz runtime dependency.
+
+- Do not embed or fork the OpenMuse server/worker architecture into Flauz.
+- Reuse validated interaction patterns only when they fit the Flauz architecture and Code OSS substrate.
+- Any future OpenMuse interoperability must terminate at the same Flauz service boundary used by other external clients.
+
+This decision is intentionally non-blocking for TL1-TL4 and does not create a new active work item.

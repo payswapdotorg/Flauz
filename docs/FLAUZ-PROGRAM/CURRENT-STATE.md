@@ -2,15 +2,21 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 2dd52fc6fe3 (TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates landed with same-head 6-workflow CI green — session, compat, budgets, workflow, security, hygiene; the TL3 wave-2 chronic hygiene debt (space indentation 3866, eslint 92) cleared by the TL4 lane)
+Integrated head at verification: 4a9358e4338 (2026-09-27, wave-3 verification: TL4-008 compat L3 runtime boot smoke landed via PR #14, station-green squash-merge c1d9414ec13b; TL3-004 rung 1 + TL3-006 continuity landed; TL4-007/009 runtime rungs in flight; preceding TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates with same-head 6-workflow CI green — session, compat, budgets, workflow, security, hygiene; TL3 chronic hygiene debt cleared by the TL4 lane)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 2dd52fc6fe3 (ALL SIX TL4 items done: 001/002/003/004/005/006; TL3-001/002/003/005 done; TL1-001 active).
+- main is the canonical Flauz product line at 4a9358e4338 (TL4: 001-006 done, 008 done, 007/009 active; TL3-001/002/003/005 + TL3-004 rung 1 + TL3-006 done; TL1-001 active). Existing TL1-TL4 ownership remains unchanged.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
 - Do not implement product work on upstream/main.
+
+## Control-plane reconciliation
+
+The program documents previously recorded older integrated heads and several future-dated status annotations. Those annotations are historical metadata, not additional code state. The current `main` tree and exact merge/CI evidence are authoritative.
+
+There is intentionally no CopilotKit or OpenMuse runtime dependency. An AG-UI adapter remains a future, additive interoperability option after TL1-003's native Flauz service protocol is stable.
 
 ## Present product surfaces
 
@@ -98,18 +104,18 @@ Later workflow capabilities must be re-established from current code and tests b
 
 ## Known gaps
 
-1. Real provider adapters and real model execution.
-2. Durable multi-agent orchestration.
-3. Durable context and memory.
-4. Reusable workflow execution beyond the current envelope.
-5. Fully integrated Flauz-controlled browser runtime.
-6. Real environment lifecycle execution.
-7. Resource graph, leases/conflicts, takeover and collaboration semantics.
-8. Coherent premium product UX.
-9. Whole-product end-to-end acceptance on a real build.
-10. Repeatable upstream synchronization and production packaging/release.
-11. Linux, Windows, web and desktop verification without regressing Code OSS features.
-12. Proposed-API dependencies and their upgrade/retirement plan.
+1. Real model/provider execution and provider routing.
+2. Durable multi-agent orchestration, retry/cancel/recovery and collaborative execution.
+3. Durable context/memory compilation, retrieval and provenance.
+4. Complete human approval/takeover/lease semantics integrated with the durable execution graph.
+5. Production-grade reusable workflow execution/versioning/recovery.
+6. Real environment providers beyond the fixed local harness and explicitly simulated remote executors.
+7. Cross-surface continuity/restoration across agent task, browser, environment and resource state.
+8. Browser runtime promotion from fixture/driver coverage to real-workbench E2E and remaining partition/default-policy work.
+9. Whole-session acceptance promotion from fixture-backed simulation to real product/runtime coverage.
+10. Runtime performance/security/release promotion for currently fixture-backed or pending-runtime gates.
+11. TL1-003's versioned native Flauz service protocol and packaging/release parity.
+12. Upstream synchronization as an ongoing maintenance lane plus web/desktop verification.
 
 Previous TL2 lab reports are evidence of work performed, not a substitute for current integrated verification.
 The code on main plus these program documents is now the authoritative starting point.
