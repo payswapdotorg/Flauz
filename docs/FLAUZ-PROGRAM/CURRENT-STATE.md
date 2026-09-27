@@ -2,15 +2,21 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 62e46ad013d (TL3 wave 2: TL3-002 browser session security + TL3-003 environment lifecycle merged, station-verified; TL1-001 upstream-sync PR #10 + TL4 DONE flips + hygiene wave integrated between waves)
+Integrated head at verification: 2dd52fc6fe39b3ff8cada7a0e4ead33477e7ff8f (current `main`, verified 2026-09-27; latest commits include TL4 security/release-gate work plus final hygiene/artifact cleanup)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 62e46ad013d (TL4-001/002/003/005 done; TL3-001/002/003/005 done; TL1-001 active; hygiene + prep fixes c6e2d5c6df6/a8da42937b7 lineage).
+- main is the canonical Flauz product line at 2dd52fc6fe39b3ff8cada7a0e4ead33477e7ff8f. Existing TL1-TL4 ownership remains unchanged.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
 - Do not implement product work on upstream/main.
+
+## Control-plane reconciliation
+
+The program documents previously recorded older integrated heads and several future-dated status annotations. Those annotations are historical metadata, not additional code state. The current `main` tree and exact merge/CI evidence are authoritative.
+
+There is intentionally no CopilotKit or OpenMuse runtime dependency. An AG-UI adapter remains a future, additive interoperability option after TL1-003's native Flauz service protocol is stable.
 
 ## Present product surfaces
 
@@ -90,18 +96,18 @@ Later workflow capabilities must be re-established from current code and tests b
 
 ## Known gaps
 
-1. Real provider adapters and real model execution.
-2. Durable multi-agent orchestration.
-3. Durable context and memory.
-4. Reusable workflow execution beyond the current envelope.
-5. Fully integrated Flauz-controlled browser runtime.
-6. Real environment lifecycle execution.
-7. Resource graph, leases/conflicts, takeover and collaboration semantics.
-8. Coherent premium product UX.
-9. Whole-product end-to-end acceptance on a real build.
-10. Repeatable upstream synchronization and production packaging/release.
-11. Linux, Windows, web and desktop verification without regressing Code OSS features.
-12. Proposed-API dependencies and their upgrade/retirement plan.
+1. Real model/provider execution and provider routing.
+2. Durable multi-agent orchestration, retry/cancel/recovery and collaborative execution.
+3. Durable context/memory compilation, retrieval and provenance.
+4. Complete human approval/takeover/lease semantics integrated with the durable execution graph.
+5. Production-grade reusable workflow execution/versioning/recovery.
+6. Real environment providers beyond the fixed local harness and explicitly simulated remote executors.
+7. Cross-surface continuity/restoration across agent task, browser, environment and resource state.
+8. Browser runtime promotion from fixture/driver coverage to real-workbench E2E and remaining partition/default-policy work.
+9. Whole-session acceptance promotion from fixture-backed simulation to real product/runtime coverage.
+10. Runtime performance/security/release promotion for currently fixture-backed or pending-runtime gates.
+11. TL1-003's versioned native Flauz service protocol and packaging/release parity.
+12. Upstream synchronization as an ongoing maintenance lane plus web/desktop verification.
 
 Previous TL2 lab reports are evidence of work performed, not a substitute for current integrated verification.
 The code on main plus these program documents is now the authoritative starting point.
