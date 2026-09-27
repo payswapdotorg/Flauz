@@ -5,6 +5,37 @@ Flauz durable memory substrate (TL2-003, Worker C): the tiered memory under
 checkpoint/watermark/claims state family. Everything the Agent OS lane calls
 "durable memory" lives here.
 
+## What lives here (M2 - context compilation + retrieval)
+
+- `src/retrieval.ts` - the PURE retrieval function over the memory index:
+  deterministic ranking (scope-match +50, recency decay 2/day from +20, tag
+  overlap +8/tag, kind weights authorization 10 .. evidence-ref 2, pin +4;
+  ties break by id ascending), recorded ranking rules returned WITH the
+  result, tier scope laws (other tasks' task/session memory invisible), and
+  the private-context boundary (agent-scoped records readable only by the
+  owner or through an effective grant share - enforced IN the pure function,
+  so no consumer can bypass it). `effectiveShares()` derives the grant set
+  from the share journal (last record wins).
+- `src/context.ts` - the deterministic context compiler:
+  - `ContextBudget` - the Worker B budget-seam shape, consumed as DATA
+    (model id is a provenance label, never a branch; output tokens are
+    reserved, never charged to input);
+  - assembly priority: system/task-brief -> working memory -> task memory ->
+    project memory -> resource fragments;
+  - provenance preserved INTO the prompt - every line carries
+    `[record MEM-id] [evidence E-id] [ref refId]` tags AND the structural
+    `sections[].provenance` arrays;
+  - truncation records: per-section caps first (`section-cap`), then the
+    whole-context budget (`budget-exceeded`) dropping from the END of the
+    lowest-priority section (resources -> project -> task -> working as last
+    resort; the system preamble NEVER drops - a budget below the
+    never-dropping core emits as-is with the accounting row showing it);
+  - `contentHash` - sha256 over the canonical compilation: the determinism
+    proof (same inputs -> same hash, byte-for-byte);
+  - resource fragments carry the Workspace OS dimension - environment /
+    browser-session descriptors arrive as fixture-shaped data
+    (`test/fixtures/memory/descriptors/`), never as live TL3 dependencies.
+
 ## What lives here (M1 - tiered memory)
 
 - `src/api.ts` - the `flauz.memory/v1` record shapes + strict validation:
@@ -97,9 +128,10 @@ npm run typecheck          # tsc --noEmit (strict)
 npm test                   # node --test test/*.test.ts
 ```
 
-## v0 non-goals (M1 scope)
+## v0 non-goals (M1/M2 scope)
 
 No embeddings/vector retrieval (ranking is deterministic and recorded), no
 cross-workspace service persistence yet (ARCHITECTURE-LOCK persistence layer
 2), no LLM-in-the-loop summarization of memories (records are real events,
-not generated content).
+not generated content), no vendor tokenizer (estimateTokens is the single
+token accounting function; budgets arrive as data through the seam).

@@ -1,0 +1,11 @@
+{
+	"schemaVersion": 1,
+	"sessionId": "flauz:browser:0123456789abcdef",
+	"initiator": "agent",
+	"agentId": "flauz.agent",
+	"partition": "flauz-agent-partition",
+	"policySourceRef": "workspace:.flauz/browser-policy.json",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"state": "open",
+	"tabs": []
+}

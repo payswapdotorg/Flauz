@@ -1,0 +1,10 @@
+{
+	"kind": "container",
+	"id": "env-local-1",
+	"label": "Local dev container",
+	"connection": { "kind": "container", "containerId": "flauz-dev-1" },
+	"trust": { "posture": "trusted", "grants": ["exec", "terminal"] },
+	"capabilities": { "browser": false, "exec": true, "agentHost": true, "terminal": true },
+	"enabled": true,
+	"timing": { "created": 1740000000000, "updatedAt": 1740000000000 }
+}
