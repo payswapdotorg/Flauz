@@ -1,0 +1,393 @@
+{
+	"$schema": "flauz.resources/v0",
+	"edges": [
+		{
+			"createdAt": 1730000042000,
+			"from": "flauz:artifact:a1b2c3d4e5f60718",
+			"kind": "bound-to",
+			"provenance": {
+				"actor": "tool",
+				"actorId": "flauz-snapshot"
+			},
+			"to": "flauz:workspace:acme-main"
+		},
+		{
+			"createdAt": 1730000040000,
+			"from": "flauz:browser:9c8d7e6f5a4b3c2d",
+			"kind": "bound-to",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"to": "flauz:environment:env-staging"
+		},
+		{
+			"createdAt": 1730000048000,
+			"from": "flauz:model:glm-4-7",
+			"kind": "depends-on",
+			"provenance": {
+				"actor": "human",
+				"actorId": "user-1"
+			},
+			"to": "flauz:provider:zai"
+		},
+		{
+			"createdAt": 1730000044000,
+			"from": "flauz:task:T-001",
+			"kind": "depends-on",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"to": "flauz:file:4d5e6f708192a3b4"
+		},
+		{
+			"createdAt": 1730000046000,
+			"from": "flauz:task:T-001",
+			"kind": "depends-on",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"to": "flauz:model:glm-4-7"
+		},
+		{
+			"createdAt": 1730000058000,
+			"from": "flauz:evidence:E-000001",
+			"kind": "derived-from",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"to": "flauz:artifact:a1b2c3d4e5f60718"
+		},
+		{
+			"createdAt": 1730000052000,
+			"from": "flauz:agent:3f9a2b1c8d7e4f60",
+			"kind": "produced",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"to": "flauz:evidence:E-000001"
+		},
+		{
+			"createdAt": 1730000050000,
+			"from": "flauz:task:T-001",
+			"kind": "produced",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"to": "flauz:artifact:a1b2c3d4e5f60718"
+		},
+		{
+			"createdAt": 1730000056000,
+			"from": "flauz:file:4d5e6f708192a3b4",
+			"kind": "restored-from",
+			"provenance": {
+				"actor": "human",
+				"actorId": "user-1"
+			},
+			"to": "flauz:artifact:a1b2c3d4e5f60718"
+		},
+		{
+			"createdAt": 1730000054000,
+			"from": "flauz:artifact:a1b2c3d4e5f60718",
+			"kind": "snapshot-of",
+			"provenance": {
+				"actor": "tool",
+				"actorId": "flauz-snapshot"
+			},
+			"to": "flauz:browser:9c8d7e6f5a4b3c2d"
+		}
+	],
+	"nodes": [
+		{
+			"createdAt": 1730000004000,
+			"displayName": "login-flow agent session",
+			"id": "flauz:agent:3f9a2b1c8d7e4f60",
+			"kind": "agent-session",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000012000,
+			"displayName": "login screenshot",
+			"id": "flauz:artifact:a1b2c3d4e5f60718",
+			"kind": "artifact",
+			"provenance": {
+				"actor": "tool",
+				"actorId": "flauz-snapshot"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000006000,
+			"displayName": "login flow browser session",
+			"id": "flauz:browser:9c8d7e6f5a4b3c2d",
+			"kind": "browser-session",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000008000,
+			"displayName": "Staging container",
+			"id": "flauz:environment:env-staging",
+			"kind": "environment",
+			"provenance": {
+				"actor": "human",
+				"actorId": "user-1"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000014000,
+			"displayName": "login evidence row",
+			"id": "flauz:evidence:E-000001",
+			"kind": "evidence",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000010000,
+			"displayName": "login-form.tsx",
+			"id": "flauz:file:4d5e6f708192a3b4",
+			"kind": "file",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000016000,
+			"displayName": "GLM 4.7",
+			"id": "flauz:model:glm-4-7",
+			"kind": "model",
+			"provenance": {
+				"actor": "human",
+				"actorId": "user-1"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000018000,
+			"displayName": "Z.ai provider",
+			"id": "flauz:provider:zai",
+			"kind": "provider",
+			"provenance": {
+				"actor": "human",
+				"actorId": "user-1"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000002000,
+			"displayName": "Fix login flow",
+			"id": "flauz:task:T-001",
+			"kind": "task",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"schemaVersion": 0
+		},
+		{
+			"createdAt": 1730000000000,
+			"displayName": "acme workspace",
+			"id": "flauz:workspace:acme-main",
+			"kind": "workspace",
+			"provenance": {
+				"actor": "human",
+				"actorId": "user-1"
+			},
+			"schemaVersion": 0
+		}
+	],
+	"surfaces": [
+		{
+			"family": "artifact",
+			"refId": "flauz:artifact:a1b2c3d4e5f60718",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "tool",
+						"actorId": "flauz-snapshot"
+					},
+					"surface": {
+						"kind": "artifact",
+						"sha256": "5d41402abc4b2a76b9719d911017c592a8c8bbf84e34c1e9d70e2f3d2e1f0c3a",
+						"uri": ".flauz/artifacts/T-001/login-shot.png"
+					},
+					"updatedAt": 1730000034000
+				}
+			]
+		},
+		{
+			"family": "browser",
+			"refId": "flauz:browser:9c8d7e6f5a4b3c2d",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "agent",
+						"actorId": "flauz-agent"
+					},
+					"surface": {
+						"cdpEndpoint": "ws://127.0.0.1:9222/devtools/browser/aaa",
+						"kind": "browser",
+						"partition": "persist:flauz-0123456789abcdef",
+						"tabIds": [
+							"tab-1",
+							"tab-2"
+						]
+					},
+					"updatedAt": 1730000024000
+				},
+				{
+					"provenance": {
+						"actor": "tool",
+						"actorId": "flauz-snapshot"
+					},
+					"surface": {
+						"cdpEndpoint": "ws://127.0.0.1:9333/devtools/browser/bbb",
+						"kind": "browser",
+						"partition": "persist:flauz-0123456789abcdef"
+					},
+					"updatedAt": 1730000026000
+				}
+			]
+		},
+		{
+			"family": "environment",
+			"refId": "flauz:environment:env-staging",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "human",
+						"actorId": "user-1"
+					},
+					"surface": {
+						"attachTarget": "devcontainer:acme",
+						"descriptorId": "env-staging",
+						"kind": "environment",
+						"providerKind": "container"
+					},
+					"updatedAt": 1730000028000
+				}
+			]
+		},
+		{
+			"family": "artifact",
+			"refId": "flauz:evidence:E-000001",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "agent",
+						"actorId": "flauz-agent"
+					},
+					"surface": {
+						"kind": "artifact",
+						"sha256": "5d41402abc4b2a76b9719d911017c592a8c8bbf84e34c1e9d70e2f3d2e1f0c3a",
+						"uri": ".flauz/artifacts/T-001/login-shot.png"
+					},
+					"updatedAt": 1730000036000
+				}
+			]
+		},
+		{
+			"family": "file-system",
+			"refId": "flauz:file:4d5e6f708192a3b4",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "agent",
+						"actorId": "flauz-agent"
+					},
+					"surface": {
+						"contentSha256": "5d41402abc4b2a76b9719d911017c592a8c8bbf84e34c1e9d70e2f3d2e1f0c3a",
+						"kind": "file-system",
+						"path": "src/login.tsx",
+						"root": "/work/acme"
+					},
+					"updatedAt": 1730000030000
+				},
+				{
+					"provenance": {
+						"actor": "agent",
+						"actorId": "flauz-agent"
+					},
+					"surface": {
+						"contentSha256": "5d41402abc4b2a76b9719d911017c592a8c8bbf84e34c1e9d70e2f3d2e1f0c3a",
+						"kind": "file-system",
+						"path": "src/auth/login-form.tsx",
+						"root": "/work/acme"
+					},
+					"updatedAt": 1730000032000
+				}
+			]
+		},
+		{
+			"family": "model",
+			"refId": "flauz:model:glm-4-7",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "human",
+						"actorId": "user-1"
+					},
+					"surface": {
+						"kind": "model",
+						"modelId": "glm-4.7",
+						"providerId": "flauz:provider:zai"
+					},
+					"updatedAt": 1730000038000
+				}
+			]
+		},
+		{
+			"family": "task",
+			"refId": "flauz:task:T-001",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "agent",
+						"actorId": "flauz-agent"
+					},
+					"surface": {
+						"envelopePath": ".flauz/tasks.json",
+						"kind": "task",
+						"taskId": "T-001"
+					},
+					"updatedAt": 1730000022000
+				}
+			]
+		},
+		{
+			"family": "workspace",
+			"refId": "flauz:workspace:acme-main",
+			"versions": [
+				{
+					"provenance": {
+						"actor": "human",
+						"actorId": "user-1"
+					},
+					"surface": {
+						"kind": "workspace",
+						"root": "/work/acme"
+					},
+					"updatedAt": 1730000020000
+				}
+			]
+		}
+	]
+}
