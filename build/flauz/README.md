@@ -115,10 +115,19 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# -> ALL 116 CASES AS EXPECTED (0 deviations)
+# -> ALL 144 CASES AS EXPECTED (0 deviations)
 ```
 
-(TL4-008 addendum, 2026-09-29: the compat-l3-smoke section adds 12 cases
+(TL4-009 addendum, 2026-09-27: the security-runtime-gate section adds 28
+cases — audit clean/critical/high/moderate/outside-delta/allowlisted,
+delta product/upstream, manifest pinned-match/drift/incomplete +
+repo-mode shapes, sbom expected/drifted/missing/invalid/missing-extension,
+usage/flag/--help/--list — taking the matrix 116 to 144. Station-of-record
+note, same day: an interim commit briefly dropped the compat-l3 block;
+the TL4 station restored it verbatim and re-proved the full matrix
+144/144 (0 deviations) before pushing.)
+
+(TL4-008 addendum, 2026-09-27: the compat-l3-smoke section adds 12 cases
 (104 to 116) - clean logs+compile PASS, no-logs SKIP census PASS, fatal log
 FAIL, no-ext-marker FAIL,
 flauz-vanished FAIL (the runtime positive control), missing pillar FAIL,
