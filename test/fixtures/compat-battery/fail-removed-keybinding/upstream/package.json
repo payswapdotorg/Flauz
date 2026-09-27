@@ -1,0 +1,16 @@
+{
+	"name": "code-oss",
+	"version": "1.100.0",
+	"scripts": {
+		"compile": "gulp compile",
+		"test": "node test/runAll.js",
+		"hygiene": "node build/filters/eslint.js"
+	},
+	"dependencies": {
+		"node-gyp": "11.0.0",
+		"rimraf": "3.0.2"
+	},
+	"devDependencies": {
+		"typescript": "5.8.2"
+	}
+}

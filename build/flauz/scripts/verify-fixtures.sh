@@ -102,6 +102,36 @@ else
 fi
 expect "fork-critical guard usage error (no base)"     2 sh "$S/fork-critical-guard.sh" --repo "$F/rota/clean" --base does-not-exist --head HEAD
 
+# ---- compat-battery: TL4-003 L1+L2 contribution-surface diff (fixture matrix) ----
+# Tree-mode sides (upstream/ + product/ dirs); L1 SKIPs in tree mode by design
+# (no git history) — the fail cases below prove every L2 rule can fire.
+CB="$F/compat-battery"
+expect "compat-battery clean-additive PASS"            0 node "$S/compat-battery.mjs" --upstream "$CB/clean-additive/upstream" --product "$CB/clean-additive/product"
+expect "compat-battery removed-command FAIL"           1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-command/upstream" --product "$CB/fail-removed-command/product"
+expect "compat-battery removed-config FAIL"            1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-config/upstream" --product "$CB/fail-removed-config/product"
+expect "compat-battery removed-keybinding FAIL"        1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-keybinding/upstream" --product "$CB/fail-removed-keybinding/product"
+expect "compat-battery removed-menu FAIL"              1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-menu/upstream" --product "$CB/fail-removed-menu/product"
+expect "compat-battery removed-submenu FAIL"           1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-submenu/upstream" --product "$CB/fail-removed-submenu/product"
+expect "compat-battery retyped-view FAIL"              1 node "$S/compat-battery.mjs" --upstream "$CB/fail-retyped-view/upstream" --product "$CB/fail-retyped-view/product"
+expect "compat-battery removed-viewscontainer FAIL"    1 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-viewscontainer/upstream" --product "$CB/fail-removed-viewscontainer/product"
+expect "compat-battery deleted-extension FAIL"         1 node "$S/compat-battery.mjs" --upstream "$CB/fail-deleted-extension/upstream" --product "$CB/fail-deleted-extension/product"
+expect "compat-battery product-identity FAIL"          1 node "$S/compat-battery.mjs" --upstream "$CB/fail-product-identity/upstream" --product "$CB/fail-product-identity/product"
+expect "compat-battery root-script-removed FAIL"       1 node "$S/compat-battery.mjs" --upstream "$CB/fail-root-script-removed/upstream" --product "$CB/fail-root-script-removed/product"
+expect "compat-battery non-flauz-addition FAIL"        1 node "$S/compat-battery.mjs" --upstream "$CB/fail-non-flauz-addition/upstream" --product "$CB/fail-non-flauz-addition/product"
+expect "compat-battery flauz-vanished FAIL (pos-ctl)"  1 node "$S/compat-battery.mjs" --upstream "$CB/flauz-vanished/upstream" --product "$CB/flauz-vanished/product"
+expect "compat-battery allowlist suppression PASS"     0 node "$S/compat-battery.mjs" --upstream "$CB/allowlist-case/upstream" --product "$CB/allowlist-case/product" --allowlist "$CB/allowlist-case/allowlist.json"
+expect "compat-battery allowlist-case sans list FAIL"  1 node "$S/compat-battery.mjs" --upstream "$CB/allowlist-case/upstream" --product "$CB/allowlist-case/product"
+expect "compat-battery --require flips tree SKIP FAIL" 1 node "$S/compat-battery.mjs" --upstream "$CB/clean-additive/upstream" --product "$CB/clean-additive/product" --require
+expect "compat-battery --no-fail reports only"         0 node "$S/compat-battery.mjs" --upstream "$CB/fail-removed-command/upstream" --product "$CB/fail-removed-command/product" --no-fail
+expect "compat-battery usage error (bad spec)"         2 node "$S/compat-battery.mjs" --upstream "$F/does-not-exist-anywhere"
+
+# ---- compat-battery: the real mirror (origin/upstream/main vs HEAD, --require) ----
+if git -C "$ROOT" rev-parse --verify --quiet origin/upstream/main >/dev/null 2>&1; then
+    expect "compat-battery real repo (--require) PASS" 0 node "$S/compat-battery.mjs" --root "$ROOT" --require
+else
+    echo "  note  compat-battery real-repo case needs local 'origin/upstream/main' — skipped here"
+fi
+
 # ---- verdict ----
 echo "----------------------------------------------------------------"
 if [ "$FAIL" -eq 0 ]; then
