@@ -1,17 +1,17 @@
 # Flauz Program — Source of Truth
 
 Repository: payswapdotorg/Flauz
-Product branch: flauz/main
-Current product head at program reset: 279a2a84add1f27e343822e0b89860e61bd65738
+Product branch: main
+Current product head at program reset: 76b7e1a789a0dfa7b900be1fa801016deca7bd99
 
 This repository and the product branch are sufficient to operate the Flauz engineering program without prior chat history.
 
 ## Branch policy
 
-- flauz/main is the canonical integrated Flauz product line.
-- main is the upstream Code OSS reference line and must not receive ordinary Flauz feature work.
-- Product work starts from flauz/main.
-- Every product PR targets flauz/main.
+- main is the canonical integrated Flauz product line.
+- upstream/main is the upstream Code OSS reference line and must not receive ordinary Flauz feature work.
+- Product work starts from main.
+- Every product PR targets main.
 - Upstream synchronization is owned by TL1 and must be recorded in the work registry.
 - Never infer product state from upstream main.
 - Never create another Code OSS fork for Flauz.
@@ -20,7 +20,7 @@ This repository and the product branch are sufficient to operate the Flauz engin
 
 When sources disagree, use this order:
 
-1. Integrated code on flauz/main.
+1. Integrated code on main.
 2. docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md.
 3. docs/FLAUZ-PROGRAM/WORK-REGISTRY.md.
 4. docs/FLAUZ-PROGRAM/CURRENT-STATE.md.
@@ -32,7 +32,7 @@ The companion payswapdotorg/flauz-code-lab repository is historical research/evi
 ## Completion law
 
 A work item is complete only when:
-- implementation is on flauz/main;
+- implementation is on main;
 - targeted tests pass;
 - relevant CI passes;
 - the exact commit/PR is recorded;
