@@ -19,7 +19,7 @@ Your output is not another competing Flauz architecture. Make the existing archi
 
 ### Worker A — Upstream/branch engineering
 - upstream sync strategy;
-- compare main versus flauz/main;
+- compare main versus upstream/main;
 - rebase and merge mechanics;
 - fork-critical audit;
 - upstream regression detection.
@@ -46,7 +46,7 @@ Do not wait for TL2/TL3/TL4.
 
 ## Hard rules
 
-- main is not the product branch.
+- upstream/main is not the product branch.
 - No large refactor of Code OSS solely for aesthetics.
 - Any core patch requires a recorded rationale.
 - Keep the fork-critical guard meaningful.
@@ -64,4 +64,4 @@ Every completed item must include:
 
 ## Done means
 
-A fresh engineer can clone this repo, checkout flauz/main, read the program docs, build the product, and understand exactly how Flauz relates to upstream Code OSS.
+A fresh engineer can clone this repo, checkout main, read the program docs, build the product, and understand exactly how Flauz relates to upstream Code OSS.
