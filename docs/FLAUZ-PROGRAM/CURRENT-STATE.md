@@ -2,14 +2,15 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at reset: 279a2a84add1f27e343822e0b89860e61bd65738
+Integrated head at reset: f03dba95ecbe6dc43ad9395ffa3d1360ee8de75f
 
 ## Branch state
 
-- upstream/main is the upstream Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
-- main is the active Flauz implementation line.
-- main is 54 commits ahead of upstream main and 0 behind at the reset point.
-- Do not work from upstream main.
+- main is the canonical Flauz product line at f03dba95ecbe6dc43ad9395ffa3d1360ee8de75f.
+- upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
+- flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
+- main is 76 commits ahead of upstream/main and 0 behind at the reset point.
+- Do not implement product work on upstream/main.
 
 ## Present product surfaces
 
