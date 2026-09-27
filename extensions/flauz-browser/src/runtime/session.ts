@@ -21,12 +21,12 @@
  */
 
 import {
-        type BrowserPolicyEngine,
-        type Clock,
-        type NavigationInitiator,
-        serializePolicy,
-        sha256Hex,
-        WORKSPACE_HASH_LENGTH,
+	type BrowserPolicyEngine,
+	type Clock,
+	type NavigationInitiator,
+	serializePolicy,
+	sha256Hex,
+	WORKSPACE_HASH_LENGTH,
 } from '../policy.ts';
 import { randomBytes } from 'node:crypto';
 import { toIsoStamp } from '../format.ts';
@@ -54,25 +54,25 @@ export type BrowserTabState = (typeof BROWSER_TAB_STATES)[number];
 
 /** A timestamped typed error record (session/tab failures; fail-closed surface). */
 export interface BrowserSessionErrorRecord {
-        readonly code: string;
-        readonly message: string;
-        readonly at: string;
+	readonly code: string;
+	readonly message: string;
+	readonly at: string;
 }
 
 /** One tab of a session: the logical record mirrors the CDP target lifecycle. */
 export interface BrowserTabRecord {
-        /** Logical tab id (`flauz:tab:<16-hex>`); stable across reconnects. */
-        readonly tabId: string;
-        /** The CDP target id (ephemeral; reconciled on recovery). */
-        readonly targetId: string;
-        /** Last known (committed) url. */
-        url: string;
-        state: BrowserTabState;
-        readonly openedAt: string;
-        closedAt?: string;
-        error?: BrowserSessionErrorRecord;
-        /** Set when this tab was replaced (e.g. wedged-tab recovery). */
-        replacedByTabId?: string;
+	/** Logical tab id (`flauz:tab:<16-hex>`); stable across reconnects. */
+	readonly tabId: string;
+	/** The CDP target id (ephemeral; reconciled on recovery). */
+	readonly targetId: string;
+	/** Last known (committed) url. */
+	url: string;
+	state: BrowserTabState;
+	readonly openedAt: string;
+	closedAt?: string;
+	error?: BrowserSessionErrorRecord;
+	/** Set when this tab was replaced (e.g. wedged-tab recovery). */
+	replacedByTabId?: string;
 }
 
 /**
@@ -81,51 +81,51 @@ export interface BrowserTabRecord {
  * externally via snapshots (deep clones).
  */
 export interface BrowserSessionDescriptor {
-        readonly schemaVersion: typeof BROWSER_SESSION_SCHEMA_VERSION;
-        /** `flauz:browser:<16-hex>` — logical, never a URL or path. */
-        readonly sessionId: string;
-        readonly initiator: SessionInitiator;
-        /** Present iff initiator is 'agent'. */
-        readonly agentId?: string;
-        /** The Flauz partition name (derivePartition: persist/memory scope, per-agent suffix). */
-        readonly partition: string;
-        /** Reference to the policy the session was opened under (see policySourceRefOf). */
-        readonly policySourceRef: string;
-        /** ISO timestamp. */
-        readonly createdAt: string;
-        state: BrowserSessionState;
-        tabs: BrowserTabRecord[];
-        error?: BrowserSessionErrorRecord;
+	readonly schemaVersion: typeof BROWSER_SESSION_SCHEMA_VERSION;
+	/** `flauz:browser:<16-hex>` — logical, never a URL or path. */
+	readonly sessionId: string;
+	readonly initiator: SessionInitiator;
+	/** Present iff initiator is 'agent'. */
+	readonly agentId?: string;
+	/** The Flauz partition name (derivePartition: persist/memory scope, per-agent suffix). */
+	readonly partition: string;
+	/** Reference to the policy the session was opened under (see policySourceRefOf). */
+	readonly policySourceRef: string;
+	/** ISO timestamp. */
+	readonly createdAt: string;
+	state: BrowserSessionState;
+	tabs: BrowserTabRecord[];
+	error?: BrowserSessionErrorRecord;
 }
 
 const SESSION_ID_RE = /^flauz:browser:[0-9a-f]{16}$/;
 const TAB_ID_RE = /^flauz:tab:[0-9a-f]{16}$/;
 
 function randomHex16(): string {
-        return randomBytes(8).toString('hex');
+	return randomBytes(8).toString('hex');
 }
 
 /** Mints a logical session id (`flauz:browser:<16-hex>`). */
 export function mintSessionId(): string {
-        return SESSION_ID_PREFIX + randomHex16();
+	return SESSION_ID_PREFIX + randomHex16();
 }
 
 /** Mints a logical tab id (`flauz:tab:<16-hex>`). */
 export function mintTabId(): string {
-        return TAB_ID_PREFIX + randomHex16();
+	return TAB_ID_PREFIX + randomHex16();
 }
 
 export function isSessionId(value: string): boolean {
-        return SESSION_ID_RE.test(value);
+	return SESSION_ID_RE.test(value);
 }
 
 export function isTabId(value: string): boolean {
-        return TAB_ID_RE.test(value);
+	return TAB_ID_RE.test(value);
 }
 
 /** Maps the descriptor's initiator class onto the engine's initiator enum. */
 export function toEngineInitiator(initiator: SessionInitiator): NavigationInitiator {
-        return initiator === 'agent' ? 'agent-tool' : 'user';
+	return initiator === 'agent' ? 'agent-tool' : 'user';
 }
 
 /**
@@ -136,17 +136,17 @@ export function toEngineInitiator(initiator: SessionInitiator): NavigationInitia
  * recovery re-gates against the current engine, not this ref).
  */
 export function policySourceRefOf(engine: BrowserPolicyEngine): string {
-        const hash16 = sha256Hex(serializePolicy(engine.policyInEffect)).slice(0, WORKSPACE_HASH_LENGTH);
-        return `flauz:browser-policy/v0@${engine.source}#${hash16}`;
+	const hash16 = sha256Hex(serializePolicy(engine.policyInEffect)).slice(0, WORKSPACE_HASH_LENGTH);
+	return `flauz:browser-policy/v0@${engine.source}#${hash16}`;
 }
 
 /** ISO timestamp helper over the injectable clock — serialized through the shared module (PU6). */
 export function isoAt(clock: Clock): string {
-        return toIsoStamp(clock());
+	return toIsoStamp(clock());
 
 }
 
 /** Deep-clones a descriptor (the externally observed snapshot). */
 export function snapshotDescriptor(descriptor: BrowserSessionDescriptor): BrowserSessionDescriptor {
-        return structuredClone(descriptor);
+	return structuredClone(descriptor);
 }

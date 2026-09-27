@@ -14,77 +14,77 @@ import { registerWorkspaceCommands, type WorkspaceServices } from './commands.ts
 import { registerWorkspaceViews } from './views.ts';
 
 const nodeFs: FileSystemPort = {
-        readFileUtf8: async path => {
-                try {
-                        return await fs.readFile(path, { encoding: 'utf-8' });
-                } catch (err) {
-                        if ((err as { code?: string }).code === 'ENOENT') {
-                                return undefined;
-                        }
-                        throw err;
-                }
-        },
-        writeFile: (path, contents) => fs.writeFile(path, contents, { encoding: 'utf-8' }),
-        appendFile: (path, contents) => fs.appendFile(path, contents, { encoding: 'utf-8' }),
-        rename: (fromPath, toPath) => fs.rename(fromPath, toPath),
-        mkdir: path => fs.mkdir(path, { recursive: true }),
+	readFileUtf8: async path => {
+		try {
+			return await fs.readFile(path, { encoding: 'utf-8' });
+		} catch (err) {
+			if ((err as { code?: string }).code === 'ENOENT') {
+				return undefined;
+			}
+			throw err;
+		}
+	},
+	writeFile: (path, contents) => fs.writeFile(path, contents, { encoding: 'utf-8' }),
+	appendFile: (path, contents) => fs.appendFile(path, contents, { encoding: 'utf-8' }),
+	rename: (fromPath, toPath) => fs.rename(fromPath, toPath),
+	mkdir: path => fs.mkdir(path, { recursive: true }),
 };
 
 export function activate(context: vscode.ExtensionContext): void {
-        setVscodeApi(vscode);
+	setVscodeApi(vscode);
 
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
-        // TL4-001: the activity-bar shell (container `flauz`, views flauz.home +
-        // flauz.tasks) registers BEFORE any early return so the views — and their
-        // viewsWelcome states — exist even without a workspace folder. The services
-        // attach below when a folder is open.
-        const servicesRef: { current?: WorkspaceServices } = {};
-        const views = registerWorkspaceViews({
-                getServices: () => servicesRef.current,
-                getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-                readFile: async relativePath => {
-                        const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-                        return root === undefined ? undefined : nodeFs.readFileUtf8(joinPath(root, relativePath));
-                },
-        });
+	// TL4-001: the activity-bar shell (container `flauz`, views flauz.home +
+	// flauz.tasks) registers BEFORE any early return so the views — and their
+	// viewsWelcome states — exist even without a workspace folder. The services
+	// attach below when a folder is open.
+	const servicesRef: { current?: WorkspaceServices } = {};
+	const views = registerWorkspaceViews({
+		getServices: () => servicesRef.current,
+		getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+		readFile: async relativePath => {
+			const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+			return root === undefined ? undefined : nodeFs.readFileUtf8(joinPath(root, relativePath));
+		},
+	});
 
-        if (workspaceRoot === undefined) {
-                vscode.window.showWarningMessage('flauz-workspace: no workspace folder open — .flauz/ state stays inactive.');
-                for (const disposable of [...views.disposables, ...registerGuideCommand(context)]) {
-                        context.subscriptions.push(disposable);
-                }
-                return;
-        }
+	if (workspaceRoot === undefined) {
+		vscode.window.showWarningMessage('flauz-workspace: no workspace folder open — .flauz/ state stays inactive.');
+		for (const disposable of [...views.disposables, ...registerGuideCommand(context)]) {
+			context.subscriptions.push(disposable);
+		}
+		return;
+	}
 
-        const clock = (): number => Date.now();
-        const tasks = new TaskService({ root: workspaceRoot, fs: nodeFs, clock });
-        const ledger = new EvidenceLedger({ root: workspaceRoot, fs: nodeFs, clock });
-        const checkpoints = new CheckpointInterop(tasks, ledger, clock);
-        const artifacts = new FlauzArtifactProvider(() => ledger.readRows());
+	const clock = (): number => Date.now();
+	const tasks = new TaskService({ root: workspaceRoot, fs: nodeFs, clock });
+	const ledger = new EvidenceLedger({ root: workspaceRoot, fs: nodeFs, clock });
+	const checkpoints = new CheckpointInterop(tasks, ledger, clock);
+	const artifacts = new FlauzArtifactProvider(() => ledger.readRows());
 
-        const sourceControl = vscode.scm.createSourceControl('flauz-evidence', 'Flauz Evidence');
-        sourceControl.artifactProvider = artifacts;
+	const sourceControl = vscode.scm.createSourceControl('flauz-evidence', 'Flauz Evidence');
+	sourceControl.artifactProvider = artifacts;
 
-        const services: WorkspaceServices = { tasks, ledger, checkpoints, artifacts };
-        servicesRef.current = services;
-        for (const disposable of [...views.disposables, ...registerGuideCommand(context), sourceControl, artifacts, ...registerWorkspaceCommands(services)]) {
-                context.subscriptions.push(disposable);
-        }
+	const services: WorkspaceServices = { tasks, ledger, checkpoints, artifacts };
+	servicesRef.current = services;
+	for (const disposable of [...views.disposables, ...registerGuideCommand(context), sourceControl, artifacts, ...registerWorkspaceCommands(services)]) {
+		context.subscriptions.push(disposable);
+	}
 
-        void (async () => {
-                try {
-                        await tasks.bootstrap();
-                        await ledger.ensure();
-                        views.refresh();
-                } catch (err) {
-                        vscode.window.showErrorMessage(`flauz-workspace: failed to bootstrap .flauz/ state: ${err instanceof Error ? err.message : String(err)}`);
-                }
-        })();
+	void (async () => {
+		try {
+			await tasks.bootstrap();
+			await ledger.ensure();
+			views.refresh();
+		} catch (err) {
+			vscode.window.showErrorMessage(`flauz-workspace: failed to bootstrap .flauz/ state: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	})();
 }
 
 export function deactivate(): void {
-        // Nothing to do — all disposables ride context.subscriptions.
+	// Nothing to do — all disposables ride context.subscriptions.
 }
 
 /**
@@ -94,15 +94,15 @@ export function deactivate(): void {
  * `viewItem == flauzError` menu rule) as well as the command palette.
  */
 function registerGuideCommand(context: vscode.ExtensionContext): vscode.Disposable[] {
-        const guideUri = vscode.Uri.joinPath(context.extensionUri, 'flauz-guide.md');
-        return [
-                vscode.commands.registerCommand('flauz.workspace.openGuide', async () => {
-                        try {
-                                const document = await vscode.workspace.openTextDocument(guideUri);
-                                void vscode.window.showTextDocument(document);
-                        } catch (err) {
-                                void vscode.window.showErrorMessage(`flauz-workspace: the Flauz guide is missing from the extension folder (${err instanceof Error ? err.message : String(err)}).`);
-                        }
-                }),
-        ];
+	const guideUri = vscode.Uri.joinPath(context.extensionUri, 'flauz-guide.md');
+	return [
+		vscode.commands.registerCommand('flauz.workspace.openGuide', async () => {
+			try {
+				const document = await vscode.workspace.openTextDocument(guideUri);
+				void vscode.window.showTextDocument(document);
+			} catch (err) {
+				void vscode.window.showErrorMessage(`flauz-workspace: the Flauz guide is missing from the extension folder (${err instanceof Error ? err.message : String(err)}).`);
+			}
+		}),
+	];
 }

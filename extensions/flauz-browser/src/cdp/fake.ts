@@ -218,7 +218,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return sessionId;
 			}
 		}
-			return undefined;
+		return undefined;
 	}
 
 	// --- on-cue event emission (test scripting surface) ---
