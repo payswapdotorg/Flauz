@@ -5,9 +5,9 @@ This is the Code OSS-based Flauz product line.
 ## Authoritative branch
 
 Checkout:
-flauz/main
+main
 
-Do not implement product work on repository main; that branch is the upstream Code OSS reference.
+The repository default main is the canonical Flauz product line. The preserved upstream Code OSS reference is upstream/main.
 
 ## Read before coding
 
