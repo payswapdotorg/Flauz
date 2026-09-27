@@ -45,6 +45,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `proposed-api-rota.mjs` | DL-4 proposed-API churn rota (job 5) | `--repo-root`, `--baseline`, `--snapshot`, `--report <dir>`, `--no-fail`, `--require` | 0 clean/SKIP · 1 drift · 2 usage |
 | `startup-pair.mjs` | §1.3 startup gates + R6 mark integrity | `--timers-flauz/--timers-upstream`, `--markers-flauz/--markers-upstream`, `--check-marks --src-root`, `--phase-gate --src-root`, `--pairs-file`, `--min-runs` | 0 pass/SKIP · 1 violation · 2 usage |
 | `memory-snapshot.mjs` | §3.2 memory budget gate | `--json` (resolveProcesses shape) / `--status` / `--ps`, `--scenario eventually|after-session`, `--enforce`, `--pattern name=regex` | 0 pass · 1 violation · 2 usage |
+| `compat-battery.mjs` | TL4-003 Code OSS compatibility battery (L1 guard invocation + L2 stock contribution-surface diff, product identity, root pkg scripts/deps, Flauz positive control; spec `docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md`) | `--root/--upstream/--product` (git ref OR tree dir), `--allowlist`, `--json`, `--layer 1|2|all`, `--no-fail`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
 

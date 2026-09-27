@@ -1,0 +1,8 @@
+{
+	"name": "flauz-agent",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.117.0"
+	}
+}

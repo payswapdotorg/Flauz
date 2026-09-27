@@ -1,0 +1,14 @@
+{
+	"name": "code-oss",
+	"version": "1.100.0",
+	"scripts": {
+		"compile": "gulp compile",
+		"test": "node test/runAll.js"
+	},
+	"dependencies": {
+		"node-gyp": "11.0.0"
+	},
+	"devDependencies": {
+		"typescript": "5.8.2"
+	}
+}

@@ -1,0 +1,10 @@
+{
+	"nameShort": "Code - OSS",
+	"nameLong": "Code - OSS",
+	"applicationName": "code-oss",
+	"dataFolderName": ".vscode-oss",
+	"urlProtocol": "code-oss",
+	"win32MutexName": "vscodeoss",
+	"reportIssueUrl": "https://github.com/microsoft/vscode/issues/new",
+	"licenseFileName": "LICENSE.txt"
+}

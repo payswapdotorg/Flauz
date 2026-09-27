@@ -1,0 +1,13 @@
+{
+	"name": "flauz-x",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz-x.hello",
+				"title": "Hello"
+			}
+		]
+	}
+}

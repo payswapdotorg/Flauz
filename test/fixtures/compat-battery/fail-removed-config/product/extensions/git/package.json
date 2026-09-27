@@ -1,0 +1,67 @@
+{
+	"name": "git",
+	"publisher": "vscode",
+	"version": "1.0.0",
+	"contributes": {
+		"commands": [
+			{
+				"command": "git.init",
+				"title": "Initialize Repository"
+			},
+			{
+				"command": "git.commit",
+				"title": "Commit"
+			},
+			{
+				"command": "git.stageSelectedRanges",
+				"title": "Stage Selected Ranges"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "git.stageSelectedRanges",
+				"key": "ctrl+k ctrl+alt+s",
+				"when": "editorTextFocus && resourceScheme == file"
+			},
+			{
+				"command": "git.unstageSelectedRanges",
+				"key": "ctrl+k ctrl+n",
+				"when": "isInDiffEditor"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "git.commit"
+				}
+			],
+			"scm/title": [
+				{
+					"command": "git.init"
+				}
+			]
+		},
+		"submenus": [
+			{
+				"id": "git.commit",
+				"label": "Commit"
+			}
+		],
+		"configuration": {
+			"title": "Git",
+			"properties": {
+				"git.enabled": {
+					"type": "boolean",
+					"default": true
+				},
+				"git.path": {
+					"type": [
+						"string",
+						"null"
+					],
+					"default": null
+				}
+			}
+		}
+	}
+}
