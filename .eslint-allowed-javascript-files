@@ -195,3 +195,4 @@ build/flauz/scripts/ia-gate.mjs
 build/flauz/scripts/sync-upstream.mjs
 build/flauz/sync-upstream.test.mjs
 build/flauz/scripts/premium-ux-gate.mjs
+build/flauz/scripts/session-battery.mjs

@@ -23,6 +23,7 @@ declare module 'node:fs/promises' {
 }
 
 declare module 'node:fs' {
+	export function existsSync(path: string): boolean;
 	export function mkdtempSync(prefix: string): string;
 	export function readFileSync(path: string, encoding: 'utf-8'): string;
 	export function readFileSync(path: string, options: { encoding: 'utf-8' }): string;
@@ -114,6 +115,8 @@ declare module 'node:module' {
 
 declare const process: {
 	platform: string;
+	cwd(): string;
+	readonly env: Record<string, string | undefined>;
 };
 
 declare class TextEncoder {
@@ -126,8 +129,13 @@ declare function clearTimeout(timer: { unref(): void } | undefined): void;
 /** Minimal WHATWG URL surface used for module-path resolution. */
 declare class URL {
 	constructor(input: string, base?: string | URL);
+	static parse(input: string, base?: string): URL | null;
 	readonly href: string;
+	readonly protocol: string;
+	readonly hostname: string;
+	readonly host: string;
 	readonly pathname: string;
+	readonly origin: string;
 }
 
 interface ImportMeta {

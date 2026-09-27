@@ -23,5 +23,8 @@
 		"shims/**/*.d.ts",
 		"test/**/*.ts",
 		"vscode-dts/vscode.d.ts"
+	],
+	"exclude": [
+		"test/session-battery.test.ts"
 	]
 }

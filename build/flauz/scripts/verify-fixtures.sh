@@ -261,6 +261,12 @@ else
     echo "  note  compat-battery real-repo case needs local 'origin/upstream/main' — skipped here"
 fi
 
+# ---- session-battery (TL4-004): whole-session acceptance gate ----
+expect "session-battery golden PASS"                    0 node "$S/session-battery.mjs" --root "$ROOT"
+expect "session-battery doctored fixture FAIL"          1 node "$S/session-battery.mjs" --root "$ROOT" --fixtures "$F/session-battery-doctored"
+expect "session-battery --list exit 0"                  0 node "$S/session-battery.mjs" --list
+expect "session-battery usage error (unknown flag)"     2 node "$S/session-battery.mjs" --bogus-flag
+
 # ---- verdict ----
 echo "----------------------------------------------------------------"
 if [ "$FAIL" -eq 0 ]; then
