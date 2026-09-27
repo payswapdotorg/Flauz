@@ -7,7 +7,7 @@
  * section 2.4).
  *
  * This module is deliberately duplicated VERBATIM in every flauz extension
- * that renders timestamps — flauz extensions cannot share source without
+ * that touches timestamps — flauz extensions cannot share source without
  * coupling their builds, and the drift is machine-checked instead:
  * build/flauz/scripts/premium-ux-gate.mjs (PU6) normalizes every flauz
  * extension's src/format.ts and fails unless the copies are identical.
@@ -18,6 +18,10 @@
  *   - tooltips carry the ABSOLUTE UTC timestamp "YYYY-MM-DD HH:MM".
  *   - raw epoch numbers are never user-visible (tooltips may append the epoch
  *     for log correlation — the number always travels with the stamp).
+ *   - protocol records (session descriptors, persisted evidence) carry
+ *     machine-grade ISO-8601 stamps via `toIsoStamp` — one timestamp source
+ *     of truth for rendering AND serialization (premium spec section 2.4 v2,
+ *     recorded at the TL4-002 integration wave).
  */
 
 /** One minute in milliseconds. */
@@ -30,18 +34,18 @@ const DAY_MS = 24 * HOUR_MS;
 const WEEK_MS = 7 * DAY_MS;
 
 function pad2(value: number): string {
-        return value < 10 ? `0${value}` : String(value);
+	return value < 10 ? `0${value}` : String(value);
 }
 
 /** Absolute UTC timestamp "YYYY-MM-DD HH:MM" for tooltips and receipts. */
 export function formatTimestamp(epochMs: number): string {
-        const date = new Date(epochMs);
-        return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())} ${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
+	const date = new Date(epochMs);
+	return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())} ${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}`;
 }
 
 /** Absolute UTC calendar date "YYYY-MM-DD" (ages beyond a week). */
 export function formatDate(epochMs: number): string {
-        return formatTimestamp(epochMs).slice(0, 10);
+	return formatTimestamp(epochMs).slice(0, 10);
 }
 
 /**
@@ -49,18 +53,28 @@ export function formatDate(epochMs: number): string {
  * then "YYYY-MM-DD". `nowMs` is injectable so tests stay deterministic.
  */
 export function formatAge(epochMs: number, nowMs: number = Date.now()): string {
-        const age = nowMs - epochMs;
-        if (age < MINUTE_MS) {
-                return 'just now';
-        }
-        if (age < HOUR_MS) {
-                return `${Math.max(1, Math.floor(age / MINUTE_MS))}m ago`;
-        }
-        if (age < DAY_MS) {
-                return `${Math.floor(age / HOUR_MS)}h ago`;
-        }
-        if (age < WEEK_MS) {
-                return `${Math.floor(age / DAY_MS)}d ago`;
-        }
-        return formatDate(epochMs);
+	const age = nowMs - epochMs;
+	if (age < MINUTE_MS) {
+		return 'just now';
+	}
+	if (age < HOUR_MS) {
+		return `${Math.max(1, Math.floor(age / MINUTE_MS))}m ago`;
+	}
+	if (age < DAY_MS) {
+		return `${Math.floor(age / HOUR_MS)}h ago`;
+	}
+	if (age < WEEK_MS) {
+		return `${Math.floor(age / DAY_MS)}d ago`;
+	}
+	return formatDate(epochMs);
+}
+
+/**
+ * Machine-grade ISO-8601 UTC stamp for protocol records (session descriptors,
+ * persisted evidence): the serialization sibling of `formatTimestamp`. Same
+ * source of truth — no flauz code may build a timestamp outside this module
+ * (PU6 bright line, premium spec section 2.4).
+ */
+export function toIsoStamp(epochMs: number): string {
+	return new Date(epochMs).toISOString();
 }

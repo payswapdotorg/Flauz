@@ -100,12 +100,22 @@ One module — `src/format.ts` (~40 lines) — is the ONLY timestamp renderer:
 other's sources without coupling their builds (per-extension tsconfig/esbuild
 bundles; ARCHITECTURE-LOCK §5 prefers contract convergence over implementation
 sharing). The module is therefore duplicated **verbatim** into every extension
-that renders timestamps (flauz-workspace, flauz-agent, flauz-environments).
+that touches timestamps (flauz-workspace, flauz-agent, flauz-environments).
 Gate PU6 makes the duplication honest: it normalizes every
 `extensions/flauz-*/src/format.ts` and fails if the copies are not byte-equal,
 and it bans ad-hoc date formatting (`toLocaleString`, `toISOString`,
-`new Date(` outside the module). Extensions with no timestamps (browser,
-models, workflow) ship no copy — 0 is a valid count.
+`new Date(` outside the module). Extensions with no timestamps (models,
+workflow) ship no copy — 0 is a valid count.
+
+**v2 (recorded at the TL4-002 integration wave):** flauz-browser joined the
+copy family. Its runtime serializes protocol records (session descriptors:
+`createdAt` / `closedAt` / typed error `at`) as machine-grade ISO-8601 stamps.
+Those are data, not rendering — but the PU6 bright line is total: no flauz
+code builds a timestamp outside the module, so the module gained the
+serialization sibling `toIsoStamp(epochMs)` (`new Date(epochMs).toISOString()`)
+and flauz-browser's `isoAt(clock)` became a thin wrapper over it. One source
+of truth for rendering AND serialization; TL3's descriptor contract
+(`flauz.browser-session/v0`) is byte-identical before and after.
 
 ## 3. Hierarchy rules (one primary affordance per surface)
 
