@@ -1,0 +1,5 @@
+{
+	"$schema": "flauz.audit-allowlist/v0",
+	"description": "Adjudicated exceptions for the security-runtime-gate audit-delta row (TL4-009). BORN EMPTY -- no advisory is excepted at birth: any HIGH/CRITICAL advisory inside the flauz-added dependency delta fails the gate. An entry suppresses exactly ONE advisory for ONE package and must carry a reason that would survive audit. Entry schema: { 'advisory': <GHSA id from the advisory url, or the advisory title>, 'package': <npm package name>, 'reason': <why this exception is acceptable> }. Hygiene (mirrors the secrets-allowlist precedent): whenever the audit row produces a report, every entry must match at least one advisory -- an unused entry is fixture drift (FAIL); remove it when the advisory is fixed or the delta no longer carries the package.",
+	"allow": []
+}

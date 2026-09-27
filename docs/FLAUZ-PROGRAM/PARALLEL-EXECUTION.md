@@ -114,3 +114,13 @@ At any point there should be:
 - fixtures for unavailable upstream dependencies;
 - CI exercising cross-TL contracts;
 - current state updated as part of each merge wave.
+
+
+## External interoperability rule
+
+External agent UI frameworks are downstream clients, not alternate Flauz runtimes.
+
+- TL1 must establish the versioned native Flauz service protocol before any AG-UI adapter is implemented.
+- AG-UI may later be exposed as an additive adapter/projection; CopilotKit remains optional client technology.
+- OpenMuse is a reference/interoperability target only and must not become a runtime dependency or architectural fork.
+- No TL is blocked by this decision, and no current TL work should be rebased or reprioritized solely because of it.

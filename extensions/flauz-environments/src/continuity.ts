@@ -32,6 +32,7 @@
  */
 import type { EnvironmentDescriptor } from './api.ts';
 import { buildConnectionPlan } from './providers/index.ts';
+import { isContinuityBundleId } from './continuityExec/types.ts';
 
 /** Schema identifier for emitted switch plans. */
 export const SWITCH_PLAN_SCHEMA_ID = 'flauz.switchPlan/v0';
@@ -322,6 +323,19 @@ export interface SwitchPlan {
 		readonly lost: readonly string[];
 	};
 	readonly notes: readonly string[];
+	/**
+	 * TL3-006 (ADDITIVE, optional): the continuity bundle this switch
+	 * carries — export at the source (`flauz.continuity.export`), switch
+	 * (re-open model, unchanged), restore at the target
+	 * (`flauz.continuity.restore`). Absent = no bundle referenced.
+	 */
+	readonly continuityBundleId?: string;
+}
+
+/** Options for {@link planSwitch} (TL3-006, additive). */
+export interface PlanSwitchOptions {
+	/** A continuity bundle id (`flauz:continuity:<16-hex>`) the plan references. */
+	readonly continuityBundleId?: string;
 }
 
 /**
@@ -329,11 +343,15 @@ export interface SwitchPlan {
  * target's connection plan (authority + resolver phases) behind the persist
  * choreography and carries the full artifact classification.
  */
-export function planSwitch(from: EnvironmentDescriptor | null, to: EnvironmentDescriptor): SwitchPlan {
+export function planSwitch(from: EnvironmentDescriptor | null, to: EnvironmentDescriptor, options?: PlanSwitchOptions): SwitchPlan {
 	const connectionPlan = buildConnectionPlan(to);
 	const persists = CONTINUITY_ARTIFACTS.filter(a => a.continuityClass === 'persists').map(a => a.id);
 	const rehydrates = CONTINUITY_ARTIFACTS.filter(a => a.continuityClass === 'rehydrates').map(a => a.id);
 	const lost = CONTINUITY_ARTIFACTS.filter(a => a.continuityClass === 'lost').map(a => a.id);
+	const bundleId = options?.continuityBundleId;
+	if (bundleId !== undefined && !isContinuityBundleId(bundleId)) {
+		throw new Error(`${SWITCH_PLAN_SCHEMA_ID}: continuityBundleId must be a logical id 'flauz:continuity:<16-hex>' (got ${JSON.stringify(bundleId)}) — bundle ids are never paths, never URLs`);
+	}
 	return {
 		$schema: SWITCH_PLAN_SCHEMA_ID,
 		fromEnvironmentId: from === null ? null : from.id,
@@ -381,6 +399,10 @@ export function planSwitch(from: EnvironmentDescriptor | null, to: EnvironmentDe
 			'N-8: live hand-off of a running session is not built-in -- the switch is re-open-based (PERF 5.5).',
 			'renderer-local state (terminal scrollback, live browser panes, in-flight turns, window layout) is LOST by design; artifacts list them explicitly so UX can warn.',
 			'overhead accounting: emit the code/flauz/* mark pairs at the phase boundaries; checkOverhead() verdicts feed the PERF 5.5 CI gates.',
+			...(bundleId !== undefined
+				? [`continuity: carry state with bundle ${bundleId} -- flauz.continuity.export at the source BEFORE the switch, flauz.continuity.restore at the target AFTER the re-open (secret-shaped surfaces are redacted by law; renderer-local surfaces ride the N-8 model, not the bundle).`]
+				: []),
 		],
+		...(bundleId !== undefined ? { continuityBundleId: bundleId } : {}),
 	};
 }
