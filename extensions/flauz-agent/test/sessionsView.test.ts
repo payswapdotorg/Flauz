@@ -181,7 +181,7 @@ test('provider: active task row appends with the reveal affordance', async () =>
         strictEqual(item.command?.command, 'flauz.workspace.revealTask');
         deepStrictEqual(item.command?.arguments, [{ taskId: 'T-001' }]);
         strictEqual(item.command?.title, 'Reveal Flauz Task');
-        ok(item.tooltip?.includes('Updated: 1970-01-01 00:00 UTC (2)'));
+        ok(tooltipText(item)?.includes('Updated: 1970-01-01 00:00 UTC (2)'));
         strictEqual(item.accessibilityInformation?.label, 'Active task T-001, Ship the slice, status execute');
 });
 
