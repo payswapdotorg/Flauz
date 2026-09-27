@@ -1,22 +1,39 @@
 # ---------------------------------------------------------------------------------------------
-# Flauz TL4 (product-quality lane) — Worker B, task TL4-003.
+# Flauz TL4 (product-quality lane) - Worker B.
 #
-# "Flauz Compat Battery" — the Code OSS compatibility regression gate:
-#   1. compat          — zero-dep compat-battery.mjs (layers 1+2) against
+# "Flauz Compat Battery" - the Code OSS compatibility regression gate:
+#   1. compat          - zero-dep compat-battery.mjs (layers 1+2) against
 #                        origin/upstream/main vs HEAD with --require (nothing
 #                        may skip), then the full fixture matrix via
 #                        verify-fixtures.sh (proves every rule can fire).
-#   2. l3-runtime-smoke — wiring SKELETON only (spec section 11 of
-#                        docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md): the L3
-#                        runtime smoke needs a compiled build on the runner;
-#                        it is PENDING and runs probe-only on manual dispatch.
+#   2. compat-l3       - the L3 RUNTIME boot smoke (TL4-008, spec section 11
+#                        of docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md): compile
+#                        the workbench on the runner, boot it headless under
+#                        xvfb with the flauz built-ins active (the proven
+#                        b-policy-canary launch pattern), then run the zero-dep
+#                        driver build/flauz/scripts/compat-l3-smoke.mjs --require
+#                        against the booted instance. Captures the workbench log
+#                        + driver report as artifacts and kills the process tree
+#                        always, even on failure.
+#
+# Trigger policy for compat-l3 (documented per TL4-008): the job COMPILES the
+# workbench (npm install + the hygiene compile pipeline + the dev compile +
+# electron setup) - far too expensive for every push. It runs ONLY on
+# workflow_dispatch (opt-in) plus ONE weekly schedule canary so the runtime
+# claim stays continuously proven; push/PR triggers keep running job 1 only
+# (its steps are untouched). The weekly schedule also re-runs the cheap
+# zero-dep job 1 on main - one honest canary of the whole battery lane.
 #
 # Constraints honored (flauz-hygiene.yml discipline):
-#   - ubuntu-latest, NO secrets (public repo, read-only perms)
-#   - zero-dep steps: node >= 20 stdlib only (build/flauz/scripts/*) — no
-#     npm install anywhere in this workflow
+#   - ubuntu-latest, NO configured secrets (public repo, read-only perms;
+#     the install step carries ONLY the auto-provided workflow token - the
+#     DL-20/DL-28 adjudicated narrow exception, same as the sibling lanes)
+#   - the compile/boot happens ONLY on the runner (workers never build -
+#     MIGRATION-PLAN section 5 binding)
+#   - zero-dep driver step: node >= 20 stdlib only
+#     (build/flauz/scripts/compat-l3-smoke.mjs)
 #   - pinned actions (same SHAs the other flauz-* workflows use)
-#   - gated on the paths the battery protects + workflow_dispatch
+#   - gated on the paths the battery protects + workflow_dispatch + schedule
 # ---------------------------------------------------------------------------------------------
 
 name: Flauz Compat Battery
@@ -39,6 +56,11 @@ on:
       - 'product*.json'
       - '.github/workflows/flauz-compat.yml'
   workflow_dispatch:
+  schedule:
+    # TL4-008 trigger policy: ONE weekly canary run of the whole lane (job 1
+    # is zero-dep cheap; compat-l3 compiles + boots). Mondays 04:23 UTC - off
+    # the hour to avoid scheduler contention (the css-order-scan convention).
+    - cron: '23 4 * * 1'
 
 permissions:
   contents: read
@@ -79,22 +101,140 @@ jobs:
       - name: Run the fixture matrix (every battery rule must be able to fail)
         run: sh build/flauz/scripts/verify-fixtures.sh
 
-  l3-runtime-smoke:
-    name: 'L3 runtime smoke (PENDING — spec section 11)'
-    if: github.event_name == 'workflow_dispatch'
+  compat-l3:
+    name: 'L3 runtime boot smoke (compat-l3 driver, TL4-008)'
+    # Trigger policy (see the workflow header): workflow_dispatch (opt-in for
+    # compile cost) + the weekly schedule canary - NEVER on push/PR.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 90  # install + hygiene compile pipeline + dev compile + boot; the sibling hygiene lane fits the pipeline alone in 60
+    env:
+      # Mirrors flauz-browser.yml: binaries are fetched explicitly later
+      # (setup-electron composite action), never during npm install.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      VSCODE_QUALITY: 'oss'
     steps:
-      - name: Probe-only notice (wiring skeleton)
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the L3 gate observes RUNTIME state, not git history - a shallow
+          # checkout matches the boot lane it reuses (flauz-browser.yml
+          # b-policy-canary); no fork-critical/battery logic runs in this job
+          fetch-depth: 1
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Restore node_modules cache
+        uses: ./.github/actions/restore-node-modules
+        with:
+          key-prefix: node_modules-linux
+          key-args: "linux ${{ env.VSCODE_ARCH }} $(node -p process.arch)"
+        env:
+          VSCODE_ARCH: x64
+
+      - name: Install Linux build deps (hygiene natives + xvfb + electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install Electron headers
+        run: node build/npm/preinstall.ts
+
+      - name: Install dependencies
+        run: npm install
+        env:
+          # auto-provided workflow token ONLY (DL-20/DL-28 narrow exception,
+          # same as flauz-hygiene.yml / flauz-browser.yml): lifts api.github.com
+          # rate limits on the ripgrep-prebuilt release fetch. Nothing is
+          # configured in the repo; the no-secrets policy holds.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Electron types
+        run: node build/npm/electronTypes.ts
+
+      - name: Compile & Hygiene (upstream pipeline line, pr.yml)
+        env:
+          # auto-provided workflow token ONLY (DL-20/DL-28 narrow exception):
+          # lifts api.github.com rate limits on the ripgrep-prebuilt release
+          # fetch. Auto-token only; nothing configured in the repo.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The proven hygiene compile line (flauz-hygiene.yml, serialized -l):
+        # type checks (tsgo), eslint, layer checks + the CI compile bundles
+        # (out-build / out-vscode-min). NOTE: this line does NOT produce the
+        # dev out/ tree the workbench boots from - the next step does.
+        run: npm exec -- npm-run-all2 -l core-ci hygiene eslint valid-layers-check define-class-fields-check vscode-dts-compile-check tsec-compile-check
+
+      - name: Compile the bootable dev tree (out/, the b-policy-canary compile)
+        # npm run compile = compile-client (src -> out, what scripts/code.sh
+        # boots) + the copilot extension; the exact compile step of the proven
+        # boot lane in flauz-browser.yml.
+        run: npm run compile
+
+      - name: Bundle the flauz built-ins so boots ACTIVATE them
         run: |
-          echo "=================================================================="
-          echo "L3 runtime smoke: PENDING (TL4-COMPAT-BATTERY.md section 11)."
-          echo "Promotion requires, on a CI runner (never a worker sandbox):"
-          echo "  1. compile the workbench (npm install + npm run compile +"
-          echo "     flauz extension bundling — see flauz-browser.yml job shape)"
-          echo "  2. boot under xvfb with a temp user-data-dir + flauz exts active"
-          echo "  3. pillar smoke assertions (terminal, SCM, palette, settings,"
-          echo "     notebook/debug/remote as compile-output greps until a driver)"
-          echo "  4. fixture-checked parsers BEFORE any assertion gates CI"
-          echo "This skeleton job stays green and manual-dispatch-only until then."
-          echo "=================================================================="
+          node build/flauz/scripts/bundle-extensions.mjs
+          node build/flauz/scripts/bundle-extensions.mjs --verify \
+            || { echo 'compat-l3: a flauz-* extension main is missing from dist/ - the boot below would not activate the flauz built-ins'; exit 1; }
+
+      - name: Setup Electron
+        uses: ./.github/actions/setup-electron
+        with:
+          arch: x64
+
+      - name: Boot the compiled workbench headless and run the L3 smoke driver
+        run: |
+          set -e
+          # X server the way this repo's own boot lanes do (b-policy-canary +
+          # upstream pr.yml): xvfb as a service, DISPLAY=:10
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          # Temp user-data-dir + empty --extensions-dir (isolates user extension
+          # state; the flauz built-ins activate from the compiled + bundled
+          # in-repo extensions - the canary-proven path) + an empty workspace.
+          UD="$RUNNER_TEMP/compat-l3-userdata"
+          WS="$RUNNER_TEMP/compat-l3-ws"
+          mkdir -p "$UD" "$WS"
+          status=0
+          # The workbench launch: scripts/code.sh (the repo's own dev launcher,
+          # ELECTRON_ENABLE_LOGGING set by it) under xvfb, CDP endpoint on
+          # 9333, output captured as the boot log artifact.
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$UD" \
+            --extensions-dir "$RUNNER_TEMP/compat-l3-exts" \
+            --disable-gpu --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            --remote-debugging-port=9333 \
+            "$WS" > artifacts/compat-l3-boot.log 2>&1 &
+          BOOT_PID=$!
+          echo "$BOOT_PID" > artifacts/compat-l3-boot.pid
+          # The zero-dep smoke driver attaches to the booted instance: CDP
+          # readiness + workbench target, log corpus (boot capture + the
+          # user-data-dir logs tree), extension-host + flauz activation
+          # markers, compiled pillar rows. --require refuses to run without
+          # the live boot channel.
+          node build/flauz/scripts/compat-l3-smoke.mjs --require \
+            --cdp-port 9333 \
+            --log artifacts/compat-l3-boot.log \
+            --log-dir "$UD/logs" \
+            --compile-root out \
+            --boot-timeout 120000 --settle-timeout 60000 \
+            --json --out artifacts/compat-l3-report.json || status=$?
+          # Kill the process tree ALWAYS (even on failure) - the captured log
+          # and the report are the debugging evidence, uploaded below.
+          kill "$BOOT_PID" 2>/dev/null || true
+          sleep 2
+          pkill -f "compat-l3-userdata" 2>/dev/null || true
+          exit $status
+
+      - name: Upload L3 smoke artifacts (boot log + driver report, always)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-compat-l3
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,12 +1,12 @@
-# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003)
+# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003 + TL3-004 + TL3-006)
 
 The extension-land vs product-side boundary for the environment registry, the
 lifecycle executors, and the resolver/remote machinery it builds on. Every row
 cites tree paths (flauz/main @ a4c245147e8f, upstream pristine per DL-12).
-Headline: **the v0 + lifecycle story requires ZERO product-side code** —
-everything composes on upstream surfaces; the only product-file touch any
-future step needs is a `product.flauz.json` proposal grant (build-time
-overlay, DL-16 semantics), which is not a fork.
+Headline: **the v0 + lifecycle + real-provider story requires ZERO
+product-side code** — everything composes on upstream surfaces; the only
+product-file touch any future step needs is a `product.flauz.json` proposal
+grant (build-time overlay, DL-16 semantics), which is not a fork.
 
 ## 1. What shipped (extension-land, this lane)
 
@@ -28,9 +28,30 @@ overlay, DL-16 semantics), which is not a fork.
     cloud-sandbox) — TEST INFRASTRUCTURE, NOT PRODUCTION CODE (FakeCdpTransport
     style), driven ONLY behind the explicit `simulated` opt-in (command arg
     or the `flauz.environments.simulated` setting, default false).
-- All LIVE REMOTE connections are still OUT (plans are the artifact; the
-  simulated executors are drills, not providers — REPORT GAPS-AND-SKIPS).
-  Real providers for the four kinds are TL3-004.
+- TL3-004 RUNG 1 — the REAL remote providers behind the SAME contract
+  (`src/lifecycle/`): `SshCliExecutor` (`ssh-local` over the system `ssh`
+  binary; fixed harness shipped over stdin to `node -`; graceful-then-SIGKILL
+  on the harness-reported pid only), `DockerCliExecutor` (`container` over the
+  system `docker` daemon; `run -d` keep-alive + `cp` the fixed harness in +
+  `exec` it; container-scoped stop/remove), `CloudHttpExecutor`
+  (`cloud-sandbox` over the Flauz cloud-sandbox wire contract v0 + the
+  injectable `HttpPort`; `apiKeyRef` resolved ONLY through the
+  `SecretResolverPort`). The seams: `CliPort` (`cliPort.ts` — every provider
+  process comes from `spawnCli`; auditable, `FakeCli`-scriptable) and
+  `HttpPort`/`SecretResolverPort` (`cloudHttp.ts`; the production resolver is
+  `env:<NAME>` from the process env + `vault:<NAME>` from the host secret
+  storage). Capability detection is typed and fail-closed (`CLI_NOT_AVAILABLE`
+  / `DAEMON_UNREACHABLE` / `VAULT_REF_UNRESOLVED` / `CLOUD_UNREACHABLE`).
+  Tests: `FakeCli` scripted drills (every failure class, no real binaries, no
+  wall-clock windows — injectable latency cue + virtual time), a local mock
+  cloud server, and skip-gated LIVE drills (`test/liveRemote.test.ts`) for
+  the real binary/daemon paths.
+- The resolver side is STILL OUT (rung 2): no `registerRemoteAuthorityResolver`
+  call, no tunnels, no remote window — the connection PLAN stays the artifact.
+  Rung 1 makes real LIFECYCLE CONTROL of remote environments live (processes,
+  containers, cloud sandboxes via their APIs); rung 2 wires the vscode
+  authority resolution that turns a plan into a live remote session
+  (see §3 for the `resolvers` grant).
 - Activation is command-driven only (`onCommand:flauz.env.*` +
   `onView:flauz.environments`); activation-lint R3 caps
   `onStartupFinished` at the two Wave-3 extensions (flauz-agent +
@@ -57,6 +78,51 @@ of the environment's most recent record; `result:'error'` requires
 `error:{code,message}` and `result:'ok'` forbids it. The
 `flauz.environments/v0` descriptor registry (DL-29) is untouched — lifecycle
 state lives ONLY in these NEW sibling files.
+
+## 1b. The TL3-006 continuity EXECUTION layer (landed)
+
+Continuity is now an EXECUTABLE capability (`src/continuityExec/`):
+
+- The continuity BUNDLE — `.flauz/continuity-bundles/<bundleId>/manifest.json`
+  (`flauz.continuity-bundle/v0`), a content-addressed export over the CLOSED
+  surface table (the 16-surface N-8 canon materialized from actual `.flauz/`
+  state + the post-canon state surfaces: PIN-1 journal, PIN-2 pair, resources
+  graph + ops, workflow state). Carried surfaces are copied with sha256;
+  secret-shaped surfaces (evidence ledger, artifacts, browser journal) are
+  typed `redacted` entries (presence + sha256 of the PATH — the payload is
+  never copied; the secret-redaction law); non-materialized surfaces are
+  typed `lost` entries with the canon name. Every manifest covers the full
+  table.
+- The continuity OPS LEDGER — `.flauz/continuity-ops.jsonl`
+  (`flauz.continuity-ops/v0`), append-only, MANDATORY actor, details block
+  `{fromEnvironmentId?, toEnvironmentId?, surfacesCarried, surfacesLost,
+  surfacesRedacted}`, `result:'error'` requires `{code, message}`.
+- Commands `flauz.continuity.export | restore | verify | status` (typed
+  results; restore is DESTRUCTIVE-CLASS: fail-closed trust gate on the
+  target environment, `force` required to overwrite non-empty state
+  (`RESTORE_TARGET_NOT_EMPTY`), per-surface outcomes with per-file atomic
+  tmp+rename writes; a failed surface is `skipped` and the prior target
+  state survives untouched).
+- `planSwitch` gained an ADDITIVE optional `continuityBundleId` (the plan
+  can reference a bundle to carry; the switch state machine and the PIN-2
+  files are untouched). `flauz.env.switch` passes it through.
+- Fixtures pin BOTH new shapes at `test/fixtures/continuity/` (good pair +
+  a 35-case invalid matrix).
+
+**What remains product-side / later lanes (the honest gaps):**
+
+1. LIVE SWITCH-DRIVER EMISSION HOOKS — the export/restore around a real
+   switch are command-invoked today (manual or driver-driven); the switch
+   choreography does not AUTO-export before the re-open or AUTO-restore
+   after it. The hooks land with the live switch driver (INTEGRATION-GAP
+   row 10 — same timing as the PERF 5.5 mark emission).
+2. REMOTE-FILESYSTEM CARRY — restore re-hydrates the CURRENT workspace
+   root's `.flauz/` state; `targetEnvironmentId` is the provenance/trust
+   attribute. Carrying bundle bytes to a remote FS is the TL3-004 provider
+   lane (the bundle is a portable directory — no provider coupling).
+3. BUNDLE TRANSPORT — moving a bundle between machines is out-of-band in
+   v0 (the bundle rides the SCM surface or explicit file transfer); no
+   Flauz service exists yet for cross-workspace bundle exchange.
 
 ## 2. The boundary, surface by surface
 
@@ -87,11 +153,17 @@ state lives ONLY in these NEW sibling files.
 - Current `product.flauz.json` grants: `flauz.flauz-agent`
   (`defaultChatParticipant`, `chatParticipantAdditions`), `flauz.flauz-workspace`
   (`scmArtifactProvider`). v0 of this extension adds NOTHING (empty array) —
-  TL3-003 added no grants either (the local-real executor spawns node
+  TL3-003 added no grants (the local-real executor spawns node
   processes from the extension host, which needs no proposal; the simulated
-  executors are file-backed test infrastructure).
-- TL3-004 (live resolver code): `"flauz.flauz-environments": ["resolvers"]`.
-  Nothing else on the path to live SSH/container/cloud connections needs a
+  executors are file-backed test infrastructure), and TL3-004 RUNG 1 added
+  none either: the ssh/docker executors drive system binaries via
+  `node:child_process` and the cloud adapter uses the stdlib global `fetch` —
+  no proposed API is touched (the `SecretResolverPort` reads the host secret
+  storage through the STABLE `vscode.ExtensionContext.secrets`).
+- TL3-004 rung 2 (live resolver code — the rung-1 residual):
+  `"flauz.flauz-environments": ["resolvers"]` at the moment resolver code
+  lands (DL-33 — no dead config; the grant is load-bearing exactly then).
+  Nothing else on the path to live SSH/container/cloud sessions needs a
   grant — `resolvers` covers registration, tunnels factory, exec-server
   transit (`vscode.proposed.resolvers.d.ts:381-433`).
 
@@ -140,3 +212,23 @@ product-file deltas in this lane's branch are additive: new files under
 3. Affinity: if the live switch driver lands in the environments extension,
    does it ride the Agent Bridge's pinned host (recommended — no new slot) or
    its own (needs a DL-5-class entry)?
+
+## 7. TL3-004 rung-2 residuals (recorded at rung-1 delivery)
+
+- The `resolvers` grant + the real
+  `registerRemoteAuthorityResolver` wiring (authority registration, tunnels
+  factory, exec-server transit) — rung 1 ships real lifecycle control but
+  keeps the connection PLAN as the artifact (DL-33 grant timing holds).
+- The AHP RemoteProxy bridge execution (surface #4): rung 1's ssh adapter
+  still encodes the handshake in the plan; driving the live bridge rides the
+  rung-2 resolver work.
+- Dev-container agent-host binding beyond the generic docker executor
+  (surface #5): `DockerCliExecutor` runs the fixed harness in a plain
+  container; mapping devcontainer configs to the upstream
+  `IDevContainerAgentHost` service is a rung-2+ composition decision.
+- Cloud wire contract v0 is Flauz-side (module docs in `src/lifecycle/cloudHttp.ts`):
+  `POST /v0/sandboxes` (create) / `GET /v0/sandboxes/{id}` (probe) /
+  `POST /v0/sandboxes/{id}/start` / `POST /v0/sandboxes/{id}/stop` /
+  `POST /v0/sandboxes/{id}/snapshots` / `DELETE /v0/sandboxes/{id}` —
+  a real provider integration (E2B-class, DL-31 posture) validates/adjusts
+  this contract when the Flauz cloud service lands.

@@ -1,0 +1,10 @@
+{
+	"schemaVersion": 0,
+	"schema": "flauz.continuity-bundle/v0",
+	"bundleId": "flauz:continuity:0123456789abcdef",
+	"createdAt": 1760000100000,
+	"actor": "human",
+	"sourceEnvironmentId": "env-source-main",
+	"switchPlanRef": "flauz.switchPlan/v0:env-target-box@1760000090000",
+	"surfaces": []
+}

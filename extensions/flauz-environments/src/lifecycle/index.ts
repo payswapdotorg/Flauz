@@ -17,6 +17,19 @@
  *   - local-real         : LocalProcessExecutor (workspace-remote,
  *                          local-loopback posture; fixed harness only)
  *   - remote-simulated   : SimulatedRemoteExecutor (TEST INFRASTRUCTURE)
+ *
+ * TL3-004 rung 1 — the REAL remote providers behind the same contract:
+ *   - cliPort            : CliPort/NodeCliPort (the process seam every real
+ *                          remote executor goes through; the harness stdio
+ *                          protocol parser) + HttpPort/SecretResolverPort
+ *                          (the cloud seams).
+ *   - ssh-cli            : SshCliExecutor (ssh-local over the system ssh;
+ *                          fixed harness shipped over stdin; kill-only-owned).
+ *   - docker-cli         : DockerCliExecutor (container over the system
+ *                          docker; run/cp/exec of the fixed harness only).
+ *   - cloud-http         : CloudHttpExecutor (E2B-style REST client over the
+ *                          Flauz cloud-sandbox wire contract v0; vault-
+ *                          gated apiKeyRef, never holds key material).
  */
 export type { EnvironmentExecutor, ExecutorOpContext, ExecutorOpDetail } from './executor.ts';
 export { EnvironmentLifecycleManager, type EnvironmentLifecycleManagerOptions, type LifecycleOpRequest } from './manager.ts';
@@ -90,3 +103,36 @@ export {
 	type SimulatedRemoteExecutorOptions,
 	type SimEnvState,
 } from './simulated.ts';
+export {
+	NodeCliPort,
+	excerpt,
+	parseHarnessStdio,
+	type CliPort,
+	type CliRunOptions,
+	type CliRunResult,
+} from './cliPort.ts';
+export {
+	SSH_CLI_EXECUTOR_KIND,
+	SSH_SNAPSHOT_MANIFEST_SCHEMA_ID,
+	SshCliExecutor,
+	type SshCliExecutorOptions,
+} from './sshCli.ts';
+export {
+	DOCKER_CLI_EXECUTOR_KIND,
+	DOCKER_CONTAINER_STATE_DIR,
+	DOCKER_SNAPSHOT_MANIFEST_SCHEMA_ID,
+	DockerCliExecutor,
+	type DockerCliExecutorOptions,
+} from './dockerCli.ts';
+export {
+	CLOUD_HTTP_EXECUTOR_KIND,
+	CLOUD_SNAPSHOT_DOC_SCHEMA_ID,
+	CLOUD_SNAPSHOT_MANIFEST_SCHEMA_ID,
+	CLOUD_TRACK_SCHEMA_ID,
+	CloudHttpExecutor,
+	nodeHttpPort,
+	type CloudHttpExecutorOptions,
+	type CloudTrackRecord,
+	type HttpPort,
+	type SecretResolverPort,
+} from './cloudHttp.ts';

@@ -76,6 +76,10 @@ Status: DONE (merge 62e46ad0, PR #12 closed-superseded by station merge, 2026-09
 Integrate policy, partitions, credential isolation, prompt-injection defenses, screenshot/evidence capture and recovery.
 Delivered (Worker A, branch `tl3/a2-browser-security`, base `c3b20345cec`, station-integrated against the hygiene-wave rewrites): per-session UA discipline (agent sessions carry a deterministic Flauz agent product token via Emulation.setUserAgentOverride; human sessions untouched; override failure => typed session error, fail-closed), download policy deny-by-default (Browser.setDownloadBehavior, no allow surface in v0), popup/new-target gate (Target.setAutoAttach + policy-check before use; denied targets closed + evidence row — the B1c class for popups), G6 forced-reset EXECUTION through the policy engine (narrow typed reset op, about:blank only, `security.enforceReset` additive policy key defaulting true, serialized only on explicit opt-out), partition-scoped tab ownership (cross-partition use = typed error; recovery re-attach respects partitions), session journal PIN-1 (`.flauz/browser-sessions.jsonl`, append-only, canonical records, MANDATORY actor — the continuity seam for flauz-resources), untrusted-content boundary markers in capture-derived evidence rows (boundary marker, not sanitization — documented). Verified at station: typecheck exit 0, 205/205 node --test, B-POLICY drill PASS, activation-lint GREEN, fork-critical EMPTY, verify-fixtures 91 cases 0 deviations (merged tree), premium-ux-gate CLEAN, ia-gate CLEAN, secret sweep 0. Integration notes: main's hygiene type-guard `isSessionError` generic constrained (`extends object`) — fixes a pre-existing main TS2322; conflict resolutions documented in the merge commit.
 
+Progress note (2026-09-29, Worker A, branch `tl3/a3-browser-real`, base `cd5273f`): the browser completion rung delivered. (1) The OPTIONAL real-Chromium hardening drill `extensions/flauz-browser/test/canaries/real-chromium-hardening.drill.ts` — the REAL runtime (CdpEndpointHost + BrowserSessionManager + hardening + popup gate + recovery) against a real Chromium over a real CDP WebSocket; REAL RUN GREEN (43 assertions, Chrome for Testing 153.0.8010.12 headless); SKIPs with exit 0 without `FLAUZ_CDP_ENDPOINT` (never fails a gate for lacking a browser); documents + pins FIVE real-Chromium divergences from the FakeCdpTransport contract as drift-canary assertions (F-DELIVERY: page-session auto-attach does not deliver window.open popups; F-POPUP-URL: popup targetInfo.url empty at attach; F-RELEASE-CMD: `Runtime.run` is not a real CDP method — real release is `Runtime.runIfWaitingForDebugger`; F-OPENER-BLOCK: window.open blocks the opener while a popup is held; F-RECOVERY-DOMAINS: recovery does not re-send Page.enable so post-recovery commit observation times out) — recorded as TL fix candidates, NOT patched (semantics pinned by the landed suites). (2) The G3/P1 flauz-defaults posture: DELIVERED-AS-FINDING — an extension CANNOT contribute a configurationDefault for `chat.agent.networkFilter` (APPLICATION scope rejected at the extension point, `configurationExtensionPoint.ts:217,227-232`); the three named product-side alternatives (enterprise policy ChatAgentNetworkFilter / fork-critical in-tree registerDefaultConfigurations contribution / zero-fork default-profile settings.json provisioning pin) are in INTEGRATION-GAP.md G3. (3) Docs: INTEGRATION-GAP.md (G3 + P1 + What-remains with the findings), README.md (the real-Chromium verification section), B-POLICY.md (the optional real-endpoint drill, NOT CI-required). Verified: typecheck exit 0, 205/205 node --test, policy-gated-navigation drill PASS, real-chromium drill REAL RUN PASS, activation-lint GREEN, fork-critical-guard PASS (ledger EMPTY), verify-fixtures ALL CASES 0 deviations, premium-ux-gate CLEAN, ia-gate CLEAN, secret sweep 0.
+
+Merge record (2026-09-27, TL3 station): squash-merged to main at `f430e01090c` (branch `tl3/a3-browser-real`, single commit `3483fc569a3`, 6 files +1017/-25; clean auto-merge — the interim hygiene wave touched only src/*.ts, no overlap). Station verification INDEPENDENTLY RE-RUN (never trusting reported numbers): flauz-browser typecheck exit 0, 205/205 node --test, B-POLICY drill GREEN, real-chromium drill REAL RUN at station against a dedicated headless Chromium 153.0.8010.12 (exit 0, the five pinned divergences reproduced exactly as reported) + SKIP-mode exit 0, activation-lint GREEN, fork-critical EMPTY, verify-fixtures 91 cases (base tree) and 103 cases (merged tree, both 0 deviations), premium-ux-gate CLEAN, ia-gate CLEAN, secret sweep of the full diff 0. security-gate: identical environmental FAIL on main-baseline @ 7f2618f0 and the merged tree (the packaging row needs the CI npm install; evidence mode promotes its SKIP) — no regression from this merge. Status: the browser completion rung is DONE (the IA-shell boot verification of window.openBrowserTab remains with the B-POLICY canary as documented; G5/G6 stay product-side records).
+
 ### TL3-003 — Environment lifecycle
 Status: DONE (PR #11, squash a9f51d61, 2026-09-27)
 Turn environment descriptors into create/start/stop/snapshot/attach/detach/destroy operations behind provider adapters.
@@ -84,7 +88,9 @@ Progress note (2026-09-29, Worker B, branch `tl3/b-env-lifecycle`, base `c3b2034
 Merge record (2026-09-27, TL3): PR #11 squash-merged to main at `a9f51d61` (base `c3b20345` + prep `c6e2d5c6` — the TL station's capability-guard narrowing fix for the hygiene-wave providers/index.ts TS2322 break found during the test-merge gate run). Station-verified post-merge on the integrated tree: typecheck exit 0, 94/94 tests, C-ENV canary PASS, activation-lint GREEN, fork-critical EMPTY, verify-fixtures 91 cases 0 deviations, premium-ux-gate CLEAN, ia-gate CLEAN, secret sweep 0. Status DONE.
 
 ### TL3-004 — Provider matrix
-Status: TODO
+Status: DONE (rung 1 — station-integrated 2026-09-27; rung 2 = live workbench resolver code + the resolvers grant, see INTEGRATION-GAP)
+Implement provider adapters for local, SSH, containers, cloud sandboxes and E2B-style environments behind one contract.
+Delivered (Worker B, branch `tl3/b2-providers`, single commit `1044899c11a`, 17 files +4172/-227, base `cd5273fe`): the CliPort seam (injectable process-runner, timeout+kill), SshCliExecutor (ssh-cli, serves ssh-local: capability probe, descriptor-data auth, FIXED-harness-over-stdin start — descriptor-supplied execution still forbidden, pid-tracked escalation, ssh-cat snapshots into the canonical manifest), DockerCliExecutor (docker-cli, serves container: docker-info probe with typed CLI_NOT_AVAILABLE, pinned-safe run+cp of the fixed harness, stop-escalation, describe reconciliation via real docker inspect), CloudHttpAdapter (cloud-http, serves cloud-sandbox: real REST client over an injectable HttpPort, apiKeyRef vault-gated, local mock-server failure-class drills), manager routing (remote kinds -> real executors; workspace-remote/local-process + simulated opt-in unchanged), 5 test suites incl. the FakeCli scriptable port + SKIP-gated liveRemote live drills. Station verification independently re-run: typecheck 0, 131 tests 129/0/2, all gates green, siblings 205+83, secrets 0. Station integration: 1 indent-style conflict resolved (manager.ts, zero semantic delta) + a merge-wave ROBUSTNESS FIX in fixtures/env-agent.ts (signal handlers now arm BEFORE the ready line — a load-sensitive SIGKILL-escalation race observed ~1-in-3 under CPU stress; 8/8 clean stress runs post-fix).
 Implement provider adapters for local, SSH, containers, cloud sandboxes and E2B-style environments behind one contract.
 
 ### TL3-005 — Resource graph
@@ -93,7 +99,9 @@ Unify files/tasks/browser/environments/artifacts/model/provider resources behind
 Delivered: extensions/flauz-resources — ResourceRef (flauz.resource-ref/v0: logical URN ids, mandatory agent/human/tool provenance), kind-specific access surfaces (vault-only secret refs, literals rejected), typed edges with legality, surface versioning (identity survives surface change — pinned acceptance tests), continuity/restoration plans, resources-ops.jsonl provenance ledger, flauz.res.list/show/graph/verify commands, R-RES canary + flauz-resources.yml, fixture matrix. Verified: station trio (83/83 tests) + all flauz canaries green (R-RES green on first run).
 
 ### TL3-006 — Continuity
-Status: TODO
+Status: DONE (merge 6e014f59aa4, station-integrated 2026-09-27)
+Persist and restore logical session/task/context state across environment changes.
+Delivered (Worker C, branch `tl3/c2-continuity`, single commit `11b7df2cbed`, 58 files +6377/-38, base `dcec0f8f`): continuity as an EXECUTABLE capability — flauz-environments `src/continuityExec/` (ContinuityManager export/restore/verify/status with typed ops + MANDATORY provenance; the `flauz.continuity-bundle/v0` manifest + append-only `flauz.continuity-ops/v0` ledger with the DL-9/DL-32 canonical discipline; the N-8 surface canon materialized from real `.flauz/` state with the SECRET-REDACTION LAW — secret-shaped surfaces record presence + path hash, never payloads; logical ids `flauz:continuity:<16-hex>`), commands `flauz.continuity.export/restore/verify/status` (restore destructive-class: force-gated, atomic per-surface, fail-closed on untrusted targets), the additive `planSwitch.continuityBundleId?` hand-off, and the flauz-resources PIN-1 journal bridge (`journalBridge.ts`: strict READ-ONLY parser, ResourceRef minting from logical sessionIds, attribution-real edges, `flauz.res.syncBrowserSessions` with provenance). 37 fixtures (good + 35 bad) + 648/242-line suites. Station verification independently re-run: env 113/113 + res 93/93 in isolation; merged tree (with TL3-004) env 150 tests 148/0/2 + res 93/93, typechecks 0, all gates green, siblings 205/205, secrets 0 (3 sweep hits examined — regex patterns + runtime-fragment assembly per the no-literal law, benign). Integration: 4 additive conflicts resolved by union; a stale-local-main trap (first merge silently b2-less, caught by the 113-vs-150 test count) was caught and redone on the true main.
 Persist and restore logical session/task/context state across environment changes.
 
 ## TL4 — Product UX, Verification and Release Quality
@@ -143,8 +151,36 @@ Status stays ACTIVE until CI (flauz-compat.yml) reports green on main;
 then DONE for the L1+L2 rung (L3 runtime promotion remains follow-up).
 
 ### TL4-004 — Whole-session acceptance battery
-Status: ACTIVE (2026-09-28: Worker B2 dispatched — session created, prompt verified in-thread; site agent-spawn queue jammed at peak hours, TL4 machinery assaulting; delivery pending)
+Status: DONE (fixture rung; 2026-09-27: TL4-006-head CI green on main @ 2dd52fc6fe — flauz-session, flauz-compat, flauz-budgets, flauz-workflow, flauz-security, flauz-hygiene all GREEN on the same head; runtime promotion = follow-up)
 Run real user-session simulations spanning task creation, agent execution, browser, environment, verification, artifact and recovery.
+
+Progress note (2026-09-27, TL4 lead, station-executed — the dispatched
+worker's lane never landed; TL4 executed personally per the
+start-immediately doctrine):
+  - Suite extensions/flauz-workflow/test/session-battery.test.ts: four
+    whole-user-session journeys driving the REAL modules — J1 golden
+    (create -> plan -> approve -> tool artifact+ledger -> browser leg over
+    FakeCdpTransport with the policy engine + on-disk journal ->
+    environment lifecycle behind SimulatedRemoteExecutor -> verify ->
+    sign-off -> save fragment), J2 recovery (re-run with replay approvals:
+    new task, derivedFrom-linked evidence, fragment history), J3
+    fail-closed (denied navigation sends ZERO drive commands; actor-less
+    lifecycle op = typed ACTOR_REQUIRED rejection), J4 continuity (full
+    restart on the same root: tasks/workflows/lifecycle/journal recover;
+    re-run completes).
+  - Pinned-transcript discipline: golden-transcript.json deep-compared
+    every run; doctored variant proves failability (exit 1); determinism
+    proven across bun + node runners.
+  - Gate build/flauz/scripts/session-battery.mjs (zero-dep; --require
+    evidence mode; node >= 22.6 runner detection, SKIP semantics); CI lane
+    .github/workflows/flauz-session.yml (dedicated
+    tsconfig.session-battery.json typecheck — the suite spans three
+    extensions — + battery --require + doctored-fixture proof + fixture
+    matrix; the compiled unit-subset lane runs it as .js too).
+  - Spec docs/FLAUZ-PROGRAM/TL4-SESSION-BATTERY.md (journey catalogue,
+    transcript contract, promotion ladder: fixture -> compiled -> runtime
+    rung). Runtime rung (real CDP, LocalProcessExecutor, booted workbench)
+    activates when TL2/TL3 expose CI-driveable seams.
 
 ### TL4-005 — Performance and resource budget
 Status: DONE (fixture rung; 2026-09-28: flauz-budgets CI green on main @ 6985b2d015a; runtime promotion for the 9 pending-runtime rows remains follow-up)
@@ -174,8 +210,40 @@ activation-lint GREEN; secret sweep 0. Status stays ACTIVE until CI
 (runtime promotion for the 9 pending-runtime rows remains follow-up).
 
 ### TL4-006 — Security and release gates
-Status: ACTIVE (2026-09-28: Worker C2 dispatched — session created, prompt verified in-thread; site agent-spawn queue jammed at peak hours, TL4 machinery assaulting; delivery pending)
+Status: DONE (fixture/static rung; 2026-09-27: same-head 6-workflow CI green on main @ 2dd52fc6fe; runtime rung — npm audit delta, bundle signatures, SBOM — documented as follow-up)
 Create integrated gates for secrets, permissions, browser safety, supply chain, packaging, signing and reproducible release artifacts.
+
+Progress note (2026-09-27, TL4 lead, station-executed — the dispatched
+worker's lane never landed; TL4 executed personally):
+  - Gate build/flauz/scripts/security-gate.mjs (zero-dep): secrets row
+    (12-pattern credential battery over the Flauz additive namespace +
+    documented allowlist build/flauz/security-allowlist.json +
+    unused-entry hygiene), dependency-purity (flauz extensions: zero
+    runtime deps, devDeps allowlisted), proposed-api (composed rota),
+    packaging (double-bundle byte-identical dist hashes via the repo's
+    own esbuild = reproducible release artifacts).
+  - Fixture matrix (test/fixtures/security-gate/): clean tree (placeholders
+    never fire), planted-github/neon/connstring/key (each fires, SYNTHETIC
+    tokens), allowlist suppression + unused-entry detection — pinned in
+    verify-fixtures.sh (104 cases).
+  - CI .github/workflows/flauz-security.yml: job 1 zero-dep static rows +
+    fixture matrix (node 20); job 2 full --require after the root install
+    (the hygiene lane's own native-build preamble: libkrb5-dev,
+    libx11/libxkbfile headers, electron headers preinstall).
+  - Delegated dynamic rows (documented, never faked): DL-20
+    hardened-ledger integrity (flauz-workflow.yml hardening.test.ts),
+    browser deny-by-default (flauz-browser.yml suites + session-battery
+    J3). Spec: docs/FLAUZ-PROGRAM/TL4-SECURITY-GATE.md.
+
+### TL4-008 - Compat L3 runtime boot smoke
+Status: DONE (2026-09-27, TL4 lead merge record: station `verify-branch.sh tl4/b3-compat-l3` GREEN @ 7c02f356c8c — 13 gates, zero src/ changes, secret sweep clean, fixtures 116/116; squash-merged as PR #14 -> main @ c1d9414ec13b; branch deleted; `compat-l3` lane dispatched on main per SOURCE-OF-TRUTH completion law — first-run record in `build/flauz/compat-l3-baseline.md`)
+Promote the Code OSS compatibility battery's layer 3 (TL4-COMPAT-BATTERY section 11) from a PROBE-ONLY CI placeholder to a REAL, CI-executed runtime boot smoke: the workbench still boots and the pillar surfaces still function with the flauz extensions active, proven at runtime on a runner (never a worker sandbox).
+
+Progress note (Worker B, branch `tl4/b3-compat-l3`):
+- Driver `build/flauz/scripts/compat-l3-smoke.mjs` (zero-dep, node >= 20, `--help` + house exit codes): attach mode (CI: CDP `/json/version` + `/json/list` readiness/target rows, log-corpus fatal scan, source-pinned extension-host + flauz activation markers from extHostExtensionService.ts:480,818, compiled pillar rows in the B-POLICY A3 pattern) and child mode (`--cmd`: process-group ownership, auto-wired captures, natural exit code). Honesty law: unobservable rows are SKIP with the exact reason, never a fake pass; catalogue is ADDITIVE.
+- CI `compat-l3` job in `.github/workflows/flauz-compat.yml` (job 1 untouched): the proven preamble (apt natives + xvfb stack, preinstall, npm install, electronTypes, the hygiene `npm-run-all2 -l core-ci hygiene ...` compile line, then `npm run compile` for the bootable dev `out/` tree, `bundle-extensions.mjs --verify`, setup-electron), then the b-policy-canary boot (`DISPLAY=:10 ./scripts/code.sh --verbose --remote-debugging-port=9333 ...` under the xvfb service), then the driver `--require`, then process-tree kill ALWAYS + boot-log/report artifacts (pinned SHAs, auto-token-only install env per DL-20/DL-28).
+- Trigger policy: `workflow_dispatch` (opt-in, the job compiles) + one weekly `schedule` canary (Mon 04:23 UTC); never per-push.
+- Fixture-backed: `test/fixtures/compat-l3/` (clean/fatal/no-ext/no-flauz log corpora + fake-out compiled trees), `build/flauz/compat-l3-smoke.test.mjs` (17 node --test cases incl. fake CDP servers and child-mode stubs), verify-fixtures.sh section. Baseline `build/flauz/compat-l3-baseline.md`: row census (14 PASS-capable, 4 functional SKIP rows), first-run record table, honest distance ladder (CDP-WebSocket DOM rows, lane F functional smokes, exit-clean in CI, browser-mode boot).
 
 ### TL4 merge-wave integration note (2026-09-27, TL4 lead)
 
@@ -184,6 +252,34 @@ three new zero-dep gate scripts; fixed by allowlisting them in
 `.eslint-allowed-javascript-files` (same precedent as the Wave-4 flauz
 harness entries). Applies to future TL4 gate scripts: every new zero-dep
 `.mjs` gate merged to main must land with its allowlist line in the same PR.
+
+### TL4-007 — Session-battery runtime rung (real CDP + real executor)
+Status: ACTIVE (2026-09-27, Worker A dispatched from the replay, branch `tl4/a3-session-runtime`, base dcec0f8f7c9)
+Promote the whole-session acceptance battery (TL4-004) from the fixture
+rung to the runtime rung: the same four journeys (J1 golden, J2 recovery,
+J3 fail-closed, J4 continuity) over REAL ports — the real CdpEndpointHost
+against a real headless Chromium over a real CDP WebSocket (the proven
+TL3-003 drill seam) and the real LocalProcessExecutor for the environment
+leg. The journey catalogue and transcript contract stay IDENTICAL; only
+the ports change. Volatile runtime values are normalized via an explicit
+documented table, never a silent loosening. CI lane: opt-in
+`session-runtime` job in flauz-session.yml (Chrome-for-Testing download +
+FLAUZ_CDP_ENDPOINT). This is the CURRENT-STATE "Known gaps" item 9
+(whole-product end-to-end acceptance) executed at the battery level.
+
+### TL4-009 — Security-gate runtime rung (audit delta, SBOM, bundle manifest)
+Status: ACTIVE (2026-09-27, Worker C dispatched from the replay, branch `tl4/c3-security-runtime`, base dcec0f8f7c9)
+Promote the integrated security gate (TL4-006) from the fixture/static
+rung to the runtime rung: post-install npm-audit delta over the
+flauz-added dependency set (product root package.json vs upstream/main),
+CycloneDX 1.5 JSON SBOM emission for the flauz artifact set (zero-dep
+generator), and a pinned bundle-signature manifest (sha256 per flauz
+extension bundle; regenerate-and-diff = FAIL on drift — the supply-chain
+tamper signal). Rows are additive; the existing security-gate.mjs stays
+frozen. CI: the flauz-security post-install job gains the runtime gate
+step; a workflow_dispatch report job uploads SBOM + report artifacts. This
+is the CURRENT-STATE "Known gaps" item 10 (production packaging/release)
+advanced at the gate level.
 
 ## Cross-TL rule
 

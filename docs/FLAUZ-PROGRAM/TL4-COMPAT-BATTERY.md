@@ -1,7 +1,9 @@
 # TL4-003 — Code OSS Compatibility Battery
 
 Status: ACTIVE (Worker B, TL4 lane). Layers 1-2 implemented + fixture-backed;
-L3 spec'd with a CI wiring skeleton (PENDING — needs a compiled build on a CI runner).
+L3 SHIPPED-STATION-PENDING-CI-EVIDENCE (TL4-008: real `compat-l3` CI lane +
+zero-dep driver `build/flauz/scripts/compat-l3-smoke.mjs`, baseline
+`build/flauz/compat-l3-baseline.md`; the first green run on main flips it).
 Script: `build/flauz/scripts/compat-battery.mjs` · Fixtures: `test/fixtures/compat-battery/`
 CI: `.github/workflows/flauz-compat.yml` · Baseline: `build/flauz/compat-baseline.md`
 
@@ -26,7 +28,7 @@ Layer 3 (runtime smoke) is spec'd but pending a compiled build on CI.
 |---|---|---|---|
 | L1 source purity | `src/vs` byte-identical to upstream outside `contrib/flauz` | EXISTS (Wave 3 Lane H) | `fork-critical-guard.sh`; the battery INVOKES it (git mode only) |
 | L2 contribution-surface diff | every stock manifest entry, product identity, root scripts/deps present at the product side | IMPLEMENTED (this task) | `compat-battery.mjs` |
-| L3 runtime smoke | the workbench still boots and the pillar surfaces still function with Flauz extensions active | PENDING — spec section 11; CI skeleton job in `flauz-compat.yml` runs PROBE-ONLY | needs compile + boot on a runner |
+| L3 runtime smoke | the workbench still boots and the pillar surfaces still function with Flauz extensions active | SHIPPED-STATION-PENDING-CI-EVIDENCE (TL4-008: `compat-l3` job in `flauz-compat.yml`, workflow_dispatch + weekly schedule; driver `compat-l3-smoke.mjs`, baseline `build/flauz/compat-l3-baseline.md`; first green run on main flips it) | `compat-l3-smoke.mjs` + `.github/workflows/flauz-compat.yml` job `compat-l3` |
 
 Declarative contributions inside `src/vs/workbench/**` (e.g. editor
 contributions registered in TS) are OUT OF L2 SCOPE by design: they compile
@@ -225,13 +227,18 @@ same SHAs, no secrets, `permissions: contents: read`, path filters
 `product*.json`, the workflow itself) + `workflow_dispatch`. Checkout uses
 `fetch-depth: 0` so `origin/upstream/main` resolves. Steps: battery
 `--require` against `origin/upstream/main` vs `HEAD`, then the full fixture
-matrix via `verify-fixtures.sh`. An `l3-runtime-smoke` job exists as a
-wiring skeleton: workflow_dispatch-only, prints the PENDING status and exits
-0 — it becomes the real runtime gate per section 11.
+matrix via `verify-fixtures.sh`. The `compat-l3` job (TL4-008) is the real
+runtime gate per section 11: it compiles on the runner (the hygiene compile
+line + the dev `out/` compile + flauz bundling), boots the workbench
+headless under xvfb (the b-policy-canary launch pattern) and runs
+`compat-l3-smoke.mjs --require` against the booted instance, gated to
+`workflow_dispatch` + a weekly `schedule` canary (compile cost), never on
+push/PR.
 
-## 11. L3 runtime smoke — spec (PENDING)
+## 11. L3 runtime smoke - spec (SHIPPED-STATION-PENDING-CI-EVIDENCE)
 
-Promotion requirements (do not wire assertions before all hold):
+Promotion requirements (all now hold on the TL4-008 lane; they were the
+gating checklist before any assertion wired into CI):
 
 1. A CI job that compiles the workbench (upstream pipeline: `npm install` +
    `npm run compile` + flauz extension bundling, as `flauz-browser.yml`
@@ -248,9 +255,29 @@ Promotion requirements (do not wire assertions before all hold):
 4. Fixture-first: each L3 assertion gets a fixture-checked parser (the
    `perf-log-parse.mjs --selftest` pattern) BEFORE it gates CI.
 
-Status today: NONE of the above runs in CI; the skeleton job marks the
-intent. Honest ladder position: L1/L2 = fixture-backed and CI-enforced;
-L3 = spec-only.
+Promotion record (TL4-008, branch `tl4/b3-compat-l3`, base `dcec0f8f7c9`):
+the lane shipped. `compat-l3` in `.github/workflows/flauz-compat.yml`
+compiles (hygiene compile line + `npm run compile` for the bootable `out/`
++ `bundle-extensions.mjs --verify`), boots under xvfb via
+`./scripts/code.sh` with a temp user-data-dir and the flauz built-ins
+active, and runs the zero-dep driver
+`build/flauz/scripts/compat-l3-smoke.mjs --require` (CDP readiness +
+workbench target, log-corpus fatal scan, extension-host + flauz activation
+markers source-pinned to extHostExtensionService.ts:480,818, compiled
+pillar rows in the B-POLICY A3 pattern). The driver's honesty law: a row it
+CANNOT observe is SKIP with the exact reason, never a fake pass - the v1
+census (14 PASS-capable rows, 4 functional SKIP rows) and the additive
+distance ladder live in `build/flauz/compat-l3-baseline.md` (sections 2
+and 6). Driver logic is fixture-backed: `test/fixtures/compat-l3/` +
+`build/flauz/compat-l3-smoke.test.mjs` (17 cases) + the
+`verify-fixtures.sh` matrix. Trigger policy: `workflow_dispatch` (opt-in)
++ one weekly `schedule` canary, never per-push (compile cost).
+
+Status today: the lane exists and is fixture-backed; the FIRST green CI
+run on main flips this section and the layer table to DONE-for-the-rung.
+Honest ladder position: L1/L2 = fixture-backed and CI-enforced; L3 =
+lane-shipped, pending first runner evidence (section 5 of the baseline is
+the record to fill).
 
 ## 12. Deferred families and follow-ups (honest list)
 
@@ -270,9 +297,11 @@ families are allowed; removals are NOT yet caught):
 
 Follow-ups:
 
-- L3 runtime promotion per section 11 (biggest gap — static-only guarantees
-  today; a compile-level breakage inside additive Flauz code would not be
-  caught by L1/L2).
+- L3 evidence + deepening: the first green `compat-l3` run on main fills
+  `build/flauz/compat-l3-baseline.md` section 5 and flips the section 11
+  status; then the additive ladder (baseline section 6): CDP-WebSocket DOM
+  assertions, the four functional pillar rows via the lane F session
+  driver, exit-clean in the CI wiring, browser-mode boot.
 - Family sweep for the deferred list, each landing WITH its fail fixture.
 - Allowlist staleness sweep wired into the sync-checkpoint reminder (rota
   job 6 pattern).
