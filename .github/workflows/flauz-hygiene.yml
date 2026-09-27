@@ -171,3 +171,41 @@ jobs:
             out/**/*.log
           if-no-files-found: ignore
           retention-days: 7
+
+  # ---- TL1-001: the upstream-sync lane's evidence stream ---------------------
+  # Fail-fast family: zero-dep (node >= 20 stdlib only, runner-preinstalled —
+  # the same shape as the hygiene job's own pre-install gates), runs BEFORE
+  # any install in its own job, no secrets, actions pinned to the SHAs the
+  # sibling steps use. Report-only by design (--no-fail): divergence and
+  # conflicts are sync-plan DATA (the enforcing gates live in
+  # build/flauz/SYNC-RUNBOOK.md and fork-critical-guard.sh).
+  upstream-sync:
+    name: Upstream-sync delta report (TL1-001)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # full history for the ahead/behind counts and the three-dot diff
+          fetch-depth: 0
+
+      - name: Fetch upstream/main (the preserved Code OSS reference line)
+        run: git fetch --no-tags origin upstream/main:refs/remotes/origin/upstream/main
+
+      - name: Delta census (report-only; --no-fail — exit-1 enforcement is the runbook's pre-flight)
+        run: |
+          node --version
+          mkdir -p artifacts
+          node build/flauz/scripts/sync-upstream.mjs --report --no-fail \
+            --json --out artifacts/upstream-sync-report.md \
+            > artifacts/upstream-sync-report.json
+
+      - name: Upload upstream-sync report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-upstream-sync-report
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 90
