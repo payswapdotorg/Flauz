@@ -8,6 +8,15 @@
  * Transport: the extension spawns the zero-dependency Node service and speaks
  * newline-delimited JSON over stdio. Handshake is `hello` -> `ready`; every
  * request carries a numeric id and is answered with `{id, ok, result|error}`.
+ *
+ * Protocol negotiation (TL1-003): the hello offers
+ * `protocolVersions: ['flauz.seam/v1', 'flauz.seam/v0']`. A v1 service
+ * answers ready with `protocolVersion` + `capabilities`; a v0-only service
+ * ignores the field and answers the plain v0 ready, which the client takes
+ * as `flauz.seam/v0` — v1 with v0 fallback, no retry needed. Under v1 the
+ * service's errors become structured `{code, message, details?}` and are
+ * surfaced as `SeamProtocolError` (an `Error` subclass — existing callers
+ * reading `.message` keep working unchanged).
  */
 
 import { spawn } from 'node:child_process';
@@ -22,9 +31,37 @@ import type {
 	TaskEvent,
 	EvidenceRowInput,
 	VerifyLedgerResult,
+	SeamEventEnvelope,
+	SeamHealthPingResult,
+	SeamHealthStatusResult,
+	SeamLifecycleInitializeResult,
+	SeamLifecycleShutdownResult,
 } from './types.ts';
 
 export type SpawnFn = typeof spawn;
+
+/** Protocol versions this client offers, highest first (v1 with v0 fallback). */
+const OFFERED_PROTOCOL_VERSIONS: readonly string[] = ['flauz.seam/v1', 'flauz.seam/v0'];
+
+/** Negotiated version assumed when the ready message carries no `protocolVersion` (a v0-only service). */
+const DEFAULT_NEGOTIATED_PROTOCOL_VERSION = 'flauz.seam/v0';
+
+/**
+ * Rejection carrying a v1 structured seam error. `message` stays the plain
+ * service message, so existing `.message` matching keeps working; `code`
+ * (`flauz.err.*`) and `details` are the machine-readable additions.
+ */
+export class SeamProtocolError extends Error {
+	readonly code: string;
+	readonly details: Record<string, unknown> | undefined;
+
+	constructor(code: string, message: string, details?: Record<string, unknown>) {
+		super(message);
+		this.name = 'SeamProtocolError';
+		this.code = code;
+		this.details = details;
+	}
+}
 
 export interface SeamClientOptions {
 	/** Absolute path of the workspace root the service should operate on. */
@@ -41,6 +78,12 @@ export interface SeamClientOptions {
 	requestTimeoutMs?: number;
 	/** Diagnostic sink (output channel in production, console in tests). */
 	logger?: (message: string) => void;
+	/**
+	 * v1+: receiver for server-initiated event envelopes
+	 * (`{type:'event', event, payload, ts}`). v0 services never emit them;
+	 * without a receiver they are logged and dropped.
+	 */
+	onEvent?: (event: SeamEventEnvelope) => void;
 }
 
 interface PendingRequest {
@@ -62,6 +105,7 @@ export class SeamClient {
 	private readonly pending = new Map<number, PendingRequest>();
 	private readonly logger;
 	private readonly requestTimeoutMs: number;
+	private readonly onEventCallback: ((event: SeamEventEnvelope) => void) | undefined;
 	private nextId = 1;
 	private buffer = '';
 	private readyPromise: Promise<void>;
@@ -69,12 +113,15 @@ export class SeamClient {
 	private exitCode: number | null = null;
 	private exitError: Error | undefined;
 	private exitWaiters: Array<(code: number | null) => void> = [];
+	private negotiatedProtocolVersion = DEFAULT_NEGOTIATED_PROTOCOL_VERSION;
+	private negotiatedCapabilities: readonly string[] = [];
 
 	private constructor(options: SeamClientOptions) {
 		const spawnFn = options.spawnFn ?? spawn;
 		const nodePath = options.nodePath ?? process.execPath;
 		const servicePath = options.servicePath ?? defaultServicePath();
 		this.logger = options.logger ?? (() => undefined);
+		this.onEventCallback = options.onEvent;
 		this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 		this.child = spawnFn(nodePath, [servicePath, options.workspaceRoot], { stdio: ['pipe', 'pipe', 'pipe'] });
 		this.child.stdout.on('data', (chunk) => this.onStdout(chunk.toString('utf-8')));
@@ -104,19 +151,43 @@ export class SeamClient {
 				client: 'flauz-agent',
 				version: '0.1.0',
 				globalStoragePath: options.globalStoragePath,
+				// TL1-003: offer v1 with v0 fallback. A v0-only service ignores
+				// the field (unknown hello keys are skipped) and answers the
+				// plain v0 ready, which onReady takes as 'flauz.seam/v0'.
+				protocolVersions: [...OFFERED_PROTOCOL_VERSIONS],
 			});
 		});
 	}
 
 	private readyCallbacks: Array<{ resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }> = [];
 
-	private onReady(message: { service?: string; schema?: string }): void {
-		this.logger(`[flauz-core] ready: ${String(message.service)} (${String(message.schema)})`);
+	private onReady(message: { service?: string; schema?: string; protocolVersion?: unknown; capabilities?: unknown }): void {
+		if (typeof message.protocolVersion === 'string' && message.protocolVersion.length > 0) {
+			this.negotiatedProtocolVersion = message.protocolVersion;
+		} else {
+			this.negotiatedProtocolVersion = DEFAULT_NEGOTIATED_PROTOCOL_VERSION;
+		}
+		if (Array.isArray(message.capabilities)) {
+			this.negotiatedCapabilities = message.capabilities.filter((capability): capability is string => typeof capability === 'string');
+		} else {
+			this.negotiatedCapabilities = [];
+		}
+		this.logger(`[flauz-core] ready: ${String(message.service)} (${String(message.schema)}, ${this.negotiatedProtocolVersion})`);
 		for (const callback of this.readyCallbacks) {
 			clearTimeout(callback.timer);
 			callback.resolve();
 		}
 		this.readyCallbacks = [];
+	}
+
+	/** Protocol version negotiated at the hello/ready handshake ('flauz.seam/v0' against a v0-only service). */
+	get protocolVersion(): string {
+		return this.negotiatedProtocolVersion;
+	}
+
+	/** Capability namespaces the service advertised in ready (v1+; empty for v0 services). */
+	get capabilities(): readonly string[] {
+		return this.negotiatedCapabilities;
 	}
 
 	private onStdout(text: string): void {
@@ -148,6 +219,21 @@ export class SeamClient {
 			this.logger(`[flauz-core] error: ${String(message.message)}`);
 			return;
 		}
+		if (message.type === 'event' && typeof message.event === 'string') {
+			// v1 server-initiated event envelope (tolerated — never fatal — under v0 clients too).
+			const envelope: SeamEventEnvelope = {
+				type: 'event',
+				event: message.event,
+				payload: (message.payload ?? {}) as Record<string, unknown>,
+				ts: typeof message.ts === 'number' ? message.ts : Date.now(),
+			};
+			if (this.onEventCallback) {
+				this.onEventCallback(envelope);
+			} else {
+				this.logger(`[flauz-core] event: ${envelope.event}`);
+			}
+			return;
+		}
 		const id = message.id;
 		if (typeof id === 'number') {
 			const pending = this.pending.get(id);
@@ -159,7 +245,14 @@ export class SeamClient {
 			if (message.ok === true) {
 				pending.resolve(message.result);
 			} else {
-				pending.reject(new Error(typeof message.error === 'string' ? message.error : 'unknown seam error'));
+				const failure = message.error;
+				if (failure !== null && typeof failure === 'object' && typeof (failure as { code?: unknown }).code === 'string' && typeof (failure as { message?: unknown }).message === 'string') {
+					// v1 structured error envelope: {code, message, details?}.
+					const structured = failure as { code: string; message: string; details?: Record<string, unknown> };
+					pending.reject(new SeamProtocolError(structured.code, structured.message, structured.details));
+				} else {
+					pending.reject(new Error(typeof failure === 'string' ? failure : 'unknown seam error'));
+				}
 			}
 		}
 	}
@@ -223,6 +316,36 @@ export class SeamClient {
 
 	verifyLedger(): Promise<VerifyLedgerResult> {
 		return this.request<VerifyLedgerResult>('flauz.workspace.verifyLedger');
+	}
+
+	// --- v1 protocol wrappers (health/lifecycle only; the flauz.auth skeleton
+	// --- stays unwrapped by design — fail-closed, no client surface) ---
+
+	/** `flauz.health.ping` (requires a v1 service; rejects locally against v0). */
+	healthPing(): Promise<SeamHealthPingResult> {
+		return this.requestV1<SeamHealthPingResult>('flauz.health.ping');
+	}
+
+	/** `flauz.health.status` (requires a v1 service; rejects locally against v0). */
+	healthStatus(): Promise<SeamHealthStatusResult> {
+		return this.requestV1<SeamHealthStatusResult>('flauz.health.status');
+	}
+
+	/** `flauz.lifecycle.initialize` — graceful and idempotent (requires a v1 service). */
+	lifecycleInitialize(): Promise<SeamLifecycleInitializeResult> {
+		return this.requestV1<SeamLifecycleInitializeResult>('flauz.lifecycle.initialize');
+	}
+
+	/** `flauz.lifecycle.shutdown` — graceful and idempotent (requires a v1 service). */
+	lifecycleShutdown(): Promise<SeamLifecycleShutdownResult> {
+		return this.requestV1<SeamLifecycleShutdownResult>('flauz.lifecycle.shutdown');
+	}
+
+	private requestV1<T>(cmd: string): Promise<T> {
+		if (this.negotiatedProtocolVersion === DEFAULT_NEGOTIATED_PROTOCOL_VERSION) {
+			return Promise.reject(new Error(`${cmd} requires seam protocol flauz.seam/v1 (negotiated: ${this.negotiatedProtocolVersion}; the service answered a v0-only ready)`));
+		}
+		return this.request<T>(cmd);
 	}
 
 	private setExited(code: number | null, error?: Error): void {
