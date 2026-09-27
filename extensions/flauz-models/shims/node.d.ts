@@ -34,11 +34,11 @@ declare module 'node:test' {
 }
 
 declare module 'node:assert' {
-	export function ok(value: unknown, message?: string): void;
+	export function ok(value: unknown, message?: string): asserts value;
 	export function equal(actual: unknown, expected: unknown, message?: string): void;
-	export function strictEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function strictEqual<T>(actual: unknown, expected: T, message?: string): asserts actual is T;
 	export function notStrictEqual(actual: unknown, expected: unknown, message?: string): void;
-	export function deepStrictEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function deepStrictEqual<T>(actual: unknown, expected: T, message?: string): asserts actual is T;
 	export function throws(fn: () => unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): void;
 	export function match(value: string, regexp: RegExp, message?: string): void;
 	export function fail(message?: string): never;

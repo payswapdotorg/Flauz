@@ -149,9 +149,28 @@ export interface CostMetadata {
 }
 
 /**
- * The declared capability record of one provider. `contextWindowTokens` is
- * the full window; input/output/tool reservations are derived by the budget
- * compiler (src/budget/budget.ts), never by the adapter.
+ * One model served by a provider (the per-model slice of the capability
+ * record; mirrors the required fields of vscode.LanguageModelChatInformation
+ * plus the Flauz cost envelope).
+ */
+export interface ModelDescriptor {
+	readonly modelId: string;
+	readonly modelName: string;
+	readonly family: string;
+	readonly version: string;
+	readonly contextWindowTokens: number;
+	readonly maxOutputTokens: number;
+	readonly inputModalities: readonly Modality[];
+	/** Mirror of vscode toolCalling: boolean, or max tool count. */
+	readonly toolCalling: boolean | number;
+	readonly cost?: CostMetadata;
+}
+
+/**
+ * The declared capability record of one provider/model pair.
+ * `contextWindowTokens` is the full window; input/output/tool reservations
+ * are derived by the budget compiler (src/budget/budget.ts), never by the
+ * adapter.
  */
 export interface ProviderCapabilities {
 	readonly wireFamily: WireFamily;
@@ -210,8 +229,10 @@ export interface HealthReport {
  */
 export interface ProviderAdapter {
 	readonly descriptor: AdapterDescriptor;
-	/** Static capability declaration for this provider. */
-	capabilities(): ProviderCapabilities;
+	/** The models this provider serves (per-model capability sources). */
+	models(): readonly ModelDescriptor[];
+	/** Capability declaration for one served model (undefined for unknown ids). */
+	capabilities(modelId: string): ProviderCapabilities | undefined;
 	/** Cheap liveness/authorization probe against the configured endpoint. */
 	health(context?: RequestContext): Promise<HealthReport>;
 	/**
