@@ -177,12 +177,25 @@ function usage() {
 	process.stdout.write(`compat-l3-smoke.mjs - Code OSS compatibility battery, layer 3 (TL4-008)
 
 Usage:
-	node compat-l3-smoke.mjs [--cdp-port <n>] [--http-url <u>] [--log <file>]...
-	                         [--log-dir <dir>]... [--compile-root <dir>]
-	                         [--cmd <path> [--arg <v>]... [--cwd <dir>] [--env <K=V>]...]
-	                         [--target-regex <re>] [--boot-timeout <ms>]
-	                         [--settle-timeout <ms>] [--fatal-regex <re>]...
-	                         [--require] [--json] [--out <path>] [--no-fail]
+	node compat-l3-smoke.mjs [flags]
+
+	--cdp-port <n>        attach mode: CDP port of the booted workbench
+	--http-url <u>        attach mode: workbench HTTP endpoint
+	--log <file>          boot log to scan (repeatable)
+	--log-dir <dir>       log directory to scan (repeatable)
+	--compile-root <dir>  compiled out/ tree to verify pillar rows against
+	--cmd <path>          child mode: launch the subject process group
+	--arg <v>             child argv entry (repeatable, with --cmd)
+	--cwd <dir>           child working directory (with --cmd)
+	--env <K=V>           child environment entry (repeatable)
+	--target-regex <re>   CDP target filter
+	--boot-timeout <ms>   workbench boot timeout
+	--settle-timeout <ms> row settle timeout
+	--fatal-regex <re>    fatal log pattern (repeatable)
+	--require             exit 1 on FAIL rows (default: report-only)
+	--json                JSON report to stdout
+	--out <path>          write JSON report to path
+	--no-fail             report-only (always exit 0)
 
 Modes: attach (CI - the harness launched the workbench, the driver takes the
 coordinates) or child (--cmd - the driver launches the subject, owns the
