@@ -1,4 +1,4 @@
-# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003)
+# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003 + TL3-006)
 
 The extension-land vs product-side boundary for the environment registry, the
 lifecycle executors, and the resolver/remote machinery it builds on. Every row
@@ -57,6 +57,51 @@ of the environment's most recent record; `result:'error'` requires
 `error:{code,message}` and `result:'ok'` forbids it. The
 `flauz.environments/v0` descriptor registry (DL-29) is untouched — lifecycle
 state lives ONLY in these NEW sibling files.
+
+## 1b. The TL3-006 continuity EXECUTION layer (landed)
+
+Continuity is now an EXECUTABLE capability (`src/continuityExec/`):
+
+- The continuity BUNDLE — `.flauz/continuity-bundles/<bundleId>/manifest.json`
+  (`flauz.continuity-bundle/v0`), a content-addressed export over the CLOSED
+  surface table (the 16-surface N-8 canon materialized from actual `.flauz/`
+  state + the post-canon state surfaces: PIN-1 journal, PIN-2 pair, resources
+  graph + ops, workflow state). Carried surfaces are copied with sha256;
+  secret-shaped surfaces (evidence ledger, artifacts, browser journal) are
+  typed `redacted` entries (presence + sha256 of the PATH — the payload is
+  never copied; the secret-redaction law); non-materialized surfaces are
+  typed `lost` entries with the canon name. Every manifest covers the full
+  table.
+- The continuity OPS LEDGER — `.flauz/continuity-ops.jsonl`
+  (`flauz.continuity-ops/v0`), append-only, MANDATORY actor, details block
+  `{fromEnvironmentId?, toEnvironmentId?, surfacesCarried, surfacesLost,
+  surfacesRedacted}`, `result:'error'` requires `{code, message}`.
+- Commands `flauz.continuity.export | restore | verify | status` (typed
+  results; restore is DESTRUCTIVE-CLASS: fail-closed trust gate on the
+  target environment, `force` required to overwrite non-empty state
+  (`RESTORE_TARGET_NOT_EMPTY`), per-surface outcomes with per-file atomic
+  tmp+rename writes; a failed surface is `skipped` and the prior target
+  state survives untouched).
+- `planSwitch` gained an ADDITIVE optional `continuityBundleId` (the plan
+  can reference a bundle to carry; the switch state machine and the PIN-2
+  files are untouched). `flauz.env.switch` passes it through.
+- Fixtures pin BOTH new shapes at `test/fixtures/continuity/` (good pair +
+  a 35-case invalid matrix).
+
+**What remains product-side / later lanes (the honest gaps):**
+
+1. LIVE SWITCH-DRIVER EMISSION HOOKS — the export/restore around a real
+   switch are command-invoked today (manual or driver-driven); the switch
+   choreography does not AUTO-export before the re-open or AUTO-restore
+   after it. The hooks land with the live switch driver (INTEGRATION-GAP
+   row 10 — same timing as the PERF 5.5 mark emission).
+2. REMOTE-FILESYSTEM CARRY — restore re-hydrates the CURRENT workspace
+   root's `.flauz/` state; `targetEnvironmentId` is the provenance/trust
+   attribute. Carrying bundle bytes to a remote FS is the TL3-004 provider
+   lane (the bundle is a portable directory — no provider coupling).
+3. BUNDLE TRANSPORT — moving a bundle between machines is out-of-band in
+   v0 (the bundle rides the SCM surface or explicit file transfer); no
+   Flauz service exists yet for cross-workspace bundle exchange.
 
 ## 2. The boundary, surface by surface
 

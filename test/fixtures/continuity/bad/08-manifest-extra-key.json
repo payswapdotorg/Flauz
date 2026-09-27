@@ -1,0 +1,124 @@
+{
+	"schemaVersion": 0,
+	"schema": "flauz.continuity-bundle/v0",
+	"bundleId": "flauz:continuity:0123456789abcdef",
+	"createdAt": 1760000100000,
+	"actor": "human",
+	"sourceEnvironmentId": "env-source-main",
+	"switchPlanRef": "flauz.switchPlan/v0:env-target-box@1760000090000",
+	"surfaces": {
+		"flauz-tasks-envelope": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-tasks-envelope.json",
+			"sha256": "2e0037521461ed23f4269712d6deac75619d38bedeeeafd0f6d518d3a002de5a",
+			"bytes": 13,
+			"note": "carried from .flauz/tasks.json"
+		},
+		"flauz-evidence-ledger": {
+			"status": "redacted",
+			"sha256": "a8975b99781aca7220bf6eec0261a6a24e83b6ab93abec0d7af8ca8f3020e340",
+			"note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+		},
+		"flauz-evidence-artifacts": {
+			"status": "redacted",
+			"sha256": "42d5a8162aaa9d5848f008b264fa16154d7fba614ced0c558ecaff96e5aafb96",
+			"note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+		},
+		"flauz-environments-registry": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-environments-registry.json",
+			"sha256": "2e0037521461ed23f4269712d6deac75619d38bedeeeafd0f6d518d3a002de5a",
+			"bytes": 13,
+			"note": "carried from .flauz/environments.json"
+		},
+		"scm-working-tree": {
+			"status": "lost",
+			"note": "rides the SCM substrate (git working tree + branches); not a .flauz/ surface — workspace-committed .flauz state travels with it"
+		},
+		"chat-sessions": {
+			"status": "lost",
+			"note": "natively re-hydrated by the sessions infra on the target env (N-8 re-open model)"
+		},
+		"chat-editing-checkpoints": {
+			"status": "lost",
+			"note": "natively re-hydrated by the chat editing/checkpoint infra (N-8 re-open model)"
+		},
+		"edit-sessions": {
+			"status": "lost",
+			"note": "natively re-hydrated by the edit-sessions infra (working-copy continuation, N-8)"
+		},
+		"agent-sessions": {
+			"status": "lost",
+			"note": "AHP server-side (sessionDatabase + taskEventReplay); not a workspace-local surface"
+		},
+		"flauz-task-state-machine": {
+			"status": "lost",
+			"note": "re-hydrates from the carried tasks envelope (no separate file)"
+		},
+		"persisted-approvals": {
+			"status": "lost",
+			"note": "AHP session-permission entries (SECURITY-MODEL 3.4); re-established by the agent host"
+		},
+		"terminal-scrollback": {
+			"status": "lost",
+			"note": "renderer-local (per-connection ptys) — lost by design (N-8)"
+		},
+		"browser-pane-state": {
+			"status": "lost",
+			"note": "live CDP state is renderer-local — lost by design (N-8); the PIN-1 journal carries its persistent trace as its own surface (flauz-browser-session-journal)"
+		},
+		"inflight-chat-streams": {
+			"status": "lost",
+			"note": "in-flight streaming turns do not survive the re-open — lost by design (N-8)"
+		},
+		"window-layout": {
+			"status": "lost",
+			"note": "machine-local workspace state — lost by design (N-8)"
+		},
+		"resolver-connection-state": {
+			"status": "lost",
+			"note": "resolver sockets/tunnels are re-established by resolve() on the target env"
+		},
+		"flauz-browser-session-journal": {
+			"status": "redacted",
+			"sha256": "400032a70c719c218a7e4bad8ecad8381778442efed7af9184d176e5ddb422d6",
+			"note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+		},
+		"flauz-environments-lifecycle": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-environments-lifecycle.json",
+			"sha256": "2e0037521461ed23f4269712d6deac75619d38bedeeeafd0f6d518d3a002de5a",
+			"bytes": 13,
+			"note": "carried from .flauz/environments-lifecycle.json"
+		},
+		"flauz-environments-ops": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-environments-ops.jsonl",
+			"sha256": "2e0037521461ed23f4269712d6deac75619d38bedeeeafd0f6d518d3a002de5a",
+			"bytes": 13,
+			"note": "carried from .flauz/environments-ops.jsonl"
+		},
+		"flauz-resources-graph": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-resources-graph.json",
+			"sha256": "2e0037521461ed23f4269712d6deac75619d38bedeeeafd0f6d518d3a002de5a",
+			"bytes": 13,
+			"note": "carried from .flauz/resources.json"
+		},
+		"flauz-resources-ops": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-resources-ops.jsonl",
+			"sha256": "2e0037521461ed23f4269712d6deac75619d38bedeeeafd0f6d518d3a002de5a",
+			"bytes": 13,
+			"note": "carried from .flauz/resources-ops.jsonl"
+		},
+		"flauz-workflow-state": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-workflow-state",
+			"sha256": "8c383cf1c1358ceaafe0904acd94a152fdce2575f010fb45132b03be5a094dd7",
+			"bytes": 0,
+			"note": "carried from .flauz/workflows (0 file(s); per-file hashes in surfaces/flauz-workflow-state.manifest.json)"
+		}
+	},
+	"extra": "no"
+}

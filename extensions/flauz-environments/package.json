@@ -30,6 +30,10 @@
 		"onCommand:flauz.env.snapshot",
 		"onCommand:flauz.env.destroy",
 		"onCommand:flauz.env.status",
+		"onCommand:flauz.continuity.export",
+		"onCommand:flauz.continuity.restore",
+		"onCommand:flauz.continuity.verify",
+		"onCommand:flauz.continuity.status",
 		"onCommand:flauz.focusView.environments",
 		"onCommand:flauz.env.refreshView"
 	],
@@ -133,6 +137,30 @@
 				"title": "Show Environment Status",
 				"category": "Flauz",
 				"description": "Describe an environment (lifecycle state, health verdict, last operation)."
+			},
+			{
+				"command": "flauz.continuity.export",
+				"title": "Export Continuity Bundle",
+				"category": "Flauz",
+				"description": "Export the workspace logical state as a content-addressed continuity bundle under .flauz/continuity-bundles (secret-shaped surfaces are redacted by law, never copied)."
+			},
+			{
+				"command": "flauz.continuity.restore",
+				"title": "Restore Continuity Bundle",
+				"category": "Flauz",
+				"description": "Restore workspace state from a continuity bundle (destructive-class: requires force to overwrite non-empty state; fail-closed for untrusted target environments)."
+			},
+			{
+				"command": "flauz.continuity.verify",
+				"title": "Verify Continuity Bundle",
+				"category": "Flauz",
+				"description": "Verify a continuity bundle's integrity (manifest hashes re-checked against the bundle artifacts, typed per-surface verdicts)."
+			},
+			{
+				"command": "flauz.continuity.status",
+				"title": "Show Continuity Status",
+				"category": "Flauz",
+				"description": "List continuity bundles and the recorded continuity operations (read-only)."
 			},
 			{
 				"command": "flauz.focusView.environments",

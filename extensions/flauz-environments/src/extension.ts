@@ -33,11 +33,17 @@
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { FileSystemPort } from './api.ts';
 import { EnvironmentRegistry } from './registry.ts';
 import { planSwitch } from './continuity.ts';
 import { registerEnvironmentsView, type EnvironmentsViewApi } from './views.ts';
+import {
+	ContinuityManager,
+	type ContinuityStatusReport,
+	type RestoreSurfaceResult,
+	type VerifySurfaceResult,
+} from './continuityExec/index.ts';
 import {
 	EnvironmentLifecycleManager,
 	LocalProcessExecutor,
@@ -115,6 +121,7 @@ const HARNESS_PATH = new URL('../fixtures/env-agent.ts', import.meta.url).pathna
 const state: {
 	registry: EnvironmentRegistry | undefined;
 	lifecycle: EnvironmentLifecycleManager | undefined;
+	continuity: ContinuityManager | undefined;
 	error: string | undefined;
 	view: { refresh(): void } | undefined;
 	workspaceRoot: string | undefined;
@@ -123,6 +130,7 @@ const state: {
 } = {
 	registry: undefined,
 	lifecycle: undefined,
+	continuity: undefined,
 	error: undefined,
 	view: undefined,
 	workspaceRoot: undefined,
@@ -144,8 +152,15 @@ function currentLifecycle(): EnvironmentLifecycleManager {
 	return state.lifecycle;
 }
 
+function currentContinuity(): ContinuityManager {
+	if (state.continuity === undefined) {
+		throw new Error('flauz.continuity: continuity inactive (no workspace folder or failed bootstrap)');
+	}
+	return state.continuity;
+}
+
 /** Builds the registry + lifecycle manager pair for a workspace root. */
-async function bootManagers(root: string): Promise<{ registry: EnvironmentRegistry; lifecycle: EnvironmentLifecycleManager }> {
+async function bootManagers(root: string): Promise<{ registry: EnvironmentRegistry; lifecycle: EnvironmentLifecycleManager; continuity: ContinuityManager }> {
 	const registry = new EnvironmentRegistry({ root, fs: state.fs, clock: state.clock });
 	await registry.bootstrap();
 	const lifecycle = new EnvironmentLifecycleManager({
@@ -168,7 +183,30 @@ async function bootManagers(root: string): Promise<{ registry: EnvironmentRegist
 		],
 	});
 	await lifecycle.bootstrap();
-	return { registry, lifecycle };
+	const continuity = new ContinuityManager({
+		root,
+		fs: {
+			...nodeFs,
+			readdir: async path => {
+				try {
+					const entries = await fs.readdir(path, { withFileTypes: true });
+					return entries
+						.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+						.map(entry => ({ name: entry.name, kind: entry.isDirectory() ? ('directory' as const) : ('file' as const) }));
+				} catch (err) {
+					if ((err as { code?: string }).code === 'ENOENT') {
+						return undefined;
+					}
+					throw err;
+				}
+			},
+			rm: path => fs.rm(path, { recursive: true, force: true }),
+		},
+		clock: state.clock,
+		mintId: () => `flauz:continuity:${randomBytes(8).toString('hex')}`,
+		registry,
+	});
+	return { registry, lifecycle, continuity };
 }
 
 /** Real recovery: re-attempts the registry + lifecycle bootstrap from scratch. */
@@ -176,6 +214,7 @@ async function retryBootstrap(): Promise<void> {
 	if (state.workspaceRoot === undefined) {
 		state.registry = undefined;
 		state.lifecycle = undefined;
+		state.continuity = undefined;
 		state.error = undefined;
 		return;
 	}
@@ -183,10 +222,12 @@ async function retryBootstrap(): Promise<void> {
 		const fresh = await bootManagers(state.workspaceRoot);
 		state.registry = fresh.registry;
 		state.lifecycle = fresh.lifecycle;
+		state.continuity = fresh.continuity;
 		state.error = undefined;
 	} catch (err) {
 		state.registry = undefined;
 		state.lifecycle = undefined;
+		state.continuity = undefined;
 		state.error = err instanceof Error ? err.message : String(err);
 	}
 }
@@ -296,6 +337,109 @@ function viewApi(): EnvironmentsViewApi {
 	};
 }
 
+// ---------------------------------------------------------------------------
+// TL3-006 continuity command surface (typed results, never raw throws).
+// Provenance at the command boundary: palette invocations default to actor
+// `human` (the command palette is a human surface); programmatic callers
+// (agents/tools) pass `actor` explicitly — the manager itself rejects any op
+// without a valid actor (fail-closed).
+// ---------------------------------------------------------------------------
+
+/** The result every continuity command returns (typed, never a raw throw). */
+export type ContinuityCommandResult =
+	| { readonly ok: true; readonly op: 'export'; readonly manifest: import('./continuityExec/types.ts').ContinuityBundleManifest; readonly record: import('./continuityExec/types.ts').ContinuityOpRecord }
+	| { readonly ok: true; readonly op: 'restore'; readonly surfaces: readonly RestoreSurfaceResult[]; readonly record: import('./continuityExec/types.ts').ContinuityOpRecord }
+	| { readonly ok: true; readonly op: 'verify'; readonly surfaces: readonly VerifySurfaceResult[]; readonly record: import('./continuityExec/types.ts').ContinuityOpRecord }
+	| { readonly ok: true; readonly op: 'status'; readonly report: ContinuityStatusReport }
+	| { readonly ok: false; readonly error: { readonly code: string; readonly message: string }; readonly record?: import('./continuityExec/types.ts').ContinuityOpRecord; readonly surfaces?: readonly (RestoreSurfaceResult | VerifySurfaceResult)[] };
+
+/** Wraps a continuity pre-flight error as a typed command result. */
+function continuityPreflightError(err: unknown): ContinuityCommandResult {
+	const code = (err as { code?: unknown }).code;
+	return {
+		ok: false,
+		error: {
+			code: typeof code === 'string' && code.length > 0 ? code : 'CONTINUITY_ERROR',
+			message: err instanceof Error ? err.message : String(err),
+		},
+	};
+}
+
+async function runContinuityExport(arg: unknown): Promise<ContinuityCommandResult> {
+	const record = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown; environmentId?: unknown; switchPlanRef?: unknown }) : {};
+	try {
+		const outcome = await currentContinuity().export({
+			actor: record.actor ?? 'human',
+			...(record.environmentId !== undefined ? { environmentId: record.environmentId } : {}),
+			...(record.switchPlanRef !== undefined ? { switchPlanRef: record.switchPlanRef } : {}),
+		});
+		if (outcome.ok) {
+			const counts = Object.values(outcome.manifest.surfaces).reduce((acc, entry) => { acc[entry.status] = (acc[entry.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+			void vscode.window.showInformationMessage(`flauz-environments: continuity bundle ${outcome.manifest.bundleId} exported (${counts.carried ?? 0} carried, ${counts.redacted ?? 0} redacted, ${counts.lost ?? 0} lost surfaces)`);
+			return { ok: true, op: 'export', manifest: outcome.manifest, record: outcome.record };
+		}
+		void vscode.window.showErrorMessage(`flauz-environments: continuity export failed (${outcome.error.code}): ${outcome.error.message}`);
+		return { ok: false, error: outcome.error, record: outcome.record };
+	} catch (err) {
+		return continuityPreflightError(err);
+	}
+}
+
+async function runContinuityRestore(arg: unknown): Promise<ContinuityCommandResult> {
+	const bundleId = typeof arg === 'string' && arg.length > 0 ? arg : (arg as { bundleId?: unknown } | undefined)?.bundleId;
+	const record = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown; targetEnvironmentId?: unknown; force?: unknown }) : {};
+	if (typeof bundleId !== 'string' || bundleId.length === 0) {
+		return { ok: false, error: { code: 'ARG_INVALID', message: 'flauz.continuity.restore: expected the bundle id (string or { bundleId, actor?, targetEnvironmentId?, force? })' } };
+	}
+	try {
+		const outcome = await currentContinuity().restore({
+			bundleId,
+			actor: record.actor ?? 'human',
+			...(record.targetEnvironmentId !== undefined ? { targetEnvironmentId: record.targetEnvironmentId } : {}),
+			...(record.force !== undefined ? { force: record.force } : {}),
+		});
+		if (outcome.ok) {
+			const carried = outcome.surfaces.filter((surface: RestoreSurfaceResult) => surface.outcome === 'carried').length;
+			void vscode.window.showInformationMessage(`flauz-environments: continuity bundle ${bundleId} restored (${carried} surface(s) re-hydrated)`);
+			return { ok: true, op: 'restore', surfaces: outcome.surfaces, record: outcome.record };
+		}
+		void vscode.window.showErrorMessage(`flauz-environments: continuity restore failed (${outcome.error.code}): ${outcome.error.message}`);
+		return { ok: false, error: outcome.error, record: outcome.record, ...(outcome.surfaces.length > 0 ? { surfaces: outcome.surfaces } : {}) };
+	} catch (err) {
+		return continuityPreflightError(err);
+	}
+}
+
+async function runContinuityVerify(arg: unknown): Promise<ContinuityCommandResult> {
+	const bundleId = typeof arg === 'string' && arg.length > 0 ? arg : (arg as { bundleId?: unknown } | undefined)?.bundleId;
+	const actor = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown }).actor : undefined;
+	if (typeof bundleId !== 'string' || bundleId.length === 0) {
+		return { ok: false, error: { code: 'ARG_INVALID', message: 'flauz.continuity.verify: expected the bundle id (string or { bundleId, actor? })' } };
+	}
+	try {
+		const outcome = await currentContinuity().verify({ bundleId, actor: actor ?? 'human' });
+		if (outcome.ok) {
+			const verified = outcome.surfaces.filter((surface: VerifySurfaceResult) => surface.verdict === 'verified').length;
+			void vscode.window.showInformationMessage(`flauz-environments: continuity bundle ${bundleId} verified (${verified} surface artifact(s) hash-checked)`);
+			return { ok: true, op: 'verify', surfaces: outcome.surfaces, record: outcome.record };
+		}
+		void vscode.window.showErrorMessage(`flauz-environments: continuity verify failed (${outcome.error.code}): ${outcome.error.message}`);
+		return { ok: false, error: outcome.error, surfaces: outcome.surfaces, record: outcome.record };
+	} catch (err) {
+		return continuityPreflightError(err);
+	}
+}
+
+async function runContinuityStatus(): Promise<ContinuityCommandResult> {
+	try {
+		const report: ContinuityStatusReport = await currentContinuity().status();
+		void vscode.window.showInformationMessage(`flauz-environments: ${report.bundles.length} continuity bundle(s), ${report.ops.length} recorded op(s)`);
+		return { ok: true, op: 'status', report };
+	} catch (err) {
+		return continuityPreflightError(err);
+	}
+}
+
 export function activate(context: vscode.ExtensionContext): void {
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 	state.workspaceRoot = workspaceRoot;
@@ -379,8 +523,12 @@ export function activate(context: vscode.ExtensionContext): void {
 		}],
 		['flauz.env.switch', async (arg?: unknown) => {
 			const id = typeof arg === 'string' ? arg : (arg as { id?: string } | undefined)?.id;
+			const rawBundleId = typeof arg === 'object' && arg !== null ? (arg as { continuityBundleId?: unknown }).continuityBundleId : undefined;
 			if (typeof id !== 'string') {
-				throw new Error('flauz.env.switch: expected the target environment id (string or { id })');
+				throw new Error('flauz.env.switch: expected the target environment id (string or { id, continuityBundleId? })');
+			}
+			if (rawBundleId !== undefined && typeof rawBundleId !== 'string') {
+				throw new Error(`flauz.env.switch: continuityBundleId must be a continuity bundle id string (got ${JSON.stringify(rawBundleId)})`);
 			}
 			const reg = currentRegistry();
 			const target = reg.get(id);
@@ -389,9 +537,9 @@ export function activate(context: vscode.ExtensionContext): void {
 			}
 			const active = reg.active();
 			const plan = await reg.activate(id);
-			const switchPlan = planSwitch(active ?? null, target);
+			const switchPlan = planSwitch(active ?? null, target, typeof rawBundleId === 'string' ? { continuityBundleId: rawBundleId } : undefined);
 			refreshView();
-			void vscode.window.showInformationMessage(`flauz-environments: switch planned ${switchPlan.fromEnvironmentId ?? 'local'} -> ${id} (re-open on ${switchPlan.toAuthority}; see flauz.env.showPlan)`);
+			void vscode.window.showInformationMessage(`flauz-environments: switch planned ${switchPlan.fromEnvironmentId ?? 'local'} -> ${id} (re-open on ${switchPlan.toAuthority}${switchPlan.continuityBundleId !== undefined ? `; continuity bundle ${switchPlan.continuityBundleId}` : ''}; see flauz.env.showPlan)`);
 			return switchPlan;
 		}],
 		// ---- TL3-003 lifecycle commands (typed results, never raw throws) ----
@@ -416,6 +564,11 @@ export function activate(context: vscode.ExtensionContext): void {
 				return preflightError(err);
 			}
 		}],
+		// ---- TL3-006 continuity commands (typed results, never raw throws) ----
+		['flauz.continuity.export', async (arg?: unknown) => runContinuityExport(arg)],
+		['flauz.continuity.restore', async (arg?: unknown) => runContinuityRestore(arg)],
+		['flauz.continuity.verify', async (arg?: unknown) => runContinuityVerify(arg)],
+		['flauz.continuity.status', async () => runContinuityStatus()],
 	];
 
 	for (const [id, handler] of commands) {
@@ -426,6 +579,7 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {
 	state.registry = undefined;
 	state.lifecycle = undefined;
+	state.continuity = undefined;
 	state.error = undefined;
 	state.view = undefined;
 	state.workspaceRoot = undefined;
