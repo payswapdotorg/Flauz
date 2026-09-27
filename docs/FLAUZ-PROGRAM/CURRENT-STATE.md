@@ -1,14 +1,14 @@
 # Flauz Current State
 
 Program reset: 2026-09-27
-Integrated product branch: flauz/main
+Integrated product branch: main
 Integrated head at reset: 279a2a84add1f27e343822e0b89860e61bd65738
 
 ## Branch state
 
-- main is the upstream Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
-- flauz/main is the active Flauz implementation line.
-- flauz/main is 54 commits ahead of upstream main and 0 behind at the reset point.
+- upstream/main is the upstream Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
+- main is the active Flauz implementation line.
+- main is 54 commits ahead of upstream main and 0 behind at the reset point.
 - Do not work from upstream main.
 
 ## Present product surfaces
@@ -95,4 +95,4 @@ Later workflow capabilities must be re-established from current code and tests b
 12. Proposed-API dependencies and their upgrade/retirement plan.
 
 Previous TL2 lab reports are evidence of work performed, not a substitute for current integrated verification.
-The code on flauz/main plus these program documents is now the authoritative starting point.
+The code on main plus these program documents is now the authoritative starting point.
