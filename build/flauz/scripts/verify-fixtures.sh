@@ -268,6 +268,7 @@ fi
 # (the CI lane passes the generous defaults).
 CL3="$F/compat-l3"
 expect "compat-l3 clean logs+compile PASS"             0 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-clean/boot.log" --log-dir "$CL3/logs-clean/userdata-logs" --compile-root "$CL3/fake-out" --settle-timeout 300
+expect "compat-l3 no-logs SKIP census PASS"            0 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/fake-out"
 expect "compat-l3 fatal log FAIL"                      1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-fatal/boot.log" --settle-timeout 300
 expect "compat-l3 no-ext-marker FAIL"                  1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-no-ext/boot.log" --settle-timeout 300
 expect "compat-l3 flauz-vanished FAIL (pos-ctl)"       1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-no-flauz/boot.log" --settle-timeout 300

@@ -114,11 +114,12 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# -> ALL 115 CASES AS EXPECTED (0 deviations)
+# -> ALL 116 CASES AS EXPECTED (0 deviations)
 ```
 
-(TL4-008 addendum, 2026-09-29: the compat-l3-smoke section adds 11 cases
-(104 to 115) - clean logs+compile PASS, fatal log FAIL, no-ext-marker FAIL,
+(TL4-008 addendum, 2026-09-29: the compat-l3-smoke section adds 12 cases
+(104 to 116) - clean logs+compile PASS, no-logs SKIP census PASS, fatal log
+FAIL, no-ext-marker FAIL,
 flauz-vanished FAIL (the runtime positive control), missing pillar FAIL,
 absent compile-root FAIL, --no-fail informational, --require sans channel
 (usage), usage error, --help, plus the `node --test
