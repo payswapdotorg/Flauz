@@ -116,7 +116,7 @@ export type RestorationPlan =
 		readonly hint: string;
 	};
 
-export type RestorationFamily = RestorationPlan['family'];
+export type RestorationFamily = RestorationPlan.family;
 
 export interface RestoreOptions {
 	/** Fail-closed provenance: the actor is MANDATORY on the recorded edge. */
@@ -140,7 +140,7 @@ const FAMILY_BY_KIND: Partial<Record<string, RestorationFamily>> = {
 	'artifact': 'file-artifact',
 };
 
-function currentSurface(graph: ResourceGraph, refId: string, family: Surface['kind']): Surface | undefined {
+function currentSurface(graph: ResourceGraph, refId: string, family: Surface.kind): Surface | undefined {
 	const record = graph.surfaceRecord(refId, family);
 	if (record === undefined) {
 		return undefined;
@@ -176,20 +176,20 @@ async function probeRegistry(fs: FileSystemPort, root: string, environmentId: st
 			throw new Error('not an object');
 		}
 		const record = parsed as Record<string, unknown>;
-		const environments = Array.isArray(record['environments']) ? record['environments'] as readonly unknown[] : [];
+		const environments = Array.isArray(record.environments) ? record.environments as readonly unknown[] : [];
 		const descriptor = environments.find(entry => {
 			if (typeof entry !== 'object' || entry === null) {
 				return false;
 			}
-			return (entry as Record<string, unknown>)['id'] === environmentId;
+			return (entry as Record<string, unknown>).id === environmentId;
 		}) as Record<string, unknown> | undefined;
 		if (descriptor === undefined) {
 			return { registryState: 'present', enabled: null, active: null };
 		}
-		const activeId = typeof record['activeId'] === 'string' ? record['activeId'] : null;
+		const activeId = typeof record.activeId === 'string' ? record.activeId : null;
 		return {
 			registryState: 'present',
-			enabled: typeof descriptor['enabled'] === 'boolean' ? descriptor['enabled'] : null,
+			enabled: typeof descriptor.enabled === 'boolean' ? descriptor.enabled : null,
 			active: activeId === environmentId,
 		};
 	} catch {
@@ -202,7 +202,7 @@ export interface ContinuityOptions {
 }
 
 export class ContinuityService {
-	private readonly graph: ContinuityOptions['graph'];
+	private readonly graph: ContinuityOptions.graph;
 
 	constructor(options: ContinuityOptions) {
 		this.graph = options.graph;

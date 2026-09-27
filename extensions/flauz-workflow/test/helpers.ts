@@ -10,8 +10,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';
-import { sha256Hex } from '../../flauz-workspace/src/api.ts';
+import { sha256Hex, type FileSystemPort } from '../../flauz-workspace/src/api.ts';
 import { TaskService } from '../../flauz-workspace/src/taskService.ts';
 import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';
 import { WorkflowService } from '../src/envelope.ts';

@@ -151,10 +151,10 @@ test('events fan out to every subscriber of the method; dispose stops delivery',
 		const seenA: string[] = [];
 		const seenB: string[] = [];
 		const subA = transport.on('Page.frameNavigated', params => {
-				seenA.push(String(params['url']));
+				seenA.push(String(params.url));
 		});
 		const subB = transport.on('Page.frameNavigated', params => {
-				seenB.push(String(params['url']));
+				seenB.push(String(params.url));
 		});
 		transport.on('Page.loadEventFired', () => {
 				seenA.push('load');
@@ -179,10 +179,10 @@ test('session-scoped events carry their sessionId; scopeToSession filters to one
 		const two: string[] = [];
 		const any: Array<string | undefined> = [];
 		scopedOne.on('Page.frameNavigated', (params, sessionId) => {
-				one.push(`${String(params['url'])}@${sessionId}`);
+				one.push(`${String(params.url)}@${sessionId}`);
 		});
 		scopedTwo.on('Page.frameNavigated', (params, sessionId) => {
-				two.push(`${String(params['url'])}@${sessionId}`);
+				two.push(`${String(params.url)}@${sessionId}`);
 		});
 		transport.on('Page.frameNavigated', (_params, sessionId) => {
 				any.push(sessionId);
@@ -250,7 +250,7 @@ test('waitForCdpEvent resolves on the next matching event and honors predicates'
 
 		const filtered = waitForCdpEvent(transport, 'Page.loadEventFired', {
 				timeoutMs: 500,
-				predicate: params => params['frameId'] === 'f-9',
+				predicate: params => params.frameId === 'f-9',
 		});
 		socket.event('Page.loadEventFired', { frameId: 'f-1' });
 		socket.event('Page.loadEventFired', { frameId: 'f-9' });

@@ -117,7 +117,7 @@ test('drop mid-session -> reconnect -> descriptor reconciled, tab RESTORED (url 
 	assert.ok(isNavigationOutcome(outcome));
 	assert.equal(outcome.sent, true);
 	assert.equal(outcome.committedUrl, 'https://docs.example.com/next');
-	assert.ok(rigInstance.transports[1]?.pageNavigateCommands().some(command => command.params['url'] === 'https://docs.example.com/next'));
+	assert.ok(rigInstance.transports[1]?.pageNavigateCommands().some(command => command.params.url === 'https://docs.example.com/next'));
 	await rigInstance.manager.dispose();
 });
 
@@ -184,7 +184,7 @@ test('WEDGED tab (command timeout on a live transport) -> replaced: old tab fail
 	assert.ok(replacementTabId !== undefined);
 
 	// the wedged navigation WAS sent before the timeout:
-	assert.equal(transport.pageNavigateCommands().filter(command => command.params['url'] === 'https://docs.example.com/will-wedge').length, 1);
+	assert.equal(transport.pageNavigateCommands().filter(command => command.params.url === 'https://docs.example.com/will-wedge').length, 1);
 	// the wedged target was closed browser-level (Target.* still respond while wedged):
 	assert.equal(transport.commandsOf('Target.closeTarget').length, 1);
 	assert.deepEqual(transport.commandsOf('Target.closeTarget')[0]?.params, { targetId: firstTargetId });

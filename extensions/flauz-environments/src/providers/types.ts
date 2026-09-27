@@ -8,15 +8,15 @@
  * plan. v0 performs NO live connections (sandbox discipline; runners and
  * real-world use execute the plan) -- the plan is the artifact.
  */
-import type {
-	AgentHostMode,
-	EnvironmentCapabilities,
-	EnvironmentConnection,
-	EnvironmentDescriptor,
-	EnvironmentKind,
-	TrustPosture,
+import {
+	type AgentHostMode,
+	type EnvironmentCapabilities,
+	type EnvironmentConnection,
+	type EnvironmentDescriptor,
+	type EnvironmentKind,
+	type TrustPosture,
+	SCHEMA_ID,
 } from '../api.ts';
-import { SCHEMA_ID } from '../api.ts';
 
 /** Schema identifier for emitted connection plans. */
 export const CONNECTION_PLAN_SCHEMA_ID = 'flauz.connectionPlan/v0';

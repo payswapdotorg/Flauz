@@ -158,7 +158,7 @@ export function validateCronExpression(expression: string): CronValidation {
 		return { ok: false, error: 'cron expression must be a non-empty string' };
 	}
 	if (expression.includes('@')) {
-		return { ok: false, error: "cron expression must not use macros such as '@daily' (AHP supports none)" };
+		return { ok: false, error: `cron expression must not use macros such as '@daily' (AHP supports none)` };
 	}
 	for (const quartz of ['?', 'L', 'W', '#'] as const) {
 		if (expression.includes(quartz)) {

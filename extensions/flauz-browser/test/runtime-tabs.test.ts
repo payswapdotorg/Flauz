@@ -142,7 +142,7 @@ test('resetTab: executes the forced reset to about:blank (gated like every navig
 	assert.equal(reset.committedUrl, 'about:blank');
 	assert.equal(reset.verdict.decision, 'allow');
 	const navigations = tabRig.transports[0]?.pageNavigateCommands() ?? [];
-	assert.deepEqual(navigations.map(command => command.params['url']), ['https://docs.example.com/a', 'about:blank']);
+	assert.deepEqual(navigations.map(command => command.params.url), ['https://docs.example.com/a', 'about:blank']);
 	assert.equal(tabRig.manager.getSession(sessionId)?.tabs[0]?.url, 'about:blank');
 	await tabRig.manager.dispose();
 });
@@ -159,7 +159,7 @@ test('a navigation DENIED mid-session never advances the tab (sequential deny/al
 	const deniedAgain = await tabRig.manager.navigate(sessionId, 'https://evil.org/2');
 	assert.ok(isNavigationOutcome(deniedAgain) && deniedAgain.sent === false);
 	assert.equal(tabRig.manager.getSession(sessionId)?.tabs[0]?.url, 'https://docs.example.com/ok', 'deny leaves the committed URL untouched');
-	const urls = (tabRig.transports[0]?.pageNavigateCommands() ?? []).map(command => command.params['url']);
+	const urls = (tabRig.transports[0]?.pageNavigateCommands() ?? []).map(command => command.params.url);
 	assert.deepEqual(urls, ['https://docs.example.com/ok'], 'only the allowed navigation ever hit the wire');
 	await tabRig.manager.dispose();
 });

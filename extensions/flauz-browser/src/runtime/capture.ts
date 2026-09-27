@@ -43,40 +43,40 @@ function renderRemoteObject(arg: unknown): string {
 		return String(arg);
 	}
 	const record = arg as Record<string, unknown>;
-	switch (record['type']) {
+	switch (record.type) {
 		case 'string':
 		case 'number':
 		case 'boolean':
-			return String(record['value']);
+			return String(record.value);
 		case 'undefined':
 			return 'undefined';
 		case 'symbol':
-			return typeof record['description'] === 'string' ? record['description'] : 'Symbol()';
+			return typeof record.description === 'string' ? record.description : 'Symbol()';
 		default:
-			return typeof record['description'] === 'string' ? record['description'] : '[object]';
+			return typeof record.description === 'string' ? record.description : '[object]';
 	}
 }
 
 function consoleEntryFrom(params: CdpParams, at: number): ConsoleCaptureEntry {
-	const args = Array.isArray(params['args']) ? params['args'] : [];
+	const args = Array.isArray(params.args) ? params.args : [];
 	const text = args.map(renderRemoteObject).join(' ');
 	return {
 		at,
 		source: 'Runtime.consoleAPICalled',
-		level: typeof params['type'] === 'string' ? params['type'] : 'log',
+		level: typeof params.type === 'string' ? params.type : 'log',
 		text,
 	};
 }
 
 function logEntryFrom(params: CdpParams, at: number): ConsoleCaptureEntry {
-	const entry = (params['entry'] ?? {}) as CdpParams;
+	const entry = (params.entry ?? {}) as CdpParams;
 	return {
 		at,
 		source: 'Log.entryAdded',
-		level: typeof entry['level'] === 'string' ? entry['level'] : 'info',
-		text: typeof entry['text'] === 'string' ? entry['text'] : '',
-		url: typeof entry['url'] === 'string' ? entry['url'] : undefined,
-		line: typeof entry['lineNumber'] === 'number' ? entry['lineNumber'] : undefined,
+		level: typeof entry.level === 'string' ? entry.level : 'info',
+		text: typeof entry.text === 'string' ? entry.text : '',
+		url: typeof entry.url === 'string' ? entry.url : undefined,
+		line: typeof entry.lineNumber === 'number' ? entry.lineNumber : undefined,
 	};
 }
 
@@ -96,24 +96,24 @@ export interface NetworkCaptureEntry {
 }
 
 function requestEntryFrom(params: CdpParams, at: number): NetworkCaptureEntry {
-	const request = (params['request'] ?? {}) as CdpParams;
+	const request = (params.request ?? {}) as CdpParams;
 	return {
 		at,
 		phase: 'request',
-		requestId: String(params['requestId'] ?? ''),
-		url: String(request['url'] ?? ''),
-		method: typeof request['method'] === 'string' ? request['method'] : undefined,
+		requestId: String(params.requestId ?? ''),
+		url: String(request.url ?? ''),
+		method: typeof request.method === 'string' ? request.method : undefined,
 	};
 }
 
 function responseEntryFrom(params: CdpParams, at: number): NetworkCaptureEntry {
-	const response = (params['response'] ?? {}) as CdpParams;
+	const response = (params.response ?? {}) as CdpParams;
 	return {
 		at,
 		phase: 'response',
-		requestId: String(params['requestId'] ?? ''),
-		url: String(response['url'] ?? ''),
-		status: typeof response['status'] === 'number' ? response['status'] : undefined,
+		requestId: String(params.requestId ?? ''),
+		url: String(response.url ?? ''),
+		status: typeof response.status === 'number' ? response.status : undefined,
 	};
 }
 
@@ -121,9 +121,9 @@ function failedEntryFrom(params: CdpParams, at: number): NetworkCaptureEntry {
 	return {
 		at,
 		phase: 'failed',
-		requestId: String(params['requestId'] ?? ''),
+		requestId: String(params.requestId ?? ''),
 		url: '',
-		errorText: typeof params['errorText'] === 'string' ? params['errorText'] : undefined,
+		errorText: typeof params.errorText === 'string' ? params.errorText : undefined,
 	};
 }
 

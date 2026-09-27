@@ -566,7 +566,7 @@ function runLayer1(upstream, product) {
 
 function loadAllowlist(explicitFile) {
 	let file = explicitFile;
-	let explicit = explicitFile !== undefined;
+	const explicit = explicitFile !== undefined;
 	if (!explicit) {
 		const def = path.join(ROOT, DEFAULT_ALLOWLIST_REL);
 		if (fs.existsSync(def)) { file = def; } else { return { file: null, entries: [], explicit: false }; }

@@ -40,8 +40,11 @@ import {
 	type A2aMessage,
 	type A2aPort,
 	type A2aMessageInput,
+	type A2aPayload,
+	type A2aTaskDelegation,
 } from '../src/messaging.ts';
 import {
+
 	validateMessage,
 	messageLine,
 	messageIdOf as gMessageIdOf,
@@ -51,6 +54,17 @@ import {
 	A2A_SCHEMA as G_A2A_SCHEMA,
 	A2A_CURSORS_SCHEMA,
 } from '../../flauz-agent/core/a2a.mjs';
+
+/** Payload guard: task-delegation arm (upstream local/code-no-in-operator:  only in predicates). */
+function isTaskDelegation(payload: A2aPayload): payload is A2aTaskDelegation {
+	return 'prompt' in payload;
+}
+
+/** Payload guard: the optional workflowId marker (upstream rule:  only in predicates). */
+function carriesWorkflowId(payload: A2aPayload): payload is A2aPayload & { workflowId?: string } {
+	return 'workflowId' in payload;
+}
+
 
 const FIXTURES = new URL('../../../test/fixtures/workflow/a2a/', import.meta.url).pathname;
 
@@ -209,11 +223,11 @@ test('optional keys are truly optional (regression: workflowId absent must valid
 		payload: { taskId: 'T-001', taskDescription: 'Review package.json structure', prompt: 'Review it.' },
 	};
 	const ts = validateA2aMessage(minimal);
-	assert.equal('workflowId' in ts.payload, false, 'TS: delegation without workflowId validates');
+	assert.equal(carriesWorkflowId(ts.payload), false, 'TS: delegation without workflowId validates');
 
 	const line = serializeA2aMessage(ts);
 	const roundTrip = validateA2aMessage(JSON.parse(line));
-	assert.ok('prompt' in roundTrip.payload && roundTrip.payload.prompt === minimal.payload.prompt, 'TS: canonical round-trip is lossless');
+	assert.ok(isTaskDelegation(roundTrip.payload) && roundTrip.payload.prompt === minimal.payload.prompt, 'TS: canonical round-trip is lossless');
 	const g = validateMessage(minimal);
 	assert.ok(g.ok === true, `G: delegation without workflowId validates (got: ${g.ok === false ? g.error : 'ok'})`);
 });

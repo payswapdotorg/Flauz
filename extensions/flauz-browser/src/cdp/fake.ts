@@ -144,6 +144,11 @@ class FakeCommandFault extends Error {
 	}
 }
 
+
+/** Type guard for the error arm of scripted outcomes (upstream local/code-no-in-operator: `in` only inside predicates). */
+function isFakeCommandError(outcome: FakeCommandOutcome): outcome is { readonly error: { readonly code: number; readonly message: string } } {
+	return 'error' in outcome;
+}
 type FakeCommandOutcome =
 	| { readonly result: CdpParams; readonly events?: readonly Record<string, unknown>[] }
 	| { readonly error: { readonly code: number; readonly message: string } };
@@ -246,10 +251,10 @@ export class FakeCdpTransport extends CdpTransportBase {
 	// --- CdpTransportBase wiring ---
 
 	protected postMessage(payload: Record<string, unknown>): void {
-		const id = payload['id'] as number;
-		const method = payload['method'] as string;
-		const params = (payload['params'] ?? {}) as CdpParams;
-		const sessionId = typeof payload['sessionId'] === 'string' ? payload['sessionId'] as string : undefined;
+		const id = payload.id as number;
+		const method = payload.method as string;
+		const params = (payload.params ?? {}) as CdpParams;
+		const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId as string : undefined;
 		this.seqCounter += 1;
 		this.sentLog.push({ id, seq: this.seqCounter, method, params, sessionId });
 
@@ -269,7 +274,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			throw err;
 		}
-		if ('error' in outcome) {
+		if (isFakeCommandError(outcome)) {
 			this.handleIncomingMessage({ id, error: outcome.error });
 			return;
 		}
@@ -290,12 +295,12 @@ export class FakeCdpTransport extends CdpTransportBase {
 	private handleCommand(method: string, params: CdpParams, sessionId: string | undefined): FakeCommandOutcome {
 		switch (method) {
 			case 'Target.createTarget': {
-				const url = asString(params['url']) ?? 'about:blank';
+				const url = asString(params.url) ?? 'about:blank';
 				const targetId = this.browser.createTarget(url);
 				return { result: { targetId }, events: [{ method: 'Target.targetCreated', params: { targetInfo: this.browser.targetInfo(targetId) } }] };
 			}
 			case 'Target.attachToTarget': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				if (targetId === undefined || !this.browser.hasTarget(targetId)) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
 				}
@@ -304,7 +309,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: { sessionId: newSessionId }, events: [{ method: 'Target.attachedToTarget', params: { sessionId: newSessionId, targetInfo: this.browser.targetInfo(targetId) } }] };
 			}
 			case 'Target.detachFromTarget': {
-				const sid = asString(params['sessionId']);
+				const sid = asString(params.sessionId);
 				if (sid === undefined || !this.sessions.has(sid)) {
 					throw new FakeCommandFault(-32602, `no such session: ${sid ?? '(none)'}`);
 				}
@@ -312,7 +317,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: {} };
 			}
 			case 'Target.closeTarget': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				if (targetId === undefined || !this.browser.closeTarget(targetId)) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
 				}
@@ -327,7 +332,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: { targetInfos: this.browser.targetInfos() } };
 			}
 			case 'Target.getTargetInfo': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				const info = targetId === undefined ? undefined : this.browser.targetInfo(targetId);
 				if (info === undefined) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
@@ -335,7 +340,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: { targetInfo: info } };
 			}
 			case 'Target.activateTarget': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				if (targetId === undefined || !this.browser.hasTarget(targetId)) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
 				}
@@ -354,7 +359,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			case 'Page.navigate': {
 				const targetId = this.requireSessionTarget(sessionId);
-				const url = asString(params['url']);
+				const url = asString(params.url);
 				if (url === undefined) {
 					throw new FakeCommandFault(-32602, 'Page.navigate requires params.url');
 				}
@@ -381,7 +386,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			case 'Runtime.evaluate': {
 				this.requireSessionTarget(sessionId);
-				const expression = asString(params['expression']) ?? '';
+				const expression = asString(params.expression) ?? '';
 				return { result: { result: { type: 'string', value: `flauz-fake-eval:${expression}` } } };
 			}
 			default:

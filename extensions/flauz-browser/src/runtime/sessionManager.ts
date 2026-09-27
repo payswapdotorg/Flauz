@@ -85,6 +85,11 @@ export interface SessionOperationError {
 	readonly error: { readonly code: string; readonly message: string };
 }
 
+/** Type guard for the error arm of manager results (upstream local/code-no-in-operator: `in` only inside predicates). */
+export function isSessionError<TResult>(result: TResult | SessionOperationError): result is SessionOperationError {
+	return 'error' in result;
+}
+
 export function isNavigationOutcome(result: NavigationOutcome | SessionOperationError): result is NavigationOutcome {
 	return typeof (result as NavigationOutcome).sent === 'boolean';
 }
@@ -346,7 +351,7 @@ export class BrowserSessionManager {
 	/** Policy-gated navigation (the pipeline; see src/runtime/tabs.ts). */
 	async navigate(sessionId: string, url: string, options: { tabId?: string } = {}): Promise<NavigationOutcome | SessionOperationError> {
 		const picked = this.pickTab(sessionId, options.tabId);
-		if ('error' in picked) {
+		if (isSessionError(picked)) {
 			return picked;
 		}
 		return runNavigation(this.deps, picked.entry.descriptor, picked.tab, url);
@@ -355,7 +360,7 @@ export class BrowserSessionManager {
 	/** Executes the forced reset to about:blank (SECURITY-MODEL F2 recommendation). */
 	async resetTab(sessionId: string, tabId?: string): Promise<NavigationOutcome | SessionOperationError> {
 		const picked = this.pickTab(sessionId, tabId);
-		if ('error' in picked) {
+		if (isSessionError(picked)) {
 			return picked;
 		}
 		return runReset(this.deps, picked.entry.descriptor, picked.tab);
@@ -364,7 +369,7 @@ export class BrowserSessionManager {
 	/** Screenshot: bytes + evidence row (+ artifact when a writer is configured). */
 	async screenshot(sessionId: string, tabId?: string): Promise<ScreenshotOutcome | SessionOperationError> {
 		const picked = this.pickTab(sessionId, tabId);
-		if ('error' in picked) {
+		if (isSessionError(picked)) {
 			return picked;
 		}
 		const artifacts = this.artifacts;
@@ -376,7 +381,7 @@ export class BrowserSessionManager {
 
 	consoleTail(sessionId: string, tabId?: string, limit: number = 50): ConsoleCaptureEntry[] | SessionOperationError {
 		const picked = this.pickTab(sessionId, tabId);
-		if ('error' in picked) {
+		if (isSessionError(picked)) {
 			return picked;
 		}
 		return picked.tab.recorder.consoleTail(limit);
@@ -384,7 +389,7 @@ export class BrowserSessionManager {
 
 	networkLog(sessionId: string, tabId?: string, limit: number = 50): NetworkCaptureEntry[] | SessionOperationError {
 		const picked = this.pickTab(sessionId, tabId);
-		if ('error' in picked) {
+		if (isSessionError(picked)) {
 			return picked;
 		}
 		return picked.tab.recorder.networkTail(limit);

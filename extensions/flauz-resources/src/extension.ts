@@ -37,8 +37,8 @@ import {
 	type FileSystemPort,
 	type ResourceKind,
 	type SurfaceRecord,
+	isResourceKind,
 } from './api.ts';
-import { isResourceKind } from './api.ts';
 import { ResourceGraph, toDot, verifyWorkspace, type NeighborLink } from './graph.ts';
 
 const vscodeFs: FileSystemPort = {

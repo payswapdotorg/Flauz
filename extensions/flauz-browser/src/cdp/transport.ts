@@ -176,10 +176,10 @@ export abstract class CdpTransportBase implements CdpTransport {
 			const id = this.nextMessageId++;
 			const payload: Record<string, unknown> = { id, method };
 			if (params !== undefined) {
-				payload['params'] = params;
+				payload.params = params;
 			}
 			if (sessionId !== undefined) {
-				payload['sessionId'] = sessionId;
+				payload.sessionId = sessionId;
 			}
 			let timer: { unref(): void } | undefined;
 			if (this.commandTimeoutMs > 0) {
@@ -208,16 +208,16 @@ export abstract class CdpTransportBase implements CdpTransport {
 			return;
 		}
 		const record = message as Record<string, unknown>;
-		if (typeof record['id'] === 'number') {
-			const entry = this.pending.get(record['id']);
+		if (typeof record.id === 'number') {
+			const entry = this.pending.get(record.id);
 			if (entry === undefined) {
 				return; // late response after a timeout: deliberately ignored
 			}
-			this.pending.delete(record['id']);
+			this.pending.delete(record.id);
 			if (entry.timer !== undefined) {
 				clearTimeout(entry.timer);
 			}
-			const error = record['error'];
+			const error = record.error;
 			if (error !== null && typeof error === 'object') {
 				const shape = error as Partial<CdpRemoteErrorShape>;
 				entry.reject(new CdpRemoteError(entry.method, {
@@ -227,13 +227,13 @@ export abstract class CdpTransportBase implements CdpTransport {
 				}));
 				return;
 			}
-			entry.resolve(record['result'] ?? {});
+			entry.resolve(record.result ?? {});
 			return;
 		}
-		if (typeof record['method'] === 'string') {
-			const params = (record['params'] ?? {}) as CdpParams;
-			const sessionId = typeof record['sessionId'] === 'string' ? record['sessionId'] : undefined;
-			this.dispatchEvent(record['method'], params, sessionId);
+		if (typeof record.method === 'string') {
+			const params = (record.params ?? {}) as CdpParams;
+			const sessionId = typeof record.sessionId === 'string' ? record.sessionId : undefined;
+			this.dispatchEvent(record.method, params, sessionId);
 		}
 	}
 
@@ -399,9 +399,14 @@ export class WebSocketCdpTransport extends CdpTransportBase {
 	}
 }
 
+/** Type guard for close-event shapes carrying a code (upstream local/code-no-in-operator: `in` only in predicates). */
+function carriesCloseCode(event: unknown): event is { code?: unknown } {
+	return typeof event === 'object' && event !== null && 'code' in event;
+}
+
 function socketCloseDetail(event: unknown): string {
-	if (event !== null && typeof event === 'object' && 'code' in event) {
-		const code = (event as { code?: unknown }).code;
+	if (carriesCloseCode(event)) {
+		const code = event.code;
 		if (typeof code === 'number') {
 			return ` (code ${code})`;
 		}

@@ -66,7 +66,7 @@ test('Page.navigate: command recorded, plausible lifecycle emitted, committed UR
 	const { sessionId } = await attachFreshTarget(transport);
 	const lifecycle: Array<{ method: string; sessionId: string | undefined; url?: string }> = [];
 	transport.on('Page.frameStartedLoading', (_params, sid) => lifecycle.push({ method: 'loading', sessionId: sid }));
-	transport.on('Page.frameNavigated', (params, sid) => lifecycle.push({ method: 'navigated', sessionId: sid, url: (params['frame'] as { url?: string } | undefined)?.url }));
+	transport.on('Page.frameNavigated', (params, sid) => lifecycle.push({ method: 'navigated', sessionId: sid, url: (params.frame as { url?: string } | undefined)?.url }));
 	transport.on('Page.loadEventFired', (_params, sid) => lifecycle.push({ method: 'load', sessionId: sid }));
 	const response = await transport.send<{ frameId: string; loaderId: string }>('Page.navigate', { url: 'https://docs.example.com/x' }, sessionId);
 	assert.match(response.frameId, /^fake-frame-\d+$/);
@@ -92,7 +92,7 @@ test('commitUrlMapper: a navigation request can commit somewhere else (redirect/
 	const { sessionId } = await attachFreshTarget(transport);
 	let committed: string | undefined;
 	transport.on('Page.frameNavigated', params => {
-		committed = (params['frame'] as { url?: string } | undefined)?.url;
+		committed = (params.frame as { url?: string } | undefined)?.url;
 	});
 	await transport.send('Page.navigate', { url: 'https://docs.example.com/' }, sessionId);
 	await new Promise<void>(resolve => queueMicrotask(() => resolve()));

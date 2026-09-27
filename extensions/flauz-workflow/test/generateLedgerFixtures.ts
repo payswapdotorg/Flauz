@@ -32,8 +32,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';
-import { sha256Hex } from '../../flauz-workspace/src/api.ts';
+import { sha256Hex, type FileSystemPort } from '../../flauz-workspace/src/api.ts';
 import { EvidenceLedger, rowHash } from '../../flauz-workspace/src/ledger.ts';
 import type { LedgerWatermark } from '../../flauz-workspace/src/hardening.ts';
 import { createFixtureSigner, generateFixtureKeystore } from '../src/keys.ts';

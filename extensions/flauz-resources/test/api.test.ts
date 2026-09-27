@@ -118,8 +118,8 @@ test('displayName must be non-empty and bounded when present', () => {
 	assert.throws(() => validateResourceRef(goodRef({ displayName: 'x'.repeat(201) })), /displayName/);
 	const ok = validateResourceRef(goodRef({ displayName: 'app.ts' }));
 	assert.equal(ok.displayName, 'app.ts');
-	const omitted = validateResourceRef((() => { const r = goodRef(); delete (r as Record<string, unknown>)['displayName']; return r; })());
-	assert.equal('displayName' in omitted, false);
+	const omitted = validateResourceRef((() => { const r = goodRef(); delete (r as Record<string, unknown>).displayName; return r; })());
+	assert.equal(omitted.displayName, undefined);
 });
 
 test('provenance is fail-closed: a missing or unknown actor is a schema rejection', () => {
