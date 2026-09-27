@@ -231,6 +231,47 @@ three new zero-dep gate scripts; fixed by allowlisting them in
 harness entries). Applies to future TL4 gate scripts: every new zero-dep
 `.mjs` gate merged to main must land with its allowlist line in the same PR.
 
+### TL4-007 — Session-battery runtime rung (real CDP + real executor)
+Status: ACTIVE (2026-09-27, Worker A dispatched from the replay, branch `tl4/a3-session-runtime`, base dcec0f8f7c9)
+Promote the whole-session acceptance battery (TL4-004) from the fixture
+rung to the runtime rung: the same four journeys (J1 golden, J2 recovery,
+J3 fail-closed, J4 continuity) over REAL ports — the real CdpEndpointHost
+against a real headless Chromium over a real CDP WebSocket (the proven
+TL3-003 drill seam) and the real LocalProcessExecutor for the environment
+leg. The journey catalogue and transcript contract stay IDENTICAL; only
+the ports change. Volatile runtime values are normalized via an explicit
+documented table, never a silent loosening. CI lane: opt-in
+`session-runtime` job in flauz-session.yml (Chrome-for-Testing download +
+FLAUZ_CDP_ENDPOINT). This is the CURRENT-STATE "Known gaps" item 9
+(whole-product end-to-end acceptance) executed at the battery level.
+
+### TL4-008 — Compat battery L3 runtime boot smoke
+Status: ACTIVE (2026-09-27, Worker B dispatched from the replay, branch `tl4/b3-compat-l3`, base dcec0f8f7c9)
+Promote the Code OSS compatibility battery (TL4-003) from L2 (manifest
+diff) to L3 (runtime smoke): a real CI lane that compiles the workbench on
+the runner (the proven hygiene-lane preamble) and boots it headless with
+the flauz extensions active, asserting the pillar smoke list from
+TL4-COMPAT-BATTERY.md section 11 via a zero-dep driver
+(boot.exit-clean, log-clean, terminal/palette/settings/activation rows —
+observable rows only; honest SKIP rows for the rest). Opt-in triggers
+(workflow_dispatch + weekly canary) for compile cost. This is the
+CURRENT-STATE "Known gaps" item 11 (verification without regressing Code
+OSS) executed at runtime level.
+
+### TL4-009 — Security-gate runtime rung (audit delta, SBOM, bundle manifest)
+Status: ACTIVE (2026-09-27, Worker C dispatched from the replay, branch `tl4/c3-security-runtime`, base dcec0f8f7c9)
+Promote the integrated security gate (TL4-006) from the fixture/static
+rung to the runtime rung: post-install npm-audit delta over the
+flauz-added dependency set (product root package.json vs upstream/main),
+CycloneDX 1.5 JSON SBOM emission for the flauz artifact set (zero-dep
+generator), and a pinned bundle-signature manifest (sha256 per flauz
+extension bundle; regenerate-and-diff = FAIL on drift — the supply-chain
+tamper signal). Rows are additive; the existing security-gate.mjs stays
+frozen. CI: the flauz-security post-install job gains the runtime gate
+step; a workflow_dispatch report job uploads SBOM + report artifacts. This
+is the CURRENT-STATE "Known gaps" item 10 (production packaging/release)
+advanced at the gate level.
+
 ## Cross-TL rule
 
 No TL may wait for another TL to begin useful work.
