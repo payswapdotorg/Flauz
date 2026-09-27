@@ -1,55 +1,55 @@
 {
-	"name": "flauz-resources",
-	"publisher": "flauz",
-	"displayName": "Flauz Resources",
-	"description": "Flauz logical resource graph: ResourceRef identity (URN ids, never paths/URLs), versioned per-family access surfaces, provenance on every mutation (.flauz/resources-ops.jsonl) and continuity restoration plans (.flauz/resources.json).",
-	"version": "0.1.0",
-	"license": "MIT",
-	"type": "module",
-	"private": true,
-	"engines": {
-		"vscode": "^1.140.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onCommand:flauz.res.list",
-		"onCommand:flauz.res.show",
-		"onCommand:flauz.res.graph",
-		"onCommand:flauz.res.verify"
-	],
-	"main": "./dist/extension.js",
-	"enabledApiProposals": [],
-	"contributes": {
-		"commands": [
-			{
-				"command": "flauz.res.list",
-				"title": "List Resources (by kind)",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.res.show",
-				"title": "Show Resource (ref + surfaces + edges + lineage)",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.res.graph",
-				"title": "Dump Resource Graph (JSON or DOT)",
-				"category": "Flauz"
-			},
-			{
-				"command": "flauz.res.verify",
-				"title": "Verify Resource Graph (schema + integrity + provenance)",
-				"category": "Flauz"
-			}
-		]
-	},
-	"scripts": {
-		"typecheck": "tsc --noEmit",
-		"test": "node --test \"test/*.test.ts\""
-	},
-	"devDependencies": {
-		"typescript": "5.9.3"
-	}
+        "name": "flauz-resources",
+        "publisher": "flauz",
+        "displayName": "Flauz Resources",
+        "description": "Flauz logical resource graph: ResourceRef identity (URN ids, never paths/URLs), versioned per-family access surfaces, provenance on every mutation (.flauz/resources-ops.jsonl) and continuity restoration plans (.flauz/resources.json).",
+        "version": "0.1.0",
+        "license": "MIT",
+        "type": "module",
+        "private": true,
+        "engines": {
+                "vscode": "^1.140.0"
+        },
+        "categories": [
+                "Other"
+        ],
+        "activationEvents": [
+                "onCommand:flauz.res.list",
+                "onCommand:flauz.res.show",
+                "onCommand:flauz.res.graph",
+                "onCommand:flauz.res.verify"
+        ],
+        "main": "./dist/extension.js",
+        "enabledApiProposals": [],
+        "contributes": {
+                "commands": [
+                        {
+                                "command": "flauz.res.list",
+                                "title": "List Resources (by Kind)",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.res.show",
+                                "title": "Show Resource (Ref + Surfaces + Edges + Lineage)",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.res.graph",
+                                "title": "Dump Resource Graph (JSON or DOT)",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.res.verify",
+                                "title": "Verify Resource Graph (Schema + Integrity + Provenance)",
+                                "category": "Flauz"
+                        }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "test": "node --test \"test/*.test.ts\""
+        },
+        "devDependencies": {
+                "typescript": "5.9.3"
+        }
 }
