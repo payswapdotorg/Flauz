@@ -504,7 +504,7 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	/** Polls kill -0 until the pid is gone (or the grace window expires on the injectable clock). */
 	private async awaitGone(connection: { readonly host: string; readonly port?: number; readonly user?: string }, pid: number, windowMs: number): Promise<boolean> {
 		const deadline = this.clock() + windowMs; // the injected clock + latency cue bound every wait
-		for (;;) {
+		for (; ;) {
 			if (!(await this.remotePidAlive(connection, pid))) {
 				return true;
 			}
@@ -521,7 +521,7 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	 */
 	private async awaitReady(envId: string, connection: { readonly host: string; readonly port?: number; readonly user?: string }): Promise<{ ok: true; pid: number } | { ok: false; error: { code: string; message: string } }> {
 		const deadline = this.clock() + this.startTimeoutMs; // the injected clock + latency cue bound every wait
-		for (;;) {
+		for (; ;) {
 			const log = await this.cli.spawnCli([...this.baseArgv(connection), 'cat', this.remoteLogFileOf(envId)], { timeoutMs: this.commandTimeoutMs + this.connectTimeoutMs });
 			const parsed = parseHarnessStdio(log.stdout);
 			if (parsed.readyPid !== undefined) {

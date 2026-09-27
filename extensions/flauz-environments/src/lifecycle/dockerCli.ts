@@ -605,7 +605,7 @@ export class DockerCliExecutor implements EnvironmentExecutor {
 
 	private async awaitContainerPidGone(containerId: string, pid: number, windowMs: number): Promise<boolean> {
 		const deadline = this.clock() + windowMs; // the injected clock + latency cue bound every wait
-		for (;;) {
+		for (; ;) {
 			if (!(await this.containerPidAlive(containerId, pid))) {
 				return true;
 			}
@@ -619,7 +619,7 @@ export class DockerCliExecutor implements EnvironmentExecutor {
 	/** Polls the in-container harness log until its stdio protocol reports ready (pid) or error. */
 	private async awaitReady(containerId: string, envId: string): Promise<{ ok: true; pid: number } | { ok: false; error: { code: string; message: string } }> {
 		const deadline = this.clock() + this.startTimeoutMs; // the injected clock + latency cue bound every wait
-		for (;;) {
+		for (; ;) {
 			const log = await this.cli.spawnCli(['docker', 'exec', containerId, 'cat', DOCKER_CONTAINER_LOG], { timeoutMs: this.commandTimeoutMs });
 			const parsed = parseHarnessStdio(log.stdout);
 			if (parsed.readyPid !== undefined) {
