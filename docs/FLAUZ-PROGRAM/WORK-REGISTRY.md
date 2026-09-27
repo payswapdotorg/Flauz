@@ -59,8 +59,9 @@ Extend the current A2A seam into actual multi-agent coordination with private co
 ## TL3 — Browser and Environment OS
 
 ### TL3-001 — Real browser runtime
-Status: ACTIVE
+Status: DONE (PR #7, squash ed460d92, 2026-09-27)
 Build the Flauz-controlled Chromium/CDP browser runtime and integrate it into the workbench as a first-class user/agent surface.
+Delivered: CDP transport + FakeCdpTransport, BrowserSessionDescriptor/Manager (human/agent separation, flauz:browser:<hex> logical ids), policy-gated navigation (deny => zero CDP commands, pinned by tests; posture P0), console/network/screenshot capture -> evidence rows, recovery (drop/wedge/reconcile + current-policy recheck), host adapters (CdpEndpointHost + WorkbenchBrowserHost via vendored vscode.proposed.browser.d.ts), product grant flauz.flauz-browser:["browser"], B-POLICY A4-A10 reclassified, CI driver drill. Verified: station trio + all flauz canaries green; integrated with TL4-001 IA shell (union merge, 161/161 tests).
 
 ### TL3-002 — Browser session security
 Status: TODO
@@ -75,8 +76,9 @@ Status: TODO
 Implement provider adapters for local, SSH, containers, cloud sandboxes and E2B-style environments behind one contract.
 
 ### TL3-005 — Resource graph
-Status: TODO
+Status: DONE (PR #8, squash a695bd8b, 2026-09-27)
 Unify files/tasks/browser/environments/artifacts/model/provider resources behind ResourceRef without flattening divergent access surfaces.
+Delivered: extensions/flauz-resources — ResourceRef (flauz.resource-ref/v0: logical URN ids, mandatory agent/human/tool provenance), kind-specific access surfaces (vault-only secret refs, literals rejected), typed edges with legality, surface versioning (identity survives surface change — pinned acceptance tests), continuity/restoration plans, resources-ops.jsonl provenance ledger, flauz.res.list/show/graph/verify commands, R-RES canary + flauz-resources.yml, fixture matrix. Verified: station trio (83/83 tests) + all flauz canaries green (R-RES green on first run).
 
 ### TL3-006 — Continuity
 Status: TODO

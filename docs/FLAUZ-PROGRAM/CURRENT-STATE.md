@@ -61,9 +61,9 @@ Do not call this full production provider support yet.
 
 ### Browser
 
-The current browser extension provides a layered policy engine, partition semantics, fail-closed behavior and CDP-bypass protection.
+The browser extension now provides the layered policy engine, partition semantics, fail-closed behavior, CDP-bypass protection AND the TL3-001 runtime: CDP transport (+ test simulator), session manager with human/agent separation, policy-gated navigation (deny sends zero CDP commands), capture->evidence, recovery, and workbench/endpoint host adapters (proposed browser API grant active).
 
-Do not call this a complete user-facing browser yet.
+Remaining for the complete browser product: session-security hardening (TL3-002) and real-workbench E2E of the driver path.
 
 ### Environments
 
@@ -73,7 +73,13 @@ The current environment extension provides:
 - continuity model;
 - adapters/plans for local/SSH/container/cloud-style environments.
 
+The TL3-003 lifecycle (create/start/stop/attach/detach/snapshot/destroy behind executors, local-real + remote-simulated) is in flight.
+
 Do not call every adapter a production provider.
+
+### Resources (TL3-005, merged)
+
+extensions/flauz-resources provides the logical resource graph: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the provenance ops ledger, persisted under .flauz/ with the sibling-envelope discipline.
 
 ### Workflow
 
