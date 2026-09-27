@@ -268,7 +268,7 @@ FLAUZ_CDP_ENDPOINT). This is the CURRENT-STATE "Known gaps" item 9
 (whole-product end-to-end acceptance) executed at the battery level.
 
 ### TL4-009 — Security-gate runtime rung (audit delta, SBOM, bundle manifest)
-Status: ACTIVE (2026-09-27, Worker C dispatched from the replay, branch `tl4/c3-security-runtime`, base dcec0f8f7c9)
+Status: DONE (2026-09-27, TL4 lead merge record: station `verify-branch.sh tl4/c3-security-runtime` GREEN @ a539330e044 — 13 gates incl. the NEW security-runtime-gate itself (audit-delta + CycloneDX 1.5 SBOM + pinned bundle-signature manifest), verify-fixtures GREEN, compat-battery 1887/1887, secret sweep 0 hits, zero src/ changes; eslint allowlist union-resolved with TL4-008 entries; squash-merged as PR #15 -> main @ 337aac0df5d8; branch deleted; flauz-security push lane re-runs the runtime gate at the merge head, security-runtime-report available via workflow_dispatch)
 Promote the integrated security gate (TL4-006) from the fixture/static
 rung to the runtime rung: post-install npm-audit delta over the
 flauz-added dependency set (product root package.json vs upstream/main),
