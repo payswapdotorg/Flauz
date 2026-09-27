@@ -227,6 +227,16 @@ worker's lane never landed; TL4 executed personally):
     browser deny-by-default (flauz-browser.yml suites + session-battery
     J3). Spec: docs/FLAUZ-PROGRAM/TL4-SECURITY-GATE.md.
 
+### TL4-008 - Compat L3 runtime boot smoke
+Status: ACTIVE (station rung; lane shipped on branch `tl4/b3-compat-l3`, base `dcec0f8f7c9686a32a497ee39de72ed9cd533c58`; pending merge + the first green `compat-l3` run on main, SOURCE-OF-TRUTH completion law)
+Promote the Code OSS compatibility battery's layer 3 (TL4-COMPAT-BATTERY section 11) from a PROBE-ONLY CI placeholder to a REAL, CI-executed runtime boot smoke: the workbench still boots and the pillar surfaces still function with the flauz extensions active, proven at runtime on a runner (never a worker sandbox).
+
+Progress note (Worker B, branch `tl4/b3-compat-l3`):
+- Driver `build/flauz/scripts/compat-l3-smoke.mjs` (zero-dep, node >= 20, `--help` + house exit codes): attach mode (CI: CDP `/json/version` + `/json/list` readiness/target rows, log-corpus fatal scan, source-pinned extension-host + flauz activation markers from extHostExtensionService.ts:480,818, compiled pillar rows in the B-POLICY A3 pattern) and child mode (`--cmd`: process-group ownership, auto-wired captures, natural exit code). Honesty law: unobservable rows are SKIP with the exact reason, never a fake pass; catalogue is ADDITIVE.
+- CI `compat-l3` job in `.github/workflows/flauz-compat.yml` (job 1 untouched): the proven preamble (apt natives + xvfb stack, preinstall, npm install, electronTypes, the hygiene `npm-run-all2 -l core-ci hygiene ...` compile line, then `npm run compile` for the bootable dev `out/` tree, `bundle-extensions.mjs --verify`, setup-electron), then the b-policy-canary boot (`DISPLAY=:10 ./scripts/code.sh --verbose --remote-debugging-port=9333 ...` under the xvfb service), then the driver `--require`, then process-tree kill ALWAYS + boot-log/report artifacts (pinned SHAs, auto-token-only install env per DL-20/DL-28).
+- Trigger policy: `workflow_dispatch` (opt-in, the job compiles) + one weekly `schedule` canary (Mon 04:23 UTC); never per-push.
+- Fixture-backed: `test/fixtures/compat-l3/` (clean/fatal/no-ext/no-flauz log corpora + fake-out compiled trees), `build/flauz/compat-l3-smoke.test.mjs` (17 node --test cases incl. fake CDP servers and child-mode stubs), verify-fixtures.sh section. Baseline `build/flauz/compat-l3-baseline.md`: row census (14 PASS-capable, 4 functional SKIP rows), first-run record table, honest distance ladder (CDP-WebSocket DOM rows, lane F functional smokes, exit-clean in CI, browser-mode boot).
+
 ### TL4 merge-wave integration note (2026-09-27, TL4 lead)
 
 The upstream hygiene gate (`local/code-no-new-javascript-files`) rejected the
