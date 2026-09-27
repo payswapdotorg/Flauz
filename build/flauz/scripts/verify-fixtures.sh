@@ -261,6 +261,25 @@ else
     echo "  note  compat-battery real-repo case needs local 'origin/upstream/main' — skipped here"
 fi
 
+# ---- compat-l3-smoke (TL4-008): the L3 runtime boot smoke driver ----
+# Driver logic pinned against the fixture matrix (synthetic log corpora +
+# fake compiled trees - a workbench is never booted in a sandbox). The
+# settle timeouts are tiny because fixture markers are already on disk
+# (the CI lane passes the generous defaults).
+CL3="$F/compat-l3"
+expect "compat-l3 clean logs+compile PASS"             0 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-clean/boot.log" --log-dir "$CL3/logs-clean/userdata-logs" --compile-root "$CL3/fake-out" --settle-timeout 300
+expect "compat-l3 no-logs SKIP census PASS"            0 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/fake-out"
+expect "compat-l3 fatal log FAIL"                      1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-fatal/boot.log" --settle-timeout 300
+expect "compat-l3 no-ext-marker FAIL"                  1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-no-ext/boot.log" --settle-timeout 300
+expect "compat-l3 flauz-vanished FAIL (pos-ctl)"       1 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-no-flauz/boot.log" --settle-timeout 300
+expect "compat-l3 missing pillar FAIL"                 1 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/fake-out-missing"
+expect "compat-l3 absent compile-root FAIL"            1 node "$S/compat-l3-smoke.mjs" --compile-root "$CL3/no-out"
+expect "compat-l3 --no-fail reports only"              0 node "$S/compat-l3-smoke.mjs" --log "$CL3/logs-fatal/boot.log" --no-fail --settle-timeout 300
+expect "compat-l3 --require sans channel FAIL (usage)" 2 node "$S/compat-l3-smoke.mjs" --require --log "$CL3/logs-clean/boot.log"
+expect "compat-l3 usage error (bad flag)"              2 node "$S/compat-l3-smoke.mjs" --definitely-not-a-flag
+expect "compat-l3 --help"                              0 node "$S/compat-l3-smoke.mjs" --help
+expect "compat-l3 node --test suite"                   0 node --test "$ROOT/build/flauz/compat-l3-smoke.test.mjs"
+
 # ---- session-battery (TL4-004): whole-session acceptance gate ----
 # The battery runner needs node >= 22.6 (type stripping). On older nodes the
 # gate SKIPs (exit 0) -- the run/failability cases only apply where the

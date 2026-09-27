@@ -198,3 +198,6 @@ build/flauz/scripts/premium-ux-gate.mjs
 build/flauz/scripts/session-battery.mjs
 build/flauz/scripts/security-gate.mjs
 build/flauz/scripts/security-runtime-gate.mjs
+# Flauz TL4-008 compat L3 runtime boot smoke (zero-dep driver + black-box test; build/flauz/README.md conventions)
+build/flauz/scripts/compat-l3-smoke.mjs
+build/flauz/compat-l3-smoke.test.mjs

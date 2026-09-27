@@ -11,6 +11,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import * as path from 'node:path';
 import { importWithVscodeMock } from './harness/vscode-redirect.ts';
 import { __configure, __reset, __state } from './harness/vscode-mock-module.ts';
 import type { MockVscodeState } from './harness/vscode-mock.ts';
@@ -114,13 +115,14 @@ test('activation with an empty workspace creates .flauz/resources.json + the ops
 	void extension.deactivate();
 });
 
-test('activation registers exactly the four flauz.res.* commands', async () => {
+test('activation registers exactly the five flauz.res.* commands (v0 + the TL3-006 journal sync)', async () => {
 	const extension = await freshActivate();
 	const names = __state().commands.map(c => c.command);
 	assert.deepEqual(names.sort(), [
 		'flauz.res.graph',
 		'flauz.res.list',
 		'flauz.res.show',
+		'flauz.res.syncBrowserSessions',
 		'flauz.res.verify',
 	].sort());
 	void extension.deactivate();
@@ -237,5 +239,51 @@ test('a seeded graph file is loaded, never rewritten by activation (no clobber)'
 	assert.ok(!state.renamedFiles.some(r => r.to === '/ws/acme/.flauz/resources.json'), 'no rename over the seeded file');
 	assert.equal(state.fsFiles.get('/ws/acme/.flauz/resources.json'), seeded);
 	assert.ok(channelLines(state).some(l => l.includes('flauz.res: graph active (.flauz/resources.json; 2 ref(s))')));
+	void extension.deactivate();
+});
+
+test('flauz.res.syncBrowserSessions: typed result, provenance default, journal consumption + skips', async () => {
+	// the PIN-1 valid fixture + a doctored actor-less line (assembled at runtime)
+	const journalPath = '/ws/acme/.flauz/browser-sessions.jsonl';
+	const badLine = JSON.stringify({
+		schemaVersion: 0,
+		schema: 'flauz.browser-session-journal/v0',
+		ts: 1760000250000,
+		event: 'opened',
+		descriptor: {
+			schemaVersion: 0,
+			sessionId: 'flauz:browser:aaaabbbbccccdddd',
+			initiator: 'agent',
+			partition: 'persist:flauz-aaaabbbbccccdddd',
+			policySourceRef: 'flauz:browser-policy/v0@workspace-file#aaaabbbbccccdddd',
+			createdAt: '2026-10-01T13:00:00.000Z',
+			state: 'active',
+			tabs: [],
+		},
+	});
+	const fixturePath = path.join(path.resolve(import.meta.dirname, '..', '..', '..'), 'test', 'fixtures', 'browser-session-journal', 'valid.jsonl');
+	const journal = await import('node:fs/promises').then(fs => fs.readFile(fixturePath, { encoding: 'utf-8' }));
+	const extension = await freshActivate(new Map<string, string>([[journalPath, `${journal.trimEnd()}\n${badLine}\n`]]));
+	const result = await (commandHandler('flauz.res.syncBrowserSessions')() as Promise<{
+		ok: boolean;
+		report?: { sessions: number; journalRecords: number; refsMinted: string[]; skippedJournalLines: Array<{ line: number }> };
+		error?: { code: string; message: string };
+	}>);
+	assert.equal(result.ok, true);
+	assert.equal(result.report!.sessions, 2);
+	assert.equal(result.report!.journalRecords, 4, 'the valid records flow; the actor-less line is a skip');
+	assert.equal(result.report!.skippedJournalLines.length, 1);
+	assert.equal(result.report!.skippedJournalLines[0]!.line, 5, 'the bad line number is surfaced');
+	const lines = channelLines(__state());
+	assert.ok(lines.some(l => l.includes('browser-session sync: 2 session(s) from 4 journal record(s)')));
+	assert.ok(lines.some(l => l.includes('journal skip [line 5]')));
+	// the minted refs are persisted through the graph (provenance: actor human — the palette default)
+	const graphText = __state().fsFiles.get('/ws/acme/.flauz/resources.json')!;
+	assert.ok(graphText.includes('flauz:browser:0123456789abcdef'));
+	assert.ok(graphText.includes('"actor": "human"'));
+	// a bad actor is a typed rejection (never a raw throw)
+	const badActor = await (commandHandler('flauz.res.syncBrowserSessions')({ actor: 'daemon' }) as Promise<{ ok: boolean; error: { code: string } }>);
+	assert.equal(badActor.ok, false);
+	assert.equal(badActor.error.code, 'FLAUZ_RESOURCES_PROVENANCE');
 	void extension.deactivate();
 });

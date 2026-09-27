@@ -15,10 +15,13 @@
  *      file surfaces an error message and the command surface degrades --
  *      fail-closed, no silent resets);
  *   2. registers the command surface (see package.json contributes):
- *        flauz.res.list    list refs (optionally filtered by kind)
- *        flauz.res.show    ref + surfaces + edges + lineage
- *        flauz.res.graph   JSON dump of the envelope (or a --dot rendering)
- *        flauz.res.verify  schema + integrity + provenance verification
+ *        flauz.res.list                 list refs (optionally filtered by kind)
+ *        flauz.res.show                 ref + surfaces + edges + lineage
+ *        flauz.res.graph                JSON dump of the envelope (or a --dot rendering)
+ *        flauz.res.verify               schema + integrity + provenance verification
+ *        flauz.res.syncBrowserSessions  reconcile browser-session refs from the
+ *                                      PIN-1 journal (.flauz/browser-sessions.jsonl,
+ *                                      READ-ONLY consumption; provenance-recorded)
  *
  * The FileSystemPort binds vscode.workspace.fs (readFile/writeFile/
  * createDirectory/rename all exist on the stable API; appendFile is a
@@ -26,10 +29,13 @@
  * what lets src/extension.ts stay fully mock-testable under the copied
  * flauz-browser harness discipline (test/harness/).
  *
- * v0 boundary: no mutation commands are exposed on the palette (every
- * mutation requires fail-closed provenance; the library surface --
- * ResourceGraph/ContinuityService -- is what the Agent OS integration and
- * tests drive). See INTEGRATION-GAP.md for the Wave-next wiring.
+ * v0 boundary: no UNATTRIBUTED mutation commands are exposed on the palette
+ * (every mutation requires fail-closed provenance and the Agent OS
+ * integration is the intended writer). The TL3-006 journal-sync command is
+ * the documented exception: a bounded, provenance-recorded reconciliation
+ * whose actor defaults to `human` at the palette boundary exactly like the
+ * flauz-environments lifecycle commands (programmatic callers pass `actor`
+ * explicitly). See INTEGRATION-GAP.md for the Wave-next wiring.
  */
 import * as vscode from 'vscode';
 import {
@@ -40,6 +46,7 @@ import {
 	isResourceKind,
 } from './api.ts';
 import { ResourceGraph, toDot, verifyWorkspace, type NeighborLink } from './graph.ts';
+import { BrowserSessionBridge, type SyncReport } from './journalBridge.ts';
 
 const vscodeFs: FileSystemPort = {
 	readFileUtf8: async path => {
@@ -100,6 +107,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		vscode.commands.registerCommand('flauz.res.show', (arg?: unknown) => commandShow(arg)),
 		vscode.commands.registerCommand('flauz.res.graph', (arg?: unknown) => commandGraph(arg)),
 		vscode.commands.registerCommand('flauz.res.verify', () => commandVerify(folder)),
+		vscode.commands.registerCommand('flauz.res.syncBrowserSessions', (arg?: unknown) => commandSyncBrowserSessions(arg)),
 	);
 }
 
@@ -202,6 +210,53 @@ async function commandVerify(folder: vscode.WorkspaceFolder): Promise<unknown> {
 		}
 	}
 	return report;
+}
+
+/** The result the journal-sync command returns (typed, never a raw throw). */
+export type SyncCommandResult =
+	| { readonly ok: true; readonly report: SyncReport }
+	| { readonly ok: false; readonly error: { readonly code: string; readonly message: string } };
+
+/**
+ * flauz.res.syncBrowserSessions — reconciles browser-session refs from the
+ * PIN-1 journal (READ-ONLY consumption of .flauz/browser-sessions.jsonl).
+ * Provenance at the command boundary: palette invocations default to actor
+ * `human`; programmatic callers (agents/tools) pass `actor` explicitly. Edge
+ * attribution is EXPLICIT only (bindEnvironmentRefId/bindTaskRefId name
+ * existing graph refs — never fabricated from the active-environment guess).
+ */
+async function commandSyncBrowserSessions(arg: unknown): Promise<SyncCommandResult> {
+	if (graph === undefined) {
+		return { ok: false, error: { code: 'FLAUZ_RESOURCES_INACTIVE', message: 'flauz.res.syncBrowserSessions: graph inactive (no workspace folder or failed bootstrap)' } };
+	}
+	const record = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown; bindEnvironmentRefId?: unknown; bindTaskRefId?: unknown }) : {};
+	if (record.actor !== undefined && (typeof record.actor !== 'string' || !['agent', 'human', 'tool'].includes(record.actor))) {
+		return { ok: false, error: { code: 'FLAUZ_RESOURCES_PROVENANCE', message: `flauz.res.syncBrowserSessions: actor must be one of agent|human|tool (got ${JSON.stringify(record.actor)})` } };
+	}
+	for (const key of ['bindEnvironmentRefId', 'bindTaskRefId'] as const) {
+		const value = record[key];
+		if (value !== undefined && typeof value !== 'string') {
+			return { ok: false, error: { code: 'FLAUZ_RESOURCES_SCHEMA', message: `flauz.res.syncBrowserSessions: ${key} must be a resource ref id string (explicit attribution names an existing graph ref)` } };
+		}
+	}
+	try {
+		const bridge = new BrowserSessionBridge({ graph });
+		const report = await bridge.sync({
+			provenance: {
+				actor: (record.actor as 'agent' | 'human' | 'tool' | undefined) ?? 'human',
+				cause: 'flauz.res.syncBrowserSessions (PIN-1 journal reconciliation)',
+			},
+			...(typeof record.bindEnvironmentRefId === 'string' ? { bindEnvironmentRefId: record.bindEnvironmentRefId } : {}),
+			...(typeof record.bindTaskRefId === 'string' ? { bindTaskRefId: record.bindTaskRefId } : {}),
+		});
+		log(`flauz.res: browser-session sync: ${report.sessions} session(s) from ${report.journalRecords} journal record(s) — ${report.refsMinted.length} ref(s) minted, ${report.surfacesRefreshed.length} surface(s) refreshed, ${report.edgesMinted.length} edge(s) minted`);
+		for (const skip of report.skippedJournalLines) {
+			log(`flauz.res:   journal skip [line ${skip.line}]: ${skip.reason}`);
+		}
+		return { ok: true, report };
+	} catch (err) {
+		return { ok: false, error: { code: (err as { code?: unknown }).code && typeof (err as { code: string }).code === 'string' ? (err as { code: string }).code : 'FLAUZ_RESOURCES_SYNC', message: err instanceof Error ? err.message : String(err) } };
+	}
 }
 
 export function deactivate(): void {

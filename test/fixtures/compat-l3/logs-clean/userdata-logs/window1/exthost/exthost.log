@@ -1,0 +1,5 @@
+[2026-09-29 04:23:04.201] [exthost] [info] Extension host with pid 4242 started
+[2026-09-29 04:23:04.244] [exthost] [info] ExtensionService#_doActivateExtension git.git, startup: true, activationEvent: '*'
+[2026-09-29 04:23:04.332] [exthost] [info] ExtensionService#_doActivateExtension flauz.flauz-agent, startup: false, activationEvent: 'onStartupFinished'
+[2026-09-29 04:23:04.401] [exthost] [info] ExtensionService#_doActivateExtension flauz.flauz-workspace, startup: false, activationEvent: 'onStartupFinished'
+[2026-09-29 04:23:05.004] [exthost] [info] Eager extensions activated
