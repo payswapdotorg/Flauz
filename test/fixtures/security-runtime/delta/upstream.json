@@ -1,0 +1,12 @@
+{
+	"name": "flauz-fixture-upstream",
+	"version": "0.0.0-fixture",
+	"private": true,
+	"dependencies": {
+		"shared-lib": "^3.1.0",
+		"upstream-only": "^1.5.0"
+	},
+	"devDependencies": {
+		"shared-dev": "^2.2.0"
+	}
+}

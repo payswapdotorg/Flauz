@@ -1,0 +1,10 @@
+{
+	"$schema": "flauz.bundle-manifest/v1",
+	"manifestVersion": 1,
+	"status": "STATION-PENDING",
+	"baseCommit": null,
+	"generatedAt": null,
+	"generationCommand": "node build/flauz/scripts/security-runtime-gate.mjs --root . --generate",
+	"notes": "PINNED sha256 manifest of the reproducible flauz extension bundles. Verify mode (CI, every run): re-bundle with the repo own esbuild, hash every dist artifact, compare against these pins -- ANY drift = exit 1, the supply-chain tamper signal. This file was committed STATION-PENDING by TL4-009: the bundler needs the repo npm install (the repo's own esbuild) and worker sandboxes never install at the repo root (MIGRATION-PLAN section 5), so the pinned hashes are generated at the integration station. TL procedure: (1) after npm install at the station, run the generationCommand above; (2) commit the regenerated manifest in the SAME PR; (3) review the diff extension-by-extension -- every hash change must trace to a reviewed source change (the promotion-ladder law); (4) CI then re-bundles on every run and fails on any drift. Standing law after pinning: any PR that changes bundle bytes (extensions/flauz-*/src, bundler flags, esbuild version) regenerates this manifest in the same PR.",
+	"bundles": {}
+}

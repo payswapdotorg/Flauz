@@ -1,0 +1,23 @@
+{
+	"$schema": "flauz.bundle-manifest/v1",
+	"manifestVersion": 1,
+	"status": "PINNED",
+	"baseCommit": null,
+	"generatedAt": "2026-09-27T21:32:52.951Z",
+	"generationCommand": "node build/flauz/scripts/security-runtime-gate.mjs --root . --generate",
+	"notes": "fixture tree (synthetic dists, no bundling): hash-pinning test data for the drift-compare core; the repo-mode row re-bundles via the repo own esbuild (packaging-row mechanism)",
+	"bundles": {
+		"flauz-gamma": {
+			"version": "3.1.4",
+			"artifacts": {
+				"dist/extension.bundle": "1de1b7dddaae11116d9fab63a922fbeacf05696979d9600c9c0d920273441437"
+			}
+		},
+		"flauz-omega": {
+			"version": "0.2.0",
+			"artifacts": {
+				"dist/extension.bundle": "a402f302ed720b7b3ffedcfbe1b1ce87d00b2cefae3c87ef73a7a9aadf1c9ccb"
+			}
+		}
+	}
+}

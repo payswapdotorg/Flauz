@@ -197,3 +197,4 @@ build/flauz/sync-upstream.test.mjs
 build/flauz/scripts/premium-ux-gate.mjs
 build/flauz/scripts/session-battery.mjs
 build/flauz/scripts/security-gate.mjs
+build/flauz/scripts/security-runtime-gate.mjs

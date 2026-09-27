@@ -1,0 +1,4 @@
+// synthetic bundle fixture for flauz-gamma (TL4-009)
+// hash-pinning test data only -- never executed, never built by esbuild
+// the .bundle extension keeps these out of the javascript-file hygiene ledger
+const syntheticGammaPayload = "gamma-bytes-0";

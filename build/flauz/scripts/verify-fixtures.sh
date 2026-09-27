@@ -287,6 +287,73 @@ expect "security-gate allowlist suppression PASS"      0 node "$S/security-gate.
 expect "security-gate repo mode PASS"                 0 node "$S/security-gate.mjs" --root "$ROOT"
 expect "security-gate --list exit 0"                   0 node "$S/security-gate.mjs" --list
 
+# ---- security-runtime-gate (TL4-009): audit-delta + SBOM + bundle-manifest ----
+# Fixture inputs are SYNTHETIC (npm-audit-shaped reports with GHSA-aaaa-...
+# ids, synthetic package pairs, synthetic dist trees) -- zero-dep: no npm
+# spawn, no network, no esbuild. The repo-mode cases at the end pin the
+# skip-vs-fail policy shapes and only run where the tree is NOT installed
+# (worker sandbox / CI job 1); post-install contexts (the station, job 2)
+# run the real rows.
+SRT="$S/security-runtime-gate.mjs"
+SRF="$F/security-runtime"
+SRTD="$SRF/delta"
+SRTA="$SRF/audit"
+# audit row: delta filter + severity policy (synthetic reports)
+expect "runtime audit clean PASS"                        0 node "$SRT" --row audit --audit-json "$SRTA/clean.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json"
+expect "runtime audit high-in-delta FAIL"                1 node "$SRT" --row audit --audit-json "$SRTA/high-in-delta.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json"
+expect "runtime audit critical-in-delta FAIL"            1 node "$SRT" --row audit --audit-json "$SRTA/critical-in-delta.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json"
+expect "runtime audit moderate-in-delta PASS (info)"     0 node "$SRT" --row audit --audit-json "$SRTA/moderate-in-delta.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json"
+expect "runtime audit outside-delta PASS (info)"         0 node "$SRT" --row audit --audit-json "$SRTA/outside-delta.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json"
+expect "runtime audit allowlisted PASS (suppressed)"     0 node "$SRT" --row audit --audit-json "$SRTA/allowlisted.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json" --audit-allowlist "$SRTA/audit-allowlist.json"
+expect "runtime audit unused-allowlist-entry FAIL"       1 node "$SRT" --row audit --audit-json "$SRTA/clean.json" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json" --audit-allowlist "$SRTA/audit-allowlist.json"
+# audit row: the delta computation itself (json content assertions)
+expect "runtime delta computation (json content)"        0 node -e "
+const cp = require('child_process');
+const r = cp.spawnSync(process.execPath, ['$SRT', '--row', 'audit', '--audit-json', '$SRTA/clean.json', '--package-json', '$SRTD/product.json', '--upstream-package-json', '$SRTD/upstream.json', '--json'], { encoding: 'utf-8', maxBuffer: 16 * 1024 * 1024 });
+if (r.status !== 0) { console.error('gate exit ' + r.status); process.exit(1); }
+const row = JSON.parse(r.stdout).rows.find(x => x.id === 'audit-delta');
+const d = row.audit.delta;
+const added = d.added.map(x => x.name + '@' + x.range + ':' + x.section);
+const ok = JSON.stringify(added) === JSON.stringify(['flauz-dep-a@^1.2.3:dependencies', 'flauz-dep-b@2.0.0:dependencies', 'flauz-devtool-c@^0.9.0:devDependencies'])
+    && JSON.stringify(d.removed) === JSON.stringify(['upstream-only'])
+    && JSON.stringify(d.unchanged) === JSON.stringify(['shared-dev', 'shared-lib']);
+if (!ok) { console.error('delta mismatch: ' + JSON.stringify(d)); process.exit(1); }
+console.log('delta content ok');
+"
+# sbom row: verify postures over the synthetic extension tree + delta pair
+SRTS="$SRF/sbom"
+expect "runtime sbom verify match PASS"                  0 node "$SRT" --row sbom --extensions-root "$SRTS/extensions" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json" --verify-sbom "$SRTS/expected-sbom.json"
+expect "runtime sbom missing-extension FAIL"             1 node "$SRT" --row sbom --extensions-root "$SRTS/extensions" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json" --verify-sbom "$SRTS/missing-extension.json"
+expect "runtime sbom invalid FAIL"                       1 node "$SRT" --row sbom --extensions-root "$SRTS/extensions" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json" --verify-sbom "$SRTS/invalid.json"
+expect "runtime sbom drift FAIL"                         1 node "$SRT" --row sbom --extensions-root "$SRTS/extensions" --package-json "$SRTD/product.json" --upstream-package-json "$SRTD/upstream.json" --verify-sbom "$SRTS/drifted.json"
+# sbom row: emit determinism + byte-compare vs the committed expected document
+SRTT="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-srt-$$")"
+mkdir -p "$SRTT"
+expect "runtime sbom emit deterministic + byte-match"    0 sh -c "node '$SRT' --row sbom --extensions-root '$SRTS/extensions' --package-json '$SRTD/product.json' --upstream-package-json '$SRTD/upstream.json' --sbom-out '$SRTT/a.json' && node '$SRT' --row sbom --extensions-root '$SRTS/extensions' --package-json '$SRTD/product.json' --upstream-package-json '$SRTD/upstream.json' --sbom-out '$SRTT/b.json' && cmp -s '$SRTT/a.json' '$SRTT/b.json' && cmp -s '$SRTT/a.json' '$SRTS/expected-sbom.json'"
+# manifest row: fixture verify over the synthetic dist trees (no bundling)
+SRTM="$SRF/manifest"
+expect "runtime manifest match PASS"                     0 node "$SRT" --row manifest --extensions-root "$SRTM/extensions" --manifest "$SRTM/pinned-match.json"
+expect "runtime manifest drift FAIL"                     1 node "$SRT" --row manifest --extensions-root "$SRTM/extensions" --manifest "$SRTM/pinned-drift.json"
+expect "runtime manifest unpinned-extension FAIL"        1 node "$SRT" --row manifest --extensions-root "$SRTM/extensions" --manifest "$SRTM/pinned-incomplete.json"
+# usage / flag contracts
+expect "runtime gate usage error (bad flag)"             2 node "$SRT" --bogus
+expect "runtime gate fixture flag needs --row"           2 node "$SRT" --audit-json "$SRTA/clean.json"
+expect "runtime gate unknown row id"                     2 node "$SRT" --row nonsense
+expect "runtime gate --help"                             0 node "$SRT" --help
+expect "runtime gate --list"                             0 node "$SRT" --list
+# repo-mode shapes: skip-vs-fail policy (pre-install contexts only)
+if [ ! -d "$ROOT/node_modules" ]; then
+    expect "runtime gate repo mode PASS (skip shapes)"   0 node "$SRT" --root "$ROOT"
+    expect "runtime gate repo mode --require FAIL"       1 node "$SRT" --root "$ROOT" --require
+    expect "runtime audit repo SKIP (no install)"        0 node "$SRT" --row audit --root "$ROOT"
+    expect "runtime audit repo --require FAIL"           1 node "$SRT" --row audit --root "$ROOT" --require
+    expect "runtime manifest repo SKIP (no esbuild)"     0 node "$SRT" --row manifest --root "$ROOT"
+    expect "runtime manifest --generate no-esbuild FAIL" 1 node "$SRT" --row manifest --root "$ROOT" --generate --manifest "$SRTT/never-written.json"
+else
+    echo "  note  runtime repo-mode skip/require cases need a pre-install tree -- post-install contexts run the real rows (flauz-security job 2)"
+fi
+rm -rf "$SRTT"
+
 # ---- verdict ----
 echo "----------------------------------------------------------------"
 if [ "$FAIL" -eq 0 ]; then

@@ -53,6 +53,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `compat-battery.mjs` | TL4-003 Code OSS compatibility battery (L1 guard invocation + L2 stock contribution-surface diff, product identity, root pkg scripts/deps, Flauz positive control; spec `docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md`) | `--root/--upstream/--product` (git ref OR tree dir), `--allowlist`, `--json`, `--layer 1|2|all`, `--no-fail`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
 | `budget-gate.mjs` | TL4-005 unified budget gate (registry `budgets/flauz-budgets.json` vs measurements) | `--budgets`, `--measurements <file-or-dir>` (records + perf-log-parse emit shapes + raw TSVs), `--require [all\|enforced\|enforced-ci\|enforced-in-repo]`, `--json`, `--root` | 0 pass/SKIP · 1 violation · 2 usage/malformed registry |
+| `security-runtime-gate.mjs` | TL4-009 RUNTIME rung of the security gate (sibling of the frozen security-gate.mjs): audit-delta (npm audit filtered to the flauz-added dependency delta vs `upstream/main`), sbom (CycloneDX 1.5 emission + drift verify vs the committed pin), bundle-manifest (pinned sha256 of the reproducible bundles; verify re-bundles, `--generate` pins) | `--row audit\|sbom\|manifest`, `--generate`, `--sbom-out`, `--verify-sbom`, `--audit-json`, `--manifest`, fixture overrides (require `--row`), `--json`, `--out`, `--require`, `--no-fail` | 0 clean/SKIP · 1 FAIL/divergence · 2 usage |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
 
 **Skip-vs-fail policy** (important): while lanes F/G are in flight, the
@@ -133,6 +134,17 @@ assertion fail, added-outside-namespace, empty-census SKIP, --out document).)
 (TL4-002 addendum, 2026-09-28: the premium-ux-gate section adds 11 cases —
 clean/real-tree/no-retry/no-welcome/webview/title-case/
 date-drift, empty-dir SKIP + `--require` flip, usage error, `--help`.)
+
+(TL4-009 addendum, 2026-09-28: the security-runtime section adds 27 cases
+(105 → 132 total) — `security-runtime-gate.mjs` (the RUNTIME rung; the
+TL4-006 gate stays frozen): audit-delta over synthetic npm-audit reports
+(clean, high/critical-in-delta FAIL, moderate-in-delta + outside-delta
+informational PASS, allowlisted suppression, unused-entry hygiene),
+delta-computation json-content assertions, sbom verify postures
+(match/missing-extension/invalid/drift) + emit determinism byte-match,
+manifest fixture verify (match/drift/unpinned), usage contracts, and the
+repo-mode skip-vs-fail shapes (pre-install contexts; post-install
+contexts run the real rows in flauz-security job 2).)
 
 Summary (command class → exit code):
 
