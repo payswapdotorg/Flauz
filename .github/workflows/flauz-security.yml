@@ -101,8 +101,8 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Install build tools (libkrb5-dev for the kerberos native module)
-        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libkrb5-dev
+      - name: Install build tools (kerberos + native-keymap headers)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
 
       - name: Install Electron headers
         run: node build/npm/preinstall.ts
