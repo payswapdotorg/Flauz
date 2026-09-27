@@ -185,3 +185,8 @@ extensions/flauz-agent/core/service.mjs
 # Flauz Wave 4 Lane J (environments): canary runner + transit staging (zero-dep .mjs)
 build/flauz/scripts/env-registry-canary.mjs
 build/flauz/scripts/stage-j-environments.mjs
+
+# Flauz TL4 quality gates (zero-dep .mjs harness scripts, build/flauz/README.md conventions)
+build/flauz/scripts/compat-battery.mjs
+build/flauz/scripts/budget-gate.mjs
+build/flauz/scripts/ia-gate.mjs
