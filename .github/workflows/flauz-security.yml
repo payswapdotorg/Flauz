@@ -92,15 +92,23 @@ jobs:
         with:
           fetch-depth: 1
 
-      # ---- the repo's own node_modules provides esbuild (same install the
-      # hygiene lane performs; ELECTRON_SKIP mirrors the upstream pipeline) ----
+      # ---- the repo's node_modules provides esbuild (same install preamble
+      # as the hygiene lane: build tools + libkrb5-dev for the native kerberos
+      # module, Electron headers via the repo's own preinstall, then npm
+      # install; ELECTRON_SKIP mirrors the upstream pipeline) ----
       - name: Setup Node.js (per .nvmrc)
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
 
+      - name: Install build tools (libkrb5-dev for the kerberos native module)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libkrb5-dev
+
+      - name: Install Electron headers
+        run: node build/npm/preinstall.ts
+
       - name: Install (esbuild for the bundler)
-        run: npm install --no-audit --no-fund
+        run: npm install
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
