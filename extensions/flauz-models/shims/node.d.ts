@@ -7,7 +7,7 @@
  * by this extension's source and tests.
  *
  * Zero-dependency discipline (Wave 3 Lane F): no `@types/node` is installed.
- * These declarations are intentionally narrow — only the exact surface we call.
+ * These declarations are intentionally narrow -- only the exact surface we call.
  * At runtime the real Node implementations are loaded; these types exist only
  * so `tsc --noEmit` can check the code.
  */
@@ -161,3 +161,8 @@ declare function fetch(url: string, init?: { method?: string; headers?: Record<s
 	readonly headers: { forEach(callback: (value: string, key: string) => void): void };
 	readonly body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }> } } | null;
 }>;
+
+/** The process subset the credential resolver reads. */
+declare const process: {
+	readonly env: Record<string, string | undefined>;
+};
