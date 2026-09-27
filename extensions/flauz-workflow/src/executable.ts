@@ -471,6 +471,13 @@ export interface RunOptions {
 	readonly approvalMode?: 'replay' | 'ask';
 	/** Required when approvalMode is 'ask'. */
 	readonly ask?: (gate: 'approval' | 'sign-off' | 'tool', spec: WorkflowSpec, stepSeq?: number) => Promise<'approve' | 'cancel'>;
+	/**
+	 * Run under an EXISTING task instead of a fresh one - the A2A shared-task
+	 * state case (the worker executes the delegated work on the task both
+	 * agents see). The task must exist and be in a state the machine can
+	 * drive (appendEvent gates the transitions).
+	 */
+	readonly taskId?: string;
 }
 
 export interface RunOutcome {
@@ -693,8 +700,14 @@ export class WorkflowRunService {
 			run = existing;
 			taskId = run.taskId;
 		} else {
-			const created = await this.tasks.createTask(spec.title);
-			taskId = created.id;
+			if (options.taskId !== undefined) {
+				// The shared-task case: run under the delegated task (both
+				// agents see these graph rows through sharedState()).
+				taskId = options.taskId;
+				await this.tasks.getTask(taskId);
+			} else {
+				taskId = (await this.tasks.createTask(spec.title)).id;
+			}
 			const runId = await this.allocateRunId();
 			// derivedFrom (the house pattern): a distilled run links to its
 			// source fragment's task + evidence rows; an authored run links

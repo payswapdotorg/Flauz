@@ -54,6 +54,27 @@ git-diffable workflow fragment and re-run it from one command.
   - re-run linkage via `derivedFrom` (distilled runs link to the source
     fragment's task + evidence rows - the house pattern).
 
+- `src/coordination.ts` - REAL agent-to-agent coordination (TL2-006, Worker
+  C M4) over the typed A2A bus:
+  - DELEGATION CONTRACTS (`flauz.a2a.contracts/v1`, `.flauz/a2a/contracts/`):
+    goal + typed inputs + constraints (maxSteps/deadline/tools, recorded) +
+    a typed result schema; persisted BEFORE the task-delegation message
+    posts (crash-safe);
+  - SHARED TASK STATE: `sharedState(taskId)` = the task envelope + the
+    contract + the durable-graph run rows - the rows BOTH agents see
+    (exec runs support `taskId` to run under the delegated task);
+  - PRIVATE CONTEXT: the share lifecycle through the ContextSharePort (the
+    flauz-memory MemoryStore satisfies it structurally); the boundary itself
+    is enforced in flauz-memory's pure retrieval - no consumer can bypass;
+  - RESULT VERIFICATION: evidence ids must resolve in the ledger AND the
+    artifact bytes must re-hash to the row sha256; anything less is labeled
+    `reported-not-verified` (never passed off as verified);
+  - STEERING: mid-flight steering-relay with provenance recorded on the
+    contract (messageId/from/ts); steering after submission is a typed error;
+  - TRANSPORT: the in-process mediator port (`inMemoryA2aPort`) + the stdio
+    loopback through the REAL core service (`flauz.a2a.*` over
+    core/service.mjs) - pinned by tests.
+
 ## Conventions
 
 - Zero runtime dependencies; node >= 20 stdlib only (node-free core: all IO
