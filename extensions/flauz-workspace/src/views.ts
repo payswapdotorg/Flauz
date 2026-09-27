@@ -12,30 +12,40 @@
  *                 each task's evidence (hash-chained ledger rows filtered by
  *                 taskId) as child rows.
  *
- * State contract (docs/FLAUZ-PROGRAM/TL4-IA-SPEC.md section 5): empty state
- * = viewsWelcome (no workspace folder / nothing to show); failures render an
- * error row whose tree-item command is the view's retry (refresh) command;
- * async loads ride the stock tree progress indicator; every displayed state
- * is read from the LIVE services — never fabricated.
+ * State contract (docs/FLAUZ-PROGRAM/TL4-IA-SPEC.md section 5) and premium
+ * contract (docs/FLAUZ-PROGRAM/TL4-PREMIUM-UX.md sections 2/4/5/6): empty
+ * state = viewsWelcome; failures render an error row whose tree-item command
+ * is the view's retry (refresh) command; async loads ride the stock tree
+ * progress indicator; a failed refresh keeps the LAST-KNOWN-GOOD rows below
+ * the error row instead of blanking the view; every displayed state is read
+ * from the LIVE services — never fabricated.
+ *
+ * TL4-002: the tasks view registers through createTreeView (not
+ * registerTreeDataProvider) because row-level reveal navigation
+ * (flauz.workspace.revealTask — session-to-task with focus restoration, see
+ * the premium spec section 5) needs the TreeView handle; the provider
+ * implements getParent so reveal can resolve the element chain.
  */
 
 import type * as vscode from 'vscode';
 import { vscodeApi } from './globals.ts';
 import { ACTIVE_STATUSES, joinPath, LEDGER_PATH, type LedgerRow, type Task, type TaskStatus } from './api.ts';
 import { evidenceIdOf } from './ledger.ts';
+import { formatAge, formatTimestamp } from './format.ts';
 import type { WorkspaceServices } from './commands.ts';
 
 /** View ids this extension contributes into the `flauz` container (see package.json). */
 export const HOME_VIEW_ID = 'flauz.home';
 export const TASKS_VIEW_ID = 'flauz.tasks';
 
-/** Focus + refresh commands for the views above (category "Flauz", see package.json). */
+/** Focus + refresh + reveal commands for the views above (category "Flauz", see package.json). */
 export const VIEW_COMMAND_IDS = [
 	'flauz.focusView',
 	'flauz.focusView.home',
 	'flauz.focusView.tasks',
 	'flauz.workspace.refreshHome',
 	'flauz.workspace.refreshTasks',
+	'flauz.workspace.revealTask',
 ] as const;
 
 /** The built-in command that reveals + focuses the whole `flauz` view container. */
@@ -44,14 +54,19 @@ const CONTAINER_FOCUS_COMMAND = 'workbench.view.extension.flauz.focus';
 /** Command that opens an evidence artifact by id (registered in commands.ts). */
 const OPEN_EVIDENCE_COMMAND = 'flauz.workspace.openEvidence';
 
-/** Contexts for view/item/menu contributions (v1: none yet, kept for affordances). */
+/** Contexts for view/item/menu contributions (the error context is the premium-UX shared token). */
 const TASK_CONTEXT = 'flauzTask';
 const EVIDENCE_CONTEXT = 'flauzEvidence';
 const ERROR_CONTEXT = 'flauzError';
 
+/** Retry-affordance sentence every error/degraded tooltip ends with (premium spec section 4). */
+const RETRY_SENTENCE = 'Select this row to retry.';
+
 /**
  * Live context the providers read. `getServices` returning undefined means
  * "no workspace folder open" — the views show their viewsWelcome state.
+ * `clock` is injectable so age rendering stays deterministic in tests
+ * (defaults to Date.now; premium spec section 2.4).
  */
 export interface WorkspaceViewContext {
 	/** The activation-time services; undefined when no workspace folder is open. */
@@ -60,6 +75,8 @@ export interface WorkspaceViewContext {
 	readonly getWorkspaceRoot: () => string | undefined;
 	/** Reads a utf8 file relative to the workspace root; undefined = absent. */
 	readonly readFile: (relativePath: string) => Promise<string | undefined>;
+	/** Optional clock for the relative-age descriptions (tests pass a fixed one). */
+	readonly clock?: () => number;
 }
 
 /** Registered shell surface + the disposables to push onto context.subscriptions. */
@@ -84,7 +101,7 @@ export interface HomeRow {
 export type TasksTreeElement =
 	| { readonly kind: 'task'; readonly task: Task }
 	| { readonly kind: 'evidence'; readonly row: LedgerRow }
-	| { readonly kind: 'error'; readonly message: string; readonly retryCommand: string };
+	| { readonly kind: 'error'; readonly message: string; readonly retryCommand: string; readonly stale: boolean };
 
 /** Outcome of reading + parsing a .flauz/ peer artifact for the Home view. */
 interface JsonFileState {
@@ -175,13 +192,15 @@ export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {
 		if (services === undefined) {
 			return [];
 		}
-		return [
-			await this.tasksRow(services),
-			await this.ledgerRow(services),
-			await this.environmentsRow(),
-			await this.browserPolicyRow(),
-			await this.workflowsRow(),
-		];
+		// TL4-002 perceived performance (premium spec section 8): the five
+		// sections read in PARALLEL — one slow artifact never serializes Home.
+		return await Promise.all([
+			this.tasksRow(services),
+			this.ledgerRow(services),
+			this.environmentsRow(),
+			this.browserPolicyRow(),
+			this.workflowsRow(),
+		]);
 	}
 
 	getTreeItem(element: HomeRow): vscode.TreeItem {
@@ -192,6 +211,8 @@ export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {
 		item.tooltip = element.tooltip;
 		item.iconPath = new api.ThemeIcon(element.icon);
 		item.contextValue = element.contextValue;
+		// Premium spec section 6: summary-row a11y grammar "<label>: <description>".
+		item.accessibilityInformation = { label: `${element.label}: ${element.description}` };
 		if (element.command !== undefined) {
 			item.command = element.command;
 		}
@@ -270,10 +291,10 @@ export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {
 		return {
 			id: 'browserPolicy',
 			label: 'Browser Policy',
-			description: state.present ? 'workspace file' : 'builtin default (deny-all)',
+			description: state.present ? 'workspace file' : 'built-in default (deny-all)',
 			tooltip: state.present
 				? 'Workspace browser policy at .flauz/browser-policy.json. Opens the policy file.'
-				: 'No .flauz/browser-policy.json — the fail-closed builtin deny-all default is in effect. Creates + opens the policy file.',
+				: 'No .flauz/browser-policy.json — the fail-closed built-in deny-all default is in effect. Creates + opens the policy file.',
 			icon: 'shield',
 			command: { command: 'flauz.browser.setPolicy', title: 'Open (or Create) Browser Policy File' },
 			contextValue: 'flauzHomeBrowserPolicy',
@@ -314,15 +335,21 @@ export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {
 		return root === undefined ? api.Uri.file(relativePath) : api.Uri.file(joinPath(root, relativePath));
 	}
 
+	/**
+	 * Degraded section row (premium spec section 4): the section could not be
+	 * read, the view stays useful. Carries the shared error tokens —
+	 * contextValue `flauzError` + a Retry-titled command — so the stock
+	 * view/item/context menu rule offers the Flauz guide on it too.
+	 */
 	private unreadableRow(label: string, message: string): HomeRow {
 		return {
 			id: label.toLowerCase().replace(/[^a-z]/g, ''),
 			label,
 			description: 'unreadable',
-			tooltip: `${label}: ${truncate(message, 160)}\n\nChoose this row to retry (re-reads the .flauz/ state).`,
+			tooltip: `${label}: ${truncate(message, 160)}\n\n${RETRY_SENTENCE} The Flauz guide (context menu) explains this surface's files.`,
 			icon: 'warning',
-			command: { command: 'flauz.workspace.refreshHome', title: 'Refresh Flauz Home' },
-			contextValue: 'flauzHomeUnreadable',
+			command: { command: 'flauz.workspace.refreshHome', title: 'Retry' },
+			contextValue: 'flauzError',
 		};
 	}
 }
@@ -331,6 +358,8 @@ export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {
 export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeElement> {
 	private readonly context: WorkspaceViewContext;
 	private readonly emitter: vscode.EventEmitter<TasksTreeElement | undefined>;
+	/** Last successful root render — the recovery cache (premium spec section 4). */
+	private lastKnownGoodTasks: readonly Task[] | undefined;
 
 	constructor(context: WorkspaceViewContext) {
 		this.context = context;
@@ -338,13 +367,26 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 		this.emitter = new api.EventEmitter<TasksTreeElement | undefined>();
 	}
 
+	/** Re-reads the envelope + ledger on the next tree refresh. */
+	refresh(): void {
+		this.emitter.fire(undefined);
+	}
+
 	get onDidChangeTreeData(): vscode.Event<TasksTreeElement | undefined> {
 		return this.emitter.event;
 	}
 
-	/** Re-reads the envelope + ledger on the next tree refresh. */
-	refresh(): void {
-		this.emitter.fire(undefined);
+	/**
+	 * Parent chain for reveal navigation (premium spec section 5): evidence
+	 * resolves to its task element (via the last-known-good cache); task and
+	 * error rows are roots. The TreeView.reveal API requires this method.
+	 */
+	getParent(element: TasksTreeElement): TasksTreeElement | undefined {
+		if (element.kind !== 'evidence') {
+			return undefined;
+		}
+		const parent = this.lastKnownGoodTasks?.find(task => task.id === element.row.taskId);
+		return parent === undefined ? undefined : { kind: 'task', task: parent };
 	}
 
 	async getChildren(element?: TasksTreeElement): Promise<TasksTreeElement[]> {
@@ -355,9 +397,16 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 		if (element === undefined) {
 			try {
 				const tasks = await services.tasks.listTasks();
+				this.lastKnownGoodTasks = tasks;
 				return tasks.map(task => ({ kind: 'task', task }) as const);
 			} catch (err) {
-				return [{ kind: 'error', message: errorMessage(err), retryCommand: 'flauz.workspace.refreshTasks' }];
+				// Recovery law: keep the last-known-good rows below the error
+				// row — a failed refresh never blanks a populated view.
+				const cached = this.lastKnownGoodTasks ?? [];
+				return [
+					{ kind: 'error', message: errorMessage(err), retryCommand: 'flauz.workspace.refreshTasks', stale: cached.length > 0 },
+					...cached.map(task => ({ kind: 'task', task }) as const),
+				];
 			}
 		}
 		if (element.kind !== 'task') {
@@ -369,7 +418,7 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 				.filter(row => row.taskId === element.task.id)
 				.map(row => ({ kind: 'evidence', row }) as const);
 		} catch (err) {
-			return [{ kind: 'error', message: errorMessage(err), retryCommand: 'flauz.workspace.refreshTasks' }];
+			return [{ kind: 'error', message: errorMessage(err), retryCommand: 'flauz.workspace.refreshTasks', stale: false }];
 		}
 	}
 
@@ -380,8 +429,32 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 			case 'evidence':
 				return this.evidenceItem(element.row);
 			case 'error':
-				return this.errorItem(element.message, element.retryCommand);
+				return this.errorItem(element.message, element.retryCommand, element.stale);
 		}
+	}
+
+	/**
+	 * Resolves the tree element for a task id — fresh read first (which also
+	 * refreshes the recovery cache), last-known-good fallback — for the
+	 * reveal navigation command. Returns undefined when the id is unknown.
+	 */
+	async taskElementFor(taskId: string): Promise<TasksTreeElement | undefined> {
+		const services = this.context.getServices();
+		if (services === undefined) {
+			return undefined;
+		}
+		try {
+			const tasks = await services.tasks.listTasks();
+			this.lastKnownGoodTasks = tasks;
+		} catch {
+			// fall through to the last-known-good lookup below
+		}
+		const task = this.lastKnownGoodTasks?.find(candidate => candidate.id === taskId);
+		return task === undefined ? undefined : { kind: 'task', task };
+	}
+
+	private now(): number {
+		return this.context.clock?.() ?? Date.now();
 	}
 
 	private taskItem(task: Task): vscode.TreeItem {
@@ -389,8 +462,14 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 		const active = !isTerminal(task.status);
 		const item = new api.TreeItem(task.title, active ? api.TreeItemCollapsibleState.Expanded : api.TreeItemCollapsibleState.Collapsed);
 		item.id = `flauz.tasks/${task.id}`;
-		item.description = `${task.id} · ${task.status}`;
-		item.tooltip = `Task ${task.id} — ${task.title}\nStatus: ${task.status}${ACTIVE_STATUSES.includes(task.status) ? ' (active)' : ''}\nEvidence rows appear as children; they open their artifact when selected.`;
+		item.description = `${task.id} · ${task.status} · updated ${formatAge(task.timing.updatedAt, this.now())}`;
+		item.tooltip = [
+			`Task ${task.id} — ${task.title}`,
+			`Status: ${task.status}${ACTIVE_STATUSES.includes(task.status) ? ' (active)' : ''}`,
+			`Created: ${formatTimestamp(task.timing.created)} UTC (${task.timing.created})`,
+			`Updated: ${formatTimestamp(task.timing.updatedAt)} UTC (${task.timing.updatedAt})`,
+			'Evidence rows appear as children; they open their artifact when selected.',
+		].join('\n');
 		item.iconPath = new api.ThemeIcon(this.taskIcon(task.status));
 		item.contextValue = TASK_CONTEXT;
 		item.accessibilityInformation = { label: `Task ${task.id}, ${task.title}, status ${task.status}` };
@@ -415,8 +494,14 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 		const evidenceId = evidenceIdOf(row.seq);
 		const item = new api.TreeItem(evidenceId, api.TreeItemCollapsibleState.None);
 		item.id = `flauz.tasks/${row.taskId}/${row.seq}`;
-		item.description = `${row.kind} · ${shortUri(row.uri)}`;
-		item.tooltip = `Evidence ${evidenceId} (${row.kind}) for task ${row.taskId}\nURI: ${row.uri}\nSHA-256: ${row.sha256}\nSelecting opens the artifact (editor for files, external browser otherwise).`;
+		item.description = `${row.kind} · ${shortUri(row.uri)} · ${formatAge(row.ts, this.now())}`;
+		item.tooltip = [
+			`Evidence ${evidenceId} (${row.kind}) for task ${row.taskId}`,
+			`URI: ${row.uri}`,
+			`Recorded: ${formatTimestamp(row.ts)} UTC (${row.ts})`,
+			`SHA-256: ${row.sha256}`,
+			'Selecting opens the artifact (editor for files, external browser otherwise).',
+		].join('\n');
 		item.iconPath = new api.ThemeIcon('file');
 		item.contextValue = EVIDENCE_CONTEXT;
 		item.command = { command: OPEN_EVIDENCE_COMMAND, title: 'Open Evidence', arguments: [{ evidenceId }] };
@@ -424,12 +509,14 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 		return item;
 	}
 
-	private errorItem(message: string, retryCommand: string): vscode.TreeItem {
+	private errorItem(message: string, retryCommand: string, stale: boolean): vscode.TreeItem {
 		const api = vscodeApi();
 		const item = new api.TreeItem('Unable to Load Tasks', api.TreeItemCollapsibleState.None);
 		item.id = 'flauz.tasks/error';
 		item.description = truncate(message, 80);
-		item.tooltip = `${message}\n\nSelecting this row retries the load.`;
+		item.tooltip = stale
+			? `${message}\n\nThe rows below are the last-known-good snapshot.\n${RETRY_SENTENCE} The Flauz guide (context menu) explains this surface's files.`
+			: `${message}\n\n${RETRY_SENTENCE} The Flauz guide (context menu) explains this surface's files.`;
 		item.iconPath = new api.ThemeIcon('error');
 		item.contextValue = ERROR_CONTEXT;
 		item.command = { command: retryCommand, title: 'Retry' };
@@ -439,23 +526,44 @@ export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeEleme
 }
 
 /**
- * Registers both tree data providers plus their focus/refresh commands and
- * returns the disposables (push onto context.subscriptions immediately).
+ * Registers both tree data providers plus their focus/refresh/reveal commands
+ * and returns the disposables (push onto context.subscriptions immediately).
+ *
+ * The tasks view registers through createTreeView — reveal navigation
+ * (flauz.workspace.revealTask) needs the TreeView handle; the home view keeps
+ * registerTreeDataProvider (no reveal affordance on summary rows).
  */
 export function registerWorkspaceViews(context: WorkspaceViewContext): WorkspaceViews {
 	const api = vscodeApi();
 	const home = new HomeTreeProvider(context);
 	const tasks = new TasksTreeProvider(context);
-	const handlers: Record<(typeof VIEW_COMMAND_IDS)[number], () => unknown> = {
+	const tasksView = api.window.createTreeView(TASKS_VIEW_ID, { treeDataProvider: tasks });
+	const revealTask = async (arg?: unknown): Promise<unknown> => {
+		const taskId = typeof arg === 'object' && arg !== null && !Array.isArray(arg)
+			&& typeof (arg as { taskId?: unknown }).taskId === 'string'
+			? (arg as { taskId: string }).taskId
+			: undefined;
+		const element = taskId === undefined ? undefined : await tasks.taskElementFor(taskId);
+		if (element === undefined) {
+			// Graceful degradation: unknown id (or no workspace) still lands the
+			// user on the Tasks view rather than a dead command.
+			return api.commands.executeCommand(`${TASKS_VIEW_ID}.focus`);
+		}
+		// Premium spec section 5: reveal selects + focuses the task row and
+		// expands its evidence children (task-to-evidence affordance).
+		return tasksView.reveal(element, { select: true, focus: true, expand: true });
+	};
+	const handlers: Record<(typeof VIEW_COMMAND_IDS)[number], (arg?: unknown) => unknown> = {
 		'flauz.focusView': () => api.commands.executeCommand(CONTAINER_FOCUS_COMMAND),
 		'flauz.focusView.home': () => api.commands.executeCommand(`${HOME_VIEW_ID}.focus`),
 		'flauz.focusView.tasks': () => api.commands.executeCommand(`${TASKS_VIEW_ID}.focus`),
 		'flauz.workspace.refreshHome': () => home.refresh(),
 		'flauz.workspace.refreshTasks': () => tasks.refresh(),
+		'flauz.workspace.revealTask': revealTask,
 	};
 	const disposables: vscode.Disposable[] = [
 		api.window.registerTreeDataProvider(HOME_VIEW_ID, home),
-		api.window.registerTreeDataProvider(TASKS_VIEW_ID, tasks),
+		tasksView,
 		...VIEW_COMMAND_IDS.map(id => api.commands.registerCommand(id, handlers[id])),
 	];
 	return {

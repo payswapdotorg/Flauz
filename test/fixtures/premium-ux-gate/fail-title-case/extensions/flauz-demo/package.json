@@ -1,0 +1,41 @@
+{
+	"name": "flauz-demo",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.demo",
+					"name": "Demo"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.demo",
+				"contents": "No demo items yet.\nA demo item is created by the Flauz demo command — this view lists them with their live state.\n[Create Demo Item](command:flauz.demo.create)"
+			}
+		],
+		"commands": [
+			{
+				"command": "flauz.demo.create",
+				"title": "Create Demo Item",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.focusView.demo",
+				"title": "Focus Flauz Demo",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.demo.refreshView",
+				"title": "refresh the Demo View",
+				"category": "Flauz"
+			}
+		]
+	}
+}

@@ -22,6 +22,7 @@ The integrated Flauz branch contains:
 - extensions/flauz-workflow
 - extensions/flauz-workspace
 - a Flauz activity-bar shell: container `flauz` with Home, Tasks, Agent Sessions, Environments, Browser and Models views (TL4-001, branch tl4/a-ia-shell)
+- a premium UX layer over those views (TL4-002, branch tl4/a2-premium-ux): unified error rows with Retry + guide context-menu, last-known-good recovery, row ages/tooltips, reveal navigation, a11y labels on every row
 - product.flauz.json
 - Flauz build/merge tooling
 - browser/environment/workflow/performance canaries

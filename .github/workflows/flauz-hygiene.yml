@@ -78,6 +78,9 @@ jobs:
       - name: IA gate (TL4-001 — Flauz shell manifest discipline)
         run: node build/flauz/scripts/ia-gate.mjs --root . --require
 
+      - name: Premium UX gate (TL4-002 — state/a11y/typography discipline)
+        run: node build/flauz/scripts/premium-ux-gate.mjs --root . --require
+
       # ---- upstream hygiene pipeline (shaped on .github/workflows/pr.yml) ----
 
       - name: Setup Node.js
