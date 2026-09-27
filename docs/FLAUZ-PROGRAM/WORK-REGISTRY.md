@@ -223,6 +223,18 @@ worker's lane never landed; TL4 executed personally):
     browser deny-by-default (flauz-browser.yml suites + session-battery
     J3). Spec: docs/FLAUZ-PROGRAM/TL4-SECURITY-GATE.md.
 
+### TL4-007 — Session-battery RUNTIME rung
+Status: ACTIVE (branch tl4/a3-session-runtime pushed; station verification + merge = the TL4 lead's)
+Promote the TL4-004 whole-session battery to the RUNTIME rung: the same J1-J4 journeys over the REAL ports (real CdpEndpointHost + BrowserSessionManager against a real headless Chromium over a real CDP WebSocket; real LocalProcessExecutor for the environment leg), the journey catalogue and transcript contract IDENTICAL — only the ports change.
+
+Progress note (2026-09-27, Worker A, branch `tl4/a3-session-runtime`, base `dcec0f8f7c9`):
+  - Drill `extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts` (the TL3-003 real-Chromium seam pattern): imports the REAL modules the fixture battery imports; recording WebSocketCdpTransport subclass so sent-command assertions hold on the real wire; a REAL local origin server (node:http, 127.0.0.1) as the allowed-navigation host; LocalProcessExecutor with real child processes + real on-disk state; J3's hard row (ZERO Page.navigate frames on the REAL socket after a denial) verified by grepping the recorded wire frames; skip-vs-fail policy (no FLAUZ_CDP_ENDPOINT → SKIP exit 0). REAL RUN GREEN: 38 assertions, 0 failures, against Chrome for Testing 153.0.8010.12 (headless=new).
+  - Transcript artifacts: `test/fixtures/session-battery-runtime/` (README with the normalization table + regeneration command + the checked-in golden-runtime.json produced by the drill's own real run) + the `-doctored` raw-port variant that MUST fail `--check-transcript` (exit 1). Documented contract deltas vs the fixture golden: the schema id, the normalized local-origin URL, ONE additive row (committedUrl — the real committed URL over the wire). No other row differs.
+  - Gate: `session-battery.mjs --runtime` (extend, never rewrite — default behavior byte-compatible; enforces the drill's exit code AND GREEN line; SKIP without the endpoint, FAIL under --require).
+  - CI: flauz-session.yml SECOND job `session-runtime` (job 1 untouched): workflow_dispatch input `runtime` default true + push path-filter on drill/fixtures/gate; downloads pinned Chrome-for-Testing 153.0.8010.12 from the official CfT distribution; launches headless with --remote-debugging-port; runs `session-battery.mjs --runtime --require`; asserts the GREEN line. No secrets; actions pinned to the sibling SHAs.
+  - verify-fixtures.sh: +5 zero-dep cases (104 → 109) — selftest, transcript check both directions, --runtime SKIP semantics both modes; the full runtime rung stays in the opt-in CI lane (documented why).
+  - Spec: TL4-SESSION-BATTERY.md section 4 runtime-rung rewrite (shipped state, the normalization table, the honest residue — UI seams stay fixture-only, the booted-workbench seam is future work).
+
 ### TL4 merge-wave integration note (2026-09-27, TL4 lead)
 
 The upstream hygiene gate (`local/code-no-new-javascript-files`) rejected the

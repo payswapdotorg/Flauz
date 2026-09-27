@@ -134,6 +134,17 @@ assertion fail, added-outside-namespace, empty-census SKIP, --out document).)
 clean/real-tree/no-retry/no-welcome/webview/title-case/
 date-drift, empty-dir SKIP + `--require` flip, usage error, `--help`.)
 
+(TL4-007 addendum, 2026-09-27: the session-battery section adds 5 zero-dep
+runtime-rung cases — 104 → 109: the drill's normalization/compare machinery
+selftest, the pinned runtime-transcript normalization-discipline check in
+BOTH directions (clean PASS + the doctored raw-port variant FAIL), and the
+gate's `--runtime` SKIP semantics in both modes (no endpoint → SKIP exit 0;
+`--runtime --require` no endpoint → FAIL exit 1). The FULL runtime rung
+(J1-J4 over a real headless Chromium + the LocalProcessExecutor) is NOT a
+verify-fixtures case: it needs FLAUZ_CDP_ENDPOINT, so it lives in the
+flauz-session CI job `session-runtime` — the opt-in lane, never the
+in-sandbox matrix.)
+
 Summary (command class → exit code):
 
 | Check | Result |

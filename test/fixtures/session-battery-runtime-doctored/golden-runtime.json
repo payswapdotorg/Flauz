@@ -1,0 +1,89 @@
+{
+	"schema": "flauz.session-battery-runtime/v1",
+	"golden": {
+		"task": {
+			"events": [
+				"agent:submit-plan",
+				"human:approve",
+				"tool:evidence",
+				"agent:report",
+				"tool:verify-pass",
+				"human:sign-off",
+				"tool:workflow-saved"
+			]
+		},
+		"ledger": {
+			"rowCount": 1,
+			"kinds": [
+				"command-output"
+			],
+			"uris": [
+				".flauz/artifacts/T-001/command-output-1.txt"
+			]
+		},
+		"artifacts": [
+			{
+				"uri": ".flauz/artifacts/T-001/command-output-1.txt",
+				"sha256": "803a419b5f26a07d0ef5dd6baafb2454b00883772fd234139828ebc188a4d826"
+			}
+		],
+		"browser": {
+			"journalEvents": [
+				"open",
+				"close"
+			],
+			"navigationVerdicts": [
+				{
+					"url": "http://127.0.0.1:53199/welcome",
+					"decision": "allow",
+					"sent": true,
+					"committedUrl": "http://127.0.0.1:<PORT>/welcome"
+				}
+			],
+			"driveCommandCount": 1
+		},
+		"environment": {
+			"ops": [
+				"create",
+				"start",
+				"stop",
+				"destroy"
+			],
+			"finalState": "destroyed"
+		},
+		"workflow": {
+			"id": "W-001",
+			"title": "ship the flauz session battery golden journey",
+			"toolCount": 1,
+			"evidenceRefCount": 1,
+			"historyLength": 0,
+			"rerunMode": "replay"
+		}
+	},
+	"recovery": {
+		"derivedFromTask": "T-001",
+		"newEvidenceIds": [
+			"E-000002"
+		],
+		"ledgerRowCountAfter": 2,
+		"historyLength": 1,
+		"stopped": "completed"
+	},
+	"failClosed": {
+		"navigationDecision": "deny",
+		"navigationSent": false,
+		"driveCommandCountAfterDeny": 0,
+		"provenanceRejection": "flauz.environments-lifecycle/v0: op 'create' requires a provenance actor (agent|human|tool) — every operation is provenance-carrying",
+		"provenanceCode": "ACTOR_REQUIRED"
+	},
+	"continuity": {
+		"taskCount": 1,
+		"workflowIds": [
+			"W-001"
+		],
+		"workflowHistoryLength": 0,
+		"envState": "running",
+		"journalLineCount": 2,
+		"liveBrowserSessions": 0
+	}
+}
