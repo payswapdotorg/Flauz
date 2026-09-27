@@ -94,6 +94,11 @@ declare module 'node:crypto' {
 		digest(encoding: 'hex'): string;
 	}
 	export function createHash(algorithm: 'sha256'): ShimHash;
+	export function randomBytes(size: number): { toString(encoding: 'hex'): string };
+}
+
+declare class TextEncoder {
+	encode(input?: string): Uint8Array;
 }
 
 declare module 'node:http' {

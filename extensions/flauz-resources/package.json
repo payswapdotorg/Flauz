@@ -17,7 +17,8 @@
                 "onCommand:flauz.res.list",
                 "onCommand:flauz.res.show",
                 "onCommand:flauz.res.graph",
-                "onCommand:flauz.res.verify"
+                "onCommand:flauz.res.verify",
+                "onCommand:flauz.res.syncBrowserSessions"
         ],
         "main": "./dist/extension.js",
         "enabledApiProposals": [],
@@ -42,6 +43,12 @@
                                 "command": "flauz.res.verify",
                                 "title": "Verify Resource Graph (Schema + Integrity + Provenance)",
                                 "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.res.syncBrowserSessions",
+                                "title": "Sync Browser Sessions (From Journal)",
+                                "category": "Flauz",
+                                "description": "Reconcile browser-session resource refs from the PIN-1 session journal (.flauz/browser-sessions.jsonl, read-only; provenance-recorded)."
                         }
                 ]
         },
