@@ -68,8 +68,9 @@ Status: TODO
 Integrate policy, partitions, credential isolation, prompt-injection defenses, screenshot/evidence capture and recovery.
 
 ### TL3-003 — Environment lifecycle
-Status: TODO
+Status: ACTIVE
 Turn environment descriptors into create/start/stop/snapshot/attach/detach/destroy operations behind provider adapters.
+Progress note (2026-09-29, Worker B, branch `tl3/b-env-lifecycle`, base `c3b20345cec`): the lifecycle landed in extension-land (`extensions/flauz-environments/src/lifecycle/`): the `EnvironmentExecutor` port (create/start/stop/attach/detach/snapshot/destroy + describe), the typed state machine (`registered -> created -> starting -> running <-> stopping -> stopped -> destroyed` + `failed` + the `/attached` connection substate; illegal transitions are typed errors), the `EnvironmentLifecycleManager` (MANDATORY provenance actor, fail-closed trust gate for start/attach on `untrusted`, typed outcomes never raw throws), the PIN-2 sibling envelopes (`.flauz/environments-lifecycle.json` + append-only `.flauz/environments-ops.jsonl`, exact shapes, fixtures at `test/fixtures/environments-lifecycle/`), the LOCAL-REAL `LocalProcessExecutor` (bound to `workspace-remote` in a documented local-loopback posture; FIXED harness `fixtures/env-agent.ts` only — descriptor-supplied execution forbidden; real terminate/reap with SIGKILL escalation; real sha256 snapshot manifests; orphan + stale crash reconciliation), and the REMOTE-SIMULATED executors (ssh-local/container/cloud-sandbox, TEST INFRASTRUCTURE, explicit `simulated` opt-in only). Commands `flauz.env.create/start/stop/attach/detach/snapshot/destroy/status` (typed results) + lifecycle state/last-op in the tree rows. Real providers remain TL3-004; the `resolvers` grant stays absent (DL-33). Verified: typecheck exit 0 (incl. the pre-existing views.test.ts:193 fix), 94/94 `node --test`, C-ENV canary GREEN, activation-lint GREEN, fork-critical EMPTY, verify-fixtures 82 cases 0 deviations, premium-ux-gate CLEAN, ia-gate CLEAN, secret sweep 0. Status stays ACTIVE pending TL station merge + CI green.
 
 ### TL3-004 — Provider matrix
 Status: TODO

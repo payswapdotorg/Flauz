@@ -3,15 +3,20 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 /**
- * Minimal ambient declarations for the Node built-in modules used by this
- * extension's tests. Zero-dependency discipline (no `@types/node`): only the
- * exact surface the test helpers call. At runtime the real Node
- * implementations are loaded; these types exist only so `tsc --noEmit`
- * checks the code.
+ * Minimal ambient declarations for the Node built-in modules and globals used
+ * by this extension's source and tests (TL3-003 added child_process, crypto,
+ * the process global and the timer globals for the local-real executor).
+ *
+ * Zero-dependency discipline (no `@types/node`): only the exact surface we
+ * call. At runtime the real Node implementations are loaded; these types
+ * exist only so `tsc --noEmit` checks the code.
  */
 
 declare module 'node:fs/promises' {
 	export function readFile(path: string, options: { encoding: 'utf-8' }): Promise<string>;
+	export function readFile(path: string, encoding: 'utf-8'): Promise<string>;
+	export function access(path: string): Promise<void>;
+	export function stat(path: string): Promise<{ isFile(): boolean; isDirectory(): boolean }>;
 	export function writeFile(path: string, data: string, options?: { encoding?: string; flag?: string }): Promise<void>;
 	export function rename(oldPath: string, newPath: string): Promise<void>;
 	export function mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
@@ -36,7 +41,7 @@ declare module 'node:test' {
 }
 
 declare module 'node:assert' {
-	export function ok(value: unknown, message?: string): void;
+	export function ok(value: unknown, message?: string): asserts value;
 	export function equal(actual: unknown, expected: unknown, message?: string): void;
 	export function strictEqual(actual: unknown, expected: unknown, message?: string): void;
 	export function notStrictEqual(actual: unknown, expected: unknown, message?: string): void;
@@ -47,13 +52,69 @@ declare module 'node:assert' {
 	export function fail(message?: string): never;
 }
 
+declare module 'node:child_process' {
+	export interface ShimStream {
+		write(chunk: string | Uint8Array): boolean;
+		end(callback?: () => void): void;
+		on(event: 'data', listener: (chunk: { toString(encoding?: string): string }) => void): void;
+		on(event: 'close', listener: () => void): void;
+		on(event: 'error', listener: (error: Error) => void): void;
+		setEncoding(encoding: string): void;
+	}
+	export interface ShimChildProcess {
+		stdin: ShimStream | null;
+		stdout: ShimStream | null;
+		stderr: ShimStream | null;
+		readonly pid: number | undefined;
+		readonly killed: boolean;
+		kill(signal?: string): void;
+		on(event: 'error', listener: (error: Error) => void): void;
+		on(event: 'close', listener: (code: number | null) => void): void;
+	}
+	export function spawn(
+		command: string,
+		args: readonly string[],
+		options?: { stdio?: string | string[]; cwd?: string; env?: Record<string, string | undefined> }
+	): ShimChildProcess;
+}
+
+declare module 'node:crypto' {
+	export interface ShimHash {
+		update(data: string | Uint8Array, encoding?: string): ShimHash;
+		digest(encoding: 'hex'): string;
+	}
+	export function createHash(algorithm: 'sha256'): ShimHash;
+}
+
+declare const process: {
+	execPath: string;
+	argv: string[];
+	env: Record<string, string | undefined>;
+	pid: number;
+	readonly versions: { electron?: string; node?: string };
+	exit(code?: number): never;
+	on(event: string, listener: (...args: unknown[]) => void): void;
+	stdout: { write(chunk: string): boolean };
+	stdin: { setEncoding(encoding: string): void; on(event: string, listener: (chunk: string) => void): void };
+	kill(pid: number, signal?: string | number): void;
+};
+
 declare const console: {
 	log(...args: unknown[]): void;
 	error(...args: unknown[]): void;
 };
+
+/** Timer globals (kept alive by the event loop unless unref'd). */
+declare function setTimeout(handler: (...args: never[]) => void, ms: number): { unref(): void };
+declare function clearTimeout(timer: { unref(): void } | undefined): void;
+declare function setInterval(handler: (...args: never[]) => void, ms: number): { unref(): void };
+declare function clearInterval(timer: { unref(): void } | undefined): void;
 
 /** Import meta surface used for module-path resolution (value and type). */
 interface ImportMeta {
 	readonly url: string;
 	readonly dirname: string;
 };
+
+/** The WHATWG URL global subset used for harness path resolution. */
+declare const URL: new (url: string, base?: string) => { readonly pathname: string; readonly href: string };

@@ -1,21 +1,62 @@
-# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J)
+# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003)
 
-The extension-land vs product-side boundary for the environment registry and the
-resolver/remote machinery it builds on. Every row cites tree paths (flauz/main @
-a4c245147e8f, upstream pristine per DL-12). Headline: **the v0 environment story
-requires ZERO product-side code** — everything composes on upstream surfaces;
-the only product-file touch any future step needs is a `product.flauz.json`
-proposal grant (build-time overlay, DL-16 semantics), which is not a fork.
+The extension-land vs product-side boundary for the environment registry, the
+lifecycle executors, and the resolver/remote machinery it builds on. Every row
+cites tree paths (flauz/main @ a4c245147e8f, upstream pristine per DL-12).
+Headline: **the v0 + lifecycle story requires ZERO product-side code** —
+everything composes on upstream surfaces; the only product-file touch any
+future step needs is a `product.flauz.json` proposal grant (build-time
+overlay, DL-16 semantics), which is not a fork.
 
-## 1. What v0 shipped (extension-land, this lane)
+## 1. What shipped (extension-land, this lane)
 
 - Registry + descriptors + plans + continuity model: `extensions/flauz-environments/src/`
   (pure TypeScript, zero deps; `src/extension.ts` is the only vscode-importing file).
-- All live connections are OUT (plans are the artifact; runners execute them —
-  REPORT GAPS-AND-SKIPS).
-- Activation is command-driven only (`onCommand:flauz.env.*`); activation-lint R3
-  caps `onStartupFinished` at the two Wave-3 extensions (flauz-agent +
+- TL3-003 — the environment LIFECYCLE (`src/lifecycle/`): the
+  `EnvironmentExecutor` port (create/start/stop/attach/detach/snapshot/destroy
+  + describe), the lifecycle state machine, the `EnvironmentLifecycleManager`
+  (provenance law + fail-closed trust gate), and two executors:
+  - LOCAL-REAL `LocalProcessExecutor` — serves `workspace-remote` in a
+    documented LOCAL-LOOPBACK posture (kind binding decision, recorded in
+    README + the delivery report; the v0 kind vocabulary is untouched). Real
+    node processes via the FIXED harness `fixtures/env-agent.ts` (spawned
+    with `ELECTRON_RUN_AS_NODE=1` when `process.execPath` is Electron), real
+    fs snapshots with sha256 manifests, graceful-then-SIGKILL reaping,
+    orphan detection (an alive pid the executor never spawned is never
+    signalled — `PROCESS_NOT_OWNED`).
+  - REMOTE-SIMULATED `SimulatedRemoteExecutor` (ssh-local / container /
+    cloud-sandbox) — TEST INFRASTRUCTURE, NOT PRODUCTION CODE (FakeCdpTransport
+    style), driven ONLY behind the explicit `simulated` opt-in (command arg
+    or the `flauz.environments.simulated` setting, default false).
+- All LIVE REMOTE connections are still OUT (plans are the artifact; the
+  simulated executors are drills, not providers — REPORT GAPS-AND-SKIPS).
+  Real providers for the four kinds are TL3-004.
+- Activation is command-driven only (`onCommand:flauz.env.*` +
+  `onView:flauz.environments`); activation-lint R3 caps
+  `onStartupFinished` at the two Wave-3 extensions (flauz-agent +
   flauz-workspace) — this extension stays off it.
+
+## 1a. The PIN-2 sibling-envelope contracts (TL3-003 — cross-worker)
+
+Another lane consumes these READ-ONLY (strict parsers; the key sets are
+pinned, fixtures under `test/fixtures/environments-lifecycle/`):
+
+- `.flauz/environments-lifecycle.json` — envelope
+  `flauz.environments-lifecycle/v0`: `{schemaVersion, schema, updatedAt,
+  entries: {<envId>: {state, updatedAt, executorKind, lastOpRef}}}`
+  (DL-9/DL-32 canonical serialization, atomic writes).
+- `.flauz/environments-ops.jsonl` — append-only, one canonical JSON line per
+  op: `{schemaVersion, schema, ts, actor, op, environmentId, result,
+  fromState, toState, error?}` with `actor` ∈ agent|human|tool (MANDATORY
+  provenance).
+
+Semantics: the attach/detach connection substate is carried INSIDE the
+`state` string (`running/attached`, `stopped/attached`) so the entry key set
+stays exactly the PIN-2 four; `lastOpRef` is the 1-based ledger line number
+of the environment's most recent record; `result:'error'` requires
+`error:{code,message}` and `result:'ok'` forbids it. The
+`flauz.environments/v0` descriptor registry (DL-29) is untouched — lifecycle
+state lives ONLY in these NEW sibling files.
 
 ## 2. The boundary, surface by surface
 
@@ -45,8 +86,11 @@ proposal grant (build-time overlay, DL-16 semantics), which is not a fork.
   inventories the union.
 - Current `product.flauz.json` grants: `flauz.flauz-agent`
   (`defaultChatParticipant`, `chatParticipantAdditions`), `flauz.flauz-workspace`
-  (`scmArtifactProvider`). v0 of this extension adds NOTHING (empty array).
-- Wave-4-next (live resolver code): `"flauz.flauz-environments": ["resolvers"]`.
+  (`scmArtifactProvider`). v0 of this extension adds NOTHING (empty array) —
+  TL3-003 added no grants either (the local-real executor spawns node
+  processes from the extension host, which needs no proposal; the simulated
+  executors are file-backed test infrastructure).
+- TL3-004 (live resolver code): `"flauz.flauz-environments": ["resolvers"]`.
   Nothing else on the path to live SSH/container/cloud connections needs a
   grant — `resolvers` covers registration, tunnels factory, exec-server
   transit (`vscode.proposed.resolvers.d.ts:381-433`).
