@@ -28,6 +28,7 @@
 
 import type * as vscode from 'vscode';
 import { ProviderError } from '../contract/errors.ts';
+import { compileBudget } from '../budget/budget.ts';
 import type { ChatInputPart, ChatMessage, ChatRequest, ChatToolDefinition, ProviderAdapter, ProviderStreamEvent } from '../contract/types.ts';
 
 /** vscode.LanguageModelChatMessageRole.User === 1 (vscode.d.ts:20135). */
@@ -136,9 +137,9 @@ export function createAdapterBackedProvider(deps: { readonly adapter: ProviderAd
 				name: model.modelName,
 				family: model.family,
 				version: model.version,
-				// Conservative documented input bound: window minus the declared
-				// max output (the M4 budget compiler refines reservations per policy).
-				maxInputTokens: Math.max(1, model.contextWindowTokens - model.maxOutputTokens),
+				// Input bound = the M4 budget compiler's input reserve (window minus
+				// output + tool reservations; see src/budget/budget.ts).
+				maxInputTokens: compileBudget({ providerId: adapter.descriptor.providerId, modelId: model.modelId, contextWindowTokens: model.contextWindowTokens, maxOutputTokens: model.maxOutputTokens }).inputReserveTokens,
 				maxOutputTokens: model.maxOutputTokens,
 				capabilities: {
 					...(model.toolCalling === false ? {} : { toolCalling: model.toolCalling }),

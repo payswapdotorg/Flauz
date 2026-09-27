@@ -109,7 +109,7 @@ test('bridge: information mapping exposes models with conservative input bound a
 	ok(models, 'information returned');
 	strictEqual(models.length, 1);
 	strictEqual(models[0].id, 'fake-1');
-	strictEqual(models[0].maxInputTokens, 4096 - 1024, 'conservative window minus max output');
+	strictEqual(models[0].maxInputTokens, 2663, 'M4 budget input reserve: 4096 - 1024 output - 409 tool');
 	strictEqual(models[0].maxOutputTokens, 1024);
 	deepStrictEqual(models[0].capabilities, { toolCalling: true, imageInput: true });
 });
