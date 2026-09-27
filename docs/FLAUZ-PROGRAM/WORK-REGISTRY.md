@@ -159,6 +159,14 @@ activation-lint GREEN; secret sweep 0. Status stays ACTIVE until CI
 Status: TODO
 Create integrated gates for secrets, permissions, browser safety, supply chain, packaging, signing and reproducible release artifacts.
 
+### TL4 merge-wave integration note (2026-09-27, TL4 lead)
+
+The upstream hygiene gate (`local/code-no-new-javascript-files`) rejected the
+three new zero-dep gate scripts; fixed by allowlisting them in
+`.eslint-allowed-javascript-files` (same precedent as the Wave-4 flauz
+harness entries). Applies to future TL4 gate scripts: every new zero-dep
+`.mjs` gate merged to main must land with its allowlist line in the same PR.
+
 ## Cross-TL rule
 
 No TL may wait for another TL to begin useful work.
