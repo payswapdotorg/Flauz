@@ -90,6 +90,15 @@ Design and begin implementing the coherent shell across editor, agent, browser, 
 
 Progress note (2026-09-27, branch tl4/a-ia-shell, Worker A): the Flauz shell landed — one activity-bar container `flauz` ($(sparkle), owned by flauz-workspace) holding six tree views backed by real service state: flauz.home + flauz.tasks (flauz-workspace), flauz.agentSessions (flauz-agent), flauz.environments (flauz-environments), flauz.browser (flauz-browser), flauz.models (flauz-models); each with viewsWelcome empty states, error rows with Retry commands, focusView command family (category "Flauz") and view/title refresh. Machine-checkable IA gate at build/flauz/scripts/ia-gate.mjs wired into flauz-hygiene.yml and verify-fixtures.sh (fixtures under test/fixtures/ia-gate/). Spec: docs/FLAUZ-PROGRAM/TL4-IA-SPEC.md. Status stays ACTIVE pending merge-to-main + green CI (SOURCE-OF-TRUTH completion law).
 
+Merge record (2026-09-27, TL4 lead): PR #6 squash-merged to main at
+`33e0af4ea9` (branch `tl4/a-ia-shell`, 83 files). Station-verified in
+isolation AND as a test-merge with current main: ia-gate CLEAN (6 views in
+container `flauz`, 31 command ids); verify-fixtures ALL 72 CASES (0
+deviations); compat-battery 1887/1887; activation-lint GREEN; extension
+tests re-run at station (all six exit 0; workspace spot-check 64/64);
+fork-critical EMPTY; secret sweep 0. Status: the IA shell rung is DONE
+pending CI green on main; premium-UX rung (TL4-002) builds on these views.
+
 ### TL4-002 — Premium UX
 Status: TODO
 Implement and verify typography, density, hierarchy, states, focus, keyboard behavior, empty/loading/error/recovery states and polished transitions.
