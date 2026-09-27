@@ -21,6 +21,18 @@
  * for the local kind, SIMULATED only on demand — no fake claims of real
  * remote control; real providers = TL3-004).
  *
+ * TL3-004 rung 1: the REAL remote providers are wired behind the same
+ * contract — ssh-local -> SshCliExecutor (system ssh binary; fixed harness
+ * over stdin), container -> DockerCliExecutor (system docker; run/cp/exec
+ * of the fixed harness only), cloud-sandbox -> CloudHttpExecutor (the
+ * Flauz cloud-sandbox wire contract v0 over the stdlib fetch; apiKeyRef
+ * resolved ONLY through the vault-reference port — `env:<NAME>` from the
+ * process environment, `vault:<NAME>` from the host's secret storage). All
+ * three fail closed with TYPED capability errors when the binary/daemon/
+ * keys/endpoint are absent (CLI_NOT_AVAILABLE / DAEMON_UNREACHABLE /
+ * VAULT_REF_UNRESOLVED / CLOUD_UNREACHABLE) — never a silent fallback, never
+ * a crash, never a fake claim of success.
+ *
  * Provenance at the command boundary: palette invocations default to actor
  * `human` (the command palette is a human surface); programmatic callers
  * (agents/tools) MUST pass `actor` explicitly — the manager itself rejects
@@ -39,9 +51,14 @@ import { EnvironmentRegistry } from './registry.ts';
 import { planSwitch } from './continuity.ts';
 import { registerEnvironmentsView, type EnvironmentsViewApi } from './views.ts';
 import {
+	CloudHttpExecutor,
+	DockerCliExecutor,
 	EnvironmentLifecycleManager,
 	LocalProcessExecutor,
+	NodeCliPort,
 	SimulatedRemoteExecutor,
+	SshCliExecutor,
+	nodeHttpPort,
 	type ChildHandle,
 	type DescribeReport,
 	type EnvironmentOpOutcome,
@@ -49,6 +66,7 @@ import {
 	type HashPort,
 	type LocalEnvFsPort,
 	type ProcessPort,
+	type SecretResolverPort,
 	type SimFsPort,
 } from './lifecycle/index.ts';
 
@@ -104,6 +122,29 @@ const nodeHashPort: HashPort = {
 	sha256Hex: contents => createHash('sha256').update(contents, 'utf-8').digest('hex'),
 };
 
+/** The system-binary process seam (every ssh/docker invocation goes through it). */
+const nodeCliPort = new NodeCliPort();
+
+/**
+ * The production vault-reference resolver: `env:<NAME>` resolves from the
+ * process environment, `vault:<NAME>` from the host's secret storage (set
+ * at activation). Unresolvable references return undefined — the executor
+ * maps that to the typed VAULT_REF_UNRESOLVED fail-closed error; key
+ * material never reaches descriptors or logs.
+ */
+const secretResolver: SecretResolverPort = {
+	resolve: async ref => {
+		if (ref.startsWith('env:')) {
+			const value = process.env[ref.slice('env:'.length)];
+			return value !== undefined && value.length > 0 ? value : undefined;
+		}
+		if (ref.startsWith('vault:')) {
+			return await state.secrets?.get(ref.slice('vault:'.length));
+		}
+		return undefined;
+	},
+};
+
 /**
  * The FIXED harness shipped inside this extension — the only executable the
  * local-real executor ever spawns (injection law: no descriptor-derived
@@ -120,6 +161,8 @@ const state: {
 	workspaceRoot: string | undefined;
 	fs: FileSystemPort;
 	clock: () => number;
+	/** The host secret storage (vault:<NAME> resolution; set at activation). */
+	secrets: vscode.SecretStorage | undefined;
 } = {
 	registry: undefined,
 	lifecycle: undefined,
@@ -128,6 +171,7 @@ const state: {
 	workspaceRoot: undefined,
 	fs: nodeFs,
 	clock: () => Date.now(),
+	secrets: undefined,
 };
 
 function currentRegistry(): EnvironmentRegistry {
@@ -148,6 +192,11 @@ function currentLifecycle(): EnvironmentLifecycleManager {
 async function bootManagers(root: string): Promise<{ registry: EnvironmentRegistry; lifecycle: EnvironmentLifecycleManager }> {
 	const registry = new EnvironmentRegistry({ root, fs: state.fs, clock: state.clock });
 	await registry.bootstrap();
+	// The cloud wire endpoint is executor WIRING, not descriptor data (the
+	// v0 shape is pinned, DL-29): the flauz.environments.cloudApiBaseUrl
+	// setting (default '' — the cloud executor then fails closed with
+	// typed CLOUD_UNREACHABLE on use; no fabricated endpoints).
+	const cloudBaseUrl = vscode.workspace.getConfiguration('flauz.environments').get<string>('cloudApiBaseUrl', '');
 	const lifecycle = new EnvironmentLifecycleManager({
 		registry,
 		root,
@@ -162,6 +211,36 @@ async function bootManagers(root: string): Promise<{ registry: EnvironmentRegist
 				clock: state.clock,
 				harnessPath: HARNESS_PATH,
 			}),
+			// TL3-004 rung 1 — the REAL remote providers (fail-closed
+			// capability detection; fixed harness only; argv/urls
+			// executor-constructed from validated descriptor data).
+			new SshCliExecutor({
+				root,
+				cli: nodeCliPort,
+				fs: localFs,
+				hash: nodeHashPort,
+				clock: state.clock,
+				harnessPath: HARNESS_PATH,
+			}),
+			new DockerCliExecutor({
+				root,
+				cli: nodeCliPort,
+				fs: localFs,
+				hash: nodeHashPort,
+				clock: state.clock,
+				harnessPath: HARNESS_PATH,
+			}),
+			new CloudHttpExecutor({
+				root,
+				http: nodeHttpPort,
+				secrets: secretResolver,
+				baseUrl: cloudBaseUrl,
+				fs: localFs,
+				hash: nodeHashPort,
+				clock: state.clock,
+			}),
+			// The simulated drills stay wired BEHIND the opt-in
+			// (per-command simulated:true / the setting default).
 			new SimulatedRemoteExecutor({ kind: 'ssh-local', root, fs: localFs, clock: state.clock }),
 			new SimulatedRemoteExecutor({ kind: 'container', root, fs: localFs, clock: state.clock }),
 			new SimulatedRemoteExecutor({ kind: 'cloud-sandbox', root, fs: localFs, clock: state.clock }),
@@ -299,6 +378,7 @@ function viewApi(): EnvironmentsViewApi {
 export function activate(context: vscode.ExtensionContext): void {
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 	state.workspaceRoot = workspaceRoot;
+	state.secrets = context.secrets;
 
 	// TL4-001: the view registers before any early return so the shell surface
 	// (welcome/error/retry states) exists even without a workspace folder.
