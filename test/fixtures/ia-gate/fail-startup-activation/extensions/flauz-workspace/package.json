@@ -1,0 +1,36 @@
+{
+	"name": "flauz-workspace",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"activationEvents": [
+		"onStartupFinished",
+		"onView:flauz.home",
+		"onView:flauz.tasks",
+		"onCommand:flauz.focusView",
+		"onCommand:flauz.focusView.home",
+		"onCommand:flauz.focusView.tasks"
+	],
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{ "id": "flauz", "title": "Flauz", "icon": "$(sparkle)" }
+			]
+		},
+		"views": {
+			"flauz": [
+				{ "id": "flauz.home", "name": "Home" },
+				{ "id": "flauz.tasks", "name": "Tasks" }
+			]
+		},
+		"viewsWelcome": [
+			{ "view": "flauz.home", "contents": "Flauz workspace overview. [Open Folder](command:workbench.action.files.openFolder)" },
+			{ "view": "flauz.tasks", "contents": "No Flauz tasks yet. [Refresh Flauz Tasks](command:flauz.focusView.tasks)" }
+		],
+		"commands": [
+			{ "command": "flauz.focusView", "title": "Focus Flauz View", "category": "Flauz" },
+			{ "command": "flauz.focusView.home", "title": "Focus Flauz Home", "category": "Flauz" },
+			{ "command": "flauz.focusView.tasks", "title": "Focus Flauz Tasks", "category": "Flauz" }
+		]
+	}
+}

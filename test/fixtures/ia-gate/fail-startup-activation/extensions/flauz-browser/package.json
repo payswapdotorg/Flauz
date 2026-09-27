@@ -1,0 +1,36 @@
+{
+	"name": "flauz-browser",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"activationEvents": [
+		"onStartupFinished",
+		"onView:flauz.browser",
+		"onCommand:flauz.focusView.browser"
+	],
+	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.browser",
+					"name": "Browser"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.browser",
+				"contents": "The Flauz browser policy is not active here. [Open Folder](command:workbench.action.files.openFolder)"
+			}
+		],
+		"commands": [
+			{
+				"command": "flauz.focusView.browser",
+				"title": "Focus Flauz Browser",
+				"category": "Flauz"
+			}
+		]
+	}
+}

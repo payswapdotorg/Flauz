@@ -1,0 +1,14 @@
+{
+	"name": "flauz-workflow",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"activationEvents": [
+		"onCommand:flauz.workflow.save"
+	],
+	"contributes": {
+		"commands": [
+			{ "command": "flauz.workflow.save", "title": "Save Run as Workflow", "category": "Flauz" }
+		]
+	}
+}

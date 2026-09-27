@@ -10,17 +10,56 @@
                 "vscode": "^1.140.0"
         },
         "activationEvents": [
-                "onLanguageModelChatProvider:flauz-mock"
+                "onView:flauz.models",
+                "onLanguageModelChatProvider:flauz-mock",
+                "onCommand:flauz.focusView.models",
+                "onCommand:flauz.models.refreshView"
         ],
         "main": "./dist/extension.js",
         "enabledApiProposals": [],
         "contributes": {
+                "views": {
+                        "flauz": [
+                                {
+                                        "id": "flauz.models",
+                                        "name": "Models"
+                                }
+                        ]
+                },
+                "viewsWelcome": [
+                        {
+                                "view": "flauz.models",
+                                "contents": "No Flauz model providers registered yet.\nFlauz ships the deterministic flauz-mock echo provider (activated on demand) plus design stubs for future vendor adapters.\n[Refresh Models View](command:flauz.models.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
+                        }
+                ],
                 "languageModelChatProviders": [
                         {
                                 "vendor": "flauz-mock",
                                 "displayName": "Flauz Mock"
                         }
-                ]
+                ],
+                "commands": [
+                        {
+                                "command": "flauz.focusView.models",
+                                "title": "Focus Flauz Models",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.models.refreshView",
+                                "title": "Refresh Models View",
+                                "category": "Flauz",
+                                "icon": "$(refresh)"
+                        }
+                ],
+                "menus": {
+                        "view/title": [
+                                {
+                                        "command": "flauz.models.refreshView",
+                                        "when": "view == flauz.models",
+                                        "group": "navigation"
+                                }
+                        ]
+                }
         },
         "scripts": {
                 "typecheck": "tsc --noEmit",

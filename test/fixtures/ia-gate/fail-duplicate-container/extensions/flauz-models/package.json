@@ -1,0 +1,23 @@
+{
+	"name": "flauz-models",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"activationEvents": [
+		"onView:flauz.models",
+		"onCommand:flauz.focusView.models"
+	],
+	"contributes": {
+		"views": {
+			"flauz": [
+				{ "id": "flauz.models", "name": "Models" }
+			]
+		},
+		"viewsWelcome": [
+			{ "view": "flauz.models", "contents": "No Flauz model providers registered yet. [Refresh Models View](command:flauz.focusView.models)" }
+		],
+		"commands": [
+			{ "command": "flauz.focusView.models", "title": "Focus Flauz Models", "category": "Flauz" }
+		]
+	}
+}

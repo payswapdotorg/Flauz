@@ -1,0 +1,29 @@
+{
+	"name": "flauz-browser",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"activationEvents": [
+		"onView:flauz.browser",
+		"onCommand:flauz.focusView.browser"
+	],
+	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.browser",
+					"name": "Browser"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "flauz.focusView.browser",
+				"title": "Focus Flauz Browser",
+				"category": "Flauz"
+			}
+		]
+	}
+}

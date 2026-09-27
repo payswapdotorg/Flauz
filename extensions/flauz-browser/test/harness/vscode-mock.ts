@@ -53,6 +53,19 @@ export interface MockOutputChannel {
 	disposed: boolean;
 }
 
+/** Structural mock of vscode.TreeDataProvider (the slice views.ts uses). */
+export interface MockTreeDataProvider {
+	onDidChangeTreeData?: (listener: (e: unknown) => void) => { dispose(): void };
+	getTreeItem(element: unknown): unknown;
+	getChildren(element?: unknown): Promise<unknown[]> | unknown[];
+}
+
+/** A recorded window.registerTreeDataProvider call. */
+export interface MockTreeViewRegistration {
+	readonly viewId: string;
+	readonly provider: MockTreeDataProvider;
+}
+
 export interface MockVscodeState {
 	workspaceFolders: MockWorkspaceFolder[] | undefined;
 	/** In-memory filesystem: absolute path -> utf8 text. */
@@ -66,6 +79,10 @@ export interface MockVscodeState {
 	shownDocuments: string[];
 	messages: Array<{ level: 'warn' | 'info'; text: string }>;
 	inputBoxResponse: string | undefined;
+	/** window.registerTreeDataProvider calls, most recent last. */
+	treeViews: MockTreeViewRegistration[];
+	/** commands.executeCommand calls, most recent last. */
+	executedCommands: string[];
 }
 
 export interface MockVscodeApi {
@@ -75,6 +92,7 @@ export interface MockVscodeApi {
 		showInputBox(options: { prompt?: string; placeHolder?: string }): Promise<string | undefined>;
 		showWarningMessage(text: string): Promise<string | undefined>;
 		showInformationMessage(text: string): Promise<string | undefined>;
+		registerTreeDataProvider(viewId: string, provider: MockTreeDataProvider): { dispose(): void };
 	};
 	workspace: {
 		readonly workspaceFolders: MockWorkspaceFolder[] | undefined;
@@ -93,11 +111,16 @@ export interface MockVscodeApi {
 	};
 	commands: {
 		registerCommand(command: string, handler: (...args: unknown[]) => unknown): { dispose(): void };
+		executeCommand(command: string, ...args: unknown[]): Promise<unknown>;
 	};
 	Uri: {
 		joinPath(base: MockUri, ...pathSegments: string[]): MockUri;
 	};
 	RelativePattern: new (base: unknown, pattern: string) => unknown;
+	EventEmitter: new <T>() => { event: unknown; fire(e: T): void; dispose(): void };
+	TreeItem: new (label: string, collapsibleState?: number) => Record<string, unknown>;
+	ThemeIcon: new (id: string) => { id: string };
+	TreeItemCollapsibleState: { None: number; Collapsed: number; Expanded: number };
 }
 
 function normalizeFsPath(...segments: string[]): string {
@@ -137,6 +160,8 @@ export function createMockVscode(initial: Partial<MockVscodeState> = {}): { vsco
 		shownDocuments: [],
 		messages: [],
 		inputBoxResponse: initial.inputBoxResponse,
+		treeViews: [],
+		executedCommands: [],
 	};
 
 	class RelativePattern {
@@ -145,6 +170,46 @@ export function createMockVscode(initial: Partial<MockVscodeState> = {}): { vsco
 		constructor(base: unknown, pattern: string) {
 			this.base = base;
 			this.pattern = pattern;
+		}
+	}
+
+	class MockEventEmitter<T> {
+		private listeners: Array<(e: T) => void> = [];
+		get event() {
+			return (listener: (e: T) => void) => ({ dispose: () => { this.listeners = this.listeners.filter(candidate => candidate !== listener); } });
+		}
+		fire(e: T): void {
+			for (const listener of [...this.listeners]) {
+				listener(e);
+			}
+		}
+		dispose(): void {
+			this.listeners = [];
+		}
+	}
+
+	const TREE_ITEM_COLLAPSIBLE_STATE = { None: 0, Collapsed: 1, Expanded: 2 } as const;
+
+	class MockTreeItem {
+		label?: string;
+		id?: string;
+		description?: string | boolean;
+		tooltip?: string;
+		iconPath?: { id: string };
+		command?: { command: string; title: string; arguments?: unknown[] };
+		contextValue?: string;
+		accessibilityInformation?: { label: string; role?: string };
+		collapsibleState: number;
+		constructor(label: string, collapsibleState = TREE_ITEM_COLLAPSIBLE_STATE.None) {
+			this.label = label;
+			this.collapsibleState = collapsibleState;
+		}
+	}
+
+	class MockThemeIcon {
+		readonly id: string;
+		constructor(id: string) {
+			this.id = id;
 		}
 	}
 
@@ -184,6 +249,10 @@ export function createMockVscode(initial: Partial<MockVscodeState> = {}): { vsco
 			async showInformationMessage(text: string) {
 				state.messages.push({ level: 'info', text });
 				return undefined;
+			},
+			registerTreeDataProvider(viewId: string, provider: MockTreeDataProvider) {
+				state.treeViews.push({ viewId, provider });
+				return { dispose: () => undefined };
 			},
 		},
 		workspace: {
@@ -246,6 +315,10 @@ export function createMockVscode(initial: Partial<MockVscodeState> = {}): { vsco
 					},
 				};
 			},
+			async executeCommand(command: string, ..._args: unknown[]) {
+				state.executedCommands.push(command);
+				return undefined;
+			},
 		},
 		Uri: {
 			joinPath(base: MockUri, ...pathSegments: string[]) {
@@ -253,6 +326,10 @@ export function createMockVscode(initial: Partial<MockVscodeState> = {}): { vsco
 			},
 		},
 		RelativePattern,
+		EventEmitter: MockEventEmitter as unknown as typeof vscode.EventEmitter,
+		TreeItem: MockTreeItem as unknown as typeof vscode.TreeItem,
+		ThemeIcon: MockThemeIcon as unknown as typeof vscode.ThemeIcon,
+		TreeItemCollapsibleState: TREE_ITEM_COLLAPSIBLE_STATE as unknown as typeof vscode.TreeItemCollapsibleState,
 	};
 
 	return { vscode, state };

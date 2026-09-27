@@ -87,6 +87,16 @@ expect "activation-lint bad-set FAIL (R3 only)"        1 node "$S/activation-lin
 expect "activation-lint empty dir SKIP"                0 node "$S/activation-lint.mjs" --root "$F/perf-timers" --manifests-glob "flauz-*/package.json"
 expect "activation-lint empty dir --require FAIL"      1 node "$S/activation-lint.mjs" --root "$F/perf-timers" --manifests-glob "flauz-*/package.json" --require-manifests
 
+# ---- ia-gate: TL4-001 Flauz shell manifest discipline ----
+expect "ia-gate clean fixture PASS"                    0 node "$S/ia-gate.mjs" --root "$F/ia-gate/clean" --require
+expect "ia-gate real tree PASS"                        0 node "$S/ia-gate.mjs" --root "$ROOT"
+expect "ia-gate duplicate container FAIL"              1 node "$S/ia-gate.mjs" --root "$F/ia-gate/fail-duplicate-container" --require
+expect "ia-gate missing welcome FAIL"                  1 node "$S/ia-gate.mjs" --root "$F/ia-gate/fail-missing-welcome" --require
+expect "ia-gate startup activation FAIL"               1 node "$S/ia-gate.mjs" --root "$F/ia-gate/fail-startup-activation" --require
+expect "ia-gate empty dir SKIP"                        0 node "$S/ia-gate.mjs" --root "$F/perf-timers"
+expect "ia-gate empty dir --require FAIL"              1 node "$S/ia-gate.mjs" --root "$F/perf-timers" --require
+expect "ia-gate usage error (bad flag)"                2 node "$S/ia-gate.mjs" --definitely-not-a-flag
+
 # ---- proposed-api-rota: DL-4 churn gate ----
 expect "rota clean fixture PASS"                       0 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/clean"
 expect "rota dirty fixture FAIL (absent+mismatch)"     1 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty"

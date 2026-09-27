@@ -1,0 +1,24 @@
+{
+	"name": "flauz-agent",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"activationEvents": [
+		"onStartupFinished",
+		"onView:flauz.agentSessions",
+		"onCommand:flauz.focusView.agentSessions"
+	],
+	"contributes": {
+		"views": {
+			"flauz": [
+				{ "id": "flauz.agentSessions", "name": "Agent Sessions" }
+			]
+		},
+		"viewsWelcome": [
+			{ "view": "flauz.agentSessions", "contents": "The Flauz agent bridge is not active. [Open Folder](command:workbench.action.files.openFolder)" }
+		],
+		"commands": [
+			{ "command": "flauz.focusView.agentSessions", "title": "Focus Agent Sessions", "category": "Flauz" }
+		]
+	}
+}
