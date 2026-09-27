@@ -1,0 +1,44 @@
+{
+	"auditReportVersion": 2,
+	"vulnerabilities": {
+		"shared-lib": {
+			"name": "shared-lib",
+			"severity": "critical",
+			"isDirect": true,
+			"via": [
+				{
+					"title": "Synthetic fixture advisory: prototype pollution in shared-lib",
+					"url": "https://github.com/advisories/GHSA-4444-5555-6666",
+					"severity": "critical",
+					"cwe": ["CWE-1321"],
+					"cvss": {
+						"score": 9.1,
+						"vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+					}
+				}
+			],
+			"effects": [],
+			"range": ">=3.0.0 <3.2.0",
+			"nodes": ["node_modules/shared-lib"],
+			"fixAvailable": {
+				"isSemVerMajor": false,
+				"name": "shared-lib",
+				"version": "3.2.0"
+			}
+		}
+	},
+	"metadata": {
+		"vulnerabilities": {
+			"info": 0,
+			"low": 0,
+			"moderate": 0,
+			"high": 0,
+			"critical": 1
+		},
+		"dependencies": {
+			"prod": 4,
+			"dev": 2
+		},
+		"totalDependencies": 6
+	}
+}

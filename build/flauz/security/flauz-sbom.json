@@ -1,0 +1,170 @@
+{
+	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+	"bomFormat": "CycloneDX",
+	"specVersion": "1.5",
+	"serialNumber": "urn:uuid:f7e68c0d-d651-57a2-827a-ea5fcfae6bf0",
+	"version": 1,
+	"metadata": {
+		"tools": {
+			"components": [
+				{
+					"type": "application",
+					"name": "security-runtime-gate",
+					"version": "1.0.0"
+				}
+			]
+		},
+		"component": {
+			"type": "application",
+			"bom-ref": "pkg:generic/flauz@0.1.0",
+			"name": "Flauz",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-product-overlay"
+				},
+				{
+					"name": "flauz:base-product",
+					"value": "Code OSS (additive product line)"
+				}
+			]
+		}
+	},
+	"components": [
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-agent@0.1.0",
+			"name": "flauz-agent",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-agent@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-agent/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-browser@0.1.0",
+			"name": "flauz-browser",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-browser@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-browser/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-environments@0.1.0",
+			"name": "flauz-environments",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-environments@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-environments/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-models@0.1.0",
+			"name": "flauz-models",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-models@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-models/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-resources@0.1.0",
+			"name": "flauz-resources",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-resources@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-resources/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-workflow@0.1.0",
+			"name": "flauz-workflow",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-workflow@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-workflow/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-workspace@0.1.0",
+			"name": "flauz-workspace",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-workspace@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-workspace/dist/"
+				}
+			]
+		}
+	],
+	"dependencies": [
+		{
+			"ref": "pkg:generic/flauz@0.1.0",
+			"dependsOn": [
+				"pkg:generic/flauz/flauz-agent@0.1.0",
+				"pkg:generic/flauz/flauz-browser@0.1.0",
+				"pkg:generic/flauz/flauz-environments@0.1.0",
+				"pkg:generic/flauz/flauz-models@0.1.0",
+				"pkg:generic/flauz/flauz-resources@0.1.0",
+				"pkg:generic/flauz/flauz-workflow@0.1.0",
+				"pkg:generic/flauz/flauz-workspace@0.1.0"
+			]
+		}
+	]
+}
