@@ -1,6 +1,7 @@
 # Flauz Browser Policy — integration gap analysis (extension-land vs product-side)
 
-**Lane:** Wave 4 / Worker I (`flauz-I-w4`), branch `flauz/wave4/browser-policy`.
+**Lane:** Wave 4 / Worker I (`flauz-I-w4`), branch `flauz/wave4/browser-policy`;
+updated by TL3-001 (browser runtime, Worker A).
 **Scope:** what `extensions/flauz-browser` owns today vs. what only a
 product-side change can wire into the in-tree browser platform. Tree
 citations are repo-relative `path:line` against the flauz/main base
@@ -25,6 +26,7 @@ below is analysis + proposal; the only code this lane ships lives under
 | Command surface + activation discipline | `src/extension.ts`, `package.json` | Lazy `onCommand:flauz.browser.*` activation only (no `onStartupFinished`; activation-lint R1-R3 clean). Policy file hot-reload via FileSystemWatcher. |
 | Host-pattern matcher mirroring the tree filter semantics | `src/policy.ts` `isDomainAllowed` | Byte-for-byte the same algorithm as `src/vs/platform/networkFilter/common/domainMatcher.ts:257-275` + `networkFilterService.ts:26-35`, so extension-land verdicts agree with the in-tree gate wherever both run. |
 | Post-commit reconciliation verdicts (SECURITY-MODEL section 4 F2) | `src/policy.ts` `reconcileCommittedUrl` | Computes the violation + the `about:blank` reset recommendation; the actual forced reset is product-side (gap G6). |
+| **The browser RUNTIME (TL3-001)** — CDP client, sessions, policy-gated navigation, capture, recovery | `src/cdp/`, `src/runtime/` | The runtime posture P0 was waiting for: `BrowserSessionDescriptor` (flauz.browser-session/v0), the navigation pipeline (deny => ZERO CDP commands; post-commit violation => the F2 reset recommendation), console/network/screenshot capture + evidence rows, drop/wedged recovery, `CdpEndpointHost` (FLAUZ_CDP_ENDPOINT) + `WorkbenchBrowserHost` (proposed browser API). Pinned by 60 new node --test cases + the driver drill. |
 
 ## 2. The in-tree gate inventory (verified at this HEAD)
 
@@ -122,7 +124,7 @@ DL-31-adjacent candidate, or an upstream-proposal issue).
 
 | Posture | Fork cost | What it gives | Status |
 |---|---|---|---|
-| **P0 — extension-driven tabs (proposed API)** | zero (DL-19 product grant `extensionEnabledApiProposals["flauz.flauz-browser"] = ["browser"]`) | The extension opens agent browser tabs itself via `window.openBrowserTab` + `startCDPSession` (proposed `vscode.proposed.browser.d.ts:64-91`) and consults its OWN driver-layer verdict BEFORE any `Page.navigate` — the driver-side allowlist is then genuinely authoritative for the Flauz agent path, per-workspace, zero fork. L2 still needs G3/P1 for defense-in-depth. | Proposed DL-29/DL-30 posture; the product grant is a one-line `product.flauz.json` addition when the lane lands |
+| **P0 — extension-driven tabs (proposed API)** | zero (DL-19 product grant `extensionEnabledApiProposals["flauz.flauz-browser"] = ["browser"]`) | The extension opens agent browser tabs itself via `window.openBrowserTab` + `startCDPSession` (proposed `vscode.proposed.browser.d.ts:64-91`) and consults its OWN driver-layer verdict BEFORE any `Page.navigate` — the driver-side allowlist is then genuinely authoritative for the Flauz agent path, per-workspace, zero fork. L2 still needs G3/P1 for defense-in-depth. | **LANDED (TL3-001)**: the grant is live in `product.flauz.json` (plus the manifest `enabledApiProposals: ["browser"]`), `WorkbenchBrowserHost` implements the adapter over structural ports, and the runtime + driver drill satisfy the DL-33 no-dead-config discipline (live code path behind the grant). Workbench-level boot verification stays with the B-POLICY canary's boot assertions. |
 | **P1 — config-only default-on L2** | zero (`flauz-defaults` configurationDefaults, or enterprise policy `ChatAgentNetworkFilter`) | Turns the in-tree webRequest filter on for all agent sessions (application scope) | No code yet; documented for the flauz-defaults lane |
 | **P2 — minimal src/vs hook (provider interface)** | FORK-CRITICAL ledger entry (DL-12/DL-10) | Per-workspace verdicts feed the tree's own L1/L2 gates directly (G2/G5/G6 closure) | DECISION-LOG proposal only (DL-31); demotion alternative = P0+P1 |
 
@@ -151,8 +153,21 @@ is proposed and the row mapping is pinned by tests
 
 The browser platform is in-tree and agent-native (DL-1/DL-6); the policy
 ENGINE, the per-workspace policy SOURCE, the partition NAMING CONTRACT, the
-verdict/audit objects, and the evidence-row seam are now extension-land
-facts (this lane). The remaining wiring is precisely enumerated above
-(G1-G6) with zero-fork postures (P0/P1) ranked ahead of any src/vs hook
-(P2), keeping the FORK-CRITICAL ledger empty (DL-12) unless the TL
-adjudicates DL-31.
+verdict/audit objects, the evidence-row seam, and — since TL3-001 — the
+BROWSER RUNTIME itself (posture P0 LANDED: sessions, policy-gated
+navigation, capture, recovery) are extension-land facts. The remaining
+wiring is precisely enumerated above (G1-G6) with zero-fork postures (P0
+landed / P1) ranked ahead of any src/vs hook (P2), keeping the
+FORK-CRITICAL ledger empty (DL-12) unless the TL adjudicates DL-31.
+
+**What remains for TL3-002 (browser session security hardening):** G5
+(partition NAMING control — the workbench host cannot yet mint Electron
+partitions with the flauz names; the endpoint host gets whatever partition
+the external Chromium/sidecar configures), the boot-level workbench
+verification of the P0 surface (real `window.openBrowserTab` under the
+grant — the B-POLICY boot residuals), the in-tree L2 default-on posture
+(G3/P1, flauz-defaults), the forced-reset EXECUTION wiring (G6 — the
+runtime returns the recommendation and offers `flauz.browser.navigate` to
+`about:blank`; main-process loadURL authority stays product-side), and
+session-level hardening drills (credential isolation, per-session user
+agents, download/popup policy) that build on this runtime.
