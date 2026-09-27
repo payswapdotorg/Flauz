@@ -2,11 +2,11 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: c0af9c3de466 (TL4 wave-1 + wave-2 TL4-002 merged: PRs #4/#5/#6/#9 station-verified; TL3 wave PRs #7/#8 integrated; premium-ux compliance prep d4b1576918b)
+Integrated head at verification: 62e46ad013d (TL3 wave 2: TL3-002 browser session security + TL3-003 environment lifecycle merged, station-verified; TL1-001 upstream-sync PR #10 + TL4 DONE flips + hygiene wave integrated between waves)
 
 ## Branch state
 
-- main is the canonical Flauz product line at c0af9c3de466 (TL4-001/002/003/005 merged, TL3-001/005 integrated, hygiene fixes 0304e375f63/e8a55b21ce0/d4b1576918b).
+- main is the canonical Flauz product line at 62e46ad013d (TL4-001/002/003/005 done; TL3-001/002/003/005 done; TL1-001 active; hygiene + prep fixes c6e2d5c6df6/a8da42937b7 lineage).
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
@@ -62,9 +62,9 @@ Do not call this full production provider support yet.
 
 ### Browser
 
-The browser extension now provides the layered policy engine, partition semantics, fail-closed behavior, CDP-bypass protection AND the TL3-001 runtime: CDP transport (+ test simulator), session manager with human/agent separation, policy-gated navigation (deny sends zero CDP commands), capture->evidence, recovery, and workbench/endpoint host adapters (proposed browser API grant active).
+The browser extension now provides the layered policy engine, partition semantics, fail-closed behavior, CDP-bypass protection AND the TL3-001 runtime: CDP transport (+ test simulator), session manager with human/agent separation, policy-gated navigation (deny sends zero CDP commands), capture->evidence, recovery, and workbench/endpoint host adapters (proposed browser API grant active). TL3-002 session-security hardening is merged (62e46ad0): per-session UA discipline, download deny, popup/new-target gate, G6 forced-reset execution (security.enforceReset), partition-scoped tab ownership, the PIN-1 session journal, untrusted-content evidence markers.
 
-Remaining for the complete browser product: session-security hardening (TL3-002) and real-workbench E2E of the driver path.
+Remaining for the complete browser product: real-workbench E2E of the driver path (B-POLICY boot residuals), G5 partition minting (product-side), L2 default-on (G3/P1, flauz-defaults lane).
 
 ### Environments
 
@@ -74,7 +74,7 @@ The current environment extension provides:
 - continuity model;
 - adapters/plans for local/SSH/container/cloud-style environments.
 
-The TL3-003 lifecycle (create/start/stop/attach/detach/snapshot/destroy behind executors, local-real + remote-simulated) is in flight.
+The TL3-003 lifecycle is DONE (PR #11 a9f51d61): create/start/stop/attach/detach/snapshot/destroy behind the EnvironmentExecutor contract, local-real LocalProcessExecutor (fixed harness, SIGKILL escalation, real fs snapshots) + remote-simulated executors (explicit opt-in), PIN-2 lifecycle envelopes, trust-gated ops. Real providers remain TL3-004.
 
 Do not call every adapter a production provider.
 
