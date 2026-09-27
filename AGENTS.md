@@ -1,6 +1,6 @@
 # Flauz Agent Instructions
 
-This branch is the active Flauz product line.
+The repository default main is the active Flauz product line.
 
 Before doing product work, read:
 1. FLAUZ-START-HERE.md
@@ -12,9 +12,9 @@ Before doing product work, read:
 7. your TL handoff in docs/FLAUZ-PROGRAM/
 
 Branch rules:
-- flauz/main is the canonical Flauz product line.
-- main is the upstream Code OSS reference line.
-- Product PRs target flauz/main.
+- main is the canonical Flauz product line.
+- upstream/main is the upstream Code OSS reference line.
+- Product PRs target main.
 - Do not create another Code OSS fork.
 
 Autonomous operation:
