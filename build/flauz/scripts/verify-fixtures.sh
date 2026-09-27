@@ -148,6 +148,68 @@ expect "budget-gate violations fixture FAIL"           1 node "$BG" --budgets "$
 expect "budget-gate ps-text input rejected"            2 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$F/process-shape/eventually.ps.txt"
 rm -rf "$BGIN" "$BGINV"
 
+# ---- sync-upstream: TL1-001 report/plan gates ----
+# The fixtures are tiny git repos BUILT AT RUNTIME in a temp dir (never a
+# committed .git); content assertions live in sync-upstream.test.mjs, this
+# matrix pins the exit-code contract (same shape as the budget-gate mapping
+# case above). base ref = the local 'upstream/main' branch parked at the
+# shared base commit.
+SU="$S/sync-upstream.mjs"
+SUT="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-su-$$")"
+if (
+    set -e
+    git -C "$SUT" init -q -b main
+    git -C "$SUT" config user.email fixture@example.invalid
+    git -C "$SUT" config user.name "Flauz Fixture"
+    printf 'upstream readme\n' > "$SUT/README.md"
+    printf 'base content\n' > "$SUT/shared.txt"
+    mkdir -p "$SUT/src/vs/base/common" "$SUT/extensions/git"
+    printf 'upstream core\n' > "$SUT/src/vs/base/common/core.txt"
+    printf '{ "name": "git" }\n' > "$SUT/extensions/git/package.json"
+    git -C "$SUT" add -A && git -C "$SUT" commit -qm "base"
+    git -C "$SUT" branch upstream/main
+    # product line: one additive (clean) commit, then one shared-file commit
+    mkdir -p "$SUT/build/flauz"
+    printf '// flauz gate\n' > "$SUT/build/flauz/gate.mjs"
+    git -C "$SUT" add -A && git -C "$SUT" commit -qm "flauz additive"
+    git -C "$SUT" tag clean-head
+    printf 'product-modified readme\n' > "$SUT/README.md"
+    printf 'flauz side\n' > "$SUT/shared.txt"
+    git -C "$SUT" add -A && git -C "$SUT" commit -qm "shared-file mod"
+    git -C "$SUT" tag dirty-head
+); then
+    PASS=$((PASS + 1))
+    [ "$QUIET" -eq 0 ] && printf '  ok    %-52s built base+product fixture repo\n' "sync-upstream fixture repo (temp)"
+else
+    FAIL=$((FAIL + 1))
+    printf '  DEVIATED  %-52s fixture build failed\n' "sync-upstream fixture repo (temp)" >&2
+fi
+# report cases: reference line still parked at the shared base (the "clean"
+# census is only clean while there is nothing unabsorbed to report)
+expect "sync-upstream clean additive PASS"             0 node "$SU" --report --repo "$SUT" --base upstream/main --head clean-head
+expect "sync-upstream shared-file mod FAIL"            1 node "$SU" --report --repo "$SUT" --base upstream/main --head dirty-head
+expect "sync-upstream shared-file mod --no-fail"       0 node "$SU" --report --repo "$SUT" --base upstream/main --head dirty-head --no-fail
+if (
+    set -e
+    # reference line moves for the --plan conflict case
+    git -C "$SUT" checkout -q upstream/main
+    printf 'upstream side\n' > "$SUT/shared.txt"
+    git -C "$SUT" add -A && git -C "$SUT" commit -qm "upstream moves"
+    git -C "$SUT" checkout -q main
+); then
+    PASS=$((PASS + 1))
+    [ "$QUIET" -eq 0 ] && printf '  ok    %-52s reference line advanced\n' "sync-upstream fixture repo (temp)"
+else
+    FAIL=$((FAIL + 1))
+    printf '  DEVIATED  %-52s upstream move failed\n' "sync-upstream fixture repo (temp)" >&2
+fi
+expect "sync-upstream plan conflict (data) PASS"      0 node "$SU" --plan --repo "$SUT" --target upstream/main --head dirty-head
+expect "sync-upstream plan clean PASS"                 0 node "$SU" --plan --repo "$SUT" --target upstream/main --head clean-head
+expect "sync-upstream usage error (bad flag)"          2 node "$SU" --bogus
+expect "sync-upstream usage error (no mode)"           2 node "$SU"
+expect "sync-upstream --help"                          0 node "$SU" --help
+rm -rf "$SUT"
+
 # ---- fork-critical guard ----
 if git -C "$ROOT" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
     expect "fork-critical guard on this branch PASS"   0 sh "$S/fork-critical-guard.sh" --repo "$ROOT" --base upstream/main --head HEAD

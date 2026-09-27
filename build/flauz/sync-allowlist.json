@@ -1,0 +1,14 @@
+{
+	"entries": [
+		{
+			"path": ".eslint-allowed-javascript-files",
+			"reason": "The upstream hygiene gate local/code-no-new-javascript-files requires every new Flauz zero-dep .mjs script to be registered here in the same commit (the TL4 lesson: lines 186-192 of the allowlist hold the precedent) — additive line-append only, never an upstream line removed.",
+			"date": "2026-09-27"
+		},
+		{
+			"path": "AGENTS.md",
+			"reason": "Flauz program operating pointers appended to the upstream agent-instructions document (product-line context for coding agents on this repo) — additive sections only, upstream sections preserved.",
+			"date": "2026-09-27"
+		}
+	]
+}

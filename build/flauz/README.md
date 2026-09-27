@@ -19,6 +19,7 @@ Authoritative inputs: `docs/PERFORMANCE-PLAN.md` + `docs/MIGRATION-PLAN.md`
 | MIGRATION §5 job | Workflow (`.github/workflows/`) | Jobs | PERF §6.3 gates enforced | PERF §8 question closed |
 |---|---|---|---|---|
 | **1. Build + upstream hygiene** | `flauz-hygiene.yml` | `hygiene` | — (compile/eslint/unit subset are upstream hygiene; shaped on upstream `pr.yml`) | — |
+| TL1-001 upstream-sync report | `flauz-hygiene.yml` | `upstream-sync` | report-only evidence stream (`--no-fail`): delta census of product vs `upstream/main` + src/vs pristine assertion, uploaded as artifact; enforcement stays with the SYNC-RUNBOOK pre-flight + guard | — |
 | FORK-CRITICAL guard (§5.1 item 1, §6 gate 1) | `flauz-hygiene.yml` (first steps) + pre-commit hook variant | `hygiene` | src/vs pristine outside `contrib/flauz` (DL-12/DL-10) | — |
 | Activation lint (§2.2) | `flauz-hygiene.yml` | `hygiene` | activation budget table rows 1-3 (no `*`; ≤2 on `onStartupFinished`, bridge+workspace only; whitelist events) | — |
 | **2. Startup perf pair** | `flauz-perf.yml` | `startup-pair` | §1.3 rows 1-3 (TSV p50/p95 deltas + duration-marker budgets), mark-pair integrity (R6), phase gate (§1.3 row 4) | q1 (absolute baseline), q2 (prewarm on/off) |
@@ -42,6 +43,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | Script | Purpose | Key modes | Exit codes |
 |---|---|---|---|
 | `fork-critical-guard.sh` | FORK-CRITICAL ledger gate (DL-12/DL-10) | `--base/--head` refs (CI), `--staged`/`--pre-commit` (hook), `--worktree`, `--name-only`, `--quiet` | 0 empty · 1 divergence · 2 usage |
+| `sync-upstream.mjs` | TL1-001 upstream-sync lane: delta census (`--report`) and dry-run sync plan (`--plan`) vs the preserved reference line; committed census `UPSTREAM-DELTA.md`, procedure `SYNC-RUNBOOK.md`, shared-file allowlist `sync-allowlist.json` | `--report [--base/--head] [--json] [--out] [--no-fail]`, `--plan [--target/--head] [--json] [--out]`, `--repo`, `--allowlist` | 0 clean/SKIP · 1 divergence · 2 usage (plan: conflicts are data → 0) |
 | `activation-lint.mjs` | PERF §2.1/§2.2 manifest discipline | `--root/--manifests-glob`, `--allow-event`, `--max-startup`, `--startup-allowed`, `--max-affinity-slots`, `--require-manifests` | 0 clean/SKIP · 1 violation · 2 usage |
 | `ia-gate.mjs` | TL4-001 IA discipline (single `flauz` container, six views, welcome states, focusView family, activation cap, provider wiring) | `--root`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
 | `proposed-api-rota.mjs` | DL-4 proposed-API churn rota (job 5) | `--repo-root`, `--baseline`, `--snapshot`, `--report <dir>`, `--no-fail`, `--require` | 0 clean/SKIP · 1 drift · 2 usage |
@@ -93,6 +95,10 @@ node build/flauz/scripts/memory-snapshot.mjs \
   --json test/fixtures/process-shape/eventually.json --scenario eventually
 
 node build/flauz/scripts/perf-log-parse.mjs --selftest
+
+# upstream-sync lane (TL1-001): delta census + dry-run sync plan
+node build/flauz/scripts/sync-upstream.mjs --report --base upstream/main
+node build/flauz/scripts/sync-upstream.mjs --plan
 ```
 
 Real IDE boots / real CI execution are OUT OF SCOPE in worker sandboxes
@@ -105,13 +111,23 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# → ALL 44 CASES AS EXPECTED (0 deviations)
+# → ALL 82 CASES AS EXPECTED (0 deviations)
 ```
 
 (TL4-005 addendum, 2026-09-27: the matrix grew 29 → 44 cases with the budget-gate
 section — clean/over/skip/require-scoped/malformed/warn/unknown-id/unit-mismatch,
 registry self-check, and the real-data plumbing case mapping the perf fixtures
 through perf-log-parse into a curated dir with `--require enforced-ci`.)
+
+(TL1-001 addendum, 2026-09-27: the matrix grew 71 → 82 cases with the
+upstream-sync section (the fork-critical guard refs case also activates when
+a local 'upstream/main' ref exists — 81 without it) — sync-upstream.mjs --report/--plan over a temp-dir git
+fixture repo built at run time (clean additive delta, shared-file modification
+fail, --no-fail informational, plan-with-conflict [conflicts are data → exit
+0], plan clean, usage errors, --help). Content-level assertions for the same
+families live in `node --test build/flauz/sync-upstream.test.mjs` (12 tests:
+the five work-order case families plus allowlist suppression, pristine
+assertion fail, added-outside-namespace, empty-census SKIP, --out document).)
 
 Summary (command class → exit code):
 
@@ -129,6 +145,11 @@ Summary (command class → exit code):
 | proposed-api-rota clean / dirty+baseline / real mirror (no lanes) | 0 / 1 (2 absent + registry mismatch + rename signature) / 0 (SKIP) |
 | fork-critical-guard refs/staged/name-only vs forbidden src/vs divergence | 1 / 1 / 1 (paths listed) |
 | fork-critical-guard on `flauz/wave3/perf-ci` vs `upstream/main` | 0 (EMPTY) |
+| sync-upstream clean additive delta (temp git fixture) | 0 (report rows, CLEAN verdict, pristine assertion PASS) |
+| sync-upstream shared-file modification | 1 (README.md + shared.txt named as FAIL rows) / 0 under --no-fail |
+| sync-upstream --plan with constructed conflict | 0 (conflicts are data; shared.txt listed, both sides MODIFIED) |
+| sync-upstream usage errors (--bogus / no mode) | 2 / 2 |
+| `node --test build/flauz/sync-upstream.test.mjs` | 12 pass / 0 fail |
 | `git diff --name-only 9bf9ae764da..HEAD` | ONLY new paths under `build/flauz/`, `test/fixtures/`, `.github/workflows/flauz-*` |
 | Workflow YAML validation (python3 + pyyaml 6.0.3) | 4/4 OK + structural checks (triggers/paths/permissions/timeouts/steps, no secrets) |
 
