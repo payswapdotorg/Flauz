@@ -167,7 +167,7 @@ test('a navigation DENIED mid-session never advances the tab (sequential deny/al
 	const deniedAgain = await tabRig.manager.navigate(sessionId, 'https://evil.org/2');
 	assert.ok(isNavigationOutcome(deniedAgain) && deniedAgain.sent === false);
 	assert.equal(tabRig.manager.getSession(sessionId)?.tabs[0]?.url, 'https://docs.example.com/ok', 'deny leaves the committed URL untouched');
-	const urls = (tabRig.transports[0]?.pageNavigateCommands() ?? []).map(command => command.params['url']);
+	const urls = (tabRig.transports[0]?.pageNavigateCommands() ?? []).map(command => command.params.url);
 	assert.deepEqual(urls, ['https://docs.example.com/ok'], 'only the allowed navigation ever hit the wire');
 	await tabRig.manager.dispose();
 });

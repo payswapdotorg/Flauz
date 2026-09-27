@@ -405,13 +405,13 @@ export function activate(context: vscode.ExtensionContext): void {
 		['flauz.env.status', async (arg?: unknown) => {
 			const parsed = parseLifecycleArg('status', arg);
 			if (!parsed.ok) {
-				return { ok: false, error: parsed.error } as LifecycleCommandResult;
+				return { ok: false, error: parsed.error };
 			}
 			try {
 				const report = await currentLifecycle().describe({ id: parsed.value.id });
 				refreshView();
 				void vscode.window.showInformationMessage(`flauz-environments: ${report.environmentId} is ${report.state} (${report.verdict.health})`);
-				return { ok: true, report } as LifecycleCommandResult;
+				return { ok: true, report };
 			} catch (err) {
 				return preflightError(err);
 			}

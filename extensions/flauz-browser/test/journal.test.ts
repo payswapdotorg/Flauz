@@ -28,7 +28,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserPolicyEngine } from '../src/policy.ts';
 import { CdpEndpointHost } from '../src/runtime/host.ts';
-import { BrowserSessionManager, isNavigationOutcome } from '../src/runtime/sessionManager.ts';
+import { isSessionError, BrowserSessionManager, isNavigationOutcome } from '../src/runtime/sessionManager.ts';
 import { FakeBrowserState, FakeCdpTransport } from '../src/cdp/fake.ts';
 import {
 	BROWSER_SESSION_JOURNAL_ACTORS,
@@ -290,7 +290,7 @@ test('a journal failure on the close path is captured, never silent (journalErro
 	const opened = await manager.open({ initiator: 'human' });
 	assert.equal(opened.descriptor.state, 'active', 'the open journaled fine (first append succeeds)');
 	const closed = await manager.close(opened.descriptor.sessionId);
-	assert.ok(!('error' in closed), 'the close itself completes (its tabs are closed — the fail-closed direction)');
+	assert.ok(!isSessionError(closed), 'the close itself completes (its tabs are closed — the fail-closed direction)');
 	assert.equal(closed.state, 'closed');
 	const errors = manager.journalErrors();
 	assert.equal(errors.length, 1, 'the close-path journal failure is captured (never silent)');
@@ -367,7 +367,7 @@ test('FIXTURE invalid-non-canonical.jsonl: rejected (bytes must be the canonical
 		// the payload is semantically fine — only the BYTE FORM deviates
 		// (schema-order keys instead of the canonical sorted order):
 		const parsed = JSON.parse(line) as Record<string, unknown>;
-		assert.equal(parsed['schema'], BROWSER_SESSION_JOURNAL_SCHEMA_ID);
+		assert.equal(parsed.schema, BROWSER_SESSION_JOURNAL_SCHEMA_ID);
 		assert.equal(Object.keys(parsed)[0], 'schemaVersion', 'the fixture is the non-canonical key order');
 		const validation = validateSessionJournalLine(line);
 		assert.equal(validation.ok, false, 'a non-canonical record is a contract deviation');

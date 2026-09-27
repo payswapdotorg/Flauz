@@ -88,7 +88,7 @@ test('resetTab is the NARROW TYPED reset: no url parameter, and its only wire na
 	// THE narrowness pin — on the wire, the only navigation the reset ever
 	// issued was about:blank (it structurally cannot navigate elsewhere):
 	const navigations = resetRig.transports[0]?.pageNavigateCommands() ?? [];
-	assert.deepEqual(navigations.map(command => command.params['url']), ['https://docs.example.com/a', 'about:blank']);
+	assert.deepEqual(navigations.map(command => command.params.url), ['https://docs.example.com/a', 'about:blank']);
 	assert.equal(resetRig.manager.getSession(sessionId)?.tabs[0]?.url, 'about:blank');
 	await resetRig.manager.dispose();
 });
@@ -130,7 +130,7 @@ test('security.enforceReset=false: the opt-out is RECORDED in the verdict; NO re
 	// the tab keeps the violating committed URL (nothing navigated it away):
 	assert.equal(resetRig.manager.getSession(sessionId)?.tabs[0]?.url, 'https://tracker.example.net/x');
 	const navigations = resetRig.transports[0]?.pageNavigateCommands() ?? [];
-	assert.deepEqual(navigations.map(command => command.params['url']), ['https://docs.example.com/trap'], 'only the requested navigation hit the wire — no reset');
+	assert.deepEqual(navigations.map(command => command.params.url), ['https://docs.example.com/trap'], 'only the requested navigation hit the wire — no reset');
 	// resetTab REMAINS available as the explicit operator action (the narrow typed operation is not policy-gated away):
 	const manual = await resetRig.manager.resetTab(sessionId);
 	assert.ok(isNavigationOutcome(manual) && manual.committedUrl === 'about:blank');

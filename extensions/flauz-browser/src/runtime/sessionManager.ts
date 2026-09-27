@@ -85,12 +85,12 @@ import {
 	type TabPipelineDeps,
 } from './tabs.ts';
 import { applySessionHardening, BrowserHardeningError } from './hardening.ts';
-import { untrustedContentNote } from './capture.ts';
-import type {
-	ArtifactWriterPort,
-	ConsoleCaptureEntry,
-	NetworkCaptureEntry,
-	ScreenshotOutcome,
+import {
+	type ArtifactWriterPort,
+	type ConsoleCaptureEntry,
+	type NetworkCaptureEntry,
+	type ScreenshotOutcome,
+	untrustedContentNote,
 } from './capture.ts';
 import {
 	type SessionJournalEvent,
@@ -711,7 +711,7 @@ export class BrowserSessionManager {
 	 */
 	private async handleAttachedTarget(entry: SessionEntry, sourceTab: LiveTab, params: CdpParams): Promise<void> {
 		try {
-			const targetInfo = (params['targetInfo'] ?? undefined) as { targetId?: unknown; url?: unknown } | undefined;
+			const targetInfo = (params.targetInfo ?? undefined) as { targetId?: unknown; url?: unknown } | undefined;
 			const targetId = typeof targetInfo?.targetId === 'string' ? targetInfo.targetId : undefined;
 			if (targetId === undefined) {
 				return; // no target identity: nothing to gate or close

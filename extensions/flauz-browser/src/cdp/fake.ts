@@ -394,12 +394,12 @@ export class FakeCdpTransport extends CdpTransportBase {
 	private handleCommand(method: string, params: CdpParams, sessionId: string | undefined): FakeCommandOutcome {
 		switch (method) {
 			case 'Target.createTarget': {
-				const url = asString(params['url']) ?? 'about:blank';
+				const url = asString(params.url) ?? 'about:blank';
 				const targetId = this.browser.createTarget(url);
 				return { result: { targetId }, events: [{ method: 'Target.targetCreated', params: { targetInfo: this.browser.targetInfo(targetId) } }] };
 			}
 			case 'Target.attachToTarget': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				if (targetId === undefined || !this.browser.hasTarget(targetId)) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
 				}
@@ -408,7 +408,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: { sessionId: newSessionId }, events: [{ method: 'Target.attachedToTarget', params: { sessionId: newSessionId, targetInfo: this.browser.targetInfo(targetId) } }] };
 			}
 			case 'Target.detachFromTarget': {
-				const sid = asString(params['sessionId']);
+				const sid = asString(params.sessionId);
 				if (sid === undefined || !this.sessions.has(sid)) {
 					throw new FakeCommandFault(-32602, `no such session: ${sid ?? '(none)'}`);
 				}
@@ -416,7 +416,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: {} };
 			}
 			case 'Target.closeTarget': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				if (targetId === undefined || !this.browser.closeTarget(targetId)) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
 				}
@@ -431,7 +431,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: { targetInfos: this.browser.targetInfos() } };
 			}
 			case 'Target.getTargetInfo': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				const info = targetId === undefined ? undefined : this.browser.targetInfo(targetId);
 				if (info === undefined) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
@@ -439,7 +439,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 				return { result: { targetInfo: info } };
 			}
 			case 'Target.activateTarget': {
-				const targetId = asString(params['targetId']);
+				const targetId = asString(params.targetId);
 				if (targetId === undefined || !this.browser.hasTarget(targetId)) {
 					throw new FakeCommandFault(-32602, `no such target: ${targetId ?? '(none)'}`);
 				}
@@ -458,16 +458,16 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			case 'Target.setAutoAttach': {
 				this.requireSessionTarget(sessionId);
-				if (typeof params['autoAttach'] !== 'boolean') {
+				if (typeof params.autoAttach !== 'boolean') {
 					throw new FakeCommandFault(-32602, 'Target.setAutoAttach requires a boolean autoAttach');
 				}
-				const filter = Array.isArray(params['filter'])
-					? params['filter'].map(entry => (entry !== null && typeof entry === 'object' ? String((entry as CdpParams)['type'] ?? '') : '')).filter(type => type !== '')
+				const filter = Array.isArray(params.filter)
+					? params.filter.map(entry => (entry !== null && typeof entry === 'object' ? String((entry as CdpParams).type ?? '') : '')).filter(type => type !== '')
 					: [];
-				if (params['autoAttach']) {
+				if (params.autoAttach) {
 					this.autoAttach.set(sessionId as string, {
 						autoAttach: true,
-						waitForDebuggerOnStart: params['waitForDebuggerOnStart'] === true,
+						waitForDebuggerOnStart: params.waitForDebuggerOnStart === true,
 						filter,
 					});
 				} else {
@@ -481,7 +481,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			case 'Emulation.setUserAgentOverride': {
 				const targetId = this.requireSessionTarget(sessionId);
-				const userAgent = asString(params['userAgent']);
+				const userAgent = asString(params.userAgent);
 				if (userAgent === undefined || userAgent === '') {
 					throw new FakeCommandFault(-32602, 'Emulation.setUserAgentOverride requires a non-empty params.userAgent');
 				}
@@ -490,16 +490,16 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			case 'Browser.setDownloadBehavior': {
 				const targetId = this.requireSessionTarget(sessionId);
-				const behavior = asString(params['behavior']);
+				const behavior = asString(params.behavior);
 				if (behavior === undefined || !['deny', 'allow', 'allowAndName', 'default'].includes(behavior)) {
-					throw new FakeCommandFault(-32602, `Browser.setDownloadBehavior requires behavior in deny|allow|allowAndName|default (got ${JSON.stringify(params['behavior'])})`);
+					throw new FakeCommandFault(-32602, `Browser.setDownloadBehavior requires behavior in deny|allow|allowAndName|default (got ${JSON.stringify(params.behavior)})`);
 				}
 				this.browser.setDownloadBehavior(targetId, behavior);
 				return { result: {} };
 			}
 			case 'Page.navigate': {
 				const targetId = this.requireSessionTarget(sessionId);
-				const url = asString(params['url']);
+				const url = asString(params.url);
 				if (url === undefined) {
 					throw new FakeCommandFault(-32602, 'Page.navigate requires params.url');
 				}
@@ -526,7 +526,7 @@ export class FakeCdpTransport extends CdpTransportBase {
 			}
 			case 'Runtime.evaluate': {
 				this.requireSessionTarget(sessionId);
-				const expression = asString(params['expression']) ?? '';
+				const expression = asString(params.expression) ?? '';
 				return { result: { result: { type: 'string', value: `flauz-fake-eval:${expression}` } } };
 			}
 			default:

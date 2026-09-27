@@ -31,16 +31,8 @@
  *                STOPPED first — predictable teardown (premium-ux discipline);
  *                the local executor still reaps defensively at destroy.
  */
-import {
-	ATTACHED_STATES,
-	LIFECYCLE_PHASES,
-	isAttachedState,
-	phaseOf,
-	type EnvironmentLifecycleError,
-	type EnvironmentOpName,
-	type LifecyclePhase,
-} from './types.ts';
-import { EnvironmentLifecycleError as LifecycleError } from './types.ts';
+import { ATTACHED_STATES, LIFECYCLE_PHASES, isAttachedState, phaseOf, type EnvironmentLifecycleError, type EnvironmentOpName, type LifecyclePhase, EnvironmentLifecycleError as LifecycleError } from './types.ts';
+
 
 /** A legal transition rule of the lifecycle machine. */
 export interface LifecycleTransitionRule {

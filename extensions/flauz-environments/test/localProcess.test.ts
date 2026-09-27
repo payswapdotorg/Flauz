@@ -16,8 +16,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, LocalProcessExecutor } from '../src/lifecycle/index.ts';
-import type { ChildHandle, HashPort, LocalEnvFsPort, ProcessPort } from '../src/lifecycle/index.ts';
+import { type ChildHandle, type HashPort, EnvironmentLifecycleManager, type LocalEnvFsPort, LocalProcessExecutor, type ProcessPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor } from '../src/api.ts';
 import { fixedClock, workspaceRemoteRegistrationInput } from './helpers.ts';
 

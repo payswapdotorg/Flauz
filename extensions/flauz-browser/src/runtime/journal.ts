@@ -111,54 +111,54 @@ function validateDescriptorShape(value: unknown): BrowserSessionDescriptor {
 	if (!isPlainObject(value)) {
 		throw new BrowserSessionJournalError('descriptor must be an object (BrowserSessionDescriptor snapshot)');
 	}
-	if (value['schemaVersion'] !== BROWSER_SESSION_SCHEMA_VERSION) {
-		throw new BrowserSessionJournalError(`descriptor.schemaVersion must be ${BROWSER_SESSION_SCHEMA_VERSION} (got ${JSON.stringify(value['schemaVersion'])})`);
+	if (value.schemaVersion !== BROWSER_SESSION_SCHEMA_VERSION) {
+		throw new BrowserSessionJournalError(`descriptor.schemaVersion must be ${BROWSER_SESSION_SCHEMA_VERSION} (got ${JSON.stringify(value.schemaVersion)})`);
 	}
-	if (typeof value['sessionId'] !== 'string' || !isSessionId(value['sessionId'])) {
-		throw new BrowserSessionJournalError(`descriptor.sessionId must be a logical flauz:browser:<16-hex> id (got ${JSON.stringify(value['sessionId'])})`);
+	if (typeof value.sessionId !== 'string' || !isSessionId(value.sessionId)) {
+		throw new BrowserSessionJournalError(`descriptor.sessionId must be a logical flauz:browser:<16-hex> id (got ${JSON.stringify(value.sessionId)})`);
 	}
-	if (value['initiator'] !== 'human' && value['initiator'] !== 'agent') {
-		throw new BrowserSessionJournalError(`descriptor.initiator must be 'human' or 'agent' (got ${JSON.stringify(value['initiator'])})`);
+	if (value.initiator !== 'human' && value.initiator !== 'agent') {
+		throw new BrowserSessionJournalError(`descriptor.initiator must be 'human' or 'agent' (got ${JSON.stringify(value.initiator)})`);
 	}
-	if (value['initiator'] === 'agent' && value['agentId'] !== undefined && typeof value['agentId'] !== 'string') {
+	if (value.initiator === 'agent' && value.agentId !== undefined && typeof value.agentId !== 'string') {
 		throw new BrowserSessionJournalError('descriptor.agentId must be a string when present');
 	}
-	if (typeof value['partition'] !== 'string') {
+	if (typeof value.partition !== 'string') {
 		throw new BrowserSessionJournalError('descriptor.partition must be a string');
 	}
-	if (typeof value['policySourceRef'] !== 'string') {
+	if (typeof value.policySourceRef !== 'string') {
 		throw new BrowserSessionJournalError('descriptor.policySourceRef must be a string');
 	}
-	if (typeof value['createdAt'] !== 'string') {
+	if (typeof value.createdAt !== 'string') {
 		throw new BrowserSessionJournalError('descriptor.createdAt must be an ISO timestamp string');
 	}
-	if (typeof value['state'] !== 'string' || !BROWSER_SESSION_STATES.includes(value['state'] as BrowserSessionState)) {
-		throw new BrowserSessionJournalError(`descriptor.state must be one of ${BROWSER_SESSION_STATES.join(', ')} (got ${JSON.stringify(value['state'])})`);
+	if (typeof value.state !== 'string' || !BROWSER_SESSION_STATES.includes(value.state as BrowserSessionState)) {
+		throw new BrowserSessionJournalError(`descriptor.state must be one of ${BROWSER_SESSION_STATES.join(', ')} (got ${JSON.stringify(value.state)})`);
 	}
-	if (!Array.isArray(value['tabs'])) {
+	if (!Array.isArray(value.tabs)) {
 		throw new BrowserSessionJournalError('descriptor.tabs must be an array of BrowserTabRecord');
 	}
-	for (const [index, tab] of value['tabs'].entries()) {
+	for (const [index, tab] of value.tabs.entries()) {
 		if (!isPlainObject(tab)) {
 			throw new BrowserSessionJournalError(`descriptor.tabs[${index}] must be an object`);
 		}
-		if (typeof tab['tabId'] !== 'string' || !isTabId(tab['tabId'])) {
+		if (typeof tab.tabId !== 'string' || !isTabId(tab.tabId)) {
 			throw new BrowserSessionJournalError(`descriptor.tabs[${index}].tabId must be a logical flauz:tab:<16-hex> id`);
 		}
-		if (typeof tab['targetId'] !== 'string') {
+		if (typeof tab.targetId !== 'string') {
 			throw new BrowserSessionJournalError(`descriptor.tabs[${index}].targetId must be a string`);
 		}
-		if (typeof tab['url'] !== 'string') {
+		if (typeof tab.url !== 'string') {
 			throw new BrowserSessionJournalError(`descriptor.tabs[${index}].url must be a string`);
 		}
-		if (typeof tab['state'] !== 'string' || !BROWSER_TAB_STATES.includes(tab['state'] as BrowserTabRecord['state'])) {
+		if (typeof tab.state !== 'string' || !BROWSER_TAB_STATES.includes(tab.state as BrowserTabRecord['state'])) {
 			throw new BrowserSessionJournalError(`descriptor.tabs[${index}].state must be one of ${BROWSER_TAB_STATES.join(', ')}`);
 		}
-		if (typeof tab['openedAt'] !== 'string') {
+		if (typeof tab.openedAt !== 'string') {
 			throw new BrowserSessionJournalError(`descriptor.tabs[${index}].openedAt must be a string`);
 		}
 	}
-	if (value['error'] !== undefined && (!isPlainObject(value['error']) || typeof value['error']['code'] !== 'string' || typeof value['error']['message'] !== 'string' || typeof value['error']['at'] !== 'string')) {
+	if (value.error !== undefined && (!isPlainObject(value.error) || typeof value.error.code !== 'string' || typeof value.error.message !== 'string' || typeof value.error.at !== 'string')) {
 		throw new BrowserSessionJournalError('descriptor.error must be { code, message, at } when present');
 	}
 	return value as unknown as BrowserSessionDescriptor;
@@ -229,23 +229,23 @@ export function validateSessionJournalLine(line: string): JournalLineValidation 
 	if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
 		return { ok: false, error: new BrowserSessionJournalError(`record key set must be exactly {${expected.join(', ')}} (got {${Object.keys(parsed).sort().join(', ')}})`) };
 	}
-	if (parsed['schemaVersion'] !== BROWSER_SESSION_JOURNAL_SCHEMA_VERSION) {
-		return { ok: false, error: new BrowserSessionJournalError(`schemaVersion must be ${BROWSER_SESSION_JOURNAL_SCHEMA_VERSION} (got ${JSON.stringify(parsed['schemaVersion'])})`) };
+	if (parsed.schemaVersion !== BROWSER_SESSION_JOURNAL_SCHEMA_VERSION) {
+		return { ok: false, error: new BrowserSessionJournalError(`schemaVersion must be ${BROWSER_SESSION_JOURNAL_SCHEMA_VERSION} (got ${JSON.stringify(parsed.schemaVersion)})`) };
 	}
-	if (parsed['schema'] !== BROWSER_SESSION_JOURNAL_SCHEMA_ID) {
-		return { ok: false, error: new BrowserSessionJournalError(`schema must be ${JSON.stringify(BROWSER_SESSION_JOURNAL_SCHEMA_ID)} (got ${JSON.stringify(parsed['schema'])})`) };
+	if (parsed.schema !== BROWSER_SESSION_JOURNAL_SCHEMA_ID) {
+		return { ok: false, error: new BrowserSessionJournalError(`schema must be ${JSON.stringify(BROWSER_SESSION_JOURNAL_SCHEMA_ID)} (got ${JSON.stringify(parsed.schema)})`) };
 	}
-	if (typeof parsed['ts'] !== 'number' || !Number.isInteger(parsed['ts']) || parsed['ts'] < 0) {
-		return { ok: false, error: new BrowserSessionJournalError(`ts must be a non-negative integer epoch-ms (got ${JSON.stringify(parsed['ts'])})`) };
+	if (typeof parsed.ts !== 'number' || !Number.isInteger(parsed.ts) || parsed.ts < 0) {
+		return { ok: false, error: new BrowserSessionJournalError(`ts must be a non-negative integer epoch-ms (got ${JSON.stringify(parsed.ts)})`) };
 	}
-	if (!BROWSER_SESSION_JOURNAL_ACTORS.includes(parsed['actor'] as SessionJournalActor)) {
-		return { ok: false, error: new BrowserSessionJournalError(`actor must be one of ${BROWSER_SESSION_JOURNAL_ACTORS.join(', ')} (got ${JSON.stringify(parsed['actor'])})`) };
+	if (!BROWSER_SESSION_JOURNAL_ACTORS.includes(parsed.actor as SessionJournalActor)) {
+		return { ok: false, error: new BrowserSessionJournalError(`actor must be one of ${BROWSER_SESSION_JOURNAL_ACTORS.join(', ')} (got ${JSON.stringify(parsed.actor)})`) };
 	}
-	if (!BROWSER_SESSION_JOURNAL_EVENTS.includes(parsed['event'] as SessionJournalEvent)) {
-		return { ok: false, error: new BrowserSessionJournalError(`event must be one of ${BROWSER_SESSION_JOURNAL_EVENTS.join(', ')} (got ${JSON.stringify(parsed['event'])})`) };
+	if (!BROWSER_SESSION_JOURNAL_EVENTS.includes(parsed.event as SessionJournalEvent)) {
+		return { ok: false, error: new BrowserSessionJournalError(`event must be one of ${BROWSER_SESSION_JOURNAL_EVENTS.join(', ')} (got ${JSON.stringify(parsed.event)})`) };
 	}
 	try {
-		validateDescriptorShape(parsed['descriptor']);
+		validateDescriptorShape(parsed.descriptor);
 	} catch (err) {
 		return { ok: false, error: err instanceof BrowserSessionJournalError ? err : new BrowserSessionJournalError(String(err)) };
 	}

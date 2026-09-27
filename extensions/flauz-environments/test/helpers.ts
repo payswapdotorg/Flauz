@@ -112,7 +112,7 @@ export function memFsPort(seed: Record<string, string> = {}): FileSystemPort & {
 		},
 		rename: async (from, to) => {
 			if (!files.has(from)) {
-				throw (Object.assign(new Error(`ENOENT: ${from}`), { code: 'ENOENT' }) as Error);
+				throw Object.assign(new Error(`ENOENT: ${from}`), { code: 'ENOENT' });
 			}
 			files.set(to, files.get(from)!);
 			files.delete(from);

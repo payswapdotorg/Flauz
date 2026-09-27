@@ -37,26 +37,11 @@
  */
 import type { Clock, EnvironmentDescriptor, EnvironmentKind, FileSystemPort } from '../api.ts';
 import { EnvironmentRegistry } from '../registry.ts';
-import {
-	ENVIRONMENT_OPS,
-	EnvironmentLifecycleError,
-	LIFECYCLE_SCHEMA_ID,
-	LIFECYCLE_SCHEMA_VERSION,
-	PROVENANCE_ACTORS,
-	type DescribeReport,
-	type DescribeVerdict,
-	type EnvironmentOpError,
-	type EnvironmentOpName,
-	type EnvironmentOpOutcome,
-	type EnvironmentOpRecord,
-	type ExecutorOpDetail,
-	type LifecycleEnvelope,
-	type LifecycleEntry,
-	type ProvenanceActor,
-} from './types.ts';
+import { ENVIRONMENT_OPS, EnvironmentLifecycleError, LIFECYCLE_SCHEMA_ID, LIFECYCLE_SCHEMA_VERSION, PROVENANCE_ACTORS, type DescribeReport, type DescribeVerdict, type EnvironmentOpError, type EnvironmentOpName, type EnvironmentOpOutcome, type EnvironmentOpRecord, type ExecutorOpDetail, type LifecycleEnvelope, type LifecycleEntry, type ProvenanceActor, phaseOf } from './types.ts';
+
 import { LifecycleStore } from './store.ts';
 import { failureState, successState, transientPhase, transitionFor } from './stateMachine.ts';
-import { phaseOf } from './types.ts';
+
 import type { EnvironmentExecutor, ExecutorOpContext } from './executor.ts';
 
 export interface EnvironmentLifecycleManagerOptions {

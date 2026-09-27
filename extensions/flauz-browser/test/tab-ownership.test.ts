@@ -24,6 +24,11 @@ import { CdpEndpointHost } from '../src/runtime/host.ts';
 import { BrowserSessionManager, isNavigationOutcome } from '../src/runtime/sessionManager.ts';
 import { FakeBrowserState, FakeCdpTransport } from '../src/cdp/fake.ts';
 
+/** Type predicate: the typed-error shape the manager surfaces for foreign-tab use. */
+function hasErrorShape(value: unknown): value is { readonly error: { readonly code: string; readonly message: string } } {
+	return typeof value === 'object' && value !== null && Object.hasOwn(value, 'error');
+}
+
 const WORKSPACE_ROOT = '/ws/acme';
 
 const OWNERSHIP_POLICY = JSON.stringify({
@@ -90,8 +95,8 @@ test('same-partition foreign-session tab use is a typed error (two human session
 	assert.equal((result as { error: { code: string } }).error.code, 'flauz.browser.tab.foreign-session', 'tabs are owned by exactly one session even within a partition');
 	// capture surfaces enforce the same rule:
 	const tail = ownershipRig.manager.consoleTail(one.descriptor.sessionId, foreignTabId);
-	assert.ok('error' in (tail as object));
-	assert.equal((tail as { error: { code: string } }).error.code, 'flauz.browser.tab.foreign-session');
+	assert.ok(hasErrorShape(tail), 'the console surface enforces the same ownership rule');
+	assert.equal(tail.error.code, 'flauz.browser.tab.foreign-session');
 	// unknown tabs stay unknown (the pre-existing typed error is unchanged):
 	const unknown = await ownershipRig.manager.navigate(one.descriptor.sessionId, 'https://docs.example.com/x', { tabId: 'flauz:tab:0000000000000000' });
 	assert.equal((unknown as { error: { code: string } }).error.code, 'flauz.browser.tab.unknown');
