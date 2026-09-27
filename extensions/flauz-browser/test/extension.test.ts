@@ -75,7 +75,7 @@ test('activation with a broken policy file logs INVALID + code and stays fail-cl
 	void extension.deactivate();
 });
 
-test('activation registers the five flauz.browser.* commands', async () => {
+test('activation registers the ten flauz.browser.* commands (5 policy + 5 runtime)', async () => {
 	const extension = await freshActivate('{"schemaVersion":0}');
 	const names = __state().commands.map(c => c.command);
 	assert.deepEqual(names.sort(), [
@@ -84,6 +84,12 @@ test('activation registers the five flauz.browser.* commands', async () => {
 		'flauz.browser.setPolicy',
 		'flauz.browser.showPolicy',
 		'flauz.browser.verifyPolicy',
+		// TL3-001 browser runtime surface (src/runtime/*):
+		'flauz.browser.openSession',
+		'flauz.browser.closeSession',
+		'flauz.browser.sessions',
+		'flauz.browser.navigate',
+		'flauz.browser.screenshot',
 	].sort());
 	void extension.deactivate();
 });
@@ -187,7 +193,7 @@ test('activation without a workspace folder degrades gracefully (commands still 
 	const lines = channelLines(__state());
 	assert.ok(lines.some(l => l.includes('no workspace folder open')));
 	assert.equal(__state().watchers.length, 0);
-	assert.equal(__state().commands.length, 5);
+	assert.equal(__state().commands.length, 10); // 5 policy + 5 TL3-001 runtime commands
 	const verdict = commandHandler('flauz.browser.evaluate')({ url: 'https://x.org/' }) as Record<string, unknown>;
 	assert.equal(verdict['decision'], 'deny');
 	assert.equal(verdict['partition'], '');

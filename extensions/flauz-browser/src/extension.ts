@@ -23,8 +23,27 @@
  *                                     initiator classes) and log the verdicts
  *        flauz.browser.evaluate      machine surface: { url, initiator?,
  *                                     partition?, workspaceRoot? } -> verdict
- *                                     (the Agent Bridge integration seam),
+ *                                     (the Agent Bridge integration seam)
  *   4. watches the policy file and hot-swaps the engine on changes.
+ *
+ * TL3-001 browser runtime surface (src/runtime/*), also command-only:
+ *        flauz.browser.openSession    { initiator, agentId?, startUrl? } ->
+ *                                     BrowserSessionDescriptor (deny-all
+ *                                     fail-closed: a denied startUrl fails
+ *                                     the session BEFORE any CDP traffic)
+ *        flauz.browser.closeSession   { sessionId } -> sealed descriptor
+ *        flauz.browser.sessions       -> descriptor snapshots (audit list)
+ *        flauz.browser.navigate       { sessionId, url, tabId? } -> the
+ *                                     policy-gated navigation outcome (deny
+ *                                     => ZERO CDP commands; post-commit
+ *                                     violation => the about:blank reset)
+ *        flauz.browser.screenshot     { sessionId, tabId? } -> bytes(b64) +
+ *                                     evidence row + artifact under
+ *                                     .flauz/artifacts/
+ *
+ * Host selection (lazy, first runtime command): the workbench browser API
+ * when the proposal is present (posture P0), else the external Chromium CDP
+ * endpoint from FLAUZ_CDP_ENDPOINT, else a fail-closed error message.
  */
 
 import * as vscode from 'vscode';
@@ -38,6 +57,14 @@ import {
 	policyTemplate,
 	formatVerdictLine,
 } from './policy.ts';
+import {
+	BrowserSessionManager,
+	isNavigationOutcome,
+	type OpenSessionResult,
+} from './runtime/sessionManager.ts';
+import { CdpEndpointHost, WorkbenchBrowserHost, type BrowserHost } from './runtime/host.ts';
+import { FileSystemArtifactWriter } from './runtime/capture.ts';
+import type { WorkbenchBrowserTabLike } from './runtime/host.ts';
 
 interface PolicyState {
 	engine: BrowserPolicyEngine;
@@ -45,6 +72,10 @@ interface PolicyState {
 
 let state: PolicyState | undefined;
 let log: (message: string) => void = () => undefined;
+
+// TL3-001 runtime (lazy: built on the first flauz.browser.* runtime command).
+let browserRuntime: BrowserSessionManager | undefined;
+let browserRuntimeFailure: string | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	mark(FlauzBrowserMarks.willActivateBrowserPolicy);
@@ -75,6 +106,11 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 		vscode.commands.registerCommand('flauz.browser.verifyPolicy', () => commandVerifyPolicy(folder)),
 		vscode.commands.registerCommand('flauz.browser.checkUrl', (arg?: unknown) => commandCheckUrl(folder, arg)),
 		vscode.commands.registerCommand('flauz.browser.evaluate', (arg?: unknown) => commandEvaluate(folder, arg)),
+		vscode.commands.registerCommand('flauz.browser.openSession', (arg?: unknown) => commandOpenSession(arg)),
+		vscode.commands.registerCommand('flauz.browser.closeSession', (arg?: unknown) => commandCloseSession(arg)),
+		vscode.commands.registerCommand('flauz.browser.sessions', () => commandSessions()),
+		vscode.commands.registerCommand('flauz.browser.navigate', (arg?: unknown) => commandNavigate(arg)),
+		vscode.commands.registerCommand('flauz.browser.screenshot', (arg?: unknown) => commandScreenshot(arg)),
 	);
 
 	if (folder !== undefined) {
@@ -240,4 +276,197 @@ function commandEvaluate(folder: vscode.WorkspaceFolder | undefined, arg: unknow
 
 export function deactivate(): void {
 	state = undefined;
+	const runtime = browserRuntime;
+	browserRuntime = undefined;
+	browserRuntimeFailure = undefined;
+	if (runtime !== undefined) {
+		void runtime.dispose();
+	}
+}
+
+// ---------------------------------------------------------------------------------------
+// TL3-001 browser runtime wiring (lazy host selection + the five runtime commands)
+// ---------------------------------------------------------------------------------------
+
+/**
+ * Host selection (INTEGRATION-GAP posture P0 first): the PROPOSED workbench
+ * browser API when present (feature-checked — this is the only place the
+ * extension bridges vscode.window onto the runtime's structural port; no
+ * source file names a proposed-API type), else the external Chromium CDP
+ * endpoint from FLAUZ_CDP_ENDPOINT, else fail-closed.
+ */
+function selectBrowserHost(): { host: BrowserHost } | { error: string } {
+	const windowCandidate = vscode.window as unknown as Partial<Record<'openBrowserTab', unknown>>;
+	if (typeof windowCandidate.openBrowserTab === 'function') {
+		const openBrowserTab = windowCandidate.openBrowserTab as
+			(url: string, options?: { viewColumn?: number; preserveFocus?: boolean; background?: boolean }) => PromiseLike<unknown>;
+		log('flauz.browser: runtime host = workbench (proposed browser API, posture P0)');
+		return {
+			host: new WorkbenchBrowserHost({
+				openBrowserTab: (url, options) => Promise.resolve(openBrowserTab.call(vscode.window, url, options) as PromiseLike<WorkbenchBrowserTabLike>),
+			}),
+		};
+	}
+	const endpoint = process.env['FLAUZ_CDP_ENDPOINT'];
+	if (typeof endpoint === 'string' && endpoint !== '') {
+		log(`flauz.browser: runtime host = cdp-endpoint (${endpoint})`);
+		return { host: new CdpEndpointHost(endpoint) };
+	}
+	return { error: 'no browser host available: the workbench browser API is absent and FLAUZ_CDP_ENDPOINT is not set (fail-closed)' };
+}
+
+function getBrowserRuntime(): BrowserSessionManager | { error: string } {
+	if (browserRuntime !== undefined) {
+		return browserRuntime;
+	}
+	if (browserRuntimeFailure !== undefined) {
+		return { error: browserRuntimeFailure };
+	}
+	if (state === undefined) {
+		return { error: 'flauz.browser: extension state unavailable (not activated)' };
+	}
+	const folder = firstWorkspaceFolder();
+	const workspaceRoot = folder?.uri.fsPath;
+	const selection = selectBrowserHost();
+	if ('error' in selection) {
+		browserRuntimeFailure = selection.error;
+		log(`flauz.browser: ${selection.error}`);
+		return { error: selection.error };
+	}
+	if (workspaceRoot === undefined) {
+		const message = 'no workspace folder open: browser sessions need a workspace root for partitions (fail-closed)';
+		browserRuntimeFailure = message;
+		log(`flauz.browser: ${message}`);
+		return { error: message };
+	}
+	browserRuntime = new BrowserSessionManager({
+		// The CURRENT engine, always: hot-reloads and post-recovery re-gating
+		// consult the live policy; a vanished state falls back to deny-all.
+		engine: () => state?.engine ?? new BrowserPolicyEngine(),
+		host: selection.host,
+		workspaceRoot,
+		artifacts: new FileSystemArtifactWriter(workspaceRoot),
+	});
+	return browserRuntime;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+	if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+		return undefined;
+	}
+	return value as Record<string, unknown>;
+}
+
+function asOptionalString(value: unknown): string | undefined {
+	return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+async function commandOpenSession(arg: unknown): Promise<OpenSessionResult | { error: string }> {
+	const record = asRecord(arg);
+	if (record === undefined) {
+		return { error: 'flauz.browser.openSession: expected an argument object { initiator, agentId?, startUrl? }' };
+	}
+	const initiator = record['initiator'] === 'human' ? 'human' : record['initiator'] === 'agent' ? 'agent' : undefined;
+	if (initiator === undefined) {
+		return { error: 'flauz.browser.openSession: initiator must be "human" or "agent"' };
+	}
+	const agentId = asOptionalString(record['agentId']);
+	const startUrl = asOptionalString(record['startUrl']);
+	if (initiator === 'human' && agentId !== undefined) {
+		return { error: 'flauz.browser.openSession: agentId is only valid for agent sessions (human/agent separation)' };
+	}
+	const runtime = getBrowserRuntime();
+	if ('error' in runtime) {
+		void vscode.window.showWarningMessage(`Flauz Browser: ${runtime.error}`);
+		return { error: `flauz.browser.openSession: ${runtime.error}` };
+	}
+	const result = await runtime.open({ initiator, agentId, startUrl });
+	if (result.descriptor.state === 'failed') {
+		log(`flauz.browser: openSession FAILED (${result.error?.code ?? 'unknown'}): ${result.error?.message ?? ''}`);
+	} else {
+		log(`flauz.browser: openSession ${result.descriptor.sessionId} initiator=${result.descriptor.initiator} partition=${result.descriptor.partition} state=${result.descriptor.state}`);
+		if (result.navigation !== undefined) {
+			log(`flauz.browser: navigate: ${formatVerdictLine(result.navigation.verdict)}`);
+		}
+	}
+	return result;
+}
+
+async function commandCloseSession(arg: unknown): Promise<unknown> {
+	const record = asRecord(arg);
+	if (record === undefined) {
+		return { error: 'flauz.browser.closeSession: expected an argument object { sessionId }' };
+	}
+	const sessionId = asOptionalString(record['sessionId']);
+	if (sessionId === undefined) {
+		return { error: 'flauz.browser.closeSession: expected an argument object { sessionId }' };
+	}
+	const runtime = getBrowserRuntime();
+	if ('error' in runtime) {
+		return { error: `flauz.browser.closeSession: ${runtime.error}` };
+	}
+	const result = await runtime.close(sessionId);
+	log(`flauz.browser: closeSession ${sessionId} -> ${'state' in result ? result.state : `error: ${result.error.message}`}`);
+	return result;
+}
+
+function commandSessions(): unknown {
+	const runtime = getBrowserRuntime();
+	if ('error' in runtime) {
+		return { error: `flauz.browser.sessions: ${runtime.error}` };
+	}
+	const sessions = runtime.list();
+	for (const descriptor of sessions) {
+		log(`flauz.browser: session ${descriptor.sessionId} initiator=${descriptor.initiator} state=${descriptor.state} tabs=${descriptor.tabs.length} partition=${descriptor.partition}`);
+	}
+	return sessions;
+}
+
+async function commandNavigate(arg: unknown): Promise<unknown> {
+	const record = asRecord(arg);
+	if (record === undefined) {
+		return { error: 'flauz.browser.navigate: expected an argument object { sessionId, url, tabId? }' };
+	}
+	const sessionId = asOptionalString(record['sessionId']);
+	const url = asOptionalString(record['url']);
+	if (sessionId === undefined || url === undefined) {
+		return { error: 'flauz.browser.navigate: expected an argument object { sessionId, url, tabId? }' };
+	}
+	const tabId = asOptionalString(record['tabId']);
+	const runtime = getBrowserRuntime();
+	if ('error' in runtime) {
+		return { error: `flauz.browser.navigate: ${runtime.error}` };
+	}
+	const result = await runtime.navigate(sessionId, url, tabId !== undefined ? { tabId } : {});
+	if (isNavigationOutcome(result)) {
+		log(`flauz.browser: navigate: ${formatVerdictLine(result.verdict)}`);
+		log(`flauz.browser: navigate ${url} sent=${String(result.sent)}${result.committedUrl !== undefined ? ` committed=${result.committedUrl}` : ''}${result.violation !== undefined ? ` VIOLATION resetTo=${result.violation.resetTo}` : ''}`);
+	} else {
+		log(`flauz.browser: navigate ${url} error: ${result.error.message}`);
+	}
+	return result;
+}
+
+async function commandScreenshot(arg: unknown): Promise<unknown> {
+	const record = asRecord(arg);
+	if (record === undefined) {
+		return { error: 'flauz.browser.screenshot: expected an argument object { sessionId, tabId? }' };
+	}
+	const sessionId = asOptionalString(record['sessionId']);
+	if (sessionId === undefined) {
+		return { error: 'flauz.browser.screenshot: expected an argument object { sessionId, tabId? }' };
+	}
+	const tabId = asOptionalString(record['tabId']);
+	const runtime = getBrowserRuntime();
+	if ('error' in runtime) {
+		return { error: `flauz.browser.screenshot: ${runtime.error}` };
+	}
+	const result = await runtime.screenshot(sessionId, tabId);
+	if ('error' in result) {
+		log(`flauz.browser: screenshot ${sessionId} error: ${result.error.message}`);
+		return result;
+	}
+	log(`flauz.browser: screenshot ${sessionId} bytes=${String(result.byteLength)}${result.artifactPath !== undefined ? ` artifact=${result.artifactPath}` : ''}`);
+	// bytes stay out of the JSON-safe command result; base64 carries them.
+	return { byteLength: result.byteLength, base64: result.base64, artifactPath: result.artifactPath, evidenceRow: result.evidenceRow };
 }
