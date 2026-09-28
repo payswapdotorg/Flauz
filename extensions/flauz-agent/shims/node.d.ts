@@ -26,6 +26,8 @@ declare module 'node:child_process' {
 		stdout: ShimStream;
 		stderr: ShimStream;
 		killed: boolean;
+		/** OS process id; undefined before the process could start (additive, TL2-S1 supervision). */
+		pid: number | undefined;
 		kill(signal?: string): void;
 		on(event: 'error', listener: (error: Error) => void): void;
 		on(event: 'close', listener: (code: number | null) => void): void;
@@ -79,8 +81,13 @@ declare module 'node:url' {
 }
 
 declare module 'node:test' {
-	export function test(name: string, fn: () => void | Promise<void>): void;
-	export function test(name: string, options: { only?: boolean; skip?: boolean | string; timeout?: number }, fn: () => void | Promise<void>): void;
+	/** Subtest driver (additive, TL2-S1: the matrix suites report per-class). */
+	export interface TestContext {
+		test(name: string, fn: (t: TestContext) => void | Promise<void>): Promise<void>;
+		diagnostic(message: string): void;
+	}
+	export function test(name: string, fn: (t: TestContext) => void | Promise<void>): void;
+	export function test(name: string, options: { only?: boolean; skip?: boolean | string; timeout?: number }, fn: (t: TestContext) => void | Promise<void>): void;
 }
 
 declare module 'node:assert' {
@@ -141,6 +148,8 @@ declare const process: {
 	env: Record<string, string | undefined>;
 	exit(code?: number): never;
 	on(event: string, listener: (...args: unknown[]) => void): void;
+	/** Signal a process by pid (additive, TL2-S1 kill-and-reconnect matrix). */
+	kill(pid: number, signal?: string): void;
 	/** Streams used by the standalone service scripts spawned as child processes (test/harness). */
 	stdout: { write(chunk: string): boolean };
 	stderr: { write(chunk: string): boolean };

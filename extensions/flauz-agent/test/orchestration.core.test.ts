@@ -84,7 +84,7 @@ test('claim and lease ids are deterministic derivations', () => {
 
 test('rowHashOf covers all 14 fields except prev; journalLine is canonical', async () => {
 	const { store, graphId } = await submittedStore(makeRoot());
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
 	const row = store.journalRows[1];
 	const line = journalLine(row);
 	assert.ok(line.startsWith('{"$schema":'));
@@ -173,7 +173,7 @@ test('graphs envelope rejects unknown keys, bad schema, malformed records', asyn
 test('journal load rejects non-canonical bytes, broken chains, mid-file corruption', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedStore(root);
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
 	const path = join(root, '.flauz', 'orchestration', 'journal.jsonl');
 	const lines = readFileSync(path, 'utf-8').split('\n').filter((line) => line.length > 0);
 	// non-canonical bytes: the same JSON value with NON-sorted key order
@@ -289,39 +289,39 @@ test('every transition class is legal from its source and rejected from others',
 		{ stepId: 'S-02', title: 'b', instruction: 'b', dependsOn: ['S-01'], gate: 'human-approval' },
 	]);
 	// step-started before graph approval: blocked
-	assert.throws(() => store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' }),
+	await assert.rejects(() => store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => error instanceof OrchestrationError && /not allowed from step status blocked/.test(messageOf(error)));
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
 	// dependency not satisfied yet: S-02 is blocked (dep S-01 has not succeeded)
-	assert.throws(() => store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' }),
+	await assert.rejects(() => store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => error instanceof OrchestrationError && /not allowed from step status blocked/.test(messageOf(error)));
-	assert.throws(() => store.approvalRequest({ graphId, stepId: 'S-02', reason: 'gate', actor: 'agent', origin: 'test:core' }),
+	await assert.rejects(() => store.approvalRequest({ graphId, stepId: 'S-02', reason: 'gate', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => error instanceof OrchestrationError && /not allowed from step status blocked/.test(messageOf(error)));
 	// run S-01 to success (unblocks S-02)
-	const started = store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' });
+	const started = await store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' });
 	assert.equal(started.attempt, 1);
 	await store.finishStep({ graphId, stepId: 'S-01', outcome: 'succeeded', actor: 'agent', origin: 'test:core', output: 'ok', evidence: [] });
 	// second completion of S-01 is illegal (succeeded is terminal)
 	await assert.rejects(() => store.finishStep({ graphId, stepId: 'S-01', outcome: 'succeeded', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => /not allowed from step status succeeded/.test(messageOf(error)));
 	// NOW S-02 is ready: the human-approval gate is the blocking rule (never auto-granted)
-	assert.throws(() => store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' }),
+	await assert.rejects(() => store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => error instanceof OrchestrationError && /human-approval/.test(messageOf(error)));
 	// request -> grant -> start
-	store.approvalRequest({ graphId, stepId: 'S-02', reason: 'gate', actor: 'agent', origin: 'test:core' });
-	store.approvalDecide({ graphId, stepId: 'S-02', decision: 'granted', actor: 'human', origin: 'test:core' });
-	store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' });
+	await store.approvalRequest({ graphId, stepId: 'S-02', reason: 'gate', actor: 'agent', origin: 'test:core' });
+	await store.approvalDecide({ graphId, stepId: 'S-02', decision: 'granted', actor: 'human', origin: 'test:core' });
+	await store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' });
 	await store.finishStep({ graphId, stepId: 'S-02', outcome: 'failed', failureClass: 'timeout', message: 'slow', actor: 'agent', origin: 'test:core' });
 	// retry from non-failed is illegal (sync store method -> assert.throws)
-	assert.throws(() => store.retryStep({ graphId, stepId: 'S-01', actor: 'service', origin: 'test:core' }),
+	await assert.rejects(() => store.retryStep({ graphId, stepId: 'S-01', actor: 'service', origin: 'test:core' }),
 		(error: unknown) => /requires step status 'failed'/.test(messageOf(error)));
-	store.retryStep({ graphId, stepId: 'S-02', actor: 'service', origin: 'test:core' });
-	const retried = store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' });
+	await store.retryStep({ graphId, stepId: 'S-02', actor: 'service', origin: 'test:core' });
+	const retried = await store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:core' });
 	assert.equal(retried.attempt, 2);
 	await store.finishStep({ graphId, stepId: 'S-02', outcome: 'succeeded', actor: 'agent', origin: 'test:core', output: 'ok', evidence: [] });
 	// completion requires every step succeeded (here: yes) - and double completion is illegal
-	store.completeGraph({ graphId, actor: 'service', origin: 'test:core' });
-	assert.throws(() => store.completeGraph({ graphId, actor: 'service', origin: 'test:core' }),
+	await store.completeGraph({ graphId, actor: 'service', origin: 'test:core' });
+	await assert.rejects(() => store.completeGraph({ graphId, actor: 'service', origin: 'test:core' }),
 		(error: unknown) => /not allowed from graph status completed/.test(messageOf(error)));
 });
 
@@ -331,41 +331,41 @@ test('fabricated graph completion is mechanically rejected', async () => {
 		{ stepId: 'S-01', title: 'a', instruction: 'a' },
 		{ stepId: 'S-02', title: 'b', instruction: 'b', dependsOn: ['S-01'] },
 	]);
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
-	store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' });
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' });
 	await store.finishStep({ graphId, stepId: 'S-01', outcome: 'succeeded', actor: 'agent', origin: 'test:core', output: 'ok', evidence: [] });
 	// S-02 not run yet: graph-completed must be rejected with the pending step named
-	assert.throws(() => store.completeGraph({ graphId, actor: 'service', origin: 'test:core' }),
+	await assert.rejects(() => store.completeGraph({ graphId, actor: 'service', origin: 'test:core' }),
 		(error: unknown) => /requires every step succeeded \(pending: S-02\)/.test(messageOf(error)));
 	// graph-failed without a failed step is rejected too
-	assert.throws(() => store.failGraph({ graphId, failedStepId: 'S-02', actor: 'service', origin: 'test:core' }),
+	await assert.rejects(() => store.failGraph({ graphId, failedStepId: 'S-02', actor: 'service', origin: 'test:core' }),
 		(error: unknown) => /requires at least one failed or cancelled step/.test(messageOf(error)));
 });
 
 test('actor gates: human-only transitions reject service/agent/tool actors', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedStore(root, [{ stepId: 'S-01', title: 'a', instruction: 'a', gate: 'human-approval' }]);
-	const humanOnly: Array<[string, () => unknown]> = [
+	const humanOnly: Array<[string, () => Promise<unknown>]> = [
 		['graph-approved', () => store.approveGraph({ graphId, actor: 'agent', origin: 'test:core' })],
 	];
 	for (const [label, call] of humanOnly) {
-		assert.throws(() => call(), (error: unknown) => /requires actor human/.test(messageOf(error)), label);
+		await assert.rejects(() => call(), (error: unknown) => /requires actor human/.test(messageOf(error)), label);
 	}
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
-	store.approvalRequest({ graphId, stepId: 'S-01', reason: 'gate', actor: 'service', origin: 'runtime:gate' });
-	const decisions: Array<[string, () => unknown]> = [
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.approvalRequest({ graphId, stepId: 'S-01', reason: 'gate', actor: 'service', origin: 'runtime:gate' });
+	const decisions: Array<[string, () => Promise<unknown>]> = [
 		['approval-granted by service', () => store.approvalDecide({ graphId, stepId: 'S-01', decision: 'granted', actor: 'service', origin: 'test:core' })],
 		['approval-granted by agent', () => store.approvalDecide({ graphId, stepId: 'S-01', decision: 'granted', actor: 'agent', origin: 'test:core' })],
 		['approval-denied by tool', () => store.approvalDecide({ graphId, stepId: 'S-01', decision: 'denied', actor: 'tool', origin: 'test:core' })],
 	];
 	for (const [label, call] of decisions) {
-		assert.throws(() => call(), (error: unknown) => /requires actor human/.test(messageOf(error)), label);
+		await assert.rejects(() => call(), (error: unknown) => /requires actor human/.test(messageOf(error)), label);
 	}
 	// takeover: request by agent is legal (a suggestion), accept/complete are human-only
-	store.takeoverRequest({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' });
-	assert.throws(() => store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' }),
+	await store.takeoverRequest({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' });
+	await assert.rejects(() => store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => /requires actor human/.test(messageOf(error)));
-	store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'human', origin: 'test:core' });
+	await store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'human', origin: 'test:core' });
 	await assert.rejects(() => store.takeoverComplete({ graphId, stepId: 'S-01', actor: 'service', origin: 'test:core' }),
 		(error: unknown) => /requires actor human/.test(messageOf(error)));
 	await store.takeoverComplete({ graphId, stepId: 'S-01', actor: 'human', origin: 'test:core', summary: 'done by hand' });
@@ -377,29 +377,29 @@ test('actor gates: human-only transitions reject service/agent/tool actors', asy
 test('claims are exclusive; leases require release/expiry before re-acquire', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedStore(root, [{ stepId: 'S-01', title: 'a', instruction: 'a' }]);
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
-	store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-a', actor: 'agent', origin: 'test:core' });
-	assert.throws(() => store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-b', actor: 'agent', origin: 'test:core' }),
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-a', actor: 'agent', origin: 'test:core' });
+	await assert.rejects(() => store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-b', actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => /claims are exclusive/.test(messageOf(error)));
-	store.releaseClaim({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' });
-	assert.throws(() => store.releaseClaim({ graphId, stepId: 'S-01', agent: 'agent', origin: 'test:core', holder: 'x' } as never),
+	await store.releaseClaim({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' });
+	await assert.rejects(() => store.releaseClaim({ graphId, stepId: 'S-01', agent: 'agent', origin: 'test:core', holder: 'x' } as never),
 		(error: unknown) => /no active claim/.test(messageOf(error)));
-	store.acquireLease({ graphId, stepId: 'S-01', holder: 'agent-a', ttlMs: 5000, actor: 'agent', origin: 'test:core' });
-	assert.throws(() => store.acquireLease({ graphId, stepId: 'S-01', holder: 'agent-b', ttlMs: 5000, actor: 'agent', origin: 'test:core' }),
+	await store.acquireLease({ graphId, stepId: 'S-01', holder: 'agent-a', ttlMs: 5000, actor: 'agent', origin: 'test:core' });
+	await assert.rejects(() => store.acquireLease({ graphId, stepId: 'S-01', holder: 'agent-b', ttlMs: 5000, actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => /while .* is active/.test(messageOf(error)));
-	const renewed = store.renewLease({ graphId, stepId: 'S-01', ttlMs: 10000, actor: 'agent', origin: 'test:core' });
+	const renewed = await store.renewLease({ graphId, stepId: 'S-01', ttlMs: 10000, actor: 'agent', origin: 'test:core' });
 	assert.equal((renewed.payload.expiresAt as number) > 0, true);
-	store.releaseLease({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' });
-	assert.throws(() => store.renewLease({ graphId, stepId: 'S-01', ttlMs: 10000, actor: 'agent', origin: 'test:core' }),
+	await store.releaseLease({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:core' });
+	await assert.rejects(() => store.renewLease({ graphId, stepId: 'S-01', ttlMs: 10000, actor: 'agent', origin: 'test:core' }),
 		(error: unknown) => /no active lease/.test(messageOf(error)));
 });
 
 test('claim conflict on startStep records conflict-noticed (v0 informational enforcement)', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedStore(root, [{ stepId: 'S-01', title: 'a', instruction: 'a' }]);
-	store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
-	store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-a', actor: 'agent', origin: 'test:core' });
-	store.startStep({ graphId, stepId: 'S-01', runnerId: 'runner-b', actor: 'agent', origin: 'test:core' });
+	await store.approveGraph({ graphId, actor: 'human', origin: 'test:core' });
+	await store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-a', actor: 'agent', origin: 'test:core' });
+	await store.startStep({ graphId, stepId: 'S-01', runnerId: 'runner-b', actor: 'agent', origin: 'test:core' });
 	const conflicts = store.journalRows.filter((row) => row.type === 'conflict-noticed');
 	assert.equal(conflicts.length, 1);
 	assert.equal(conflicts[0].payload.violation, 'claim');
@@ -553,8 +553,8 @@ test('taskPort links graphs to the flauz.tasks/v0 surfaces', async () => {
 	const store = new OrchestrationStore(root, { taskPort, clock: () => (clockValue += 1000) });
 	const submitted = await store.submitGraph({ title: 'linked', steps: [{ stepId: 'S-01', title: 'a', instruction: 'a' }], actor: 'agent', origin: 'test:core' });
 	assert.equal(submitted.taskId, 'T-001');
-	store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:core' });
-	store.startStep({ graphId: submitted.graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' });
+	await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:core' });
+	await store.startStep({ graphId: submitted.graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:core' });
 	const finished = await store.finishStep({
 		graphId: submitted.graphId, stepId: 'S-01', outcome: 'succeeded', actor: 'agent', origin: 'test:core',
 		output: 'ok', evidence: [{ kind: 'note', uri: 'flauz-test://linked/1', sha256: 'a'.repeat(64) }],
@@ -570,5 +570,5 @@ test('orphans: unknown graph/step errors are typed', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedStore(root);
 	assert.throws(() => store.getGraphState('G-999'), (error: unknown) => error instanceof OrchestrationError && error.code === 'unknown-graph');
-	assert.throws(() => store.startStep({ graphId, stepId: 'S-99', runnerId: 'r', actor: 'agent', origin: 't' }), (error: unknown) => error instanceof OrchestrationError && error.code === 'unknown-step');
+	await assert.rejects(() => store.startStep({ graphId, stepId: 'S-99', runnerId: 'r', actor: 'agent', origin: 't' }), (error: unknown) => error instanceof OrchestrationError && error.code === 'unknown-step');
 });

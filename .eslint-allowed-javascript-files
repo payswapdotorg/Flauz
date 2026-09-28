@@ -2,10 +2,8 @@
 #
 # This file is consumed by eslint.config.js and gates the
 # `local/code-no-new-javascript-files` lint rule.
-#
 # DO NOT ADD NEW ENTRIES. Write new files in TypeScript instead.
 # Modifications to this file require sign-off from the CODEOWNERS.
-#
 # Lines starting with `#` are comments. Blank lines are ignored.
 
 .github/skills/heap-snapshot-analysis/helpers/streamSnapshot.mjs
@@ -165,7 +163,6 @@ test/unit/electron/renderer.js
 test/unit/fullJsonStreamReporter.js
 test/unit/node/index.js
 test/unit/reporter.js
-
 # Flauz additive zero-dep scripts (Wave 3; .mjs for ESM imports; added at
 # first-CI integration per this file's own policy — see DECISION-LOG DL-29)
 build/flauz/merge-product.mjs
@@ -182,27 +179,22 @@ extensions/flauz-agent/core/a2a.mjs
 extensions/flauz-agent/core/contracts.mjs
 extensions/flauz-agent/core/protocol.mjs
 extensions/flauz-agent/core/service.mjs
-
 # Flauz Wave 4 Lane J (environments): canary runner + transit staging (zero-dep .mjs)
 build/flauz/scripts/env-registry-canary.mjs
 build/flauz/scripts/stage-j-environments.mjs
-
 # Flauz TL4 quality gates (zero-dep .mjs harness scripts, build/flauz/README.md conventions)
 build/flauz/scripts/compat-battery.mjs
 build/flauz/scripts/budget-gate.mjs
 build/flauz/scripts/ia-gate.mjs
-
 # Flauz TL1 upstream-sync lane (zero-dep .mjs tool + node:test suite)
 build/flauz/scripts/sync-upstream.mjs
 build/flauz/sync-upstream.test.mjs
 build/flauz/scripts/premium-ux-gate.mjs
-
 # Flauz TL1-005 packaging-parity lane (zero-dep .mjs gate + node:test suite)
 build/flauz/scripts/packaging-parity.mjs
 build/flauz/packaging-parity.test.mjs
 build/flauz/scripts/session-battery.mjs
 build/flauz/scripts/security-gate.mjs
-
 # Flauz TL1-002 product build/release shell (zero-dep .mjs gate + node:test suite)
 build/flauz/scripts/verify-product.mjs
 build/flauz/verify-product.test.mjs
@@ -225,13 +217,17 @@ test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/notebook/browser/n
 test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/preferences/browser/preferences.contribution.js
 test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/quickaccess/browser/quickAccess.contribution.js
 test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/scm/browser/scm.contribution.js
-
-
 # Flauz TL2-A durable orchestration runtime (zero-dep .mjs core, G side)
 extensions/flauz-agent/core/orchestration.mjs
 extensions/flauz-agent/core/orchStore.mjs
 extensions/flauz-agent/core/policy.mjs
 extensions/flauz-agent/core/recovery.mjs
-
 # Flauz TL2-A orchestration executor (zero-dep .mjs, G side)
 extensions/flauz-agent/core/runtime.mjs
+# Flauz TL2-S1 Agent OS service boundary adapter (zero-dep .mjs composing the seam client)
+extensions/flauz-agent/core/serviceBoundary.mjs
+# Flauz TL2-A multi-agent routing (zero-dep .mjs, G side; M3 - allowlist entry missed at landing, added by A2)
+extensions/flauz-agent/core/routing.mjs
+# Flauz TL2-A2 orchestration service protocol (zero-dep .mjs, G side; M4)
+extensions/flauz-agent/core/orchProtocol.mjs
+extensions/flauz-agent/core/orchMediator.mjs

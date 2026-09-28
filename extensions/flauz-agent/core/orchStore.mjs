@@ -30,8 +30,26 @@
  * mints ledger evidence rows for step evidence (E-ids into the journal
  * payload - the content-hash linkage between graph and ledger).
  *
+ * TL2-004 closure (M5): approval, takeover, claim/lease and conflict
+ * operations are FIRST-CLASS transitions with EVIDENCE ROWS - each op
+ * pre-validates the transition (a dry-run replay), mints ONE flauz.tasks/v0
+ * ledger row (kind 'note', uri 'flauz-orch-transition://<rowId>', sha256
+ * over the canonical transition facts) and embeds the minted evidenceId in
+ * the journal payload. Order of guarantees:
+ *   - NO ORPHANS: an illegal transition throws in the PREVIEW, before any
+ *     evidence is minted (a rejected decision never lands a ledger row);
+ *   - NO FABRICATION: the minted sha256 is recomputable from the journal
+ *     row (payload minus evidenceId + the row's provenance fields);
+ *   - NO SHIFTED LINKAGE: every evidence-bearing op runs inside the
+ *     transition lock, so the rowId the evidence uri references is the
+ *     rowId the append lands at (appendCandidate asserts it fail-closed);
+ *   - AT LEAST ONCE: a crash between append and event sync loses at most
+ *     the event, never the durable fact (the journal is primary).
+ *
  * Zero-dependency (node:fs + node:crypto via orchestration.mjs). Single
- * writer per workspace (the v0 ledger assumption, documented).
+ * writer per workspace (the v0 ledger assumption, documented; the async
+ * public ops serialize through the transition lock so concurrent callers
+ * cannot interleave a mint window).
  */
 
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -64,6 +82,17 @@ import {
 import { DEFAULT_RETRY_POLICY, planRetry, classifyFailure } from './policy.mjs';
 
 const TASK_ID_PATTERN = /^T-\d{3,}$/;
+
+/**
+ * The journal notation of a minted ledger evidence id. The flauz.tasks/v0
+ * ledger identifies a row by its seq (the seam's string projection is
+ * unpadded, e.g. 'E-3'); the orchestration journal records the SAME row in
+ * the DL-21 E-NNNNNN discipline (evidenceIdOfLedgerSeq(3) === 'E-000003')
+ * so every embedded evidence id satisfies the journal's closed pattern.
+ */
+function evidenceIdOfLedgerSeq(seq) {
+	return `E-${String(seq).padStart(6, '0')}`;
+}
 
 function isPlainObject(value) {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -129,9 +158,11 @@ export class OrchestrationStore {
 		this.clock = options.clock ?? (() => Date.now());
 		this.graphs = [];
 		this.journalRows = [];
-		/** The raw torn tail dropped at load (a crash artifact; surfaced by recovery). */
-		this.tornTail = null;
-		this.load();
+			/** The raw torn tail dropped at load (a crash artifact; surfaced by recovery). */
+			this.tornTail = null;
+			/** The transition-lock tail (serializes the async public ops). */
+		this.lockTail = Promise.resolve();
+			this.load();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -254,12 +285,12 @@ export class OrchestrationStore {
 	}
 
 	/**
-	 * Append one journal row (the ONLY write path). The candidate row is
-	 * validated by a full replay of the graph's journal INCLUDING it - an
-	 * illegal transition, a wrong attempt, a gated-step bypass, a fabricated
-	 * completion all throw BEFORE any byte is written.
+	 * Build one candidate row (validation + construction, NO write). Shared
+	 * by appendRow, previewRow and the evidence-bearing ops - the seq/ts/
+	 * rowId/prev are fixed HERE so a previewed candidate is byte-identical
+	 * to the row that later lands.
 	 */
-	appendRow(type, fields) {
+	candidateRow(type, fields) {
 		if (!JOURNAL_EVENT_TYPES.includes(type)) {
 			throw new OrchestrationError(`unknown journal event type '${String(type)}'`, 'invalid-params');
 		}
@@ -285,7 +316,7 @@ export class OrchestrationStore {
 			throw new OrchestrationError(`${type}: ${payloadError}`, 'invalid-params');
 		}
 		const seq = this.journalRows.length + 1;
-		const row = {
+		return {
 			$schema: 'flauz.orch.journal/v1',
 			seq,
 			rowId: rowIdOf(seq),
@@ -301,14 +332,127 @@ export class OrchestrationStore {
 			contentHash: contentHashOf(fields.payload ?? {}),
 			prev: this.headHash(),
 		};
-		const verdict = deriveGraphState(graph, [...this.rowsFor(fields.graphId), row]);
+	}
+
+	/**
+	 * Append one journal row (the ONLY write path). The candidate row is
+	 * validated by a full replay of the graph's journal INCLUDING it - an
+	 * illegal transition, a wrong attempt, a gated-step bypass, a fabricated
+	 * completion all throw BEFORE any byte is written.
+	 */
+	appendRow(type, fields) {
+		const row = this.candidateRow(type, fields);
+		return this.appendCandidate(row);
+	}
+
+	/**
+	 * Dry-run the full appendRow validation WITHOUT writing: the candidate
+	 * is replay-validated against the graph's journal (an illegal transition
+	 * throws) and returned. The evidence-bearing ops preview FIRST so an
+	 * illegal transition never mints an orphan ledger row.
+	 */
+	previewRow(type, fields) {
+		const row = this.candidateRow(type, fields);
+		const graph = this.requireGraph(row.graphId);
+		const verdict = deriveGraphState(graph, [...this.rowsFor(row.graphId), row]);
 		if (!verdict.ok) {
 			throw new OrchestrationError(`${type} rejected: ${verdict.error}`, 'illegal-transition');
 		}
-		mkdirSync(this.dir, { recursive: true });
-		appendFileSync(this.journalPath, `${journalLine(row)}\n`);
-		this.journalRows.push(row);
 		return row;
+	}
+
+	/**
+	 * Append one PREVIOUSLY BUILT candidate (the write half). Re-validates
+	 * by replay (the payload may have gained its minted evidenceId since the
+	 * preview) and asserts the seq is still the head+1 - a shifted seq means
+	 * the single-writer discipline was violated and the write fails loudly
+	 * instead of corrupting the chain.
+	 */
+	appendCandidate(candidate) {
+		const graph = this.requireGraph(candidate.graphId);
+		const verdict = deriveGraphState(graph, [...this.rowsFor(candidate.graphId), candidate]);
+		if (!verdict.ok) {
+			throw new OrchestrationError(`${candidate.type} rejected: ${verdict.error}`, 'illegal-transition');
+		}
+		if (candidate.seq !== this.journalRows.length + 1 || candidate.prev !== this.headHash()) {
+			throw new OrchestrationError(`${candidate.type} candidate ${candidate.rowId} no longer matches the journal head (the single-writer transition lock was violated)`, 'internal');
+		}
+		mkdirSync(this.dir, { recursive: true });
+		appendFileSync(this.journalPath, `${journalLine(candidate)}\n`);
+		this.journalRows.push(candidate);
+		return candidate;
+	}
+
+	/**
+	 * The transition lock: serializes the async public ops so the
+	 * preview -> mint -> appendCandidate window of an evidence-bearing op
+	 * can never interleave with another append (the rowId the evidence uri
+	 * references is the rowId the append lands at).
+	 */
+	async withTransitionLock(fn) {
+		const previous = this.lockTail;
+		let release;
+		this.lockTail = new Promise((resolve) => {
+			release = resolve;
+		});
+		await previous;
+		try {
+			return await fn();
+		} finally {
+			release();
+		}
+	}
+
+	/**
+	 * Mint the ledger evidence row of one transition (the TL2-004 linkage).
+	 * The uri references the candidate's rowId; the sha256 covers the
+	 * canonical transition facts WITHOUT the evidenceId (recomputable from
+	 * the landed journal row). Returns null when there is no taskPort or no
+	 * linked task - the journal row stays the primary record either way.
+	 */
+	async mintTransitionEvidence(candidate) {
+		const graph = this.requireGraph(candidate.graphId);
+		if (this.taskPort === null || graph.taskId === null) {
+			return null;
+		}
+		const facts = {
+			graphId: candidate.graphId,
+			stepId: candidate.stepId,
+			type: candidate.type,
+			actor: candidate.actor,
+			origin: candidate.origin,
+			ts: candidate.ts,
+			payload: candidate.payload,
+		};
+		const minted = await this.taskPort.appendEvidence({
+			taskId: graph.taskId,
+			row: { kind: 'note', uri: `flauz-orch-transition://${candidate.rowId}`, sha256: contentHashOf(facts) },
+		});
+		return evidenceIdOfLedgerSeq(minted.seq);
+	}
+
+	/**
+	 * The evidence-bearing transition append: preview (no orphans) -> mint
+	 * (the ledger row) -> append (the payload gains the minted evidenceId).
+	 * Takes the transition lock.
+	 */
+	async appendEvidenceBearingRow(type, fields) {
+		return this.withTransitionLock(() => this.appendEvidenceBearingRowLocked(type, fields));
+	}
+
+	/**
+	 * The evidence-bearing append for a caller that ALREADY holds the
+	 * transition lock (startStep's conflict notices, takeoverComplete, a
+	 * composed op) - re-entering the lock would deadlock.
+	 */
+	async appendEvidenceBearingRowLocked(type, fields) {
+		const candidate = this.previewRow(type, fields);
+		const evidenceId = await this.mintTransitionEvidence(candidate);
+		if (evidenceId !== null) {
+			candidate.payload = { ...candidate.payload, evidenceId };
+			candidate.contentHash = contentHashOf(candidate.payload);
+		}
+		return this.appendCandidate(candidate);
 	}
 
 	/** The effective retry policy of a step (step override, else graph default, else house default). */
@@ -330,7 +474,7 @@ export class OrchestrationStore {
 		const minted = [];
 		for (const item of items) {
 			const result = await this.taskPort.appendEvidence({ taskId, row: { kind: item.kind, uri: item.uri, sha256: item.sha256 } });
-			minted.push({ evidenceId: result.evidenceId, kind: item.kind, uri: item.uri, sha256: item.sha256 });
+			minted.push({ evidenceId: evidenceIdOfLedgerSeq(result.seq), kind: item.kind, uri: item.uri, sha256: item.sha256 });
 		}
 		return minted;
 	}
@@ -433,79 +577,98 @@ export class OrchestrationStore {
 		}
 	}
 
-	approveGraph(input) {
-		return this.appendRow('graph-approved', {
+	async approveGraph(input) {
+		return this.withTransitionLock(() => this.appendRow('graph-approved', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
 			payload: input.note !== undefined ? { note: input.note } : {},
-		});
+		}));
 	}
 
-	rejectGraph(input) {
-		return this.appendRow('graph-rejected', {
+	async rejectGraph(input) {
+		return this.withTransitionLock(() => this.appendRow('graph-rejected', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
 			payload: input.note !== undefined ? { note: input.note } : {},
-		});
+		}));
 	}
 
-	completeGraph(input) {
-		return this.appendRow('graph-completed', {
+	async completeGraph(input) {
+		return this.withTransitionLock(() => this.appendRow('graph-completed', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
 			payload: { succeededCount: Object.keys(this.stateOf(input.graphId).steps).length },
-		});
+		}));
 	}
 
-	failGraph(input) {
-		return this.appendRow('graph-failed', {
+	async failGraph(input) {
+		return this.withTransitionLock(() => this.appendRow('graph-failed', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
 			payload: { failedStepId: input.failedStepId },
-		});
+		}));
 	}
 
 	/**
 	 * Start one step attempt: validates readiness (the replay gate), checks
-	 * the active claim (a non-holder start records conflict-noticed FIRST -
-	 * v0 enforcement is informational), mints the attempt + idempotency key.
+	 * the active claim AND the active lease (a non-holder start records
+	 * conflict-noticed FIRST - v0 enforcement is informational, one notice
+	 * per violation class, each with its evidence row), mints the attempt +
+	 * idempotency key.
 	 */
-	startStep(input) {
-		const graph = this.requireGraph(input.graphId);
-		const step = this.requireStep(graph, input.stepId);
-		const state = this.stateOf(input.graphId);
-		const active = state.claims[input.stepId];
-		if (active !== undefined && active.holder !== input.runnerId) {
-			this.appendRow('conflict-noticed', {
+	async startStep(input) {
+		return this.withTransitionLock(async () => {
+			const graph = this.requireGraph(input.graphId);
+			this.requireStep(graph, input.stepId);
+			const state = this.stateOf(input.graphId);
+			const activeClaim = state.claims[input.stepId];
+			if (activeClaim !== undefined && activeClaim.holder !== input.runnerId) {
+				await this.appendEvidenceBearingRowLocked('conflict-noticed', {
+					graphId: input.graphId,
+					stepId: input.stepId,
+					actor: 'service',
+					origin: input.origin,
+					payload: {
+						violation: 'claim',
+						expectedHolder: activeClaim.holder,
+						actualRunner: input.runnerId,
+						note: 'v0 enforcement is informational (the hard enforcement hook is a recorded follow-up)',
+					},
+				});
+			}
+			const activeLease = state.leases[input.stepId];
+			if (activeLease !== undefined && activeLease.holder !== input.runnerId) {
+				await this.appendEvidenceBearingRowLocked('conflict-noticed', {
+					graphId: input.graphId,
+					stepId: input.stepId,
+					actor: 'service',
+					origin: input.origin,
+					payload: {
+						violation: 'lease',
+						expectedHolder: activeLease.holder,
+						actualRunner: input.runnerId,
+						note: 'v0 enforcement is informational (the hard enforcement hook is a recorded follow-up)',
+					},
+				});
+			}
+			const stepState = state.steps[input.stepId];
+			const attempt = stepState.retrySameAttempt ?? (stepState.lastStartedAttempt + 1);
+			const key = idempotencyKeyOf(input.graphId, input.stepId, attempt);
+			const row = this.appendRow('step-started', {
 				graphId: input.graphId,
 				stepId: input.stepId,
-				actor: 'service',
+				actor: input.actor ?? 'agent',
 				origin: input.origin,
-				payload: {
-					violation: 'claim',
-					expectedHolder: active.holder,
-					actualRunner: input.runnerId,
-					note: 'v0 enforcement is informational (the hard enforcement hook is a recorded follow-up)',
-				},
+				attempt,
+				idempotencyKey: key,
+				payload: { runnerId: input.runnerId },
 			});
-		}
-		const stepState = state.steps[input.stepId];
-		const attempt = stepState.retrySameAttempt ?? (stepState.lastStartedAttempt + 1);
-		const key = idempotencyKeyOf(input.graphId, input.stepId, attempt);
-		const row = this.appendRow('step-started', {
-			graphId: input.graphId,
-			stepId: input.stepId,
-			actor: input.actor ?? 'agent',
-			origin: input.origin,
-			attempt,
-			idempotencyKey: key,
-			payload: { runnerId: input.runnerId },
+			return { attempt, idempotencyKey: key, rowId: row.rowId };
 		});
-		return { attempt, idempotencyKey: key, rowId: row.rowId };
 	}
 
 	/**
@@ -517,6 +680,11 @@ export class OrchestrationStore {
 	 * the pending retry from the failed row's retryPlanned).
 	 */
 	async finishStep(input) {
+		return this.withTransitionLock(() => this.finishStepLocked(input));
+	}
+
+	/** The finishStep core (caller holds the transition lock). */
+	async finishStepLocked(input) {
 		const graph = this.requireGraph(input.graphId);
 		const step = this.requireStep(graph, input.stepId);
 		const state = this.stateOf(input.graphId);
@@ -554,7 +722,12 @@ export class OrchestrationStore {
 	}
 
 	/** Schedule the retry of a failed step (policy backoff; nextAttempt = last + 1). */
-	retryStep(input) {
+	async retryStep(input) {
+		return this.withTransitionLock(() => this.retryStepLocked(input));
+	}
+
+	/** The retryStep core (caller holds the transition lock). */
+	retryStepLocked(input) {
 		const graph = this.requireGraph(input.graphId);
 		const step = this.requireStep(graph, input.stepId);
 		const state = this.stateOf(input.graphId);
@@ -583,54 +756,63 @@ export class OrchestrationStore {
 	 * recovery continues an interrupted sweep (core/recovery.mjs).
 	 */
 	async cancelGraph(input) {
-		const state = this.stateOf(input.graphId);
+		return this.withTransitionLock(async () => {
+			const state = this.stateOf(input.graphId);
 		this.appendRow('cancel-requested', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
 			payload: { reason: input.reason ?? 'user cancel' },
 		});
-		const cancelled = [];
-		for (const stepId of Object.keys(state.steps).sort()) {
-			const step = state.steps[stepId];
-			if (step.status !== 'succeeded' && step.status !== 'cancelled') {
-				this.appendRow('step-cancelled', {
-					graphId: input.graphId,
-					stepId,
-					actor: 'service',
-					origin: 'runtime:cancel-propagation',
-					payload: { cause: 'user-cancel' },
-				});
-				cancelled.push(stepId);
+			const cancelled = [];
+			for (const stepId of Object.keys(state.steps).sort()) {
+				const step = state.steps[stepId];
+				if (step.status !== 'succeeded' && step.status !== 'cancelled') {
+					this.appendRow('step-cancelled', {
+						graphId: input.graphId,
+						stepId,
+						actor: 'service',
+						origin: 'runtime:cancel-propagation',
+						payload: { cause: 'user-cancel' },
+					});
+					cancelled.push(stepId);
+				}
 			}
-		}
-		this.appendRow('graph-cancelled', {
-			graphId: input.graphId,
-			actor: 'service',
-			origin: 'runtime:cancel-propagation',
-			payload: { reason: input.reason ?? 'user cancel' },
+			this.appendRow('graph-cancelled', {
+				graphId: input.graphId,
+				actor: 'service',
+				origin: 'runtime:cancel-propagation',
+				payload: { reason: input.reason ?? 'user cancel' },
+			});
+			const graph = this.requireGraph(input.graphId);
+			await this.mirrorTaskEvent(graph.taskId, { ts: this.clock(), actor: input.actor, type: 'graph-cancelled', payload: { graphId: input.graphId, reason: input.reason ?? 'user cancel' } });
+			return { cancelledSteps: cancelled };
 		});
-		const graph = this.requireGraph(input.graphId);
-		await this.mirrorTaskEvent(graph.taskId, { ts: this.clock(), actor: input.actor, type: 'graph-cancelled', payload: { graphId: input.graphId, reason: input.reason ?? 'user cancel' } });
-		return { cancelledSteps: cancelled };
 	}
 
-	approvalRequest(input) {
-		return this.appendRow('approval-requested', {
+	/**
+	 * Record an approval REQUEST (never a grant): a first-class transition
+	 * with its evidence row. expiresAt (optional) arms the fail-closed
+	 * timeout - only a request that carries a deadline can ever expire.
+	 */
+	async approvalRequest(input) {
+		const payload = { reason: input.reason, ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}) };
+		return this.appendEvidenceBearingRow('approval-requested', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',
 			origin: input.origin,
-			payload: { reason: input.reason },
+			payload,
 		});
 	}
 
-	approvalDecide(input) {
-		const type = input.decision === 'granted' ? 'approval-granted' : 'approval-denied';
+	/** The human decision (granted | denied) - HUMAN-ONLY by the transition table; evidence-bearing. */
+	async approvalDecide(input) {
 		if (input.decision !== 'granted' && input.decision !== 'denied') {
 			throw new OrchestrationError(`approvalDecide decision must be 'granted' | 'denied' (got ${JSON.stringify(input.decision)})`, 'invalid-params');
 		}
-		return this.appendRow(type, {
+		const type = input.decision === 'granted' ? 'approval-granted' : 'approval-denied';
+		return this.appendEvidenceBearingRow(type, {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor,
@@ -639,8 +821,37 @@ export class OrchestrationStore {
 		});
 	}
 
-	takeoverRequest(input) {
-		return this.appendRow('takeover-requested', {
+	/**
+	 * Expire a deadline-bearing pending approval (TL2-004, M5): the
+	 * fail-closed timeout. SERVICE-ONLY by the transition table (a
+	 * mechanical deadline observation, never a human-granted outcome): the
+	 * step is CANCELLED with failure class 'approval-expired' - never
+	 * auto-granted. Only a request that carries expiresAt can expire, and
+	 * the observed expiry may never predate the deadline.
+	 */
+	async expireApproval(input) {
+		const state = this.stateOf(input.graphId);
+		const stepState = state.steps[input.stepId];
+		const approval = stepState?.approval ?? null;
+		if (approval === null || approval.state !== 'pending' || approval.expiresAt === undefined) {
+			throw new OrchestrationError(`expireApproval requires a pending approval that carries expiresAt on step ${String(input.stepId)} (a request without a deadline never expires - a human must decide or the graph is cancelled)`, 'illegal-transition');
+		}
+		const expiredAt = input.expiredAt ?? approval.expiresAt;
+		if (expiredAt < approval.expiresAt) {
+			throw new OrchestrationError(`expireApproval expiredAt (${String(expiredAt)}) may not predate the request deadline (${String(approval.expiresAt)}) - the expiry must be an OBSERVED deadline passage`, 'invalid-params');
+		}
+		return this.appendEvidenceBearingRow('approval-expired', {
+			graphId: input.graphId,
+			stepId: input.stepId,
+			actor: input.actor ?? 'service',
+			origin: input.origin,
+			payload: { expiredAt, ...(input.note !== undefined ? { note: input.note } : {}) },
+		});
+	}
+
+	/** A takeover REQUEST (human or agent may suggest; only a human accepts) - evidence-bearing with full provenance. */
+	async takeoverRequest(input) {
+		return this.appendEvidenceBearingRow('takeover-requested', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor,
@@ -649,8 +860,9 @@ export class OrchestrationStore {
 		});
 	}
 
-	takeoverAccept(input) {
-		return this.appendRow('takeover-accepted', {
+	/** The human acceptance of a takeover - HUMAN-ONLY by the transition table; evidence-bearing. */
+	async takeoverAccept(input) {
+		return this.appendEvidenceBearingRow('takeover-accepted', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor,
@@ -659,25 +871,29 @@ export class OrchestrationStore {
 		});
 	}
 
+	/** The human completion of a taken-over step: step evidence + the transition's own evidence row. */
 	async takeoverComplete(input) {
-		const graph = this.requireGraph(input.graphId);
-		this.requireStep(graph, input.stepId);
-		const evidence = await this.mintEvidence(graph.taskId, input.evidence ?? []);
-		return this.appendRow('takeover-completed', {
-			graphId: input.graphId,
-			stepId: input.stepId,
-			actor: input.actor,
-			origin: input.origin,
-			payload: { evidence, ...(input.summary !== undefined ? { output: input.summary } : {}) },
+		return this.withTransitionLock(async () => {
+			const graph = this.requireGraph(input.graphId);
+			this.requireStep(graph, input.stepId);
+			const evidence = await this.mintEvidence(graph.taskId, input.evidence ?? []);
+			return this.appendEvidenceBearingRowLocked('takeover-completed', {
+				graphId: input.graphId,
+				stepId: input.stepId,
+				actor: input.actor,
+				origin: input.origin,
+				payload: { evidence, ...(input.summary !== undefined ? { output: input.summary } : {}) },
+			});
 		});
 	}
 
-	acquireClaim(input) {
+	/** Acquire the exclusive step claim - the notice with its evidence row. */
+	async acquireClaim(input) {
 		if (!isAgentId(input.holder)) {
 			throw new OrchestrationError(`acquireClaim holder must be an agent id (got ${JSON.stringify(input.holder)})`, 'invalid-params');
 		}
 		const claimId = claimIdOf(input.graphId, input.stepId);
-		return this.appendRow('claim-acquired', {
+		return this.appendEvidenceBearingRow('claim-acquired', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',
@@ -686,13 +902,14 @@ export class OrchestrationStore {
 		});
 	}
 
-	releaseClaim(input) {
+	/** Release the active claim - the notice with its evidence row. */
+	async releaseClaim(input) {
 		const state = this.stateOf(input.graphId);
 		const active = state.claims[input.stepId];
 		if (active === undefined) {
 			throw new OrchestrationError(`releaseClaim: no active claim on step ${String(input.stepId)}`, 'illegal-transition');
 		}
-		return this.appendRow('claim-released', {
+		return this.appendEvidenceBearingRow('claim-released', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',
@@ -701,7 +918,8 @@ export class OrchestrationStore {
 		});
 	}
 
-	acquireLease(input) {
+	/** Acquire a TTL lease on the step - the notice with its evidence row. */
+	async acquireLease(input) {
 		if (!isAgentId(input.holder)) {
 			throw new OrchestrationError(`acquireLease holder must be an agent id (got ${JSON.stringify(input.holder)})`, 'invalid-params');
 		}
@@ -711,7 +929,7 @@ export class OrchestrationStore {
 		const state = this.stateOf(input.graphId);
 		const ordinal = (state.leasesSeen[input.stepId] ?? 0) + 1;
 		const leaseId = leaseIdOf(input.graphId, input.stepId, ordinal);
-		return this.appendRow('lease-acquired', {
+		return this.appendEvidenceBearingRow('lease-acquired', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',
@@ -720,7 +938,8 @@ export class OrchestrationStore {
 		});
 	}
 
-	renewLease(input) {
+	/** Renew the active lease - the notice with its evidence row. */
+	async renewLease(input) {
 		if (!Number.isSafeInteger(input.ttlMs) || input.ttlMs <= 0) {
 			throw new OrchestrationError('renewLease ttlMs must be a positive integer (epoch ms)', 'invalid-params');
 		}
@@ -729,7 +948,7 @@ export class OrchestrationStore {
 		if (lease === undefined) {
 			throw new OrchestrationError(`renewLease: no active lease on step ${String(input.stepId)}`, 'illegal-transition');
 		}
-		return this.appendRow('lease-renewed', {
+		return this.appendEvidenceBearingRow('lease-renewed', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',
@@ -738,13 +957,14 @@ export class OrchestrationStore {
 		});
 	}
 
-	releaseLease(input) {
+	/** Release the active lease - the notice with its evidence row. */
+	async releaseLease(input) {
 		const state = this.stateOf(input.graphId);
 		const lease = state.leases[input.stepId];
 		if (lease === undefined) {
 			throw new OrchestrationError(`releaseLease: no active lease on step ${String(input.stepId)}`, 'illegal-transition');
 		}
-		return this.appendRow('lease-released', {
+		return this.appendEvidenceBearingRow('lease-released', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',
@@ -753,8 +973,9 @@ export class OrchestrationStore {
 		});
 	}
 
-	noticeConflict(input) {
-		return this.appendRow('conflict-noticed', {
+	/** Record a claim/lease conflict notice (informational v0 enforcement) - evidence-bearing. */
+	async noticeConflict(input) {
+		return this.appendEvidenceBearingRow('conflict-noticed', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'service',
@@ -768,11 +989,12 @@ export class OrchestrationStore {
 		});
 	}
 
-	routeDecide(input) {
+	/** The durable routing decision record (WHY this agent) - locked, journal-provenance. */
+	async routeDecide(input) {
 		if (!isAgentId(input.targetAgent)) {
 			throw new OrchestrationError(`routeDecide targetAgent must be an agent id (got ${JSON.stringify(input.targetAgent)})`, 'invalid-params');
 		}
-		return this.appendRow('route-decided', {
+		return this.withTransitionLock(() => this.appendRow('route-decided', {
 			graphId: input.graphId,
 			stepId: input.stepId ?? null,
 			actor: input.actor ?? 'agent',
@@ -782,21 +1004,23 @@ export class OrchestrationStore {
 				reason: input.reason,
 				...(input.details !== undefined ? { details: input.details } : {}),
 			},
-		});
+		}));
 	}
 
-	delegationSent(input) {
-		return this.appendRow('delegation-sent', {
+	/** The delegation receipt linking the routing decision to the a2a message id - locked. */
+	async delegationSent(input) {
+		return this.withTransitionLock(() => this.appendRow('delegation-sent', {
 			graphId: input.graphId,
 			stepId: input.stepId ?? null,
 			actor: input.actor ?? 'service',
 			origin: input.origin,
 			payload: { decisionRowId: input.decisionRowId, messageId: input.messageId },
-		});
+		}));
 	}
 
 	/** Ingest an a2a result-report for a delegated step: the receipt row, then the step transition. */
 	async receiveResult(input) {
+		return this.withTransitionLock(async () => {
 		const receipt = this.appendRow('result-received', {
 			graphId: input.graphId,
 			stepId: input.stepId,
@@ -810,10 +1034,9 @@ export class OrchestrationStore {
 			},
 		});
 		if (input.outcome === 'ok') {
-			const graph = this.requireGraph(input.graphId);
 			const state = this.stateOf(input.graphId);
 			const attempt = state.steps[input.stepId].lastStartedAttempt;
-			await this.finishStep({
+			await this.finishStepLocked({
 				graphId: input.graphId,
 				stepId: input.stepId,
 				attempt,
@@ -824,10 +1047,9 @@ export class OrchestrationStore {
 				evidence: [],
 			});
 		} else if (input.outcome === 'failed') {
-			const graph = this.requireGraph(input.graphId);
 			const state = this.stateOf(input.graphId);
 			const attempt = state.steps[input.stepId].lastStartedAttempt;
-			await this.finishStep({
+			await this.finishStepLocked({
 				graphId: input.graphId,
 				stepId: input.stepId,
 				attempt,
@@ -841,6 +1063,7 @@ export class OrchestrationStore {
 		// outcome 'cancelled': the receipt is the record; the step transition is
 		// the caller's (cancel propagation already owns step-cancelled rows).
 		return receipt;
+		});
 	}
 
 	// ---------------------------------------------------------------------------

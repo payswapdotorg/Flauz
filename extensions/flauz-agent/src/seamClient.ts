@@ -84,6 +84,15 @@ export interface SeamClientOptions {
 	 * without a receiver they are logged and dropped.
 	 */
 	onEvent?: (event: SeamEventEnvelope) => void;
+	/**
+	 * Supervision hook (additive, TL2-S1): invoked exactly once when the
+	 * service process exits (any cause), with the exit code and the spawn
+	 * error when the process never started. Pure observation: the client's
+	 * pending-request and ready rejections are unchanged; orchestration-side
+	 * supervision (the Agent OS service boundary) uses this for proactive
+	 * death detection instead of message sniffing.
+	 */
+	onExit?: (code: number | null, error: Error | undefined) => void;
 }
 
 interface PendingRequest {
@@ -105,6 +114,7 @@ export class SeamClient {
 	private readonly pending = new Map<number, PendingRequest>();
 	private readonly logger;
 	private readonly requestTimeoutMs: number;
+	private readonly onExitCallback: ((code: number | null, error: Error | undefined) => void) | undefined;
 	private readonly onEventCallback: ((event: SeamEventEnvelope) => void) | undefined;
 	private nextId = 1;
 	private buffer = '';
@@ -122,6 +132,7 @@ export class SeamClient {
 		const servicePath = options.servicePath ?? defaultServicePath();
 		this.logger = options.logger ?? (() => undefined);
 		this.onEventCallback = options.onEvent;
+		this.onExitCallback = options.onExit;
 		this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 		this.child = spawnFn(nodePath, [servicePath, options.workspaceRoot], { stdio: ['pipe', 'pipe', 'pipe'] });
 		this.child.stdout.on('data', (chunk) => this.onStdout(chunk.toString('utf-8')));
@@ -188,6 +199,14 @@ export class SeamClient {
 	/** Capability namespaces the service advertised in ready (v1+; empty for v0 services). */
 	get capabilities(): readonly string[] {
 		return this.negotiatedCapabilities;
+	}
+
+	/**
+	 * OS process id of the spawned service (additive, TL2-S1 supervision
+	 * surface); undefined once the process could not start or has exited.
+	 */
+	get pid(): number | undefined {
+		return this.child.pid;
 	}
 
 	private onStdout(text: string): void {
@@ -370,6 +389,9 @@ export class SeamClient {
 			waiter(code);
 		}
 		this.exitWaiters = [];
+		if (this.onExitCallback) {
+			this.onExitCallback(code, error);
+		}
 	}
 
 	private waitExit(): Promise<number | null> {

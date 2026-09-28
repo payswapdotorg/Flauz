@@ -20,6 +20,10 @@
  *     idempotency key;
  *  4. leases whose expiry passed while the process was down are marked
  *     lease-expired (the step becomes claimable again);
+ *  4b. deadline-bearing pending approvals whose deadline passed while the
+ *     process was down are expired (approval-expired, actor service - the
+ *     fail-closed TL2-004 timeout: the step is CANCELLED, never
+ *     auto-granted; a request without a deadline never expires);
  *  5. a cancellation sweep interrupted by the crash is CONTINUED to
  *     coherence (cancel-requested is persisted; every non-terminal step
  *     still receives its step-cancelled row, then graph-cancelled);
@@ -80,6 +84,22 @@ export async function recoveryScan(store, options = {}) {
 				});
 			}
 			graphActions.push(`step-interrupted:${stepId}`);
+		}
+		for (const stepId of Object.keys(state.steps)) {
+			const step = state.steps[stepId];
+			const approval = step.approval;
+			if (approval !== null && approval.state === 'pending' && approval.expiresAt !== undefined && approval.expiresAt <= now) {
+				if (record) {
+					store.appendRow('approval-expired', {
+						graphId: graph.graphId,
+						stepId,
+						actor,
+						origin,
+						payload: { expiredAt: approval.expiresAt, note: 'approval deadline passed while the process was down (fail-closed)' },
+					});
+				}
+				graphActions.push(`approval-expired:${stepId}`);
+			}
 		}
 		for (const [stepId, lease] of Object.entries(state.leases)) {
 			if (lease.expiresAt <= now) {

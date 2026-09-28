@@ -25,6 +25,11 @@
 		"core/orchStore.d.mts",
 		"core/recovery.d.mts",
 		"core/runtime.d.mts",
+		"core/serviceBoundary.d.mts",
+		"core/routing.d.mts",
+		"core/service.d.mts",
+		"core/orchProtocol.d.mts",
+		"core/orchMediator.d.mts",
 		"vscode-dts/vscode.d.ts"
 	]
 }
