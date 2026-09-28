@@ -812,7 +812,10 @@ export class OrchestrationStore {
 	 * (the window legality lives in orchestration.mjs applyRowToState).
 	 */
 	async recordProviderRetry(input) {
-		return this.withTransitionLock(() => this.appendRow('provider-retry', {
+		// DL-77 (F1's serialized-append discipline): the in-lock append must
+		// route through appendRowInternal — the public appendRow refuses
+		// lock-free writes under contention with 'lock-violation'.
+		return this.withTransitionLock(() => this.appendRowInternal('provider-retry', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'service',
