@@ -2,7 +2,7 @@
 
 Repository: payswapdotorg/Flauz
 Product branch: main
-Verified integrated head: 8ddeaae20004f87da5756ab79a07fab577e8827f
+Verified integrated head: 6fcf329afc5ee1d6cbc10150a66e31363cd098f8
 Verification date: 2026-09-28
 
 This repository is the sole operational source of truth for the Flauz engineering program. Chat history, prior model outputs, external lab notes, and stale status snapshots are not authoritative.
@@ -44,8 +44,8 @@ The control plane is updated in the same merge wave as the work it describes.
 
 ## Current reconciliation — 2026-09-28
 
-- Verified latest integrated `main` head: `8ddeaae20004f87da5756ab79a07fab577e8827f`.
-- The latest head is the TL2-S3 CI-evidence addendum.
+- Verified latest integrated `main` head: `6fcf329afc5ee1d6cbc10150a66e31363cd098f8`.
+- The latest head is the final control-plane reconciliation merge.
 - The TL2 Agent OS surge is closed and all three seconded workers are released to their home TLs.
 - All registered TL1/TL2/TL3/TL4 work items are marked DONE at their recorded rungs.
 - Completion of a work item does not mean every runtime hardening opportunity is closed. Concrete remaining findings are registered below in `WORK-REGISTRY.md` and summarized in `CURRENT-STATE.md`.
