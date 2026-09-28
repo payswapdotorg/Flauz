@@ -4,7 +4,7 @@ Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 
 ## Architect control-plane note — 2026-09-28
 
-- Verified integrated `main`: `6fcf329afc5ee1d6cbc10150a66e31363cd098f8`.
+- Verified integrated `main` is the canonical live product line; resolve its current SHA with `git rev-parse main`.
 - Repository control-plane documents are operationally authoritative after the integrated tree; chat history and stale progress snapshots are not.
 - No open pull requests are present at this reconciliation.
 - All four TL portfolios are complete at their registered rungs. Post-completion runtime findings are tracked explicitly below rather than changing completed work-item status.
