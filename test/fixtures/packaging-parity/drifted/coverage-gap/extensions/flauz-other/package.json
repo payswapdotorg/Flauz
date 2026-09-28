@@ -1,0 +1,9 @@
+{
+	"name": "flauz-other",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"main": "./dist/extension.js"
+}

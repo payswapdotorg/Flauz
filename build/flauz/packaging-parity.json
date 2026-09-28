@@ -1,0 +1,749 @@
+{
+	"version": 1,
+	"description": "TL1-005 web/desktop packaging parity registry. One row per Flauz surface capability: the class records the capability's web posture in the current tree, the evidence pins the manifest key / node dependency / node-free subtree that forces the classification, and the recovery path names how a web-blocked surface becomes web-capable without forking core. The gate (build/flauz/scripts/packaging-parity.mjs) re-derives every citation against the live tree and flags DRIFT when the tree moved without a registry update. Report: docs/FLAUZ-PROGRAM/PACKAGING-PARITY.md.",
+	"baseSha": "2ad07ba74dfc07af529a2dd89a0d17ac9f11dd2e",
+	"classes": {
+		"desktop-full": "The capability binds to local OS resources or desktop-workbench-only surfaces by design (process spawn, local shell, integrated workbench browser tab). The web product excludes it; the web form, when wanted, is a different provider/executor class, not a degradation of this one.",
+		"web-degraded": "The capability can serve a web build in a consciously reduced form once unblocked: the forcing module surface is host-agnostic, but part of its backing (state sinks, execution, evidence storage) still rides a desktop-bound seam today. The reduction is documented in the row reason.",
+		"web-blocked": "The capability cannot ship to a web build under a concrete, removable tree constraint (missing browser entrypoint on the packaging posture row, or a node: import in the current wiring). The constraint is incidental, not architectural: the recovery path removes it without touching src/vs or forking core.",
+		"web-full": "The capability has zero desktop-only dependencies in its forcing surface: once the owning extension grows a browser entrypoint it runs unchanged in the web extension host."
+	},
+	"evidenceKinds": {
+		"manifest-key": "Cites a JSON file (relative to repo root) and a key path (array of segments; segments may contain dots verbatim). The file must parse and the key path must resolve. With 'value' the live value must deep-equal; with 'absent: true' the key path must NOT resolve. Dotted segments are literal key names, never path separators.",
+		"node-import": "Cites a source file that must import the named node: module (static 'from node:...' or dynamic import('node:...')). Proves a node dependency that the web extension host cannot satisfy.",
+		"node-free": "Cites a file or directory under which NO source file (.ts/.mts/.cts/.js/.mjs/.cjs) imports any node: module. Proves the cited surface is host-agnostic."
+	},
+	"classImplications": {
+		"node-import": [
+			"desktop-full",
+			"web-blocked"
+		],
+		"node-free": [
+			"web-full",
+			"web-degraded"
+		]
+	},
+	"rows": [
+		{
+			"surface": "product.flauz.json",
+			"capability": "product identity overlay (nameShort/nameLong/version)",
+			"class": "web-full",
+			"reason": "The overlay rebrands the merged product.json, and the merged file feeds both the desktop build (build/gulpfile.vscode.ts) and the server/web product identity paths. No desktop-only binding; the identity flows to every surface the overlay reaches.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"nameShort"
+					],
+					"value": "Flauz"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"nameLong"
+					],
+					"value": "Flauz"
+				}
+			],
+			"recoveryPath": "None needed - the posture is already web-shared through the merged product.json."
+		},
+		{
+			"surface": "product.flauz.json",
+			"capability": "default chat agent removal (defaultChatAgent null-deletes the Copilot wiring)",
+			"class": "web-full",
+			"reason": "The null-deletes overlay removes the upstream defaultChatAgent key so the Copilot entitlement stack no-ops and the flauz.agent participant resolves as sole default agent. The consumer (chatEntitlementService early-return, chatAgents resolution) lives in the shared workbench layer, not electron-main, so the removal applies identically on web and desktop.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"defaultChatAgent"
+					],
+					"value": null
+				}
+			],
+			"recoveryPath": "None needed - host-agnostic by construction."
+		},
+		{
+			"surface": "product.flauz.json",
+			"capability": "proposed-API enablement for built-ins (extensionEnabledApiProposals)",
+			"class": "web-full",
+			"reason": "The product-key grant mechanism is ingested by the shared workbench extension-services layer (extensionsProposedApi.ts), not by a desktop-only host: wherever a granted built-in runs, the grant applies. The per-consumer web posture of each grant is classified on the owning extension's rows below; this row classifies only the mechanism.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"extensionEnabledApiProposals"
+					],
+					"value": {
+						"flauz.flauz-agent": [
+							"defaultChatParticipant",
+							"chatParticipantAdditions"
+						],
+						"flauz.flauz-workspace": [
+							"scmArtifactProvider"
+						],
+						"flauz.flauz-browser": [
+							"browser"
+						]
+					}
+				}
+			],
+			"recoveryPath": "None needed - mechanism is host-agnostic; consumers carry their own rows."
+		},
+		{
+			"surface": "web-product",
+			"capability": "Flauz built-in extension set in the web (server) build",
+			"class": "web-blocked",
+			"reason": "The web build's built-in extension set is filtered by isWebExtension() (build/lib/extensions.ts:351-367): a manifest needs a browser entrypoint (or no main and a web extensionKind) to be web-packaged. All seven flauz-* manifests are main-only today, so a web build of the current tree ships zero Flauz surfaces: nothing desktop-only can silently break the web build because nothing Flauz reaches it - but also nothing Flauz is available on web. Every one of the seven citations below is a tripwire: adding a browser entry to any manifest drifts this row and forces a conscious registry update. (The work order named six extensions; the live tree carries a seventh, flauz-resources from TL3-005 - the gate's glob-driven coverage rule found it, and it is classified like every other surface.)",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-agent/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-browser/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-environments/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-models/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-resources/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workflow/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workspace/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				}
+			],
+			"recoveryPath": "Per extension: add a browser entrypoint built from the node-free core each extension already has (see the capability rows), keep desktop-only executors behind the desktop entry, and update this registry in the same commit."
+		},
+		{
+			"surface": "extensions/flauz-agent",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): upstream isWebExtension() and the runtime extension-kind deduction both classify a main-only manifest as not-web, so the extension is excluded from any web build regardless of its capability classes. The engine floor (^1.140.0) is host-neutral and is NOT the blocker.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-agent/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-agent/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-agent/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Split the entrypoint: a browser build over the node-free participant/view modules, with the stdio seam client loaded only from the desktop entry (see the seam row)."
+		},
+		{
+			"surface": "extensions/flauz-agent",
+			"capability": "chat participant surface (flauz.agent default chat agent + Agent Sessions view)",
+			"class": "web-degraded",
+			"reason": "The participant, sessions view and tool modules are node-free and the defaultChatParticipant/chatParticipantAdditions grants are ingested host-agnostically, so the chat surface itself is web-capable. Degraded, not full, because the participant's task/evidence backing rides the stdio seam service, which is desktop-bound today: on web the participant degrades to conversation + view state while task operations and evidence verification wait for the remote seam.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-agent/package.json",
+					"key": [
+						"contributes",
+						"chatParticipants"
+					]
+				},
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"extensionEnabledApiProposals",
+						"flauz.flauz-agent"
+					],
+					"value": [
+						"defaultChatParticipant",
+						"chatParticipantAdditions"
+					]
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-agent/src/participant.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-agent/src/sessionsView.ts"
+				}
+			],
+			"recoveryPath": "Browser entrypoint + a seam transport port: the SeamClient stdio transport is one implementation of the seam; a remote transport (websocket to a server-side service instance) restores full task/evidence backing. core/service.mjs is already a standalone Node program."
+		},
+		{
+			"surface": "extensions/flauz-agent",
+			"capability": "Flauz service seam transport (stdio child-process spawn)",
+			"class": "web-blocked",
+			"reason": "seamClient.ts spawns the zero-dep Node service (core/service.mjs) as a child process and speaks newline-delimited JSON over stdio. The web extension host has no child_process: the transport, not the service protocol, is the blocker. The human-gated terminal tool rides the same seam, so it shares this posture.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-agent/src/seamClient.ts",
+					"module": "child_process"
+				}
+			],
+			"recoveryPath": "Transport port: keep core/service.mjs unchanged and add a remote transport (the service runs server-side or in a local desktop companion); the TL1-003 client-service seam is the designed integration point. No src/vs change needed."
+		},
+		{
+			"surface": "extensions/flauz-agent",
+			"capability": "evidence artifacts on local disk (artifacts module)",
+			"class": "web-blocked",
+			"reason": "artifacts.ts writes evidence artifacts (hash chains, session marks) to local disk via node:fs/promises and hashes via node:crypto. The sinks are incidental, not architectural: the module is a writer behind the extension's activation, not a port-injected core.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-agent/src/artifacts.ts",
+					"module": "fs/promises"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-agent/src/artifacts.ts",
+					"module": "crypto"
+				}
+			],
+			"recoveryPath": "Port the artifact sink onto vscode.workspace.fs (or the service-side store) and the hashing onto WebCrypto; the artifact formats are plain JSON files and stay unchanged."
+		},
+		{
+			"surface": "extensions/flauz-browser",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the same upstream isWebExtension() rule as every flauz-* extension today. The engine floor (^1.140.0) is host-neutral.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-browser/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-browser/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-browser/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint over the node-free core (policy engine + CDP transport + session manager); the workbench host adapter stays desktop-side."
+		},
+		{
+			"surface": "extensions/flauz-browser",
+			"capability": "layered policy engine + partition semantics",
+			"class": "web-full",
+			"reason": "policy.ts is node-free pure TypeScript: decisions are data-in/data-out over typed policy documents (deny sends zero CDP commands, fail-closed). A web extension host can run it unchanged; policy evaluation never touches the OS.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-browser/src/policy.ts"
+				}
+			],
+			"recoveryPath": "Packaging only: ship policy.ts from the browser entrypoint once one exists."
+		},
+		{
+			"surface": "extensions/flauz-browser",
+			"capability": "CDP transport (stable global WebSocket)",
+			"class": "web-full",
+			"reason": "cdp/transport.ts speaks the STABLE global WebSocket (Node 22+ and every browser) with an injectable socket factory - zero runtime dependencies, no node: imports. The transport can attach to any reachable CDP endpoint from any host, which is exactly the stage-2 service shape.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-browser/src/cdp/transport.ts"
+				}
+			],
+			"recoveryPath": "Packaging only: the endpoint URL is configuration; a web build connects to a Flauz-controlled browser service endpoint instead of a local one."
+		},
+		{
+			"surface": "extensions/flauz-browser",
+			"capability": "browser runtime session manager, capture and journal sinks",
+			"class": "web-blocked",
+			"reason": "The runtime core (session manager, recovery, tabs) is sound for web, but its sinks are local: session ids are minted with node:crypto randomBytes (runtime/session.ts), and screenshots/console/network captures plus the PIN-1 session journal are written via node:fs/promises (runtime/capture.ts, runtime/journal.ts). The blockers are the sinks and id minting, not the CDP conversation (see the transport row).",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-browser/src/runtime/session.ts",
+					"module": "crypto"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-browser/src/runtime/capture.ts",
+					"module": "fs/promises"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-browser/src/runtime/journal.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "WebCrypto for session id minting; workspace.fs or service-backed sinks for captures and the journal. The session-manager state machine and the journal record format stay unchanged."
+		},
+		{
+			"surface": "extensions/flauz-browser",
+			"capability": "workbench browser host adapter (proposed browser API grant)",
+			"class": "desktop-full",
+			"reason": "The WorkbenchBrowserHost adapter rides the proposed vscode.browser API (vendored vscode-dts/vscode.proposed.browser.d.ts; grant flauz.flauz-browser:[\"browser\"]): an integrated browser page rendered as a workbench editor tab with a CDP session handle. That surface is desktop-workbench-bound in the current tree; the stage-2 architecture (ARCHITECTURE-LOCK section 3) runs the real browser as a Flauz-controlled sidecar, and on web the endpoint-host path is the designated route, not this adapter.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-browser/package.json",
+					"key": [
+						"enabledApiProposals"
+					],
+					"value": [
+						"browser"
+					]
+				},
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"extensionEnabledApiProposals",
+						"flauz.flauz-browser"
+					],
+					"value": [
+						"browser"
+					]
+				}
+			],
+			"recoveryPath": "Not a web recovery: on web, browser surfaces go through the CdpEndpointHost path (node-free transport row) against a remote Flauz browser service. The workbench tab integration remains the desktop premium surface."
+		},
+		{
+			"surface": "extensions/flauz-environments",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. The engine floor (^1.140.0) is host-neutral.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-environments/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-environments/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-environments/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint over the registry/lifecycle core; the local-real executor and its wiring stay desktop-side (their rows)."
+		},
+		{
+			"surface": "extensions/flauz-environments",
+			"capability": "environment registry, descriptors, continuity and lifecycle core (port-injected)",
+			"class": "web-full",
+			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/registry.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle"
+				}
+			],
+			"recoveryPath": "Packaging only: ship the core from the browser entrypoint; remote provider executors (TL3-004) plug into the same EnvironmentExecutor port."
+		},
+		{
+			"surface": "extensions/flauz-environments",
+			"capability": "local-real lifecycle execution (LocalProcessExecutor + extension wiring)",
+			"class": "desktop-full",
+			"reason": "The local-real executor spawns local processes as environments (fixed harness, SIGKILL escalation, real fs snapshots) and the extension wiring provides the spawn/hash/fs ports plus the .flauz persistence via node:fs/promises. The capability is local-process execution by definition: remote environment classes (SSH, container, cloud - TL3-004) are separate provider classes, not a web degradation of this one.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-environments/src/extension.ts",
+					"module": "child_process"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-environments/src/extension.ts",
+					"module": "fs/promises"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-environments/src/extension.ts",
+					"module": "crypto"
+				}
+			],
+			"recoveryPath": "By design desktop: on web, environment execution goes through remote executors behind the same EnvironmentExecutor port. The lifecycle store/hashing wiring ports over (WebCrypto, workspace.fs) when the registry ships a browser entrypoint."
+		},
+		{
+			"surface": "extensions/flauz-models",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule - and this extension has zero node imports, so for flauz-models the packaging posture is the ONLY blocker (see the capability row).",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-models/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-models/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-models/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Add the browser entrypoint: the whole src tree is node-free, so the same code ships to both hosts (the cleanest first candidate for the Flauz web story)."
+		},
+		{
+			"surface": "extensions/flauz-models",
+			"capability": "multi-model provider seam, registry and mock provider",
+			"class": "web-full",
+			"reason": "The entire src tree is node-free: provider descriptors, the registry and the languageModelChatProviders contribution (vendor flauz-mock) use only vscode API surfaces that exist on web. No local resource binding anywhere in the module.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-models/package.json",
+					"key": [
+						"contributes",
+						"languageModelChatProviders"
+					]
+				}
+			],
+			"recoveryPath": "Packaging only: a browser entrypoint makes the provider seam web-shipped; real provider adapters (TL2-002) must keep the node-free discipline or declare their own rows."
+		},
+		{
+			"surface": "extensions/flauz-resources",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. The engine floor (^1.140.0) is host-neutral. Not in the work order six-extension list - the live tree carries this seventh extension from TL3-005, and the gate's glob-driven coverage rule demands classification for every flauz-* surface.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-resources/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-resources/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-resources/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Add the browser entrypoint: the whole src tree is node-free, so the resource graph ships to both hosts from the same code."
+		},
+		{
+			"surface": "extensions/flauz-resources",
+			"capability": "logical resource graph (ResourceRef identity, typed edges, continuity plans, provenance ledger)",
+			"class": "web-full",
+			"reason": "The entire src tree is node-free: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the resources-ops provenance ledger operate without any node: import. Vault-only secret refs are logical URNs, not local file access. On web the graph runs unchanged against the same .flauz/ state family.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-resources/src"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-resources/package.json",
+					"key": [
+						"contributes",
+						"commands"
+					]
+				}
+			],
+			"recoveryPath": "Packaging only: a browser entrypoint makes the resource graph web-shipped alongside the workspace state it references."
+		},
+		{
+			"surface": "extensions/flauz-workflow",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. The engine floor (^1.140.0) is host-neutral.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workflow/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workflow/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workflow/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint over the envelope/messaging core; shell execution and the node crypto signer stay desktop-side (their rows)."
+		},
+		{
+			"surface": "extensions/flauz-workflow",
+			"capability": "workflow envelope, fragment validation and messaging core",
+			"class": "web-full",
+			"reason": "envelope.ts (the WorkflowEnvelope contract, fragment validation, approval/tool ports) and messaging.ts are node-free: the envelope is data validation plus injected ports. Authoring, listing and validating workflows needs no OS access.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-workflow/src/envelope.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-workflow/src/messaging.ts"
+				}
+			],
+			"recoveryPath": "Packaging only: author/validate/list workflows from the browser entrypoint; execution stays desktop or moves behind a remote executor port."
+		},
+		{
+			"surface": "extensions/flauz-workflow",
+			"capability": "workflow shell execution (ShellToolExecutor)",
+			"class": "desktop-full",
+			"reason": "The executor runs recorded command steps on the local shell in the workspace root via node:child_process (with node:os/fs for the working set). Local shell execution is the capability; the approval gate (QuickPickApprovalPort) is host-agnostic but the execution surface is not. A web form is a remote-brokered executor - a different ToolExecutorPort implementation, not a degradation.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-workflow/src/extension.ts",
+					"module": "child_process"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-workflow/src/extension.ts",
+					"module": "os"
+				}
+			],
+			"recoveryPath": "By design desktop: web workflows dispatch steps to a remote executor behind the existing ToolExecutorPort (the port seam already exists); approval gates are already vscode.window-based."
+		},
+		{
+			"surface": "extensions/flauz-workflow",
+			"capability": "checkpoint signing (keys module)",
+			"class": "web-blocked",
+			"reason": "keys.ts loads the checkpoint signer from node:crypto. The signature format and ledger discipline are portable; only the crypto provider is node-bound.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-workflow/src/keys.ts",
+					"module": "crypto"
+				}
+			],
+			"recoveryPath": "WebCrypto-backed CheckpointSigner port (the signer is already loaded behind a port boundary); signature verification shapes stay unchanged."
+		},
+		{
+			"surface": "extensions/flauz-workspace",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. The engine floor (^1.140.0) is host-neutral. This extension also owns the activity-bar shell (container flauz) - on web the whole Flauz shell is absent until this row recovers.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workspace/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workspace/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workspace/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint with a workspace.fs-backed FileSystemPort (the port seam exists in src/api.ts); the nodeFs wiring stays desktop-side."
+		},
+		{
+			"surface": "extensions/flauz-workspace",
+			"capability": "task state + hash-chained evidence ledger services",
+			"class": "web-full",
+			"reason": "taskService.ts and ledger.ts are node-free: the canonical .flauz/tasks.json state machine and the append-only hash-chained ledger operate entirely through the injected FileSystemPort (and injected hashing). On web the same services run against a workspace.fs port with unchanged on-disk formats.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-workspace/src/taskService.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-workspace/src/ledger.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus one port implementation: a workspace.fs-backed FileSystemPort (the port is declared in src/api.ts) makes the services web-shipped with byte-identical state files."
+		},
+		{
+			"surface": "extensions/flauz-workspace",
+			"capability": "workspace state wiring (nodeFs FileSystemPort + fsPath roots)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the services to node:fs/promises and derives workspace roots from uri.fsPath. The port abstraction already exists - the nodeFs instance is the desktop wiring, and fsPath-rooted paths are meaningless against web virtual workspaces. The blocker is the wiring choice, not the services (see their row).",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-workspace/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the FileSystemPort over vscode.workspace.fs with Uri-relative joinPath in the browser build; the desktop entry keeps nodeFs. The port contract (src/api.ts) is shared, so no fork."
+		},
+		{
+			"surface": "extensions/flauz-workspace",
+			"capability": "scmArtifactProvider contribution (proposed API grant)",
+			"class": "web-degraded",
+			"reason": "The provider module itself is node-free and the scmArtifactProvider grant is ingested host-agnostically, so the contribution parses on web. Degraded because artifact content retrieval is backed by the nodeFs wiring today: on web the provider serves workspace-fs-backed artifacts only, which is a subset of the desktop artifact surface until the port lands.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-workspace/package.json",
+					"key": [
+						"enabledApiProposals"
+					],
+					"value": [
+						"scmArtifactProvider"
+					]
+				},
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"extensionEnabledApiProposals",
+						"flauz.flauz-workspace"
+					],
+					"value": [
+						"scmArtifactProvider"
+					]
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-workspace/src/scmArtifactProvider.ts"
+				}
+			],
+			"recoveryPath": "Same as the wiring row: the workspace.fs port restores the full artifact surface on web."
+		}
+	]
+}

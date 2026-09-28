@@ -20,6 +20,7 @@ Authoritative inputs: `docs/PERFORMANCE-PLAN.md` + `docs/MIGRATION-PLAN.md`
 |---|---|---|---|---|
 | **1. Build + upstream hygiene** | `flauz-hygiene.yml` | `hygiene` | — (compile/eslint/unit subset are upstream hygiene; shaped on upstream `pr.yml`) | — |
 | TL1-001 upstream-sync report | `flauz-hygiene.yml` | `upstream-sync` | report-only evidence stream (`--no-fail`): delta census of product vs `upstream/main` + src/vs pristine assertion, uploaded as artifact; enforcement stays with the SYNC-RUNBOOK pre-flight + guard | — |
+| TL1-005 packaging-parity report | `flauz-hygiene.yml` | `packaging-parity` | report-only evidence stream (`--no-fail`): the parity registry re-derived against the live tree (drift/coverage/class findings uploaded as artifact); enforcement is the Lead's call until the posture stabilizes | — |
 | FORK-CRITICAL guard (§5.1 item 1, §6 gate 1) | `flauz-hygiene.yml` (first steps) + pre-commit hook variant | `hygiene` | src/vs pristine outside `contrib/flauz` (DL-12/DL-10) | — |
 | Activation lint (§2.2) | `flauz-hygiene.yml` | `hygiene` | activation budget table rows 1-3 (no `*`; ≤2 on `onStartupFinished`, bridge+workspace only; whitelist events) | — |
 | **2. Startup perf pair** | `flauz-perf.yml` | `startup-pair` | §1.3 rows 1-3 (TSV p50/p95 deltas + duration-marker budgets), mark-pair integrity (R6), phase gate (§1.3 row 4) | q1 (absolute baseline), q2 (prewarm on/off) |
@@ -51,6 +52,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `startup-pair.mjs` | §1.3 startup gates + R6 mark integrity | `--timers-flauz/--timers-upstream`, `--markers-flauz/--markers-upstream`, `--check-marks --src-root`, `--phase-gate --src-root`, `--pairs-file`, `--min-runs` | 0 pass/SKIP · 1 violation · 2 usage |
 | `memory-snapshot.mjs` | §3.2 memory budget gate | `--json` (resolveProcesses shape) / `--status` / `--ps`, `--scenario eventually|after-session`, `--enforce`, `--pattern name=regex` | 0 pass · 1 violation · 2 usage |
 | `compat-battery.mjs` | TL4-003 Code OSS compatibility battery (L1 guard invocation + L2 stock contribution-surface diff, product identity, root pkg scripts/deps, Flauz positive control; spec `docs/FLAUZ-PROGRAM/TL4-COMPAT-BATTERY.md`) | `--root/--upstream/--product` (git ref OR tree dir), `--allowlist`, `--json`, `--layer 1|2|all`, `--no-fail`, `--require` | 0 clean/SKIP · 1 violation · 2 usage |
+| `packaging-parity.mjs` | TL1-005 web/desktop packaging parity gate (registry `packaging-parity.json` re-derived against the live tree: coverage, evidence citations, class-vs-constraint consistency, per-extension posture summary; report `docs/FLAUZ-PROGRAM/PACKAGING-PARITY.md`) | `--root`, `--registry`, `--json`, `--no-fail`, `--require` | 0 clean/SKIP · 1 drift/violation · 2 usage |
 | `perf-log-parse.mjs` | shared parsers (single source of truth) | `--parse-timers/--parse-markers/--parse-process-json/--parse-status`, `--selftest`; importable module | 0 ok · 1 parse error · 2 usage |
 | `budget-gate.mjs` | TL4-005 unified budget gate (registry `budgets/flauz-budgets.json` vs measurements) | `--budgets`, `--measurements <file-or-dir>` (records + perf-log-parse emit shapes + raw TSVs), `--require [all\|enforced\|enforced-ci\|enforced-in-repo]`, `--json`, `--root` | 0 pass/SKIP · 1 violation · 2 usage/malformed registry |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
@@ -112,8 +114,18 @@ that cannot fail is not a gate):
 
 ```sh
 sh build/flauz/scripts/verify-fixtures.sh
-# → ALL 82 CASES AS EXPECTED (0 deviations)
+# → ALL 109 CASES AS EXPECTED (0 deviations)
 ```
+
+(TL1-005 addendum, 2026-09-27: the packaging-parity section adds 17 cases —
+clean/real-tree, the nine drifted variants (key-value, browser-added,
+import-removed, node-free-broken, class-mismatch, posture-mismatch,
+coverage-gap, surface-vanished, malformed-row), --no-fail, empty-dir SKIP +
+--require flip, usage error, --help. Content-level assertions for the same
+families live in `node --test build/flauz/packaging-parity.test.mjs` (21
+tests, including the weakened-implications, stale-registry, missing-registry
+and --registry-override edge cases). The count includes the fork-critical
+refs case that activates with a local 'upstream/main' — 108 without it.)
 
 (TL4-005 addendum, 2026-09-27: the matrix grew 29 → 44 cases with the budget-gate
 section — clean/over/skip/require-scoped/malformed/warn/unknown-id/unit-mismatch,

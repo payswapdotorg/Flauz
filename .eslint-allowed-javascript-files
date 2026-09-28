@@ -195,3 +195,7 @@ build/flauz/scripts/ia-gate.mjs
 build/flauz/scripts/sync-upstream.mjs
 build/flauz/sync-upstream.test.mjs
 build/flauz/scripts/premium-ux-gate.mjs
+
+# Flauz TL1-005 packaging-parity lane (zero-dep .mjs gate + node:test suite)
+build/flauz/scripts/packaging-parity.mjs
+build/flauz/packaging-parity.test.mjs

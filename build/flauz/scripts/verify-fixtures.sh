@@ -223,6 +223,29 @@ expect "sync-upstream usage error (no mode)"           2 node "$SU"
 expect "sync-upstream --help"                          0 node "$SU" --help
 rm -rf "$SUT"
 
+# ---- packaging-parity: TL1-005 web/desktop parity gate ----
+# Committed fixture family under test/fixtures/packaging-parity/ (modeled on
+# the premium-ux-gate family): clean/, drifted/ (one dir per drift kind),
+# empty/. Content-level assertions live in packaging-parity.test.mjs; this
+# matrix pins the exit-code contract.
+PP="$F/packaging-parity"
+expect "packaging-parity clean fixture PASS"          0 node "$S/packaging-parity.mjs" --root "$PP/clean" --require
+expect "packaging-parity real tree PASS"              0 node "$S/packaging-parity.mjs" --root "$ROOT" --require
+expect "packaging-parity key-value drift FAIL"        1 node "$S/packaging-parity.mjs" --root "$PP/drifted/key-value"
+expect "packaging-parity browser-added drift FAIL"    1 node "$S/packaging-parity.mjs" --root "$PP/drifted/browser-added"
+expect "packaging-parity import-removed drift FAIL"   1 node "$S/packaging-parity.mjs" --root "$PP/drifted/import-removed"
+expect "packaging-parity node-free-broken FAIL"       1 node "$S/packaging-parity.mjs" --root "$PP/drifted/node-free-broken"
+expect "packaging-parity class-mismatch FAIL"         1 node "$S/packaging-parity.mjs" --root "$PP/drifted/class-mismatch"
+expect "packaging-parity posture-mismatch FAIL"       1 node "$S/packaging-parity.mjs" --root "$PP/drifted/posture-mismatch"
+expect "packaging-parity coverage-gap FAIL"           1 node "$S/packaging-parity.mjs" --root "$PP/drifted/coverage-gap"
+expect "packaging-parity surface-vanished FAIL"       1 node "$S/packaging-parity.mjs" --root "$PP/drifted/surface-vanished"
+expect "packaging-parity malformed-row FAIL"          1 node "$S/packaging-parity.mjs" --root "$PP/drifted/malformed-row"
+expect "packaging-parity --no-fail reports only"      0 node "$S/packaging-parity.mjs" --root "$PP/drifted/key-value" --no-fail
+expect "packaging-parity empty dir SKIP"              0 node "$S/packaging-parity.mjs" --root "$PP/empty"
+expect "packaging-parity empty dir --require FAIL"    1 node "$S/packaging-parity.mjs" --root "$PP/empty" --require
+expect "packaging-parity usage error (bad flag)"      2 node "$S/packaging-parity.mjs" --definitely-not-a-flag
+expect "packaging-parity --help"                      0 node "$S/packaging-parity.mjs" --help
+
 # ---- fork-critical guard ----
 if git -C "$ROOT" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
     expect "fork-critical guard on this branch PASS"   0 sh "$S/fork-critical-guard.sh" --repo "$ROOT" --base upstream/main --head HEAD

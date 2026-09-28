@@ -1,0 +1,9 @@
+{
+	"nameShort": "Flauz",
+	"nameLong": "Flauz",
+	"extensionEnabledApiProposals": {
+		"flauz.flauz-demo": [
+			"demoProposal"
+		]
+	}
+}

@@ -209,3 +209,39 @@ jobs:
           path: artifacts/
           if-no-files-found: error
           retention-days: 90
+
+  # ---- TL1-005: the packaging-parity lane's report stream ---------------------
+  # Fail-fast family: zero-dep (node >= 20 stdlib only, runner-preinstalled -
+  # the same shape as the upstream-sync job above), runs in its own job BEFORE
+  # any install, no secrets, actions pinned to the SHAs the sibling steps use.
+  # Report-only by design (--no-fail): drift, coverage gaps and class
+  # inconsistencies are classification DATA for the Lead - the tree moves, the
+  # registry follows consciously (same-commit law). Enforcement flips on when
+  # the posture stabilizes; the fixture matrix (verify-fixtures.sh) already
+  # proves every rule fires.
+  packaging-parity:
+    name: Packaging parity report (TL1-005)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the gate reads the live tree only (no git history needed)
+          fetch-depth: 1
+
+      - name: Packaging parity report (report-only; --no-fail)
+        run: |
+          node --version
+          mkdir -p artifacts
+          node build/flauz/scripts/packaging-parity.mjs --root . --no-fail --json > artifacts/packaging-parity-report.json
+          node build/flauz/scripts/packaging-parity.mjs --root . --no-fail > artifacts/packaging-parity-report.txt
+
+      - name: Upload packaging-parity report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-packaging-parity-report
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 90

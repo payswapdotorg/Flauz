@@ -1,0 +1,23 @@
+{
+	"name": "flauz-demo",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.demo.run",
+				"title": "Run Demo",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.focusView.demo",
+				"title": "Focus Flauz Demo",
+				"category": "Flauz"
+			}
+		]
+	}
+}

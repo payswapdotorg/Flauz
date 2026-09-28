@@ -1,0 +1,109 @@
+{
+	"version": 1,
+	"description": "fixture registry (generated for the packaging-parity fixture family)",
+	"classes": {
+		"desktop-full": "Local-OS or desktop-workbench binding by design.",
+		"web-degraded": "Web-capable core with a desktop-bound seam in its backing.",
+		"web-blocked": "Removable tree constraint (missing browser entrypoint or a node: import).",
+		"web-full": "Zero desktop-only dependencies in the forcing surface."
+	},
+	"classImplications": {
+		"node-import": [
+			"desktop-full",
+			"web-blocked"
+		],
+		"node-free": [
+			"web-full",
+			"web-degraded"
+		]
+	},
+	"rows": [
+		{
+			"surface": "extensions/flauz-demo",
+			"capability": "extension packaging posture",
+			"class": "webish",
+			"reason": "main-only manifest, no browser sibling - not-web under upstream isWebExtension().",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-demo/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-demo/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-demo/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			]
+		},
+		{
+			"surface": "extensions/flauz-demo",
+			"capability": "demo bridge (stdio spawn)",
+			"class": "desktop-full",
+			"reason": "Spawns a local service process - local-OS binding by design.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-demo/src/bridge.ts",
+					"module": "child_process"
+				}
+			],
+			"recoveryPath": "Remote transport behind the same port."
+		},
+		{
+			"surface": "extensions/flauz-demo",
+			"capability": "pure core module",
+			"class": "web-full",
+			"reason": "Node-free module - ships unchanged once packaged.",
+			"recoveryPath": "Packaging only."
+		},
+		{
+			"surface": "extensions/flauz-demo",
+			"capability": "core subtree",
+			"class": "web-full",
+			"reason": "Node-free subtree - ships unchanged once packaged.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-demo/src/core"
+				}
+			],
+			"recoveryPath": "Packaging only."
+		},
+		{
+			"surface": "product.flauz.json",
+			"capability": "demo proposal grant",
+			"class": "web-full",
+			"reason": "Grant ingestion is host-agnostic.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "product.flauz.json",
+					"key": [
+						"extensionEnabledApiProposals",
+						"flauz.flauz-demo"
+					],
+					"value": [
+						"demoProposal"
+					]
+				}
+			],
+			"recoveryPath": "None needed."
+		}
+	]
+}
