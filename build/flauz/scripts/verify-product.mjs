@@ -131,7 +131,7 @@ Usage:
 Options:
 		--root <dir>   root dir holding product.json + product.flauz.json (default: cwd)
 		--require      fail when the product shell or any rule input is missing
-					   (flips every documented SKIP to a failure — CI/fixture mode)
+			(flips every documented SKIP to a failure — CI/fixture mode)
 		--no-fail      report-only: always exit 0, violations still listed
 		--json         machine-readable single-object report on stdout
 		-h, --help     show this help
