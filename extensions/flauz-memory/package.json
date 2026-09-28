@@ -1,0 +1,65 @@
+{
+  "name": "flauz-memory",
+  "displayName": "Flauz Memory",
+  "description": "Flauz durable tiered memory: session/task/project memory journals with recorded write policies, provenance-complete records, retrieval index, context compilation and the checkpoint/watermark/claims state substrate under .flauz/memory/.",
+  "version": "0.1.0",
+  "publisher": "flauz",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.140.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:flauz.memory.record",
+    "onCommand:flauz.memory.list",
+    "onCommand:flauz.memory.move",
+    "onCommand:flauz.memory.compact",
+    "onCommand:flauz.memory.verify",
+    "onCommand:flauz.memory.index"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "flauz.memory.record",
+        "title": "Record Memory",
+        "category": "Flauz"
+      },
+      {
+        "command": "flauz.memory.list",
+        "title": "List Memory Records",
+        "category": "Flauz"
+      },
+      {
+        "command": "flauz.memory.move",
+        "title": "Move Memory Between Tiers",
+        "category": "Flauz"
+      },
+      {
+        "command": "flauz.memory.compact",
+        "title": "Compact Memory Journal",
+        "category": "Flauz"
+      },
+      {
+        "command": "flauz.memory.verify",
+        "title": "Verify Memory State",
+        "category": "Flauz"
+      },
+      {
+        "command": "flauz.memory.index",
+        "title": "Show Memory Index",
+        "category": "Flauz"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

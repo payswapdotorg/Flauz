@@ -26,10 +26,14 @@ declare module 'node:child_process' {
 		stdout: ShimStream;
 		stderr: ShimStream;
 		killed: boolean;
+		/** OS process id; undefined before the process could start (additive, TL2-S1 supervision). */
+		pid: number | undefined;
 		kill(signal?: string): void;
 		on(event: 'error', listener: (error: Error) => void): void;
 		on(event: 'close', listener: (code: number | null) => void): void;
+		once(event: string, listener: (...args: unknown[]) => void): void;
 	}
+	export type ChildProcess = ShimChildProcess;
 	export function spawn(
 		command: string,
 		args: readonly string[],
@@ -52,6 +56,8 @@ declare module 'node:fs' {
 	export function readFileSync(path: string, encoding: 'utf-8'): string;
 	export function readdirSync(path: string): string[];
 	export function writeFileSync(path: string, data: string): void;
+	export function appendFileSync(path: string, data: string): void;
+	export function rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void;
 	export function statSync(path: string): { isFile(): boolean; isDirectory(): boolean };
 }
 
@@ -75,8 +81,13 @@ declare module 'node:url' {
 }
 
 declare module 'node:test' {
-	export function test(name: string, fn: () => void | Promise<void>): void;
-	export function test(name: string, options: { only?: boolean; skip?: boolean | string }, fn: () => void | Promise<void>): void;
+	/** Subtest driver (additive, TL2-S1: the matrix suites report per-class). */
+	export interface TestContext {
+		test(name: string, fn: (t: TestContext) => void | Promise<void>): Promise<void>;
+		diagnostic(message: string): void;
+	}
+	export function test(name: string, fn: (t: TestContext) => void | Promise<void>): void;
+	export function test(name: string, options: { only?: boolean; skip?: boolean | string; timeout?: number }, fn: (t: TestContext) => void | Promise<void>): void;
 }
 
 declare module 'node:assert' {
@@ -87,8 +98,42 @@ declare module 'node:assert' {
 	export function deepStrictEqual(actual: unknown, expected: unknown, message?: string): void;
 	export function throws(fn: () => unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): void;
 	export function rejects(promiseOrFn: Promise<unknown> | (() => Promise<unknown>), matcher?: RegExp | ((error: unknown) => boolean) | { code?: string; message?: string }, message?: string): Promise<void>;
+	export function notEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function deepEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function doesNotThrow(fn: () => unknown, message?: string): void;
 	export function match(value: string, regexp: RegExp, message?: string): void;
 	export function fail(message?: string): never;
+}
+
+/** The strict assert surface (node:assert/strict default export + named). */
+declare module 'node:assert/strict' {
+	export function ok(value: unknown, message?: string): asserts value;
+	export function equal(actual: unknown, expected: unknown, message?: string): void;
+	export function strictEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function notStrictEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function deepStrictEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function throws(fn: () => unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): void;
+	export function rejects(promiseOrFn: Promise<unknown> | (() => Promise<unknown>), matcher?: RegExp | ((error: unknown) => boolean) | { code?: string; message?: string }, message?: string): Promise<void>;
+	export function match(value: string, regexp: RegExp, message?: string): void;
+	export function fail(message?: string): never;
+	export function notEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function deepEqual(actual: unknown, expected: unknown, message?: string): void;
+	export function doesNotThrow(fn: () => unknown, message?: string): void;
+	const strictAssert: {
+		ok(value: unknown, message?: string): asserts value;
+		equal(actual: unknown, expected: unknown, message?: string): void;
+		strictEqual(actual: unknown, expected: unknown, message?: string): void;
+		notStrictEqual(actual: unknown, expected: unknown, message?: string): void;
+		deepStrictEqual(actual: unknown, expected: unknown, message?: string): void;
+		throws(fn: () => unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): void;
+		rejects(promiseOrFn: Promise<unknown> | (() => Promise<unknown>), matcher?: RegExp | ((error: unknown) => boolean) | { code?: string; message?: string }, message?: string): Promise<void>;
+		notEqual(actual: unknown, expected: unknown, message?: string): void;
+		deepEqual(actual: unknown, expected: unknown, message?: string): void;
+		doesNotThrow(fn: () => unknown, message?: string): void;
+		match(value: string, regexp: RegExp, message?: string): void;
+		fail(message?: string): never;
+	};
+	export default strictAssert;
 }
 
 declare module 'node:module' {
@@ -103,6 +148,8 @@ declare const process: {
 	env: Record<string, string | undefined>;
 	exit(code?: number): never;
 	on(event: string, listener: (...args: unknown[]) => void): void;
+	/** Signal a process by pid (additive, TL2-S1 kill-and-reconnect matrix). */
+	kill(pid: number, signal?: string): void;
 	/** Streams used by the standalone service scripts spawned as child processes (test/harness). */
 	stdout: { write(chunk: string): boolean };
 	stderr: { write(chunk: string): boolean };

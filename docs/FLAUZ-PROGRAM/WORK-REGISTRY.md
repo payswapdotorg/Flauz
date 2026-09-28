@@ -54,28 +54,49 @@ Progress note (2026-09-29, Worker B, branch `feat/tl1-005-packaging-parity`, bas
 
 Merge record (2026-09-28, TL1 lead): branch `feat/tl1-005-packaging-parity` merged to main at `e0832400` (PR #20; packaging-parity registry + re-derivation gate (28 rows, posture classes, per-extension parity summary) + 17-case matrix + PACKAGING-PARITY.md report). Gate judgment: completed failures all within the platform pre-existing set; lane's own checks GREEN (Packaging parity report, compat battery L1+L2 --require, Packaging reproducibility); cross-lane NodeCliPort evidence amendment (TL3-004 injectable excluded from node-free set); count suite-verified 183/183; manifest regenerated. Precedents #10/#14-#18 applied. Status DONE. TL1 lane complete: all five work-orders landed on main (001 PR #10, 002 PR #18, 003 PR #17, 004 PR #16, 005 PR #20).
 
+TL2 landing record (2026-09-28, TL2, PR #23 merge 40b7cb9175 + registry PR #24 003b4fb8a1): Workers A/B/C harvested from live pods (bundles verified, manifests sha256-verified 0 mismatches, TL2 re-ran receipts on the merged state — 366/366 node --test green: agent 111, models 106, memory 48, workflow 101). Decision log numbered (TL2 ratifies):
+
+- DL-34 ADOPT the vendor-neutral ProviderAdapter contract (extensions/flauz-models/src/contract/) as the stable internal port for every future provider adapter (ports + HTTP shapes, zero vendor SDKs).
+- DL-35 ADOPT the 14-code provider error taxonomy with its fixed retryable/terminal table as the shared retry seam with the orchestration runtime (runtime consumes retryClass/retryAfterMs).
+- DL-36 ADOPT the durable .flauz/models state family (providers/capabilities/routing-policy envelopes + routing-decisions JSONL ledger + tool-policy file) as the model-fabric persistence contract.
+- DL-37 ADOPT the zero-network default posture: remote vendors ship disabled without credentials; the default routing rule targets flauz-mock, explicitly labeled; enabling a real provider is an explicit workspace act recorded in providers.json.
+- DL-38 ADOPT the deterministic truncation-priority policy (tool results -> attachments -> tail-keep truncation -> conversation drops, system/pinned/last-turn protected) as the context-budget compiler default.
+- DL-39 ADOPT policy-records-only MCP/tool posture (no re-gating of the native lm/MCP UX; agent-scoped tool-set policy consumed at assembly time).
+- DL-40 PROPOSE live-provider verification drills as a network-bearing follow-up work item (fixture evidence is not live evidence) — scheduled with the S-lanes.
+- DL-41 PROPOSE routing-decision recording from the agent bridge once orchestration consumes the router — scheduled with TL2-001 M4/M5 continuation.
+- DL-42 ADOPT the memory-substrate law: journal rewrites are sanctioned only when recorded (compaction/promote/demote carry audit rows: dropped ids, source+result ids).
+- DL-43 ADOPT memory record ids minted-from-max-seq (not positional); uniqueness + id/journal scope law governs.
+- DL-44 ADOPT authorization-bearing memory never auto-promotes (humanApproved + actor human required; compaction never evicts) — promoted from lane rule to program rule (mirrors the human-gate posture).
+- DL-45 ADOPT the private-context boundary living in the pure retrieval function (enforced where every consumer must pass through) as the pattern for future boundary laws.
+- DL-46 ADOPT workflow recovery semantics: at-least-once per interrupted step (append-only ledger keeps interrupted-attempt evidence rows; coherent state, not exactly-once effects).
+- DL-47 ADOPT version-pinned recovery (a run recovers only against the spec version it started with; a bumped spec requires a fresh run) — extended to the durable graph.
+- DL-48 ADOPT 'reported-not-verified' as a first-class result state (unverified A2A results labeled with their specific reason, never passed off as verified).
+- DL-49 ADOPT the memory index shape: derived entries + explicit journal registry appended BEFORE the journal append (crash-safe ordering; entries rebuildable) for any future no-readdir index.
+
+Worker A's number-free proposals arrive with its M4/M5 REPORT (in flight); they will be numbered DL-50+.
+
 ### TL2-001 — Durable orchestration
-Status: ACTIVE
+Status: DONE (PR #23 M1-M3 + PR #26 M4/M5 2026-09-28: durable task graph + journal + recovery + kill matrix, retry/cancel/takeover semantics, multi-agent A2A routing, orchestration service protocol contract; merged-state receipts 478/478)
 Turn the current agent/workspace slice into durable task/agent execution with recovery, retry, cancellation and multi-agent routing.
 
 ### TL2-002 — Real model/provider adapters
-Status: TODO
+Status: DONE (PR #23 2026-09-28: M1-M5 complete — vendor-neutral ProviderAdapter contract, OpenAI-SSE/Anthropic-events/Ollama-NDJSON adapters fixture-verified, capability registry + routing policy w/ provenance ledger, context budgets, fail-closed tool policy + MCP-POSTURE; 106/106 tests)
 Implement real adapters and routing for external and local models while preserving Code OSS language-model/tool APIs.
 
 ### TL2-003 — Context and memory
-Status: TODO
+Status: DONE (PR #23 2026-09-28: durable tiered memory + context compilation + deterministic retrieval + provenance; 48/48 tests)
 Implement tiered memory/context compilation, retrieval, provenance and model-aware budgets as Flauz service capabilities.
 
 ### TL2-004 — Approval/takeover/lease semantics
-Status: TODO
+Status: DONE (PR #26 2026-09-28: approval/takeover/lease as first-class durable-graph transitions with evidence rows, approval-expiry semantics, gate-terminal policy, extended kill-recover matrix; human authorization boundary preserved — never auto-granted)
 Integrate human approval, takeover, cancellation propagation and resource leases into the execution graph.
 
 ### TL2-005 — Reusable workflows
-Status: TODO
+Status: DONE (PR #23 2026-09-28: executable reusable workflows w/ validation, versioning, recovery + checkpoints/watermarks/claims kill-recover matrix; 101/101 tests)
 Promote workflow envelopes into executable reusable workflows with validation, versioning and recovery.
 
 ### TL2-006 — Agent-to-agent collaboration
-Status: TODO
+Status: DONE (PR #23 2026-09-28: real A2A coordination on the typed seam w/ private-context/shared-task-state separation; coordination suite green)
 Extend the current A2A seam into actual multi-agent coordination with private context and shared task state.
 
 ## TL2 Agent OS surge — cross-TL secondments (2026-09-28)
@@ -84,13 +105,48 @@ Status: ACTIVE
 
 TL2 remains the architectural owner. Three bounded secondments are attached to TL2 while the Agent OS lane is the program bottleneck. They do not create new TL ownership and do not change the TL1/TL3/TL4 mission boundaries.
 
+TL2-S1 landing record (2026-09-28, TL2, PR #26 dabe2ebc41): harvested via Bearer-direct during the browser-logout window. Decision log numbered (TL2 ratifies, continuing from DL-49):
+
+- DL-50 ADOPT core/serviceBoundary.mjs (AgentOsServiceBoundary) as the Agent OS's canonical seam consumer (SeamClient-composed transport, registry-derived gating, flauz.os.err.* taxonomy, client-side idempotency memo as the retry seam — orchestration EffectSinks delegate to boundary.call with idempotency keys).
+- DL-51 ADOPT the composition import direction (core/serviceBoundary.mjs imports src/seamClient.ts via type stripping) as the sanctioned pattern for orchestration-side Node modules needing seam transport; a second transport implementation is forbidden duplication.
+- DL-52 ADOPT the boundary event stream (connected/disconnected/event-gap/reconnected/recovered/health-degraded/shutdown) as the supervision vocabulary for TL4 connectivity/degradation rows.
+- DL-53 ADOPT the outcome-unknown discipline as a program rule for every seam consumer: a lost response to a side-effecting method is never retried optimistically; reconciliation = explicit state re-read + a NEW attempt key.
+- DL-54 PROPOSE the additive seam extensions from the usage map (flauz.orch.* journal/approval/lease/recovery/verify surfaces, flauz.events.since replay) as TL1-003 follow-ups co-designed with TL2 — each lands via the sanctioned extension path only.
+- DL-55 ADOPT fail-closed local refusal of never-advertised namespaces.
+- DL-56 ADOPT the kill-reconnect matrix as the S1 verification baseline (service death before/after each request class; recovered logical state identical).
+
+TL2 Worker A2 proposals (PR #26, TL2 ratifies):
+- DL-57 ADOPT the orchestration protocol contract (flauz.orch/v1 + versioned JSON schema + typed mirror) as the authoritative message-shape contract between the extension layer and the future stateful orchestration service, composed ABOVE the TL1-003 seam.
+- DL-58 ADOPT the orch-only mismatch rule: a domain-layer version mismatch never kills the seam session; transport and domain failures degrade at different layers.
+- DL-59 ADOPT the closed-set typed failure taxonomy (flauz.orch.err.*) with fail-closed mapping (unknown codes -> internal, provenance preserved).
+- DL-60 ADOPT the evidence-bearing transition discipline: approval/takeover/lease/claim/conflict transitions mint ledger evidence rows with preview-before-mint, recomputable sha256 linkage, serialized by the store transition lock.
+- DL-61 ADOPT approval-expiry semantics: service-only, deadline-bearing requests, fail-closed cancellation (never auto-granted), expiry from op + drive loop + recovery pass; deadline-less requests hold until a human decides.
+- DL-62 ADOPT the gate-terminal policy rule: cancelled steps with retryPlanned-false failure records count as permanently failed; user/dependency cancellations stay out.
+- DL-63 ADOPT the evidence-id notation normalization (E-NNNNNN discipline derived from the ledger seq; the seam's unpadded string is a projection detail).
+- DL-64 PROPOSE a ledger-repair pass for orphan transition-evidence rows (mint recorded, journal row absent after mid-op crash) — closes the documented mid-op crash window.
+- DL-65 PROPOSE routing-decision ledger mirroring (extends DL-41: route-decided rows carry the evidence-bearing pattern).
+- DL-66 PROPOSE the graph-level approval expiry question (graph submissions never time out; a human must eventually decide) — deliberately v0-undefined, consistent with the 'manual' default policy.
+- DL-67 ADOPT the approval-interruption kill-recover coverage (approval requested -> process death -> recovery -> approval STILL gates execution) as part of the extended kill matrix.
+
 ### TL2-S1 — TL1 service-integration secondment
 Owner: TL2 / helper from TL1 Worker C
+Status: DONE (PR #26 2026-09-28 — see the landing record above)
 Scope: integrate durable Agent OS execution with the versioned TL1-003 service seam; protocol conformance, additive adapter layer, service lifecycle/auth/event usage.
 Acceptance: no duplicated transport/versioning logic; protocol conformance stays green; no fork-critical changes.
 
+TL2-S2 landing record (2026-09-28, TL2, PR #28 04fa8f9556): the additive extensions/flauz-execution/ module (38 files +27665; zero TL3-owned file edits; integration awaits per DL-60). Receipts: execution 99/99 + 577/577 across all extensions on the merged state. Decision log (TL2 ratifies, continuing from DL-67):
+
+- DL-68 ADOPT flauz.execution-journal/v0 as the durable execution-resource journal contract (additive sibling to flauz.orch.journal/v1; 15-field hash-chained rows; acquisition-level vs aggregate event levels; the acquisition transition law).
+- DL-69 ADOPT the execution-failure taxonomy mapping law (acquire/use-denied -> terminal policy-violation; resource-lost -> unavailable; executor-death -> dependency-failure; acquire-timeout -> timeout) as the bridge between execution adapters and the orchestration retry policy.
+- DL-70 ADOPT the structural-port discipline (ResourceOpenerPort / GraphStatePort / BrowserSessionManagerPort / EnvironmentLifecyclePort / ResourceGraphPort / ContinuityPort) as the sanctioned TL2-side integration pattern with TL3 extensions.
+- DL-71 ADOPT the actor-vocabulary law (service-driven sweeps attribute as 'tool' in TL3 actor vocabularies; the journal origin carries the precise source).
+- DL-72 ADOPT the lease-reuse law (a retry attempt of the same durable step REUSES the active task-step lease — the one-active-lease-per-step invariant).
+- DL-73 ADOPT the browser fresh-open mint registration (resource-less open requests register the minted ResourceRef + surface version with task provenance — the journal-bridge posture extended to task-driven session creation).
+- DL-74 ADOPT the completion/expiry/rollback sweeps + execution recovery scan as the canonical post-drive passes for the Agent OS runtime.
+
 ### TL2-S2 — TL3 resource/execution secondment
 Owner: TL2 / helper from TL3 Worker C
+Status: DONE (PR #28 2026-09-28 — see the landing record above)
 Scope: bridge durable task execution to BrowserSession, EnvironmentExecutor/provider, ResourceRef and Continuity contracts; preserve policy, trust, provenance and recovery.
 Acceptance: task-to-resource execution works through existing contracts; resource acquisition/release and continuity hand-off are testable; no TL3 invariant regresses.
 
