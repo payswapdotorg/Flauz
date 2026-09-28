@@ -78,6 +78,36 @@ Promote workflow envelopes into executable reusable workflows with validation, v
 Status: TODO
 Extend the current A2A seam into actual multi-agent coordination with private context and shared task state.
 
+## TL2 Agent OS surge — cross-TL secondments (2026-09-28)
+
+Status: ACTIVE
+
+TL2 remains the architectural owner. Three bounded secondments are attached to TL2 while the Agent OS lane is the program bottleneck. They do not create new TL ownership and do not change the TL1/TL3/TL4 mission boundaries.
+
+### TL2-S1 — TL1 service-integration secondment
+Owner: TL2 / helper from TL1 Worker C
+Scope: integrate durable Agent OS execution with the versioned TL1-003 service seam; protocol conformance, additive adapter layer, service lifecycle/auth/event usage.
+Acceptance: no duplicated transport/versioning logic; protocol conformance stays green; no fork-critical changes.
+
+### TL2-S2 — TL3 resource/execution secondment
+Owner: TL2 / helper from TL3 Worker C
+Scope: bridge durable task execution to BrowserSession, EnvironmentExecutor/provider, ResourceRef and Continuity contracts; preserve policy, trust, provenance and recovery.
+Acceptance: task-to-resource execution works through existing contracts; resource acquisition/release and continuity hand-off are testable; no TL3 invariant regresses.
+
+### TL2-S3 — TL4 runtime-verification secondment
+Owner: TL2 / helper from TL4 Worker B
+Scope: independent runtime battery for restart, cancellation, provider failure, approval interruption, lease conflicts, multi-agent collaboration and evidence/provenance recovery.
+Acceptance: deterministic machine-checked verdicts; fixture-to-runtime promotion path; no test weakens fail-closed behavior.
+
+### Surge coordination law
+
+- TL2 owns Agent OS semantics and accepts the final integration.
+- Seconded workers may implement additive adapter/test work but may not redefine another TL's contracts.
+- Shared-file collisions are resolved by contract extraction or additive adapters first; no broad refactor to make ownership convenient.
+- A seconded worker is released back to its home TL when its bounded surge work-order is complete.
+- No CopilotKit/OpenMuse dependency is introduced by the surge.
+
+
 ## TL3 — Browser and Environment OS
 
 ### TL3-001 — Real browser runtime
