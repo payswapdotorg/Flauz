@@ -1,4 +1,4 @@
-# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003 + TL3-004 + TL3-006)
+# INTEGRATION-GAP — flauz-environments vs the tree (Wave 4, Lane J + TL3-003 + TL3-004 + TL3-006 + TL3-H1)
 
 The extension-land vs product-side boundary for the environment registry, the
 lifecycle executors, and the resolver/remote machinery it builds on. Every row
@@ -46,12 +46,20 @@ grant (build-time overlay, DL-16 semantics), which is not a fork.
   wall-clock windows — injectable latency cue + virtual time), a local mock
   cloud server, and skip-gated LIVE drills (`test/liveRemote.test.ts`) for
   the real binary/daemon paths.
-- The resolver side is STILL OUT (rung 2): no `registerRemoteAuthorityResolver`
-  call, no tunnels, no remote window — the connection PLAN stays the artifact.
-  Rung 1 makes real LIFECYCLE CONTROL of remote environments live (processes,
-  containers, cloud sandboxes via their APIs); rung 2 wires the vscode
-  authority resolution that turns a plan into a live remote session
-  (see §3 for the `resolvers` grant).
+- TL3-H1 RUNG 2 — the resolver side LANDED: the extension registers the
+  `flauz-env` authority resolver through the intended vscode path
+  (`registerRemoteAuthorityResolver`, the `resolvers` grant — same commit,
+  DL-19/DL-33) and resolves registered provider kinds' connection plans with
+  trust/policy gating (`src/resolver/`; the authority grammar
+  `flauz-env+<kind>+<envId>`, the TRUST_REFUSED/POSTURE_REFUSED gate reading
+  the registry + PIN-2 state, per-kind probes through the rung-1
+  CliPort/HttpPort/SecretResolverPort seams, the AHP bridge handshake riding
+  the result). ssh-local resolves a REAL transport endpoint (the SSH
+  endpoint, probed live); container/cloud/workspace-remote resolve a VERIFIED
+  BACKING with the honest `pending-live-rung` transport (no fabricated
+  host:port); tunnelFactory is NOT wired in v0 (recorded scope decision).
+  The remaining distance to a LIVE remote session (server spawn over the
+  endpoint, tunnels, live windows) is the skip-gated live rung (§7).
 - Activation is command-driven only (`onCommand:flauz.env.*` +
   `onView:flauz.environments`); activation-lint R3 caps
   `onStartupFinished` at the two Wave-3 extensions (flauz-agent +
@@ -128,10 +136,10 @@ Continuity is now an EXECUTABLE capability (`src/continuityExec/`):
 
 | # | Surface | Where it lives | Mechanism | Gap for Flauz |
 |---|---|---|---|---|
-| 1 | Resolver registration (`registerRemoteAuthorityResolver(authorityPrefix, resolver)`) | extension-land | PROPOSED API `resolvers` — `src/vscode-dts/vscode.proposed.resolvers.d.ts:456`; catalog entry `src/vs/platform/extensions/common/extensionsApiProposals.ts:408-410` | Wave-4-next: grant `"flauz.flauz-environments": ["resolvers"]` via `product.flauz.json` (see §3). v0 deliberately ships `enabledApiProposals: []` — no dead config (DL-19 grant = the moment live resolver code lands). |
-| 2 | Authority resolution + nested `a@b` transit | upstream | `vscode.proposed.resolvers.d.ts:17-26` (RemoteAuthorityResolverContext.execServer), `:381-433` (resolver contract) | none (rides the same `resolvers` grant as #1) |
-| 3 | In-tree remote server + tunnels | upstream | `src/vs/server/` (non-electron server + ext host connection services); `cli/src/tunnels/` + `remoteTunnel` contrib; product naming `code-tunnel-oss` (`product.json:16`) | none for v0; Flauz tunnel product naming is a build input (C-31) |
-| 4 | AHP RemoteProxy bridge (renderer <-> server-side agent host) | upstream platform + extension-land handshake | channel `AgentHostIpcChannels.RemoteProxy` = `'agentHostProxy'` — `src/vs/platform/agentHost/common/agentService.ts:66-72`; handshake = resolver passes `--agent-host-bridge-port` + `VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN` env (blueprint `extensions/vscode-test-resolver/src/extension.ts:26`, `:166-194`; mutual exclusion with `--agent-host-port` at `:169-175`) | extension-land resolver implementation (v0: the plan carries the handshake; execution is Wave-4-next). NO product code. |
+| 1 | Resolver registration (`registerRemoteAuthorityResolver(authorityPrefix, resolver)`) | extension-land | PROPOSED API `resolvers` — `src/vscode-dts/vscode.proposed.resolvers.d.ts:456`; catalog entry `src/vs/platform/extensions/common/extensionsApiProposals.ts:408-410` | **LANDED at TL3-H1 rung 2**: the grant `"flauz.flauz-environments": ["resolvers"]` is LIVE in `product.flauz.json` + the manifest `enabledApiProposals` (same commit as the registration code in `src/extension.ts`; DL-19/DL-33). The vendored dts rides at `vscode-dts/vscode.proposed.resolvers.d.ts` (PROVENANCE line, the flauz-browser precedent); CI pins the grant + the A3-class DOES-NOT-EXIST tripwire (`flauz-environments.yml` job `cenv-resolver-rung2`). |
+| 2 | Authority resolution + nested `a@b` transit | upstream | `vscode.proposed.resolvers.d.ts:17-26` (RemoteAuthorityResolverContext.execServer), `:381-433` (resolver contract) | **LANDED at TL3-H1 rung 2** for the flat grammar (`flauz-env+<kind>+<envId>`, `src/resolver/authority.ts`): resolve() runs the gated pipeline per call (re-resolution re-checks trust). The nested `a@b` transit (execServer) stays OUT of v0 — typed AUTHORITY_MALFORMED/NESTED_TRANSIT (recorded scope). |
+| 3 | In-tree remote server + tunnels | upstream | `src/vs/server/` (non-electron server + ext host connection services); `cli/src/tunnels/` + `remoteTunnel` contrib; product naming `code-tunnel-oss` (`product.json:16`) | TL3-H1 rung 2 records the scope decision: `tunnelFactory` is NOT wired (an `ssh -L` forward needs a long-lived process; the `CliPort` seam is bounded-invocation by design — no fake tunnel). Tunnels land with the live rung behind a dedicated session port; Flauz tunnel product naming stays a build input (C-31). |
+| 4 | AHP RemoteProxy bridge (renderer <-> server-side agent host) | upstream platform + extension-land handshake | channel `AgentHostIpcChannels.RemoteProxy` = `'agentHostProxy'` — `src/vs/platform/agentHost/common/agentService.ts:66-72`; handshake = resolver passes `--agent-host-bridge-port` + `VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN` env (blueprint `extensions/vscode-test-resolver/src/extension.ts:26`, `:166-194`; mutual exclusion with `--agent-host-port` at `:169-175`) | **LANDED at TL3-H1 rung 2**: the resolver result CARRIES the handshake (the bridge port rides the envelope, the token rides `extensionHostEnv` resolved ONLY through the `SecretResolverPort`; bridged-vs-embedded contradictions are typed BRIDGE_MISCONFIGURED — the blueprint's mutual exclusion, pinned by tests). Driving the live bridge (the server spawn that consumes `--agent-host-bridge-port`) is the live rung. NO product code. |
 | 5 | Dev-container agent host | upstream platform | `IDevContainerAgentHostMainService` — `src/vs/platform/agentHost/common/devContainerAgentHost.ts:36-46` (`connect`/`disconnect`/`isDockerAvailable`/`onDidOutput`), config contract `:13-19`, result `:21-29`; workbench surface `src/vs/workbench/contrib/chat/browser/remoteAgentHost/` (contribution registered `WorkbenchPhase.AfterRestored` — `remoteAgentHost.contribution.ts:25-26`) | extension-land provider adapter (v0: plan only). Dev container CLI + spec are OSS; MS Dev Containers EXTENSION stays out (license, DL-7). |
 | 6 | Cloud sandboxes (E2B-class) | extension-land providers | in-tree `cloudSandbox*` services are Copilot-entitlement-bound (reference only, DL-8): `src/vs/platform/agentHost/common/cloudSandboxAgentHost.ts` + `src/vs/workbench/contrib/chat/browser/remoteAgentHost/cloudSandbox*.ts`; read-only tier precedent `cloudSandboxReadOnlySessionHandler.ts` | Flauz cloud sandbox = provider extension (resolver + AHP); keys referenced via vault (`apiKeyRef`), never materialized (SECURITY-MODEL 3.5). NO product code. |
 | 7 | Environment picker surface | extension-land v0 (commands); native env-adjacent surfaces exist | native remote surfaces: `RemoteStatusIndicator` (`src/vs/workbench/contrib/remote/browser/remoteIndicator.ts:73`, authority `:132-133`, remote menu `:194`), Remote Explorer (`VIEWLET_ID` `workbench.view.remote` — `remoteExplorer.ts:41`); the tabbed model picker (`src/vs/workbench/contrib/chat/browser/widget/input/modelPicker/`) is the UI pattern an env picker composes with (no native "environment registry picker" exists — it is authority-driven) | v0: `flauz.env.*` command palette surface. A picker/tree view = extension-land view (stable API). A product-side env picker would be FORK-CRITICAL-class — demoted per DL-12; propose instead via the extension view. |
@@ -160,12 +168,17 @@ Continuity is now an EXECUTABLE capability (`src/continuityExec/`):
   `node:child_process` and the cloud adapter uses the stdlib global `fetch` —
   no proposed API is touched (the `SecretResolverPort` reads the host secret
   storage through the STABLE `vscode.ExtensionContext.secrets`).
-- TL3-004 rung 2 (live resolver code — the rung-1 residual):
-  `"flauz.flauz-environments": ["resolvers"]` at the moment resolver code
-  lands (DL-33 — no dead config; the grant is load-bearing exactly then).
-  Nothing else on the path to live SSH/container/cloud sessions needs a
-  grant — `resolvers` covers registration, tunnels factory, exec-server
-  transit (`vscode.proposed.resolvers.d.ts:381-433`).
+- TL3-H1 rung 2 LANDED the grant: `"flauz.flauz-environments":
+  ["resolvers"]` is LIVE in `product.flauz.json` (plus the manifest's
+  `enabledApiProposals: ["resolvers"]`) in the SAME commit as the resolver
+  registration code (DL-33 — no dead config; the grant is load-bearing
+  exactly now). Nothing else on the path to live SSH/container/cloud
+  sessions needs a grant — `resolvers` covers registration, tunnels
+  factory, exec-server transit (`vscode.proposed.resolvers.d.ts:381-433`).
+  CI evidence: the `cenv-resolver-rung2` job asserts the grant lines, the
+  vendored dts PROVENANCE, the host-catalog entry and the merged-product
+  posture (`verify-product.mjs --require`), and boots the registration
+  drill with the DOES-NOT-EXIST tripwire (the A3 class).
 
 ## 4. Product-side code (FORK-CRITICAL ledger)
 
@@ -213,19 +226,26 @@ product-file deltas in this lane's branch are additive: new files under
    does it ride the Agent Bridge's pinned host (recommended — no new slot) or
    its own (needs a DL-5-class entry)?
 
-## 7. TL3-004 rung-2 residuals (recorded at rung-1 delivery)
+## 7. Post-rung-2 residuals (recorded at TL3-H1 delivery)
 
-- The `resolvers` grant + the real
-  `registerRemoteAuthorityResolver` wiring (authority registration, tunnels
-  factory, exec-server transit) — rung 1 ships real lifecycle control but
-  keeps the connection PLAN as the artifact (DL-33 grant timing holds).
-- The AHP RemoteProxy bridge execution (surface #4): rung 1's ssh adapter
-  still encodes the handshake in the plan; driving the live bridge rides the
-  rung-2 resolver work.
+- LANDED at rung 2: the `resolvers` grant + the live
+  `registerRemoteAuthorityResolver` wiring, the `flauz-env+<kind>+<envId>`
+  authority grammar, the trust/policy-gated resolution pipeline, the AHP
+  bridge handshake riding the result, the CI drill (registration surface +
+  grant tripwires).
+- STILL LIVE-RUNG (the honest distance to a live remote session): the
+  remote-server SPAWN over the resolved ssh endpoint (the blueprint's
+  server install/launch machinery), `tunnelFactory` (recorded scope
+  decision — the CliPort seam is bounded-invocation by design), the
+  container/cloud transport endpoints (the docker-exec stream / the cloud
+  session endpoint — the wire contract v0 reports status only), and the
+  `a@b` exec-server transit. The skip-gated live drills
+  (`test/resolverLive.test.ts`, `FLAUZ_RESOLVER_LIVE_SSH` /
+  `FLAUZ_RESOLVER_LIVE_DOCKER`) own the live evidence.
 - Dev-container agent-host binding beyond the generic docker executor
   (surface #5): `DockerCliExecutor` runs the fixed harness in a plain
   container; mapping devcontainer configs to the upstream
-  `IDevContainerAgentHost` service is a rung-2+ composition decision.
+  `IDevContainerAgentHost` service is a live-rung+ composition decision.
 - Cloud wire contract v0 is Flauz-side (module docs in `src/lifecycle/cloudHttp.ts`):
   `POST /v0/sandboxes` (create) / `GET /v0/sandboxes/{id}` (probe) /
   `POST /v0/sandboxes/{id}/start` / `POST /v0/sandboxes/{id}/stop` /

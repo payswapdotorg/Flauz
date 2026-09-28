@@ -21,6 +21,12 @@
 #     - P1/P2 (picker + live switch) stay WAITING-ON-RUNTIME (C-ENV.md) —
 #       the live resolver wiring is Wave-4-next (INTEGRATION-GAP.md section 3)
 #
+#   job 2 (cenv-resolver-rung2, TL3-H1): the provider resolver rung 2 —
+#     the resolver unit suites + the grant/vendored-surface assertions
+#     (zero-dep) + the boot-level registration drill (command-driven
+#     activation through --extensionTestsPath; the A3-class DOES-NOT-EXIST
+#     tripwire; skip-vs-fail documented in the job header).
+#
 # Gated on Flauz paths + workflow_dispatch (DL-25 gating set).
 # ---------------------------------------------------------------------------------------------
 
@@ -157,6 +163,160 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
         with:
           name: flauz-canary-cenv
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  cenv-resolver-rung2:
+    name: 'C-ENV resolver rung 2 (TL3-H1): trust-gated authority resolution'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # ---------------------------------------------------------------------------------------------
+    # TL3-H1 — provider resolver rung 2 (WORK-REGISTRY.md SS-TL3-H1):
+    #   phase 1 (fail-fast, ZERO install, zero-dep, ZERO secrets):
+    #     - the extension unit suites INCLUDING the resolver suites
+    #       (test/resolver*.test.ts ride the existing test/*.test.ts glob:
+    #       the authority grammar, the trust gate BOTH directions, the
+    #       per-kind FakeCli/FakeHttp endpoint drills, the bridge handshake
+    #       + the --agent-host-port mutual exclusion, the DL-31 literal-key
+    #       schema rejections, re-resolution state-flip re-checks)
+    #     - the SKIP-GATED live drills (test/resolverLive.test.ts) run as
+    #       SKIPS here by design: they require the documented env opt-ins
+    #       FLAUZ_RESOLVER_LIVE_SSH=1 / FLAUZ_RESOLVER_LIVE_DOCKER=1 AND the
+    #       binary/daemon — a runner lacking sshd/docker NEVER fails this
+    #       job (skip-vs-fail; they never fabricate a pass either)
+    #     - the grant assertions: product.flauz.json resolvers line + the
+    #       manifest enabledApiProposals + the vendored dts PROVENANCE + the
+    #       host-catalog entry (the A3 tripwire source) + verify-product
+    #       (the merged-product posture gate, DL-19 REPLACE semantics)
+    #   phase 2 (boot-level, gated on the lane presence probe — C-ENV shape):
+    #     - compile + bundle + xvfb boot with a workspace folder
+    #     - the registration drill: the compiled runner drives
+    #       flauz.env.resolver / flauz.env.resolve through
+    #       --extensionTestsPath (command-driven ACTIVATION; the resolver
+    #       registration path executes; the trust gate at the command level)
+    #     - the A3-class tripwire: the boot log must NOT contain the
+    #       DOES-NOT-EXIST proposal warning (the grant live AND matching)
+    # ---------------------------------------------------------------------------------------------
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Extension unit tests (registry / providers / continuity / lifecycle / resolver)
+        run: |
+          set -e
+          cd extensions/flauz-environments
+          node --test "test/*.test.ts"
+
+      - name: Resolver grant + vendored surface assertions (zero-dep, fail-fast)
+        run: |
+          set -e
+          # the grant lands in the SAME commit as the live resolver code (DL-19/DL-33, no dead config)
+          grep -q '"flauz.flauz-environments"' product.flauz.json \
+            || { echo 'TL3-H1: the resolvers grant is missing from product.flauz.json extensionEnabledApiProposals'; exit 1; }
+          grep -A2 '"flauz.flauz-environments"' product.flauz.json | grep -q '"resolvers"' \
+            || { echo 'TL3-H1: the resolvers grant line is malformed'; exit 1; }
+          grep -A2 '"enabledApiProposals"' extensions/flauz-environments/package.json | grep -q '"resolvers"' \
+            || { echo 'TL3-H1: the manifest enabledApiProposals must carry resolvers'; exit 1; }
+          # the vendored proposal surface with PROVENANCE (the flauz-browser vscode-dts precedent)
+          test -f extensions/flauz-environments/vscode-dts/vscode.proposed.resolvers.d.ts \
+            || { echo 'TL3-H1: the vendored resolvers dts is missing'; exit 1; }
+          grep -q 'PROVENANCE' extensions/flauz-environments/vscode-dts/vscode.proposed.resolvers.d.ts \
+            || { echo 'TL3-H1: the vendored resolvers dts lacks its PROVENANCE line'; exit 1; }
+          # the A3-class tripwire source of truth: the proposal EXISTS in the host catalog
+          grep -q 'resolvers:' src/vs/platform/extensions/common/extensionsApiProposals.ts \
+            || { echo 'TL3-H1: the resolvers proposal is missing from the host catalog (DL-4 drift class)'; exit 1; }
+          # the merged-product posture gate (the grant valid against the MERGED product)
+          node build/flauz/scripts/verify-product.mjs --root . --require
+          echo 'TL3-H1 resolver grant surface: OK'
+
+      - name: Lane presence probe (glob, never hardcode)
+        id: lanes
+        run: |
+          if [ -f extensions/flauz-environments/package.json ] && [ -f product.flauz.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "lane J + product overlay present"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "lane J not merged yet — boot-level drill runs in PROBE-ONLY mode (documented skip)."
+          fi
+
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        if: steps.lanes.outputs.present == 'true'
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install dependencies + compile + bundle
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          node build/npm/preinstall.ts && npm install && npm run compile \
+            && node build/flauz/scripts/bundle-extensions.mjs
+
+      - name: Assert the bundle carries the registration surface + compile the drill
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          grep -q 'registerRemoteAuthorityResolver' extensions/flauz-environments/dist/extension.js \
+            || { echo 'TL3-H1: the registration call is missing from the bundled extension'; exit 1; }
+          grep -q 'flauz-env' extensions/flauz-environments/dist/extension.js \
+            || { echo 'TL3-H1: the flauz-env authority prefix is missing from the bundled extension'; exit 1; }
+          mkdir -p "$RUNNER_TEMP/resolver-drill"
+          node_modules/.bin/esbuild extensions/flauz-environments/test/boot/registrationDrill.ts \
+            --bundle --format=cjs --platform=node --target=es2022 --external:vscode \
+            --outfile="$RUNNER_TEMP/resolver-drill/registrationDrill.js"
+          echo 'TL3-H1 registration surface rides the bundle: OK'
+
+      - name: Boot + drive the registration drill (command-driven activation; A3 tripwire)
+        if: steps.lanes.outputs.present == 'true'
+        run: |
+          set -e
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts "$RUNNER_TEMP/resolver-ws"
+          # --extensionTestsPath drives the compiled drill inside the booted
+          # workbench (a workspace folder is open so the registry boots);
+          # the app exits with the drill's exit code.
+          set +e
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$RUNNER_TEMP/cenv-resolver-userdata" \
+            --extensions-dir "$RUNNER_TEMP/cenv-resolver-exts" \
+            --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            "$RUNNER_TEMP/resolver-ws" \
+            --extensionTestsPath="$RUNNER_TEMP/resolver-drill/registrationDrill.js" \
+            > artifacts/cenv-resolver-boot.log 2>&1
+          DRILL_EXIT=$?
+          set -e
+          echo "registration drill exit: $DRILL_EXIT"
+          # A3-class tripwire: the grant must be live AND matching (no proposal
+          # warning class in the boot log — extensionsProposedApi.ts:47-50).
+          if grep -q 'DOES NOT EXIST' artifacts/cenv-resolver-boot.log; then
+            echo 'TL3-H1 FAILED: a proposed API does not exist at this HEAD (DL-4 drift class)'
+            exit 1
+          fi
+          if grep -qE 'Unresponsive|Fatal error' artifacts/cenv-resolver-boot.log; then
+            echo 'TL3-H1 FAILED: the boot crashed or hung'
+            exit 1
+          fi
+          if [ "$DRILL_EXIT" -ne 0 ]; then
+            echo 'TL3-H1 FAILED: the registration drill failed (see artifacts/cenv-resolver-boot.log)'
+            exit 1
+          fi
+          echo 'C-ENV resolver rung 2 boot drill: GREEN'
+
+      - name: Upload canary artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-canary-cenv-resolver
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 14

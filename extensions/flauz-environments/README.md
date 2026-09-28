@@ -15,6 +15,12 @@ the system `docker` daemon (`docker-cli`), and `cloud-sandbox` speaks the
 Flauz cloud-sandbox wire contract v0 over HTTP (`cloud-http`) — all behind
 injectable `CliPort`/`HttpPort` seams, all fail-closed with typed capability
 errors when the binary/daemon/keys/endpoint are absent.
+Since TL3-H1 rung 2, the workbench AUTHORITY RESOLVER is live: the extension
+registers the `flauz-env` authority resolver through the proposed
+`registerRemoteAuthorityResolver` surface (the `resolvers` grant lands in
+the same commit — DL-19/DL-33) and resolves registered provider kinds'
+connection plans with trust/policy gating (see "The authority resolver"
+below).
 trust enforcement, and two NEW sibling state envelopes (the PIN-2 contract)
 — and, since TL3-006, continuity as an EXECUTABLE capability
 (`src/continuityExec/`): export -> carry -> restore -> verify over
@@ -114,20 +120,35 @@ append-only continuity ops ledger.
   (a stdio-protocol sleeper/state-tracker; the ONLY executable ANY executor
   will ever run — local, over ssh, or in a container — descriptor-supplied
   execution is forbidden).
+- `src/resolver/` — **TL3-H1 rung 2, the authority resolver core** (pure,
+  vscode-free; the ONLY vscode-importing file stays `src/extension.ts`):
+  - `types.ts` — the `flauz-env` authority prefix, the typed failure
+    taxonomy (AUTHORITY_MALFORMED / ENVIRONMENT_ABSENT / PLAN_ABSENT /
+    TRUST_REFUSED / POSTURE_REFUSED / ENDPOINT_UNRESOLVED /
+    SECRET_UNRESOLVED / BRIDGE_MISCONFIGURED — mirroring the rung-1
+    executor codes as `detail`), and the typed resolution envelope.
+  - `authority.ts` — the authority grammar `flauz-env+<kind>+<envId>`
+    (pure, total; every malformed class typed).
+  - `resolver.ts` — `FlauzEnvResolver`: the pipeline (grammar -> registry
+    lookup -> connection plan -> TRUST/POLICY gate -> per-kind endpoint
+    probe through the rung-1 `CliPort`/`HttpPort`/`SecretResolverPort`
+    seams -> the AHP bridge handshake riding the result).
 - `src/extension.ts` — the thin vscode wiring: command-driven activation
   only (`onCommand:flauz.env.*` + `onView:flauz.environments`; activation-lint
   R3 keeps this extension off `onStartupFinished`). TL3-004 wires the REAL
-  remote executors (ssh-cli/docker-cli/cloud-http + the production
-  vault-reference resolver); no resolver registration yet — see
-  `INTEGRATION-GAP.md` (rung-2 residual + the `resolvers` grant, DL-33).
+  remote executors; TL3-H1 rung 2 registers the `flauz-env` authority
+  resolver (feature-detected — the flauz-browser proposed-API posture) and
+  maps the typed core outcome onto the vscode `ResolverResult` surface.
 - `test/` — `node --test` suites (registry / providers / continuity /
   fixtures / **lifecycle / localProcess / simulated / fixtures-lifecycle** /
   **sshCli / dockerCli / cloudHttp** + the skip-gated `liveRemote` LIVE drills
   + `fakeCli.ts` the scriptable `CliPort` double / **continuityExec /
-  fixtures-continuity** / views). Zero dependencies; Node >= 23.6 (type
-  stripping). The repo fixture matrices live at `test/fixtures/environments/`,
-  `test/fixtures/environments-lifecycle/` and `test/fixtures/continuity/`
-  (repo root).
+  fixtures-continuity** / views / **resolver (TL3-H1): resolverAuthority +
+  resolver + the skip-gated resolverLive LIVE drills** + `boot/
+  registrationDrill.ts` the CI boot drill runner). Zero dependencies;
+  Node >= 23.6 (type stripping). The repo fixture matrices live at
+  `test/fixtures/environments/`, `test/fixtures/environments-lifecycle/` and
+  `test/fixtures/continuity/` (repo root).
 
 ## The lifecycle (TL3-003)
 
@@ -368,6 +389,87 @@ manager rejects any op without a valid actor (fail-closed).
   refuse to signal any pid they did not start (`orphan` verdicts;
   `PROCESS_NOT_OWNED` rejections).
 
+## The authority resolver (TL3-H1 rung 2)
+
+Rung 2 ships the LIVE WORKBENCH RESOLVER CODE: the extension registers ONE
+authority resolver under the prefix **`flauz-env`** via the proposed
+`vscode.workspace.registerRemoteAuthorityResolver` surface (the `resolvers`
+grant — `product.flauz.json` `extensionEnabledApiProposals` + the manifest's
+`enabledApiProposals` — lands in the SAME commit as this code; DL-19/DL-33,
+no dead config). All resolution logic is the pure core in `src/resolver/`;
+`src/extension.ts` only maps the typed outcome onto the vscode surface
+(feature-detected: a host without the live grant records the typed disabled
+state instead of crashing).
+
+### The authority grammar (pinned; stable contract)
+
+```
+authority := "flauz-env" "+" <kind> "+" <envId>
+```
+
+- ONE prefix (`flauz-env`) — the workbench dispatches every `flauz-env+...`
+  authority to this resolver.
+- `<kind>` — one of the four v0 kinds (the registered provider kind is
+  encoded in the authority).
+- `<envId>` — the registry's logical id, the same `env-[a-z0-9][a-z0-9-]{0,47}`
+  grammar the descriptors + PIN-2 entries key on.
+- The `a@b` nested-authority transit is NOT part of v0 (typed
+  AUTHORITY_MALFORMED / NESTED_TRANSIT).
+
+### The trust/policy gate (the center of gravity)
+
+The lifecycle manager's fail-closed gate EXTENDS to resolution — the
+resolver READS the same verdicts, it never re-derives trust:
+
+- **TRUST_REFUSED** — the descriptor's posture is `untrusted`, OR the
+  environment has no PIN-2 lifecycle entry (never created: an unproven
+  backing never resolves). An untrusted environment NEVER resolves, even
+  with a perfect plan and a green probe.
+- **POSTURE_REFUSED** — the descriptor is disabled, or the PIN-2 state is
+  outside the connection-eligible running family
+  (`running` / `running/attached`) — resolution is connection-scoped.
+- **Re-resolution re-checks the CURRENT state**: every `resolve()` call
+  re-reads the registry + PIN-2 state (nothing cached) — a trust or state
+  flip between resolves flips the verdict (pinned by tests).
+
+### Per-kind resolution semantics (the honest v0 scope)
+
+| kind | probe (rung-1 seam, rung-1 semantics) | transport result |
+|---|---|---|
+| `ssh-local` | `ssh <target> true` (the SshCliExecutor create probe, CliPort) | **endpoint**: the SSH transport endpoint (host, port ?? 22) — a real `ResolvedAuthority`; the remote-server spawn over it is the live rung |
+| `container` | `docker inspect flauz-<envId>` (the describe probe; deterministic name) | **verified backing** (running container id) + `pending-live-rung` — the docker-exec stream / published port is the live rung; NO fabricated host:port |
+| `cloud-sandbox` | `GET {base}/v0/sandboxes/{id}` (the wire contract v0; sandboxId from the rung-1 tracking record; apiKeyRef via the `SecretResolverPort` ONLY) | **verified backing** (running sandbox id) + `pending-live-rung` — the wire contract v0 reports status, not session endpoints (INTEGRATION-GAP section 7) |
+| `workspace-remote` | the PIN-2 state itself (the local loopback posture — the TL3-003 binding decision) | **verified backing** + `pending-live-rung` — the loopback stand-in is a stdio harness, no TCP endpoint |
+
+The vscode boundary maps `pending-live-rung` honestly to
+`RemoteAuthorityResolverError.NotAvailable` naming the exact scope — never a
+fabricated endpoint (the blueprint's own error posture).
+
+### The AHP bridge handshake (ssh-local, bridged plans)
+
+When the connection carries `agentHostBridge`, the result carries the
+blueprint handshake (`--agent-host-bridge-port` +
+`VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN`): the bridge port rides the
+envelope (`agentHostBridge.bridgePort`), the token rides
+`extensionHostEnv[VSCODE_AGENT_HOST_BRIDGE_CONNECTION_TOKEN]` resolved ONLY
+through the `SecretResolverPort` (never materialized in descriptors or
+logs). Bridged and embedded (`--agent-host-port`) are mutually exclusive —
+a contradictory plan is a typed `BRIDGE_MISCONFIGURED` (the blueprint's own
+up-front rejection).
+
+### Scope decisions (recorded, not blurred)
+
+- **tunnelFactory is NOT wired in v0**: an `ssh -L` forward needs a
+  long-lived process and the `CliPort` seam is bounded-invocation by design;
+  tunnels land with the live rung behind a dedicated session port. No fake
+  tunnel.
+- **resolveExecServer is not implemented in v0** (the `a@b` transit is
+  out of the v0 grammar).
+- The LIVE remote-session evidence (real server spawn over the endpoint,
+  live tunnels, live `a@b` transit) stays with the skip-gated live rung
+  (`test/resolverLive.test.ts` opts in with `FLAUZ_RESOLVER_LIVE_SSH=1` /
+  `FLAUZ_RESOLVER_LIVE_DOCKER=1`; CI never fails for lacking a daemon).
+
 ## Commands
 
 Registry v0: `flauz.env.list` / `flauz.env.register` / `flauz.env.unregister`
@@ -391,6 +493,13 @@ Continuity (TL3-006 — typed results, never raw throws):
 EXECUTION section above; the same palette-defaults-to-human provenance
 rule). `flauz.env.switch` accepts an ADDITIVE `{ continuityBundleId }`
 argument that rides the returned switch plan.
+
+Resolver (TL3-H1 rung 2 — typed results, never raw throws):
+`flauz.env.resolver` (read-only registration surface: prefix, grammar,
+kinds served, the live/disabled state — the CI drill asserts here) and
+`flauz.env.resolve` (resolves `'<envId>'` / `{ id }` / `{ authority }`
+through the SAME pure core the workbench authority path drives; the typed
+outcome is returned directly).
 
 ## Development
 
