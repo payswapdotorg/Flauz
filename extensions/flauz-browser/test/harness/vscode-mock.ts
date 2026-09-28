@@ -48,6 +48,8 @@ export interface MockCommandRecord {
 
 export interface MockOutputChannel {
 	readonly name: string;
+	/** True when created via createOutputChannel(name, { log: true }) -- the boot-corpus surface (TL3-H2). */
+	logChannel: boolean;
 	lines: string[];
 	shown: boolean;
 	disposed: boolean;
@@ -87,7 +89,7 @@ export interface MockVscodeState {
 
 export interface MockVscodeApi {
 	window: {
-		createOutputChannel(name: string): { appendLine(line: string): void; show(): void; dispose(): void };
+		createOutputChannel(name: string, options?: { log?: boolean }): { appendLine(line: string): void; show(): void; dispose(): void };
 		showTextDocument(document: { uri: MockUri }): Promise<unknown>;
 		showInputBox(options: { prompt?: string; placeHolder?: string }): Promise<string | undefined>;
 		showWarningMessage(text: string): Promise<string | undefined>;
@@ -217,8 +219,8 @@ export function createMockVscode(initial: Partial<MockVscodeState> = {}): { vsco
 
 	const vscode: MockVscodeApi = {
 		window: {
-			createOutputChannel(name: string) {
-				const channel: MockOutputChannel = { name, lines: [], shown: false, disposed: false };
+			createOutputChannel(name: string, options?: { log?: boolean }) {
+				const channel: MockOutputChannel = { name, logChannel: options?.log === true, lines: [], shown: false, disposed: false };
 				state.outputChannels.push(channel);
 				return {
 					appendLine: (line: string) => {

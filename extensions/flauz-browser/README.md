@@ -14,7 +14,12 @@ SESSION SECURITY HARDENING on top of that runtime: per-session user-agent
 discipline, deny-by-default downloads, the popup/new-target gate, EXECUTED
 post-commit forced resets (G6 runtime-side), partition-scoped tab ownership,
 the append-only session journal, and the untrusted-content boundary marker in
-capture-derived evidence rows.
+capture-derived evidence rows. Since TL3-H2 (post-completion hardening):
+the P0 posture is **boot-verified end to end** by the CI workbench boot drill
+(`window.openBrowserTab` + `startCDPSession` under the live `browser` product
+grant in a booted workbench), and the two product-side residuals are
+**permanently recorded** as verified product limitations (INTEGRATION-GAP G5
+partition minting; G3 networkFilter default posture).
 
 Basis: `docs/BROWSER-ARCHITECTURE.md` section 5 (branch `wave1/b-browser-ux`,
 flauz-code-lab) + DL-6 + `docs/SECURITY-MODEL.md` section 4 (branch
@@ -191,7 +196,12 @@ else a fail-closed error message.
 
 The activation log lines (`flauz.browser: effective policy ...`,
 `flauz.browser: policy file INVALID ...`) are the grep targets of the
-B-POLICY canary (`build/flauz/canaries/B-POLICY.md`).
+B-POLICY canary (`build/flauz/canaries/B-POLICY.md`). Since TL3-H2 the
+output channel is LOG-BACKED (`createOutputChannel(name, { log: true })`),
+so every `flauz.browser:` line ALSO lands in the workbench log corpus at
+`<logsLocation>/flauz.flauz-browser/<name>.log` — that file is what the
+workbench boot drill greps for the runtime log lines (the A4 boot
+assertions); the in-extension channel surface is unchanged.
 
 ## Evidence seam
 
@@ -273,6 +283,29 @@ documents it as the optional real-endpoint drill). Local allowed/denied
 hosts come from a 127.0.0.1 origin server the drill starts itself — real
 navigations, no external network, no secrets.
 
+## Workbench boot drill (TL3-H2 — the P0 posture, boot-verified)
+
+The B-POLICY canary's A4/A6/A10 "stays boot-level" notes asked for a real
+driver invoking the command surface in a BOOTED workbench. The TL3-H2 boot
+drill delivers it as CI job `b-policy-boot-drill`
+(`.github/workflows/flauz-browser.yml`; workflow_dispatch + a weekly
+schedule — it compiles the workbench): a TEST-DRIVER EXTENSION
+(`test/fixtures/browser-policy-driver/` — CI test infrastructure, not a
+product extension; no flauz- prefix; installed into the canary profile's
+`--extensions-dir`) activates in the booted workbench and invokes
+`flauz.browser.openSession` / `navigate` / `sessions` / `closeSession`
+through the REAL lazy onCommand activation machinery. The zero-dep
+evaluator `build/flauz/scripts/b-policy-boot-drill.mjs` asserts both
+sides — the driver report (typed denial, session open through
+`window.openBrowserTab` + `startCDPSession` + the TL3-002 hardening over
+the real session, the `persist:flauz-<16hex>-boot-drill` partition,
+zero-send denied navigation, the audit list, the clean close) and the log
+corpus (the activation record, the proposal trip-wires, the runtime log
+lines from the log-backed channel, the PIN-1 journal the booted runtime
+writes). One honest SKIP row remains (the Electron webRequest
+`ERR_BLOCKED_BY_CLIENT` line — exact reason in the spec's row catalogue).
+Full spec: `build/flauz/canaries/B-POLICY.md` "Workbench boot drill".
+
 ## Development
 
 Zero dependencies; Node >= 20 stdlib only (runs under plain `node --test`
@@ -281,7 +314,7 @@ type-stripping and inside the extension host).
 ```sh
 cd extensions/flauz-browser
 npm run typecheck   # tsc --noEmit (typescript 5.9.x)
-npm run test        # node --test "test/*.test.ts"  (205 cases: 100 policy-family + 105 runtime)
+npm run test        # node --test "test/*.test.ts"  (206 cases: 100 policy-family + 106 runtime/extension — the TL3-H2 log-backed-channel pin added 1)
 node test/canaries/policy-gated-navigation.drill.ts   # the B-POLICY A-class driver drill (TL3-001 + TL3-002 assertions)
 FLAUZ_CDP_ENDPOINT=<real ws endpoint> node test/canaries/real-chromium-hardening.drill.ts   # the OPTIONAL real-Chromium drill (TL3-003; SKIPs without a real endpoint)
 ```

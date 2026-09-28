@@ -56,6 +56,20 @@ test('activation with a valid policy file logs the effective policy (canary grep
 	void extension.deactivate();
 });
 
+test('activation creates the output channel LOG-BACKED (TL3-H2 boot-corpus surface)', async () => {
+	// The channel must be created via createOutputChannel(name, { log: true }):
+	// only then do the `flauz.browser:` lines ALSO land in the workbench log
+	// corpus at <logsLocation>/<extension-id>/<name>.log (extHostOutput.ts:190-200),
+	// which is the file the B-POLICY workbench boot drill greps for the A4
+	// runtime log lines. A plain output channel never reaches the corpus.
+	const extension = await freshActivate('{"schemaVersion":0,"driver":{"allow":["*.example.com"]}}');
+	const channel = __state().outputChannels.find(c => c.name === 'Flauz Browser Policy');
+	assert.ok(channel !== undefined, 'the Flauz Browser Policy channel exists');
+	assert.equal(channel.logChannel, true, 'the channel is log-backed ({ log: true })');
+	assert.ok(channel.lines.some(l => l.startsWith('flauz.browser: ')), 'lines still flow to the channel surface');
+	void extension.deactivate();
+});
+
 test('activation with a missing policy file logs the deny-all default (fail-closed)', async () => {
 	const extension = await freshActivate(undefined);
 	const lines = channelLines(__state());

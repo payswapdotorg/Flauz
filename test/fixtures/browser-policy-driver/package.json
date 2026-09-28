@@ -1,0 +1,19 @@
+{
+	"name": "bpolicy-boot-driver",
+	"publisher": "flauztest",
+	"displayName": "B-POLICY Workbench Boot Drill Driver",
+	"description": "CI TEST INFRASTRUCTURE (not a Flauz product extension): activates in the booted canary workbench, invokes the flauz.browser.* command surface (the lazy onCommand activation discipline), and writes the boot-drill report the B-POLICY boot drill job asserts on. Source of truth: build/flauz/canaries/B-POLICY.md (the workbench boot drill section).",
+	"version": "0.1.0",
+	"license": "MIT",
+	"private": true,
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"main": "./main.js",
+	"categories": [
+		"Other"
+	]
+}

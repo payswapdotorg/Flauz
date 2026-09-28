@@ -233,3 +233,8 @@ extensions/flauz-agent/core/routing.mjs
 # Flauz TL2-A2 orchestration service protocol (zero-dep .mjs, G side; M4)
 extensions/flauz-agent/core/orchProtocol.mjs
 extensions/flauz-agent/core/orchMediator.mjs
+# Flauz TL3-H2 B-POLICY workbench boot drill (zero-dep CI evaluator, build/flauz/README.md
+# conventions; + the test-driver extension fixture -- CI test infrastructure installed
+# into the canary --extensions-dir, the compat-l3 fixture precedent)
+build/flauz/scripts/b-policy-boot-drill.mjs
+test/fixtures/browser-policy-driver/main.js
