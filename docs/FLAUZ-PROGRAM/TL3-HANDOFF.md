@@ -58,3 +58,28 @@ Start TL3-001 through TL3-006 immediately using mock drivers/adapters where real
 ## Done means
 
 An agent and a human can use a browser and an execution environment as first-class task resources, with policy, provenance, recovery and continuity.
+
+## Temporary TL2 secondment — Worker C
+
+TL3 remains the owner of Browser/Environment OS and its completed contracts. Until the Agent OS surge exits, one TL3 worker is temporarily seconded to TL2 as **TL2-S2 — Resource/Execution Integration**.
+
+Scope:
+- connect Agent OS execution plans to BrowserSessionDescriptor/Manager, EnvironmentExecutor/provider ports, ResourceRef and Continuity;
+- define resource acquisition/release semantics and hand-off metadata without changing TL3 ownership;
+- provide fixtures/adapters for browser/environment/resource execution when TL2 needs them;
+- preserve trust, provenance, fail-closed and continuity guarantees.
+
+Boundaries:
+- do not redesign Browser/Environment OS;
+- do not bypass TL3 policy/trust gates;
+- prefer additive TL2-side integration adapters;
+- changes to TL3-owned runtime contracts require TL3 approval and an explicit compatibility note;
+- coordinate before touching TL2 Worker A files.
+
+Acceptance:
+- a durable Agent OS task can reference and operate a browser/environment/resource through the existing contracts;
+- teardown/recovery semantics are explicit;
+- continuity metadata survives hand-off;
+- no resource or trust invariant regresses.
+
+When TL2-S2 completes its bounded work-order, Worker C returns to TL3 residuals/maintenance.
