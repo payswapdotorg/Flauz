@@ -54,6 +54,27 @@ Progress note (2026-09-29, Worker B, branch `feat/tl1-005-packaging-parity`, bas
 
 Merge record (2026-09-28, TL1 lead): branch `feat/tl1-005-packaging-parity` merged to main at `e0832400` (PR #20; packaging-parity registry + re-derivation gate (28 rows, posture classes, per-extension parity summary) + 17-case matrix + PACKAGING-PARITY.md report). Gate judgment: completed failures all within the platform pre-existing set; lane's own checks GREEN (Packaging parity report, compat battery L1+L2 --require, Packaging reproducibility); cross-lane NodeCliPort evidence amendment (TL3-004 injectable excluded from node-free set); count suite-verified 183/183; manifest regenerated. Precedents #10/#14-#18 applied. Status DONE. TL1 lane complete: all five work-orders landed on main (001 PR #10, 002 PR #18, 003 PR #17, 004 PR #16, 005 PR #20).
 
+TL2 landing record (2026-09-28, TL2, PR #23 merge 40b7cb9175 + registry PR #24 003b4fb8a1): Workers A/B/C harvested from live pods (bundles verified, manifests sha256-verified 0 mismatches, TL2 re-ran receipts on the merged state — 366/366 node --test green: agent 111, models 106, memory 48, workflow 101). Decision log numbered (TL2 ratifies):
+
+- DL-34 ADOPT the vendor-neutral ProviderAdapter contract (extensions/flauz-models/src/contract/) as the stable internal port for every future provider adapter (ports + HTTP shapes, zero vendor SDKs).
+- DL-35 ADOPT the 14-code provider error taxonomy with its fixed retryable/terminal table as the shared retry seam with the orchestration runtime (runtime consumes retryClass/retryAfterMs).
+- DL-36 ADOPT the durable .flauz/models state family (providers/capabilities/routing-policy envelopes + routing-decisions JSONL ledger + tool-policy file) as the model-fabric persistence contract.
+- DL-37 ADOPT the zero-network default posture: remote vendors ship disabled without credentials; the default routing rule targets flauz-mock, explicitly labeled; enabling a real provider is an explicit workspace act recorded in providers.json.
+- DL-38 ADOPT the deterministic truncation-priority policy (tool results -> attachments -> tail-keep truncation -> conversation drops, system/pinned/last-turn protected) as the context-budget compiler default.
+- DL-39 ADOPT policy-records-only MCP/tool posture (no re-gating of the native lm/MCP UX; agent-scoped tool-set policy consumed at assembly time).
+- DL-40 PROPOSE live-provider verification drills as a network-bearing follow-up work item (fixture evidence is not live evidence) — scheduled with the S-lanes.
+- DL-41 PROPOSE routing-decision recording from the agent bridge once orchestration consumes the router — scheduled with TL2-001 M4/M5 continuation.
+- DL-42 ADOPT the memory-substrate law: journal rewrites are sanctioned only when recorded (compaction/promote/demote carry audit rows: dropped ids, source+result ids).
+- DL-43 ADOPT memory record ids minted-from-max-seq (not positional); uniqueness + id/journal scope law governs.
+- DL-44 ADOPT authorization-bearing memory never auto-promotes (humanApproved + actor human required; compaction never evicts) — promoted from lane rule to program rule (mirrors the human-gate posture).
+- DL-45 ADOPT the private-context boundary living in the pure retrieval function (enforced where every consumer must pass through) as the pattern for future boundary laws.
+- DL-46 ADOPT workflow recovery semantics: at-least-once per interrupted step (append-only ledger keeps interrupted-attempt evidence rows; coherent state, not exactly-once effects).
+- DL-47 ADOPT version-pinned recovery (a run recovers only against the spec version it started with; a bumped spec requires a fresh run) — extended to the durable graph.
+- DL-48 ADOPT 'reported-not-verified' as a first-class result state (unverified A2A results labeled with their specific reason, never passed off as verified).
+- DL-49 ADOPT the memory index shape: derived entries + explicit journal registry appended BEFORE the journal append (crash-safe ordering; entries rebuildable) for any future no-readdir index.
+
+Worker A's number-free proposals arrive with its M4/M5 REPORT (in flight); they will be numbered DL-50+.
+
 ### TL2-001 — Durable orchestration
 Status: ACTIVE (M1-M3 landed PR #23 2026-09-28; M4/M5 + full delivery in flight on the worker pod — TL2 continues the lane)
 Turn the current agent/workspace slice into durable task/agent execution with recovery, retry, cancellation and multi-agent routing.
