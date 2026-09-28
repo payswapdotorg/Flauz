@@ -206,11 +206,16 @@ test('a rejected human-gate decision mints NOTHING (the preview runs before the 
 	}
 	// takeover accept by an agent: rejected, nothing minted
 	await assert.rejects(() => store.takeoverRequest({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:tl2004' }).then(() => store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:tl2004' })), (error: unknown) => error instanceof OrchestrationError && /requires actor human/.test(error.message));
-	// a double lease acquire: rejected by the exclusivity law, nothing minted
+	// a double lease acquire: rejected by the exclusivity law with the TYPED
+	// conflict (TL2-F3), and the refusal is RECORDED HISTORY (the evidence-bearing
+	// conflict-noticed row - the conflict is never a dropped message)
 	await store.acquireLease({ graphId, stepId: 'S-01', holder: 'agent-a', ttlMs: 5000, actor: 'agent', origin: 'test:tl2004' });
 	await assert.rejects(() => store.acquireLease({ graphId, stepId: 'S-01', holder: 'agent-b', ttlMs: 5000, actor: 'agent', origin: 'test:tl2004' }), (error: unknown) => error instanceof OrchestrationError && /is active/.test(error.message));
-	assert.equal(readLedger(root).length, ledgerBefore + 2, 'only the LEGAL ops minted (the takeover request + the lease acquire); the illegal decisions minted nothing');
-	assert.equal(store.journalRows.length, rowsBefore + 2, 'only the legal takeover-request and lease-acquire rows landed');
+	const leaseConflict = store.journalRows.filter((row) => row.type === 'conflict-noticed' && row.payload.violation === 'lease');
+	assert.equal(leaseConflict.length, 1, 'the refused acquire recorded exactly one conflict-noticed row');
+	assert.match(leaseConflict[0].payload.evidenceId as string, /^E-\d{6,}$/, 'the refusal minted its evidence row');
+	assert.equal(readLedger(root).length, ledgerBefore + 3, 'only the LEGAL ops minted (the takeover request + the lease acquire) plus the TL2-F3 conflict-refusal evidence; the illegal human-gate decisions minted nothing');
+	assert.equal(store.journalRows.length, rowsBefore + 3, 'the legal takeover-request + lease-acquire rows landed, plus the recorded lease-conflict refusal');
 });
 
 test('without a taskPort the transitions still land (the journal row stays the primary record)', async () => {
