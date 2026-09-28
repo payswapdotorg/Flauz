@@ -59,11 +59,10 @@
  * itself and surfaces as a typed flauz.orch.err.illegal-transition failure.
  * Nothing in this module can auto-grant an approval.
  *
- * Milestone scoping: M4 lands the contract WITHOUT the approval-expiry
- * surface (the flauz.orch.expireApproval method, the orch-approval-expired
- * event and the approval-expired journal class) - that surface arrives with
- * the TL2-004 closure (M5) as an ADDITIVE growth of this same v1 (new
- * method + new event + new failure paths, no v1 shape rewritten).
+ * The approval-expiry surface (the flauz.orch.expireApproval method, the
+ * orch-approval-expired event and the approval-expired journal class)
+ * landed with the TL2-004 closure (M5) as an ADDITIVE growth of this same
+ * v1: new method, new event, new request keys - no v1 shape rewritten.
  */
 
 import { SEAM_PROTOCOL_V1, SEAM_ERROR_CODES } from './protocol.mjs';
@@ -139,6 +138,7 @@ export const ORCH_METHODS = {
 	'flauz.orch.retryStep': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'schedule a policy retry' },
 	'flauz.orch.requestApproval': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'approval-request: a REQUEST that gates execution (never a grant)' },
 	'flauz.orch.decideApproval': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'human decision: granted | denied' },
+	'flauz.orch.expireApproval': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'TL2-004: the fail-closed service timeout of a deadline-bearing pending approval (the step is cancelled, never auto-granted)' },
 	'flauz.orch.requestTakeover': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'takeover REQUEST (human or agent may suggest; only human accepts)' },
 	'flauz.orch.acceptTakeover': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'human gate: accept a takeover' },
 	'flauz.orch.completeTakeover': { namespace: ORCH_NAMESPACE, since: ORCH_PROTOCOL_V1, versions: [ORCH_PROTOCOL_V1], status: 'stable', note: 'human gate: complete a taken-over step with evidence' },
@@ -469,6 +469,7 @@ export const ORCH_REQUEST_KEYS = {
 	'flauz.orch.retryStep': { required: ['actor', 'graphId', 'origin', 'stepId'], optional: [] },
 	'flauz.orch.requestApproval': { required: ['actor', 'graphId', 'origin', 'reason', 'stepId'], optional: ['expiresAt'] },
 	'flauz.orch.decideApproval': { required: ['actor', 'decision', 'graphId', 'origin', 'stepId'], optional: ['note'] },
+	'flauz.orch.expireApproval': { required: ['actor', 'graphId', 'origin', 'stepId'], optional: ['expiredAt', 'note'] },
 	'flauz.orch.requestTakeover': { required: ['actor', 'graphId', 'origin', 'stepId'], optional: ['reason'] },
 	'flauz.orch.acceptTakeover': { required: ['actor', 'graphId', 'origin', 'stepId'], optional: ['note'] },
 	'flauz.orch.completeTakeover': { required: ['actor', 'graphId', 'origin', 'stepId'], optional: ['evidence', 'summary'] },
@@ -564,6 +565,12 @@ export function validateOrchRequest(method, args) {
 	if (method === 'flauz.orch.decideApproval') {
 		if (!['granted', 'denied'].includes(args.decision)) {
 			return `${label}: decision must be 'granted' | 'denied'`;
+		}
+		return undefined;
+	}
+	if (method === 'flauz.orch.expireApproval') {
+		if (args.expiredAt !== undefined && !isPositiveInteger(args.expiredAt)) {
+			return `${label}: expiredAt must be a positive integer (epoch ms; defaults to the request deadline)`;
 		}
 		return undefined;
 	}
@@ -755,6 +762,7 @@ export const ORCH_EVENTS = {
 	'orch-journal-row': { since: ORCH_PROTOCOL_V1, note: 'one per appended journal row (the step-state stream)' },
 	'orch-approval-requested': { since: ORCH_PROTOCOL_V1, note: 'a step entered awaiting-approval (a REQUEST, never a grant)' },
 	'orch-approval-decided': { since: ORCH_PROTOCOL_V1, note: 'the human granted or denied a pending approval' },
+	'orch-approval-expired': { since: ORCH_PROTOCOL_V1, note: 'TL2-004: a deadline-bearing pending approval timed out (fail-closed - cancelled, never auto-granted)' },
 	'orch-takeover-requested': { since: ORCH_PROTOCOL_V1, note: 'a takeover was requested (human or agent suggestion)' },
 	'orch-takeover-accepted': { since: ORCH_PROTOCOL_V1, note: 'the human accepted a takeover' },
 	'orch-takeover-completed': { since: ORCH_PROTOCOL_V1, note: 'the human completed a taken-over step with evidence' },
@@ -780,6 +788,7 @@ export const ORCH_ROW_EVENT_OF = {
 	'approval-requested': 'orch-approval-requested',
 	'approval-granted': 'orch-approval-decided',
 	'approval-denied': 'orch-approval-decided',
+	'approval-expired': 'orch-approval-expired',
 	'takeover-requested': 'orch-takeover-requested',
 	'takeover-accepted': 'orch-takeover-accepted',
 	'takeover-completed': 'orch-takeover-completed',
@@ -812,6 +821,9 @@ export function orchEventOfRow(row) {
 	}
 	if (type === 'approval-granted' || type === 'approval-denied') {
 		return { event: 'orch-approval-decided', payload: { ...base, decision: type === 'approval-granted' ? 'granted' : 'denied', ...(row.payload.note !== undefined ? { note: row.payload.note } : {}) } };
+	}
+	if (type === 'approval-expired') {
+		return { event: 'orch-approval-expired', payload: { ...base, expiredAt: row.payload.expiredAt } };
 	}
 	if (type === 'takeover-requested') {
 		return { event: 'orch-takeover-requested', payload: { ...base, requestedBy: row.actor } };
@@ -902,6 +914,15 @@ export function validateOrchEventPayload(event, payload) {
 		}
 		if (!['granted', 'denied'].includes(payload.decision)) {
 			return `${label} payload decision must be 'granted' | 'denied'`;
+		}
+		return undefined;
+	}
+	if (event === 'orch-approval-expired') {
+		if (!hasExactKeys(payload, ['expiredAt', 'graphId', 'stepId'])) {
+			return `${label} payload must have exactly the keys [expiredAt, graphId, stepId]`;
+		}
+		if (!isPositiveInteger(payload.expiredAt)) {
+			return `${label} payload expiredAt must be a positive integer`;
 		}
 		return undefined;
 	}

@@ -72,7 +72,7 @@ function makeStore(root: string, withPort = true): OrchestrationStore {
 async function approvedGraph(root: string, steps: Array<Record<string, unknown>>, withPort = true): Promise<{ store: OrchestrationStore; graphId: string; taskId: string }> {
 	const store = makeStore(root, withPort);
 	const submitted = await store.submitGraph({ title: 'routing graph', steps, actor: 'agent', origin: 'test:routing' });
-	store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:routing' });
+	await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:routing' });
 	return { store, graphId: submitted.graphId, taskId: submitted.taskId ?? 'T-001' };
 }
 
@@ -262,7 +262,7 @@ test('graph-level claims are exclusive and mirrored as resource-claim notices', 
 	const root = makeRoot();
 	const { store, graphId } = await approvedGraph(root, [{ stepId: 'S-01', title: 'shared work', instruction: 'work on a shared file' }]);
 	const bus = new A2ABus(root);
-	const claim = store.acquireClaim({ graphId, stepId: 'S-01', holder: 'flauz.agent.worker-1', actor: 'agent', origin: 'test:routing' });
+	const claim = await store.acquireClaim({ graphId, stepId: 'S-01', holder: 'flauz.agent.worker-1', actor: 'agent', origin: 'test:routing' });
 	assert.equal(claim.payload.claimId, 'C-001-01');
 	// mirror the claim as a bus notice (a claim IS a lease on the bus)
 	const notice = await mirrorResourceClaim(bus, {
@@ -273,12 +273,12 @@ test('graph-level claims are exclusive and mirrored as resource-claim notices', 
 	});
 	assert.match(notice.messageId, /^M-\d{6}$/);
 	// another agent starting the claimed step records a conflict notice (v0 informational)
-	store.startStep({ graphId, stepId: 'S-01', runnerId: 'flauz.agent.worker-2', actor: 'agent', origin: 'test:routing' });
+	await store.startStep({ graphId, stepId: 'S-01', runnerId: 'flauz.agent.worker-2', actor: 'agent', origin: 'test:routing' });
 	const conflicts = store.journalRows.filter((row) => row.type === 'conflict-noticed');
 	assert.equal(conflicts.length, 1);
 	assert.equal(conflicts[0].payload.violation, 'claim');
 	// release mirrors as a release notice
-	store.releaseClaim({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:routing' });
+	await store.releaseClaim({ graphId, stepId: 'S-01', actor: 'agent', origin: 'test:routing' });
 	await mirrorResourceClaim(bus, { action: 'release', resource: stepResourceId(graphId, 'S-01'), holder: 'flauz.agent.worker-1' });
 	const notices = JSON.parse(readFileSync(join(root, '.flauz', 'a2a', 'messages.jsonl'), 'utf-8').split('\n')[1]);
 	assert.equal(notices.kind, 'resource-claim');
@@ -290,11 +290,11 @@ test('leases expire and recovery frees them (with an expiry notice on the bus)',
 	const root = makeRoot();
 	const { store, graphId } = await approvedGraph(root, [{ stepId: 'S-01', title: 'leased work', instruction: 'work under lease' }]);
 	const bus = new A2ABus(root);
-	const lease = store.acquireLease({ graphId, stepId: 'S-01', holder: 'flauz.agent.worker-1', ttlMs: 1000, actor: 'agent', origin: 'test:routing' });
+	const lease = await store.acquireLease({ graphId, stepId: 'S-01', holder: 'flauz.agent.worker-1', ttlMs: 1000, actor: 'agent', origin: 'test:routing' });
 	assert.match(String(lease.payload.leaseId), /^L-001-01-1$/);
 	await mirrorResourceClaim(bus, { action: 'acquire', resource: stepResourceId(graphId, 'S-01'), holder: 'flauz.agent.worker-1', leaseUntil: 1700000001000 });
 	// renewal extends
-	store.renewLease({ graphId, stepId: 'S-01', ttlMs: 5000, actor: 'agent', origin: 'test:routing' });
+	await store.renewLease({ graphId, stepId: 'S-01', ttlMs: 5000, actor: 'agent', origin: 'test:routing' });
 	// restart AFTER expiry: recovery marks it expired and the step becomes claimable again
 	const reloaded = new OrchestrationStore(root, { clock: makeClock(1700000090000).clock, taskPort: fakeTaskPort() });
 	const report = await recoveryScan(reloaded, { now: FAR_FUTURE });

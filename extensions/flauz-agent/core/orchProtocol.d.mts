@@ -94,6 +94,6 @@ export interface OrchEventInfo {
 export declare const ORCH_EVENTS: Record<string, OrchEventInfo>;
 export declare const ORCH_EVENT_NAMES: string[];
 export declare const ORCH_ROW_EVENT_OF: Record<string, string>;
-export declare function orchEventOfRow(row: Record<string, unknown>): { event: string; payload: Record<string, unknown> } | null;
+export declare function orchEventOfRow(row: unknown): { event: string; payload: Record<string, unknown> } | null;
 export declare function journalRowEventOf(row: Record<string, unknown>): { event: string; payload: Record<string, unknown> };
 export declare function validateOrchEventPayload(event: string, payload: unknown): string | undefined;

@@ -118,6 +118,7 @@ const MINIMAL_GOOD: Record<string, Record<string, unknown>> = {
 	'flauz.orch.retryStep': { actor: 'service', graphId: 'G-001', origin: 'test:proto', stepId: 'S-01' },
 	'flauz.orch.requestApproval': { actor: 'agent', graphId: 'G-001', origin: 'test:proto', reason: 'gate', stepId: 'S-01' },
 	'flauz.orch.decideApproval': { actor: 'human', decision: 'granted', graphId: 'G-001', origin: 'test:proto', stepId: 'S-01' },
+	'flauz.orch.expireApproval': { actor: 'service', graphId: 'G-001', origin: 'test:proto', stepId: 'S-01' },
 	'flauz.orch.requestTakeover': { actor: 'human', graphId: 'G-001', origin: 'test:proto', stepId: 'S-01' },
 	'flauz.orch.acceptTakeover': { actor: 'human', graphId: 'G-001', origin: 'test:proto', stepId: 'S-01' },
 	'flauz.orch.completeTakeover': { actor: 'human', graphId: 'G-001', origin: 'test:proto', stepId: 'S-01' },
@@ -212,6 +213,7 @@ test('type-violation table: every structural rule has a firing bad fixture', () 
 		['flauz.orch.requestApproval', { ...MINIMAL_GOOD['flauz.orch.requestApproval'], reason: '' }, /reason must be a non-empty string/],
 		['flauz.orch.requestApproval', { ...MINIMAL_GOOD['flauz.orch.requestApproval'], expiresAt: 0 }, /expiresAt must be a positive integer/],
 		['flauz.orch.decideApproval', { ...MINIMAL_GOOD['flauz.orch.decideApproval'], decision: 'maybe' }, /decision must be 'granted' \| 'denied'/],
+		['flauz.orch.expireApproval', { ...MINIMAL_GOOD['flauz.orch.expireApproval'], expiredAt: 0 }, /expiredAt must be a positive integer/],
 		['flauz.orch.acquireLease', { ...MINIMAL_GOOD['flauz.orch.acquireLease'], ttlMs: 0 }, /ttlMs must be a positive integer/],
 		['flauz.orch.acquireLease', { ...MINIMAL_GOOD['flauz.orch.acquireLease'], holder: '!bad' }, /holder must be an agent id/],
 		['flauz.orch.noticeConflict', { ...MINIMAL_GOOD['flauz.orch.noticeConflict'], violation: 'blob' }, /violation must be 'claim' \| 'lease'/],
@@ -238,6 +240,7 @@ test('event payload validation: every catalog event has a good and a bad fixture
 		'orch-journal-row': { actor: 'agent', graphId: 'G-001', rowId: 'R-000001', seq: 1, stepId: null, type: 'graph-submitted' },
 		'orch-approval-requested': { graphId: 'G-001', reason: 'gate', stepId: 'S-01' },
 		'orch-approval-decided': { decision: 'granted', graphId: 'G-001', stepId: 'S-01' },
+		'orch-approval-expired': { expiredAt: 1700000009000, graphId: 'G-001', stepId: 'S-01' },
 		'orch-takeover-requested': { graphId: 'G-001', requestedBy: 'human', stepId: 'S-01' },
 		'orch-takeover-accepted': { graphId: 'G-001', stepId: 'S-01' },
 		'orch-takeover-completed': { graphId: 'G-001', stepId: 'S-01' },
@@ -282,7 +285,9 @@ test('journal-row projection: every mapped row type projects onto its domain eve
 								? { leaseId: 'L-001-01-1', holder: 'agent-a' }
 								: type === 'lease-expired'
 									? { leaseId: 'L-001-01-1', holder: 'agent-a', expiredAt: 1700000003000 }
-									: type === 'approval-requested'
+									: type === 'approval-expired'
+										? { expiredAt: 1700000009000 }
+										: type === 'approval-requested'
 										? { reason: 'gate' }
 										: type === 'conflict-noticed'
 											? { violation: 'claim', expectedHolder: 'agent-a', actualRunner: 'runner-b' }
@@ -310,7 +315,7 @@ test('negotiateOrchVersion: no offer means inert; empty/unknown offers mismatch;
 	assert.deepEqual(negotiateOrchVersion('flauz.orch/v1'), { offered: false });
 	const mismatch = negotiateOrchVersion(['flauz.orch/v9']);
 	assert.equal(mismatch.offered, true);
-	assert.equal(mismatch.ok, false);
+	assert.ok(mismatch.offered && mismatch.ok === false);
 	assert.equal(mismatch.failure.code, 'flauz.orch.err.unsupported-version');
 	fired('flauz.orch.err.unsupported-version');
 	const ok = negotiateOrchVersion(['flauz.orch/v9', 'flauz.orch/v1', 42, null]);
@@ -487,9 +492,12 @@ test('mediator: lease and claim operations with notices, and the informational c
 	// a non-holder start records conflict-noticed FIRST (informational v0), then proceeds
 	const started = await mediator.dispatch('flauz.orch.startStep', { graphId, stepId: 'S-01', runnerId: 'runner-b', actor: 'agent', origin: 'test:proto' });
 	assert.ok((started as { attempt: number }).attempt >= 1);
+	// the M5 posture: one informational notice PER VIOLATION CLASS (the claim AND the lease are both held by agent-a)
 	const conflicts = mediator.store.journalRows.filter((row) => row.type === 'conflict-noticed');
-	assert.equal(conflicts.length, 1);
-	assert.equal(conflicts[0].payload.violation, 'claim');
+	assert.equal(conflicts.length, 2);
+	assert.deepEqual(conflicts.map((row) => row.payload.violation), ['claim', 'lease']);
+	assert.equal(conflicts[0].payload.expectedHolder, 'agent-a');
+	assert.equal(conflicts[0].payload.actualRunner, 'runner-b');
 	const conflict = await mediator.dispatch('flauz.orch.noticeConflict', { graphId, stepId: 'S-01', violation: 'lease', expectedHolder: 'agent-a', actualRunner: 'runner-b', note: 'informational', actor: 'service', origin: 'test:proto' });
 	assert.match((conflict as { rowId: string }).rowId, /^R-\d{6,}$/);
 	// double acquire while the lease is STILL ACTIVE is a structural exclusivity violation (illegal-transition)
@@ -503,6 +511,44 @@ test('mediator: lease and claim operations with notices, and the informational c
 	// after the release a fresh acquire is legal again (the exclusivity is per active lease)
 	const reacquired = await mediator.dispatch('flauz.orch.acquireLease', { graphId, stepId: 'S-01', holder: 'agent-z', ttlMs: 5000, actor: 'agent', origin: 'test:proto' }) as { leaseId: string };
 	assert.equal(reacquired.leaseId, 'L-001-01-2');
+});
+
+test('mediator: approval expiry through the protocol (fail-closed; never auto-granted)', async () => {
+	const { mediator, events } = makeMediator('expiry');
+	const graphId = await submitApproved(mediator);
+	await mediator.dispatch('flauz.orch.requestApproval', { graphId, stepId: 'S-01', reason: 'gate', expiresAt: 1700000900000, actor: 'agent', origin: 'test:proto' });
+	// before the deadline the expiry is refused (the human still owns the decision)
+	await assert.rejects(() => mediator.dispatch('flauz.orch.expireApproval', { graphId, stepId: 'S-01', expiredAt: 1700000000000, actor: 'service', origin: 'test:proto' }), (error: unknown) => {
+		const failure = failureOf(error);
+		assert.equal(failure.code, 'flauz.orch.err.invalid-params');
+		fired(failure.code);
+		return true;
+	});
+	// an expiry by a non-service actor is refused by the durable graph (actor gate)
+	await assert.rejects(() => mediator.dispatch('flauz.orch.expireApproval', { graphId, stepId: 'S-01', expiredAt: 1700000900000, actor: 'human', origin: 'test:proto' }), (error: unknown) => {
+		const failure = failureOf(error);
+		assert.equal(failure.code, 'flauz.orch.err.illegal-transition');
+		fired(failure.code);
+		return true;
+	});
+	const expired = await mediator.dispatch('flauz.orch.expireApproval', { graphId, stepId: 'S-01', actor: 'service', origin: 'test:proto' }) as { rowId: string };
+	assert.match(expired.rowId, /^R-\d{6,}$/);
+	const state = await mediator.dispatch('flauz.orch.getGraph', { graphId }) as { steps: Record<string, { status: string; approval: { state: string } | null; failure: { class: string } | null }> };
+	assert.equal(state.steps['S-01'].status, 'cancelled');
+	assert.equal(state.steps['S-01'].approval?.state, 'expired');
+	assert.equal(state.steps['S-01'].failure?.class, 'approval-expired');
+	const domain = events.filter((event) => event.event === 'orch-approval-expired');
+	assert.equal(domain.length, 1);
+	assert.equal((domain[0].payload as { expiredAt: number }).expiredAt, 1700000900000);
+	// a request WITHOUT a deadline never expires (a human must decide or the graph is cancelled)
+	const graphId2 = await submitApproved(mediator);
+	await mediator.dispatch('flauz.orch.requestApproval', { graphId: graphId2, stepId: 'S-01', reason: 'no deadline', actor: 'agent', origin: 'test:proto' });
+	await assert.rejects(() => mediator.dispatch('flauz.orch.expireApproval', { graphId: graphId2, stepId: 'S-01', actor: 'service', origin: 'test:proto' }), (error: unknown) => {
+		const failure = failureOf(error);
+		assert.equal(failure.code, 'flauz.orch.err.illegal-transition');
+		fired(failure.code);
+		return true;
+	});
 });
 
 test('mediator: unknown method, unknown graph/step, invalid params surface as typed failures', async () => {
@@ -567,13 +613,13 @@ test('mediator shutdown ordering: in-flight completes before the drain; new work
 	};
 	const mediator = new OrchestrationMediator(root, { taskPort, clock: makeClock(1700000000000).clock });
 	const pending = mediator.dispatch('flauz.orch.submitGraph', { actor: 'agent', origin: 'test:proto', steps: GOOD_STEPS, title: 'drain me' });
-	await new Promise((resolve) => setTimeout(resolve, 20));
+	await new Promise<void>((resolve) => setTimeout(() => resolve(), 20));
 	const shutdownPromise = mediator.shutdown();
 	let settled = false;
 	void pending.then(() => {
 		settled = true;
 	});
-	await new Promise((resolve) => setTimeout(resolve, 20));
+	await new Promise<void>((resolve) => setTimeout(() => resolve(), 20));
 	// while the createTask gate holds, neither the dispatch nor the drain settles
 	assert.equal(settled, false);
 	assert.equal(mediator.state, 'draining');
@@ -652,7 +698,7 @@ class LoopbackProcess {
 	constructor(root: string) {
 		this.child = spawn(process.execPath, [LOOPBACK_PATH, root], { stdio: ['pipe', 'pipe', 'pipe'] });
 		this.child.stdout.setEncoding('utf-8');
-		this.child.stdout.on('data', (chunk: string) => {
+		this.child.stdout.on('data', (chunk: { toString(encoding?: string): string }) => {
 			this.buffer += chunk;
 			let newline = this.buffer.indexOf('\n');
 			while (newline !== -1) {
@@ -665,7 +711,7 @@ class LoopbackProcess {
 			}
 		});
 		this.child.stderr.setEncoding('utf-8');
-		this.child.stderr.on('data', (chunk: string) => process.stderr.write(`[loopback] ${chunk}`));
+		this.child.stderr.on('data', (chunk: { toString(encoding?: string): string }) => process.stderr.write(`[loopback] ${chunk.toString()}`));
 		this.child.on('close', (code) => {
 			this.exitCode = code ?? null;
 			for (const waiter of this.exitWaiters) {
@@ -723,6 +769,10 @@ class LoopbackProcess {
 
 	kill(): void {
 		this.child.kill('SIGKILL');
+	}
+
+	endStdin(): void {
+		this.child.stdin.end();
 	}
 }
 
@@ -934,7 +984,7 @@ test('loopback: stdin end after orch work drains and exits 0 (EOF shutdown)', { 
 		loop.send({ id: 1, cmd: 'flauz.orch.submitGraph', args: { actor: 'agent', origin: 'test:wire', steps: GOOD_STEPS, title: 'eof' } });
 		const submitted = await loop.next((message) => message.id === 1, 'submit');
 		assert.equal(submitted.message.ok, true);
-		loop.child.stdin.end();
+		loop.endStdin();
 		assert.equal(await loop.exit(), 0);
 	} finally {
 		loop.kill();

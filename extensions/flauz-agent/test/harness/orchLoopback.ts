@@ -102,7 +102,7 @@ async function main(): Promise<void> {
 		process.stdout.write(`${JSON.stringify(message)}\n`);
 	};
 
-	const sendError = (id: number, structured: Record<string, unknown>, v0String: string): void => {
+	const sendError = (id: number, structured: { code: string; message: string; details?: unknown }, v0String: string): void => {
 		if (session.negotiatedSeam === SEAM_PROTOCOL_V1) {
 			send({ id, ok: false, error: structured });
 		} else {
@@ -111,8 +111,8 @@ async function main(): Promise<void> {
 	};
 
 	/** The orch failure projected onto the seam error envelope (code passthrough: the flauz.orch.err.* codes ride the structured error shape additively). */
-	const orchErrorEnvelope = (failure: Record<string, unknown>): Record<string, unknown> => {
-		const envelope: Record<string, unknown> = { code: failure.code, message: failure.message };
+	const orchErrorEnvelope = (failure: { code: string; message: string; details?: unknown }): { code: string; message: string; details?: unknown } => {
+		const envelope: { code: string; message: string; details?: unknown } = { code: failure.code, message: failure.message };
 		if (failure.details !== undefined) {
 			envelope.details = failure.details;
 		}
@@ -232,15 +232,15 @@ async function main(): Promise<void> {
 				// The drain window: new orchestration work is refused with the
 				// typed shutting-down failure (mapped onto the seam error shape).
 				const failure = orchFailure(ORCH_FAILURE_CODES.SHUTTING_DOWN, 'the orchestration session is draining after a shutdown command', { method: cmd });
-				sendError(id, orchErrorEnvelope(failure as Record<string, unknown>), `${String(failure.code)}: ${String(failure.message)}`);
+				sendError(id, orchErrorEnvelope(failure), `${failure.code}: ${failure.message}`);
 				return;
 			}
 			try {
 				const result = await session.mediator?.dispatch(cmd, args);
 				send({ id, ok: true, result });
 			} catch (error) {
-				const failure = orchFailureOf(error) as Record<string, unknown>;
-				sendError(id, orchErrorEnvelope(failure), `${String(failure.code)}: ${String(failure.message)}`);
+				const failure = orchFailureOf(error);
+				sendError(id, orchErrorEnvelope(failure), `${failure.code}: ${failure.message}`);
 			}
 			return;
 		}

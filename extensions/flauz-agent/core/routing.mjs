@@ -160,7 +160,7 @@ export async function delegateStep(store, bus, input) {
 	}
 	const graph = store.requireGraph(input.graphId);
 	store.requireStep(graph, input.stepId);
-	const decision = store.routeDecide({
+	const decision = await store.routeDecide({
 		graphId: input.graphId,
 		stepId: input.stepId,
 		targetAgent: input.targetAgent,
@@ -169,7 +169,7 @@ export async function delegateStep(store, bus, input) {
 		actor: input.actor ?? 'agent',
 		origin: input.origin ?? 'runtime:route',
 	});
-	const start = store.startStep({
+	const start = await store.startStep({
 		graphId: input.graphId,
 		stepId: input.stepId,
 		runnerId: input.targetAgent,
@@ -188,7 +188,7 @@ export async function delegateStep(store, bus, input) {
 			payload,
 		},
 	});
-	const receipt = store.delegationSent({
+	const receipt = await store.delegationSent({
 		graphId: input.graphId,
 		stepId: input.stepId,
 		decisionRowId: decision.rowId,

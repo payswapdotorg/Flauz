@@ -38,6 +38,18 @@
  * rewritten; a future v2 is a NEW sibling artifact, never an in-place
  * reinterpretation.
  *
+ * TL2-004 closure (M5): approval requests, takeover records and lease/
+ * claim/conflict notices are FIRST-CLASS transitions with EVIDENCE ROWS -
+ * each op mints one flauz.tasks/v0 ledger row (kind 'note', uri
+ * flauz-orch-transition://<rowId>, sha256 over the canonical transition
+ * facts) and embeds the minted evidenceId in the journal payload. The
+ * approval lifecycle is complete: approval-requested -> approval-granted |
+ * approval-denied | approval-expired; expiry is SERVICE-ONLY and
+ * fail-closed (a cancelled step, never an auto-grant), and only a request
+ * that carries expiresAt can expire. Lease conflicts join the claim
+ * conflicts as informational notices (v0 enforcement at the extension
+ * layer, the routing-module posture).
+ *
  * Transition discipline (the 9-transition seam posture, lifted to graphs):
  * every row that changes state must satisfy the STEP_TRANSITIONS or
  * GRAPH_TRANSITIONS table - legal source status first, actor gate second -
@@ -471,7 +483,7 @@ export function validateJournalPayload(type, payload) {
 		return undefined;
 	}
 	if (type === 'step-succeeded' || type === 'takeover-completed') {
-		if (!hasExactKeys(payload, ['evidence'], ['output'])) {
+		if (!hasExactKeys(payload, ['evidence'], ['evidenceId', 'output'])) {
 			return `${label} payload must have exactly the keys [evidence, output?]`;
 		}
 		if (!Array.isArray(payload.evidence)) {
@@ -522,35 +534,62 @@ export function validateJournalPayload(type, payload) {
 		return undefined;
 	}
 	if (type === 'approval-requested') {
-		if (!hasExactKeys(payload, ['reason'])) {
-			return `${label} payload must have exactly the key [reason]`;
+		if (!hasExactKeys(payload, ['reason'], ['evidenceId', 'expiresAt'])) {
+			return `${label} payload must have exactly the keys [evidenceId?, expiresAt?, reason]`;
 		}
 		if (!isNonEmptyString(payload.reason)) {
 			return `${label} payload reason must be a non-empty string`;
 		}
+		if (payload.expiresAt !== undefined && !isPositiveInteger(payload.expiresAt)) {
+			return `${label} payload expiresAt must be a positive integer (epoch ms; only a request that carries a deadline can expire)`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this transition)`;
+		}
+		return undefined;
+	}
+	if (type === 'approval-expired') {
+		if (!hasExactKeys(payload, ['expiredAt'], ['evidenceId', 'note'])) {
+			return `${label} payload must have exactly the keys [evidenceId?, expiredAt, note?]`;
+		}
+		if (!isPositiveInteger(payload.expiredAt)) {
+			return `${label} payload expiredAt must be a positive integer (epoch ms - the observed expiry, never before the request deadline)`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/`;
+		}
 		return undefined;
 	}
 	if (type === 'approval-granted' || type === 'approval-denied') {
-		if (!hasExactKeys(payload, [], ['note'])) {
-			return `${label} payload must have only the optional key [note]`;
+		if (!hasExactKeys(payload, [], ['evidenceId', 'note'])) {
+			return `${label} payload must have only the optional keys [evidenceId?, note?]`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this decision)`;
 		}
 		return undefined;
 	}
 	if (type === 'takeover-requested') {
-		if (!hasExactKeys(payload, [], ['reason'])) {
-			return `${label} payload must have only the optional key [reason]`;
+		if (!hasExactKeys(payload, [], ['evidenceId', 'reason'])) {
+			return `${label} payload must have only the optional keys [evidenceId?, reason?]`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this request)`;
 		}
 		return undefined;
 	}
 	if (type === 'takeover-accepted') {
-		if (!hasExactKeys(payload, [], ['note'])) {
-			return `${label} payload must have only the optional key [note]`;
+		if (!hasExactKeys(payload, [], ['evidenceId', 'note'])) {
+			return `${label} payload must have only the optional keys [evidenceId?, note?]`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this acceptance)`;
 		}
 		return undefined;
 	}
 	if (type === 'claim-acquired' || type === 'claim-released') {
-		if (!hasExactKeys(payload, ['claimId', 'holder'])) {
-			return `${label} payload must have exactly the keys [claimId, holder]`;
+		if (!hasExactKeys(payload, ['claimId', 'holder'], ['evidenceId'])) {
+			return `${label} payload must have exactly the keys [claimId, evidenceId?, holder]`;
 		}
 		if (!isClaimId(payload.claimId)) {
 			return `${label} payload claimId must match /^C-\\d{3,}-\\d{2,}$/`;
@@ -558,11 +597,14 @@ export function validateJournalPayload(type, payload) {
 		if (!isAgentId(payload.holder)) {
 			return `${label} payload holder must be an agent id`;
 		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this notice)`;
+		}
 		return undefined;
 	}
-	if (type === 'lease-acquired') {
-		if (!hasExactKeys(payload, ['leaseId', 'holder', 'expiresAt'])) {
-			return `${label} payload must have exactly the keys [expiresAt, holder, leaseId]`;
+	if (type === 'lease-acquired' || type === 'lease-renewed') {
+		if (!hasExactKeys(payload, ['leaseId', 'holder', 'expiresAt'], ['evidenceId'])) {
+			return `${label} payload must have exactly the keys [evidenceId?, expiresAt, holder, leaseId]`;
 		}
 		if (!isLeaseId(payload.leaseId)) {
 			return `${label} payload leaseId must match /^L-\\d{3,}-\\d{2,}-\\d{1,}$/`;
@@ -573,38 +615,41 @@ export function validateJournalPayload(type, payload) {
 		if (!isPositiveInteger(payload.expiresAt)) {
 			return `${label} payload expiresAt must be a positive integer (epoch ms)`;
 		}
-		return undefined;
-	}
-	if (type === 'lease-renewed') {
-		if (!hasExactKeys(payload, ['leaseId', 'holder', 'expiresAt'])) {
-			return `${label} payload must have exactly the keys [expiresAt, holder, leaseId]`;
-		}
-		if (!isLeaseId(payload.leaseId) || !isAgentId(payload.holder) || !isPositiveInteger(payload.expiresAt)) {
-			return `${label} payload leaseId/holder/expiresAt shapes are invalid`;
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this notice)`;
 		}
 		return undefined;
 	}
 	if (type === 'lease-released') {
-		if (!hasExactKeys(payload, ['leaseId', 'holder'])) {
-			return `${label} payload must have exactly the keys [holder, leaseId]`;
+		if (!hasExactKeys(payload, ['leaseId', 'holder'], ['evidenceId'])) {
+			return `${label} payload must have exactly the keys [evidenceId?, holder, leaseId]`;
 		}
 		if (!isLeaseId(payload.leaseId) || !isAgentId(payload.holder)) {
 			return `${label} payload leaseId/holder shapes are invalid`;
 		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this notice)`;
+		}
 		return undefined;
 	}
 	if (type === 'lease-expired') {
-		if (!hasExactKeys(payload, ['leaseId', 'holder', 'expiredAt'])) {
-			return `${label} payload must have exactly the keys [expiredAt, holder, leaseId]`;
+		if (!hasExactKeys(payload, ['leaseId', 'holder', 'expiredAt'], ['evidenceId'])) {
+			return `${label} payload must have exactly the keys [evidenceId?, expiredAt, holder, leaseId]`;
 		}
 		if (!isLeaseId(payload.leaseId) || !isAgentId(payload.holder) || !isPositiveInteger(payload.expiredAt)) {
 			return `${label} payload leaseId/holder/expiredAt shapes are invalid`;
 		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this notice)`;
+		}
 		return undefined;
 	}
 	if (type === 'conflict-noticed') {
-		if (!hasExactKeys(payload, ['violation', 'expectedHolder', 'actualRunner'], ['note'])) {
-			return `${label} payload must have exactly the keys [actualRunner, expectedHolder, note?, violation]`;
+		if (!hasExactKeys(payload, ['violation', 'expectedHolder', 'actualRunner'], ['evidenceId', 'note'])) {
+			return `${label} payload must have exactly the keys [actualRunner, evidenceId?, expectedHolder, note?, violation]`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this notice)`;
 		}
 		if (!CONFLICT_VIOLATIONS.includes(payload.violation)) {
 			return `${label} payload violation must be one of ${CONFLICT_VIOLATIONS.join(' | ')}`;
@@ -706,6 +751,9 @@ export function validateJournalPayload(type, payload) {
  *   - approval-granted / approval-denied / takeover-accepted /
  *     takeover-completed are HUMAN-ONLY (approvals and takeovers are
  *     requests that gate execution - never auto-granted);
+ *   - approval-expired is SERVICE-ONLY (a mechanical deadline timeout -
+ *     fail-closed: the step is CANCELLED, never auto-granted; only a
+ *     request that carries expiresAt can ever expire);
  *   - step-started / step-failed are agent|tool|service (the executors);
  *   - step-cancelled is human|service (propagation).
  */
@@ -719,6 +767,7 @@ export const STEP_TRANSITIONS = [
 	{ type: 'approval-requested', from: ['ready'], actors: ['agent', 'service'], to: 'awaiting-approval' },
 	{ type: 'approval-granted', from: ['awaiting-approval'], actors: ['human'], to: 'ready' },
 	{ type: 'approval-denied', from: ['awaiting-approval'], actors: ['human'], to: 'cancelled' },
+	{ type: 'approval-expired', from: ['awaiting-approval'], actors: ['service'], to: 'cancelled' },
 	{ type: 'takeover-requested', from: ['ready', 'running', 'awaiting-approval'], actors: ['human', 'agent'], to: 'takeover-pending' },
 	{ type: 'takeover-accepted', from: ['takeover-pending'], actors: ['human'], to: 'taken-over' },
 	{ type: 'takeover-completed', from: ['taken-over'], actors: ['human'], to: 'succeeded' },
@@ -771,6 +820,7 @@ const EVENT_LEVELS = {
 	'route-decided': 'either',
 	'delegation-sent': 'either',
 	'result-received': 'step',
+	'approval-expired': 'step',
 	'claim-acquired': 'step',
 	'claim-released': 'step',
 	'lease-acquired': 'step',
@@ -1049,13 +1099,17 @@ function applyRowToState(state, row) {
 			step.evidence.push(...row.payload.evidence);
 		}
 		if (type === 'approval-requested') {
-			step.approval = { requestedAt: row.ts, reason: row.payload.reason, state: 'pending' };
+			step.approval = { requestedAt: row.ts, reason: row.payload.reason, state: 'pending', ...(row.payload.expiresAt !== undefined ? { expiresAt: row.payload.expiresAt } : {}), ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
 		}
 		if (type === 'approval-granted') {
-			step.approval = { ...step.approval, state: 'granted', grantedAt: row.ts };
+			step.approval = { ...step.approval, state: 'granted', grantedAt: row.ts, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
+		}
+		if (type === 'approval-expired') {
+			step.approval = { ...step.approval, state: 'expired', expiredAt: row.payload.expiredAt, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
+			step.failure = { class: 'approval-expired', message: 'the approval deadline passed without a human decision (fail-closed: never auto-granted)', retryPlanned: false };
 		}
 		if (type === 'approval-denied') {
-			step.approval = { ...step.approval, state: 'denied', deniedAt: row.ts };
+			step.approval = { ...step.approval, state: 'denied', deniedAt: row.ts, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
 			step.failure = { class: 'approval-denied', message: 'approval denied by the human gate', retryPlanned: false };
 		}
 		if (type === 'takeover-requested') {
@@ -1083,7 +1137,7 @@ function applyRowToState(state, row) {
 		if (state.claims[row.stepId] !== undefined) {
 			return `claim-acquired for step ${row.stepId} while ${state.claims[row.stepId].claimId} is active (claims are exclusive; release first)`;
 		}
-		state.claims[row.stepId] = { claimId: row.payload.claimId, holder: row.payload.holder, since: row.ts };
+		state.claims[row.stepId] = { claimId: row.payload.claimId, holder: row.payload.holder, since: row.ts, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
 		return undefined;
 	}
 	if (type === 'claim-released') {
@@ -1098,7 +1152,7 @@ function applyRowToState(state, row) {
 		if (state.leases[row.stepId] !== undefined) {
 			return `lease-acquired for step ${row.stepId} while ${state.leases[row.stepId].leaseId} is active (release or let it expire first)`;
 		}
-		state.leases[row.stepId] = { leaseId: row.payload.leaseId, holder: row.payload.holder, expiresAt: row.payload.expiresAt, acquiredAt: row.ts, renewals: 0 };
+		state.leases[row.stepId] = { leaseId: row.payload.leaseId, holder: row.payload.holder, expiresAt: row.payload.expiresAt, acquiredAt: row.ts, renewals: 0, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
 		state.leasesSeen[row.stepId] = (state.leasesSeen[row.stepId] ?? 0) + 1;
 		return undefined;
 	}

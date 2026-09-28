@@ -250,9 +250,9 @@ export class OrchestrationMediator {
 				return { graphId: submitted.graphId, taskId: submitted.taskId, stepIds: submitted.stepIds, rowId: submitted.rowId };
 			}
 			case 'flauz.orch.approveGraph':
-				return rowResult(store.approveGraph({ graphId: args.graphId, actor: args.actor, origin: args.origin, ...(args.note !== undefined ? { note: args.note } : {}) }));
+				return rowResult(await store.approveGraph({ graphId: args.graphId, actor: args.actor, origin: args.origin, ...(args.note !== undefined ? { note: args.note } : {}) }));
 			case 'flauz.orch.rejectGraph':
-				return rowResult(store.rejectGraph({ graphId: args.graphId, actor: args.actor, origin: args.origin, ...(args.note !== undefined ? { note: args.note } : {}) }));
+				return rowResult(await store.rejectGraph({ graphId: args.graphId, actor: args.actor, origin: args.origin, ...(args.note !== undefined ? { note: args.note } : {}) }));
 			case 'flauz.orch.cancelGraph': {
 				const cancelled = await store.cancelGraph({ graphId: args.graphId, reason: args.reason, actor: args.actor, origin: args.origin });
 				return { cancelledSteps: cancelled.cancelledSteps };
@@ -284,12 +284,13 @@ export class OrchestrationMediator {
 				return rowResult(row);
 			}
 			case 'flauz.orch.retryStep':
-				return rowResult(store.retryStep({ graphId: args.graphId, stepId: args.stepId, actor: args.actor, origin: args.origin }));
+				return rowResult(await store.retryStep({ graphId: args.graphId, stepId: args.stepId, actor: args.actor, origin: args.origin }));
 			case 'flauz.orch.requestApproval': {
 				const row = await store.approvalRequest({
 					graphId: args.graphId,
 					stepId: args.stepId,
 					reason: args.reason,
+					...(args.expiresAt !== undefined ? { expiresAt: args.expiresAt } : {}),
 					actor: args.actor,
 					origin: args.origin,
 				});
@@ -306,10 +307,21 @@ export class OrchestrationMediator {
 				});
 				return rowResult(row);
 			}
+			case 'flauz.orch.expireApproval': {
+				const row = await store.expireApproval({
+					graphId: args.graphId,
+					stepId: args.stepId,
+					expiredAt: args.expiredAt,
+					note: args.note,
+					actor: args.actor,
+					origin: args.origin,
+				});
+				return rowResult(row);
+			}
 			case 'flauz.orch.requestTakeover':
-				return rowResult(store.takeoverRequest({ graphId: args.graphId, stepId: args.stepId, reason: args.reason, actor: args.actor, origin: args.origin }));
+				return rowResult(await store.takeoverRequest({ graphId: args.graphId, stepId: args.stepId, reason: args.reason, actor: args.actor, origin: args.origin }));
 			case 'flauz.orch.acceptTakeover':
-				return rowResult(store.takeoverAccept({ graphId: args.graphId, stepId: args.stepId, note: args.note, actor: args.actor, origin: args.origin }));
+				return rowResult(await store.takeoverAccept({ graphId: args.graphId, stepId: args.stepId, note: args.note, actor: args.actor, origin: args.origin }));
 			case 'flauz.orch.completeTakeover': {
 				const row = await store.takeoverComplete({
 					graphId: args.graphId,
@@ -347,7 +359,7 @@ export class OrchestrationMediator {
 					origin: args.origin,
 				}));
 			case 'flauz.orch.routeStep':
-				return rowResult(store.routeDecide({ graphId: args.graphId, stepId: args.stepId ?? null, targetAgent: args.targetAgent, reason: args.reason, details: args.details, actor: args.actor, origin: args.origin }));
+				return rowResult(await store.routeDecide({ graphId: args.graphId, stepId: args.stepId ?? null, targetAgent: args.targetAgent, reason: args.reason, details: args.details, actor: args.actor, origin: args.origin }));
 			case 'flauz.orch.recoveryScan':
 				return recoveryScan(store, {
 					record: args.record !== false,

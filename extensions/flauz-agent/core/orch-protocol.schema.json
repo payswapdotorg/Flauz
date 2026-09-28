@@ -2,7 +2,7 @@
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"$id": "flauz.orch.protocol/v1",
 	"title": "Flauz orchestration service protocol contract (flauz.orch/v1)",
-	"description": "The message shapes between the extension layer and the Flauz orchestration service (TL2-001 M4). This schema is the versioned JSON contract document; core/orchProtocol.mjs is the typed executable mirror (validators + registry) and the conformance suite pins the two bidirectionally (method/event/failure enums and the per-method required/optional key lists must agree exactly). The protocol rides the TL1-003 service seam (flauz.seam/v1) for transport: hello/ready handshake, {id, cmd, args} request framing, structured flauz.err.* error envelopes and {type: event, event, payload, ts} wire events - never duplicated here. Approval expiry (flauz.orch.expireApproval / orch-approval-expired) arrives with the TL2-004 closure as additive v1 growth.",
+	"description": "The message shapes between the extension layer and the Flauz orchestration service (TL2-001 M4). This schema is the versioned JSON contract document; core/orchProtocol.mjs is the typed executable mirror (validators + registry) and the conformance suite pins the two bidirectionally (method/event/failure enums and the per-method required/optional key lists must agree exactly). The protocol rides the TL1-003 service seam (flauz.seam/v1) for transport: hello/ready handshake, {id, cmd, args} request framing, structured flauz.err.* error envelopes and {type: event, event, payload, ts} wire events - never duplicated here. The approval-expiry surface (flauz.orch.expireApproval / orch-approval-expired) landed with the TL2-004 closure as additive v1 growth.",
 	"definitions": {
 		"orchProtocolVersion": {
 			"type": "string",
@@ -25,6 +25,7 @@
 				"flauz.orch.retryStep",
 				"flauz.orch.requestApproval",
 				"flauz.orch.decideApproval",
+				"flauz.orch.expireApproval",
 				"flauz.orch.requestTakeover",
 				"flauz.orch.acceptTakeover",
 				"flauz.orch.completeTakeover",
@@ -44,6 +45,7 @@
 				"orch-journal-row",
 				"orch-approval-requested",
 				"orch-approval-decided",
+				"orch-approval-expired",
 				"orch-takeover-requested",
 				"orch-takeover-accepted",
 				"orch-takeover-completed",
@@ -927,6 +929,49 @@
 						"type": "boolean"
 					}
 				}
+			},
+			"flauz.orch.expireApproval": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"expiredAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"note": {
+						"type": "string"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
 			}
 		},
 		"events": {
@@ -1335,6 +1380,29 @@
 					"graphId": {
 						"type": "string",
 						"pattern": "^G-\\d{3,}$"
+					}
+				}
+			},
+			"orch-approval-expired": {
+				"type": "object",
+				"required": [
+					"expiredAt",
+					"graphId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"expiredAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
 					}
 				}
 			}
@@ -1777,6 +1845,23 @@
 							"object",
 							"null"
 						]
+					}
+				}
+			},
+			"flauz.orch.expireApproval": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
 					}
 				}
 			}
