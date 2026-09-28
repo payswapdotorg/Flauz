@@ -1,7 +1,7 @@
 {
 	"name": "flauz-environments",
 	"displayName": "Flauz Environments",
-	"description": "Flauz environment registry: typed env descriptors (.flauz/environments.json), provider adapters for SSH/container/cloud-sandbox/workspace-remote, connection-plan generation, and the env-switch session-continuity model (Wave 4 Lane J).",
+	"description": "Flauz environment registry: typed env descriptors (.flauz/environments.json), provider adapters for SSH/container/cloud-sandbox/workspace-remote, connection-plan generation, the env-switch session-continuity model, and the lifecycle behind executors (real local harness, real ssh/docker/cloud providers, simulated drills behind an opt-in).",
 	"version": "0.1.0",
 	"publisher": "flauz",
 	"license": "MIT",
@@ -31,7 +31,11 @@
 		"onCommand:flauz.env.destroy",
 		"onCommand:flauz.env.status",
 		"onCommand:flauz.focusView.environments",
-		"onCommand:flauz.env.refreshView"
+		"onCommand:flauz.env.refreshView",
+		"onCommand:flauz.continuity.status",
+		"onCommand:flauz.continuity.verify",
+		"onCommand:flauz.continuity.restore",
+		"onCommand:flauz.continuity.export"
 	],
 	"main": "./dist/extension.js",
 	"enabledApiProposals": [],
@@ -96,7 +100,7 @@
 				"command": "flauz.env.start",
 				"title": "Start Environment",
 				"category": "Flauz",
-				"description": "Start a created environment (real local harness for workspace-remote; simulated for remote kinds only with the simulated opt-in)."
+				"description": "Start a created environment (real executors: local harness for workspace-remote, system ssh for ssh-local, system docker for container, cloud HTTP adapter for cloud-sandbox; simulated drills only with the simulated opt-in)."
 			},
 			{
 				"command": "flauz.env.stop",
@@ -144,6 +148,30 @@
 				"title": "Refresh Environments View",
 				"category": "Flauz",
 				"icon": "$(refresh)"
+			},
+			{
+				"command": "flauz.continuity.status",
+				"title": "Show Continuity Status",
+				"category": "Flauz",
+				"description": "List continuity bundles and the recorded continuity operations (read-only)."
+			},
+			{
+				"command": "flauz.continuity.verify",
+				"title": "Verify Continuity Bundle",
+				"category": "Flauz",
+				"description": "Verify a continuity bundle's integrity (manifest hashes re-checked against the bundle artifacts, typed per-surface verdicts)."
+			},
+			{
+				"command": "flauz.continuity.restore",
+				"title": "Restore Continuity Bundle",
+				"category": "Flauz",
+				"description": "Restore workspace state from a continuity bundle (destructive-class: requires force to overwrite non-empty state; fail-closed for untrusted target environments)."
+			},
+			{
+				"command": "flauz.continuity.export",
+				"title": "Export Continuity Bundle",
+				"category": "Flauz",
+				"description": "Export the workspace logical state as a content-addressed continuity bundle under .flauz/continuity-bundles (secret-shaped surfaces are redacted by law, never copied)."
 			}
 		],
 		"menus": {
@@ -161,7 +189,12 @@
 				"flauz.environments.simulated": {
 					"type": "boolean",
 					"default": false,
-					"description": "Drive the simulated (TEST INFRASTRUCTURE) executors for the remote kinds by default. Real remote providers land in TL3-004; this lane makes no real remote connections. Per-command { simulated: true } arguments override this setting."
+					"description": "Drive the simulated (TEST INFRASTRUCTURE) executors for the remote kinds by default. The REAL remote executors (ssh-cli, docker-cli, cloud-http) are the default and fail closed with typed errors when the binary/daemon/keys are absent. Per-command { simulated: true } arguments override this setting."
+				},
+				"flauz.environments.cloudApiBaseUrl": {
+					"type": "string",
+					"default": "",
+					"description": "Base URL of the cloud-sandbox API (the Flauz cloud-sandbox wire contract v0). Empty (default) keeps the cloud-http executor fail-closed: cloud lifecycle ops return the typed CLOUD_UNREACHABLE error instead of fabricating an endpoint. The apiKeyRef still resolves only through the vault-reference port (env:<NAME> or vault:<NAME>); literal keys are rejected at the descriptor schema level."
 				}
 			}
 		}

@@ -1,0 +1,44 @@
+{
+	"auditReportVersion": 2,
+	"vulnerabilities": {
+		"flauz-dep-a": {
+			"name": "flauz-dep-a",
+			"severity": "high",
+			"isDirect": true,
+			"via": [
+				{
+					"title": "Synthetic fixture advisory: crafted input handling in flauz-dep-a",
+					"url": "https://github.com/advisories/GHSA-aaaa-bbbb-cccc",
+					"severity": "high",
+					"cwe": ["CWE-79"],
+					"cvss": {
+						"score": 7.5,
+						"vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+					}
+				}
+			],
+			"effects": [],
+			"range": ">=1.0.0 <1.5.0",
+			"nodes": ["node_modules/flauz-dep-a"],
+			"fixAvailable": {
+				"isSemVerMajor": false,
+				"name": "flauz-dep-a",
+				"version": "1.5.0"
+			}
+		}
+	},
+	"metadata": {
+		"vulnerabilities": {
+			"info": 0,
+			"low": 0,
+			"moderate": 0,
+			"high": 1,
+			"critical": 0
+		},
+		"dependencies": {
+			"prod": 4,
+			"dev": 2
+		},
+		"totalDependencies": 6
+	}
+}

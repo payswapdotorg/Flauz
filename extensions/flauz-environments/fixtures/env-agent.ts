@@ -128,6 +128,17 @@ const baseState = (): EnvState => ({
 });
 
 writeState(args.stateDir, baseState());
+
+// 2026-09-27 station fix (merge-wave): arm the signal handlers BEFORE the
+// ready line. The executor resolves `start` on ready — and the
+// SIGKILL-escalation drill immediately stops — so a SIGTERM arriving
+// before these registrations killed the --ignore-termination harness with
+// its DEFAULT disposition (observed under CPU load: forcedSignal 'SIGTERM'
+// instead of 'SIGKILL' — a load-sensitive race, not a logic bug). Ready
+// now implies handlers armed; the protocol itself is unchanged.
+process.on('SIGTERM', () => { if (!args.ignoreTermination) { shutdown('SIGTERM'); } });
+process.on('SIGINT', () => { if (!args.ignoreTermination) { shutdown('SIGINT'); } });
+
 emit({ type: 'ready', pid: process.pid });
 
 const heartbeat = setInterval(() => {
@@ -143,7 +154,12 @@ function shutdown(signal: string): void {
 		return;
 	}
 	shuttingDown = true;
-	clearInterval(heartbeat);
+	try {
+		clearInterval(heartbeat);
+	} catch {
+		// a signal raced the interval setup (handlers arm before ready) —
+		// nothing to clear; the process is exiting anyway
+	}
 	const final: EnvState = { ...baseState(), status: 'stopped', stoppedAt: Date.now() };
 	try {
 		writeState(args.stateDir, final);
@@ -154,9 +170,6 @@ function shutdown(signal: string): void {
 	emit({ type: 'stopped', pid: process.pid, signal });
 	process.exit(0);
 }
-
-process.on('SIGTERM', () => { if (!args.ignoreTermination) { shutdown('SIGTERM'); } });
-process.on('SIGINT', () => { if (!args.ignoreTermination) { shutdown('SIGINT'); } });
 
 // stdin protocol: ping -> pong (line-delimited JSON); stdin close -> exit
 process.stdin.setEncoding('utf-8');

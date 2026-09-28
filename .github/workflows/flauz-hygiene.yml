@@ -22,7 +22,10 @@ name: Flauz Hygiene
 
 on:
   push:
-    branches: [flauz/main]
+    # 2026-09-27 (TL1-004): `main` added — the program reset made main the
+    # product line; pushes to main previously bypassed this gate entirely
+    # (flauz/main is now only the compatibility alias).
+    branches: [flauz/main, main]
     paths:
       - 'extensions/flauz-*/**'
       - 'build/flauz/**'
@@ -66,11 +69,19 @@ jobs:
           # for a single commit; the guard fetches what it needs below)
           fetch-depth: 0
 
-      - name: Fetch pristine base (main = upstream mirror, DL-12)
-        run: git fetch --no-tags origin main:refs/remotes/origin/main
+      - name: Fetch pristine base (upstream/main = preserved Code OSS reference, DL-12)
+        # 2026-09-27 (TL1-004): the guard's pristine base is upstream/main, not
+        # origin/main — origin/main is the PRODUCT branch since the program
+        # reset, so fetching it here made the guard compare product-vs-product
+        # (only the push/PR delta, never the accumulated upstream divergence).
+        # Fetch pattern mirrors the upstream-sync job's own fetch below.
+        run: git fetch --no-tags origin upstream/main:refs/remotes/origin/upstream/main
 
       - name: FORK-CRITICAL guard (DL-12/DL-10 — src/vs must stay pristine)
-        run: sh build/flauz/scripts/fork-critical-guard.sh --base origin/main --head HEAD
+        # 2026-09-27 (TL1-004): base = origin/upstream/main — the guard now
+        # checks the product line's full accumulated divergence vs the Code
+        # OSS reference line, not just the push/PR delta.
+        run: sh build/flauz/scripts/fork-critical-guard.sh --base origin/upstream/main --head HEAD
 
       - name: Activation lint (PERF §2.1/§2.2 — extensions/flauz-* manifests)
         run: node build/flauz/scripts/activation-lint.mjs --root .

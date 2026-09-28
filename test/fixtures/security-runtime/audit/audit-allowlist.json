@@ -1,0 +1,10 @@
+{
+	"$schema": "flauz.audit-allowlist/v0",
+	"allow": [
+		{
+			"advisory": "GHSA-gggg-hhhh-iiii",
+			"package": "flauz-devtool-c",
+			"reason": "fixture proof: a reviewed, adjudicated exception suppresses one advisory for one package while the row still reports it (synthetic advisory id, synthetic package name)"
+		}
+	]
+}

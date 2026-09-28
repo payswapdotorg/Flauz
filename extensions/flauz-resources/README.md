@@ -1,4 +1,4 @@
-# Flauz Resources (TL3-005, Worker C)
+# Flauz Resources (TL3-005, Worker C + TL3-006)
 
 The Flauz **logical resource graph**: files, tasks, agent sessions, browser
 sessions, environments, artifacts, evidence, models, providers and workflows
@@ -56,16 +56,25 @@ ACCESS.**
   and records the `restored-from` edge (origin = explicit `fromRefId` or
   the newest `snapshot-of` ancestor; no free-floating restorations).
   Continuity metadata NEVER carries credentials.
+- `src/journalBridge.ts` — TL3-006, the browser-session journal bridge:
+  the STRICT PIN-1 reader (own zero-dep parser over
+  `.flauz/browser-sessions.jsonl` — shape + enums + descriptor +
+  CANONICALITY; invalid lines become TYPED SKIPS with the bad line number
+  recorded, never a crash) and `BrowserSessionBridge.sync` — the
+  reconciliation that makes journaled browser sessions first-class
+  continuable resources (see the journal-bridge section below).
 - `src/extension.ts` — the thin vscode wiring: command-driven activation
   only (`onCommand:flauz.res.*`; activation-lint R3 keeps this extension
   off `onStartupFinished`). The `FileSystemPort` binds `vscode.workspace.fs`
   (readFile/writeFile/createDirectory/rename; appendFile as
   read-concat-write) — fully mock-testable.
 - `test/` — `node --test` suites (api / graph / continuity / provenance /
-  contract / extension). Zero dependencies; Node >= 23.6 (type stripping).
-  The repo fixture matrix lives at `test/fixtures/resources/` (repo root);
-  secret-shaped bad cases are assembled from fragments at RUNTIME (never a
-  complete secret shape in source).
+  contract / extension / **browserSessions**). Zero dependencies; Node >=
+  23.6 (type stripping). The repo fixture matrix lives at
+  `test/fixtures/resources/` (repo root); the journal bridge is pinned by
+  the EXISTING repo-root fixtures at `test/fixtures/browser-session-journal/`
+  (consumed READ-ONLY); secret-shaped bad cases are assembled from
+  fragments at RUNTIME (never a complete secret shape in source).
 
 ## Persistence
 
@@ -76,6 +85,42 @@ ACCESS.**
   canonical-JSON line per mutation.
 - `.flauz/environments.json` — READ ONLY (the flauz-environments registry
   contract file; probed by the continuity service, never written here).
+- `.flauz/browser-sessions.jsonl` — READ ONLY (the flauz-browser PIN-1
+  session journal; consumed by the journal bridge, never written here).
+
+## The browser-session journal bridge (TL3-006)
+
+`src/journalBridge.ts` is the READ-ONLY consumer the PIN-1 contract was
+built for: it turns journaled browser sessions into first-class continuable
+resources of the graph.
+
+- **Strict reader, own parser, zero-dep** — every journal line is validated
+  against the pinned PIN-1 contract (shape + actor/event enums + descriptor
+  snapshot + CANONICALITY: the bytes must equal the canonical JSON of the
+  record). An invalid line becomes a TYPED SKIP `{line, reason}` (the bad
+  line number recorded); valid records keep flowing — never a crash. Pinned
+  by the EXISTING repo-root fixtures at `test/fixtures/browser-session-journal/`
+  (valid + the three invalid samples — consumed READ-ONLY, never modified,
+  never imported flauz-browser code; the contract is duplicated as types per
+  the DL-32 sibling convention).
+- **ResourceRef minting** — kind reuse, no parallel vocabulary: refs are
+  kind `browser-session` with the id EXACTLY the journal's logical
+  `sessionId` (`flauz:browser:<16-hex>` — already the pinned
+  browser-session URN grammar). Identity NEVER derives from tab ids,
+  target ids or paths — the latest descriptor per session drives a
+  VERSIONED browser surface `{kind:'browser', partition, tabIds}` (prior
+  versions retained; identity survives surface change; an unchanged
+  surface is a no-op — syncs are idempotent).
+- **Graph edges ONLY from EXPLICIT attribution** — the v0 journal carries
+  NO environment or task attribution fields, so an unattributed sync mints
+  NO edges (never fabricated from an active-environment guess). A
+  provenance-carrying caller may assert attribution explicitly
+  (`bindEnvironmentRefId` -> `bound-to` session -> environment;
+  `bindTaskRefId` -> `depends-on` session -> task); the targets must exist
+  as graph refs (typed rejection otherwise — no dangling endpoints).
+- **Provenance records** — every mutation flows through `ResourceGraph`
+  (fail-closed provenance; each add-ref/add-surface/add-edge is recorded in
+  the existing `.flauz/resources-ops.jsonl` with the sync caller's actor).
 
 ## Commands
 
@@ -86,10 +131,17 @@ ACCESS.**
 - `flauz.res.verify` — schema + integrity verification (edge targets
   exist, no orphan surfaces, no secret-shaped values, provenance complete,
   ops digest chain intact).
+- `flauz.res.syncBrowserSessions` — reconcile browser-session refs from
+  the PIN-1 journal (READ-ONLY consumption; typed result; args
+  `{ actor?, bindEnvironmentRefId?, bindTaskRefId? }`).
 
-v0 exposes no mutation commands on the palette: every mutation requires
-fail-closed provenance and the Agent OS integration is the intended writer
-(see INTEGRATION-GAP.md).
+v0 exposes no UNATTRIBUTED mutation commands on the palette: every mutation
+requires fail-closed provenance and the Agent OS integration is the intended
+writer (see INTEGRATION-GAP.md). The TL3-006 journal-sync command is the
+documented exception — a bounded, provenance-recorded reconciliation whose
+actor defaults to `human` at the palette boundary exactly like the
+flauz-environments lifecycle commands (programmatic callers pass `actor`
+explicitly).
 
 ## Security posture
 

@@ -1,0 +1,143 @@
+{
+	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+	"bomFormat": "CycloneDX",
+	"specVersion": "1.5",
+	"serialNumber": "urn:uuid:3c277dac-14a1-5802-8871-e91e202e5e1a",
+	"version": 1,
+	"metadata": {
+		"tools": {
+			"components": [
+				{
+					"type": "application",
+					"name": "security-runtime-gate",
+					"version": "1.0.0"
+				}
+			]
+		},
+		"component": {
+			"type": "application",
+			"bom-ref": "pkg:generic/flauz@0.1.0",
+			"name": "Flauz",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-product-overlay"
+				},
+				{
+					"name": "flauz:base-product",
+					"value": "Code OSS (additive product line)"
+				}
+			]
+		}
+	},
+	"components": [
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-gamma@3.1.4",
+			"name": "flauz-gamma",
+			"version": "3.1.4",
+			"purl": "pkg:generic/flauz/flauz-gamma@3.1.4",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-gamma/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-omega@0.2.0",
+			"name": "flauz-omega",
+			"version": "0.2.0",
+			"purl": "pkg:generic/flauz/flauz-omega@0.2.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-omega/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "dep:flauz-dep-a",
+			"name": "flauz-dep-a",
+			"version": "^1.2.3",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-root-dependency-delta"
+				},
+				{
+					"name": "flauz:dependency-section",
+					"value": "dependencies"
+				},
+				{
+					"name": "flauz:declared-range",
+					"value": "^1.2.3"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "dep:flauz-dep-b",
+			"name": "flauz-dep-b",
+			"version": "2.0.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-root-dependency-delta"
+				},
+				{
+					"name": "flauz:dependency-section",
+					"value": "dependencies"
+				},
+				{
+					"name": "flauz:declared-range",
+					"value": "2.0.0"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "dep:flauz-devtool-c",
+			"name": "flauz-devtool-c",
+			"version": "^0.9.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-root-dependency-delta"
+				},
+				{
+					"name": "flauz:dependency-section",
+					"value": "devDependencies"
+				},
+				{
+					"name": "flauz:declared-range",
+					"value": "^0.9.0"
+				}
+			]
+		}
+	],
+	"dependencies": [
+		{
+			"ref": "pkg:generic/flauz@0.1.0",
+			"dependsOn": [
+				"pkg:generic/flauz/flauz-gamma@3.1.4",
+				"pkg:generic/flauz/flauz-omega@0.2.0",
+				"dep:flauz-dep-a",
+				"dep:flauz-dep-b",
+				"dep:flauz-devtool-c"
+			]
+		}
+	]
+}
