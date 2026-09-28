@@ -34,6 +34,7 @@
 import { createHash } from 'node:crypto';
 import { planRetry, classifyFailure } from './policy.mjs';
 import { summarizeState } from './orchestration.mjs';
+import { runProviderCallWithBoundedRetry } from './providerRetry.mjs';
 
 function sha256Hex(value) {
 	return createHash('sha256').update(String(value), 'utf-8').digest('hex');
@@ -41,9 +42,13 @@ function sha256Hex(value) {
 
 /**
  * The effect port. run(key, spec) -> {ok: true, value, replayed} |
- * {ok: false, failureClass, message, replayed}. MUST be idempotent per key.
+ * {ok: false, failureClass, message, replayed, providerError?}. MUST be
+ * idempotent per key. A failed effect MAY carry `providerError:
+ * { code, retryClass, retryAfterMs? }` - the DL-35 typed provider error the
+ * call failed with - which the bounded provider-retry executor consumes
+ * (core/providerRetry.mjs, the TL2-F2 INV-2 contract).
  */
-export const EFFECT_SINK_SHAPE = 'run(idempotencyKey, spec) -> {ok, value|failureClass+message, replayed}';
+export const EFFECT_SINK_SHAPE = 'run(idempotencyKey, spec) -> {ok, value|failureClass+message, replayed, providerError?}';
 
 function isPositiveInteger(value) {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
@@ -69,10 +74,25 @@ function isPositiveInteger(value) {
  *     appends a transition into the cancelled target gets the store's TYPED
  *     stale-run/cancelled-observed outcome (code 'stale-run-cancelled'), not
  *     the generic state-machine crash (see orchStore.assertNotStaleRun).
+ * 
+ * The provider call each step issues through the sink runs under the
+ * automatic BOUNDED, RECORDED provider-retry contract (TL2-F2):
+ * a DL-35 retryable typed provider error (`providerError` on the failed
+ * effect) is retried up to `input.providerRetry.maxAttempts` total attempts
+ * (default 3; the routing-policy state family additive field), honoring
+ * `retryAfterMs` capped at 30s (or immediately when absent - the wait
+ * applied is recorded), every attempt journaled as a `provider-retry` row
+ * (actor, ordinal, typed outcome, wait; hash-chained), and exhaustion is a
+ * TERMINAL typed failure (retryPlanned pinned false - the honest path, no
+ * silent success). `input.wait` is the injectable wait port harnesses
+ * control for determinism. Terminal-class and untyped failures keep the
+ * existing single-shot behavior byte-identically.
  *
  * @param {import('./orchStore.mjs').OrchestrationStore} store
  * @param {{ graphId: string, sink: object, runnerId?: string, actor?: string,
- *           origin?: string, now?: number, logger?: (message: string) => void }} input
+ *           origin?: string, now?: number, logger?: (message: string) => void,
+ *           providerRetry?: { maxAttempts?: number } | null,
+ *           wait?: (ms: number) => Promise<void> }} input
  */
 export async function driveGraph(store, input) {
 	const sink = input.sink;
@@ -177,15 +197,25 @@ export async function driveGraph(store, input) {
 		if (candidate !== undefined) {
 			const spec = graph.steps.find((step) => step.stepId === candidate);
 			const start = await store.startStep({ graphId: input.graphId, stepId: candidate, runnerId, actor, origin });
-			const effect = await sink.run(start.idempotencyKey, {
+			const retried = await runProviderCallWithBoundedRetry(store, sink, {
 				graphId: input.graphId,
 				stepId: candidate,
-				attempt: start.attempt,
-				tool: spec.tool ?? null,
-				toolInput: spec.toolInput ?? null,
-				instruction: spec.instruction,
+				start,
+				spec: {
+					graphId: input.graphId,
+					stepId: candidate,
+					attempt: start.attempt,
+					tool: spec.tool ?? null,
+					toolInput: spec.toolInput ?? null,
+					instruction: spec.instruction,
+				},
+				actor,
+				origin,
+				providerRetry: input.providerRetry,
+				wait: input.wait,
 			});
-			started.push({ stepId: candidate, attempt: start.attempt, idempotencyKey: start.idempotencyKey, replayed: effect.replayed === true });
+			const effect = retried.effect;
+			started.push({ stepId: candidate, attempt: start.attempt, idempotencyKey: start.idempotencyKey, replayed: effect.replayed === true, providerAttempts: retried.providerAttempts, providerExhausted: retried.exhausted });
 			// Level 2: the in-flight abort checkpoint - the state is re-read
 			// after the effect and before the step transition is recorded. A
 			// step/graph cancelled mid-flight is NEVER completed (no fake
@@ -223,6 +253,10 @@ export async function driveGraph(store, input) {
 					error: { failureClass: effect.failureClass, message: effect.message },
 					failureClass: effect.failureClass,
 					message: effect.message,
+					// exhaustion is TERMINAL: the bounded window consumed the
+					// retry budget - the automatic step-retry loop stays
+					// silent and an explicit caller retry opens a fresh window.
+					...(retried.exhausted ? { retryPlanned: false } : {}),
 				});
 			}
 			progress = true;
