@@ -43,6 +43,7 @@ import { OrchestrationStore } from '../core/orchStore.mjs';
 import { WorkspaceSeam } from '../core/service.mjs';
 import { recoveryScan } from '../core/recovery.mjs';
 import { contentHashOf, OrchestrationError } from '../core/orchestration.mjs';
+import { validateLedgerRows } from '../core/contracts.mjs';
 import { A2ABus } from '../core/a2a.mjs';
 import {
 	LeaseConflictError,
@@ -72,7 +73,13 @@ interface ConflictRow {
 	stepId: string | null;
 	actor: string;
 	origin: string;
+	ts: number;
 	payload: { violation: string; expectedHolder: string; actualRunner: string; evidenceId?: string; note?: string };
+}
+
+/** The flauz.tasks/v0 ledger chain verifies (the seam's own law, applied to the wired root). */
+function seamLedgerVerifies(root: string): boolean {
+	return validateLedgerRows(new WorkspaceSeam(root).ledgerLines).ok;
 }
 
 function makeRoot(prefix: string): string {
@@ -193,7 +200,7 @@ test('two concurrent claimants race through the flauz.a2a claim path: one acquir
 	}, 'the typed facts: the current holder, the lease id, the deadline');
 
 	// BOTH attempts are journaled with attribution: the winner's acquisition + the loser's refusal
-	const conflicts = store.journalRows.filter((row) => row.type === 'conflict-noticed') as ConflictRow[];
+	const conflicts = store.journalRows.filter((row) => row.type === 'conflict-noticed') as unknown as ConflictRow[];
 	assert.equal(acquired.length, 1, 'exactly one lease-acquired row (never a silent double-execution)');
 	assert.equal((acquired[0].payload as { holder: string }).holder, 'flauz.agent.worker-1');
 	assert.equal(conflicts.length, 1, 'the loser\'s refusal is recorded history, not a dropped message');
@@ -217,7 +224,7 @@ test('two concurrent claimants race through the flauz.a2a claim path: one acquir
 
 	// both chains verify end-to-end: the orchestration journal + the evidence ledger
 	assert.equal(store.verifyJournal().ok, true, 'the hash-chained orchestration journal verifies');
-	assert.equal(new WorkspaceSeam(root).verifyLedger().ok, true, 'the flauz.tasks/v0 evidence ledger chain verifies');
+	assert.equal(seamLedgerVerifies(root), true, 'the flauz.tasks/v0 evidence ledger chain verifies');
 
 	// the winner's acquire notice landed on the on-disk bus (the watcher mirror)
 	const journal = readFileSync(join(root, '.flauz', 'a2a', 'messages.jsonl'), 'utf-8').split('\n').filter((line: string) => line.length > 0).map((line: string) => JSON.parse(line) as { id: string; kind: string; from: string; to: string; payload: { action: string; resource: string; leaseUntil: number } });
@@ -253,7 +260,7 @@ test('the a2a bus claim path itself enforces: a raw second acquire receives the 
 		return true;
 	}, 'the raw bus claim path refuses a live foreign acquire with the typed conflict');
 	// the refused notice never landed (the journal carries exactly the first acquire)
-	assert.equal(bus.activeClaimOf('flauz-orch/G-001/S-01').leaseId, 'M-000001');
+	assert.equal(bus.activeClaimOf('flauz-orch/G-001/S-01')?.leaseId, 'M-000001');
 });
 
 // ---------------------------------------------------------------------------
@@ -330,7 +337,7 @@ test('the same holder re-claiming reuses the active lease (DL-72): no self-confl
 	bus2.post({ message: { kind: 'resource-claim', from: 'agent-a', to: 'flauz.watchers', ts: 1_700_000_000_000, payload: { action: 'acquire', resource: 'r-1', leaseUntil: 1_700_000_060_000 } } });
 	const renotified = bus2.post({ message: { kind: 'resource-claim', from: 'agent-a', to: 'flauz.watchers', ts: 1_700_000_010_000, payload: { action: 'acquire', resource: 'r-1', leaseUntil: 1_700_000_080_000 } } });
 	assert.equal(renotified.id, 'M-000002', 'the same claimant re-acquires without a conflict');
-	assert.equal(bus2.activeClaimOf('r-1').deadline, 1_700_000_080_000);
+	assert.equal(bus2.activeClaimOf('r-1')?.deadline, 1_700_000_080_000);
 });
 
 // ---------------------------------------------------------------------------
@@ -348,6 +355,7 @@ test('a deadline-less claim holds and conflicts until the explicit release', asy
 	await assert.rejects(() => store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-b', actor: 'agent', origin: 'a2a:agent-b' }), (error: unknown) => {
 		assert.ok(isLeaseConflictError(error));
 		const facts = leaseConflictFacts(error);
+		assert.ok(facts !== null);
 		assert.equal(facts.violation, 'claim');
 		assert.equal(facts.leaseId, 'C-001-01');
 		assert.equal(facts.holder, 'agent-a');
@@ -356,7 +364,7 @@ test('a deadline-less claim holds and conflicts until the explicit release', asy
 		return true;
 	}, 'the deadline-less claim conflicts with every other claimant');
 	// the refusal is recorded history with its evidence row
-	const conflicts = store.journalRows.filter((row) => row.type === 'conflict-noticed') as ConflictRow[];
+	const conflicts = store.journalRows.filter((row) => row.type === 'conflict-noticed') as unknown as ConflictRow[];
 	assert.equal(conflicts.length, 1);
 	assert.equal(conflicts[0].payload.violation, 'claim');
 	assert.match(conflicts[0].payload.evidenceId ?? '', /^E-\d{6,}$/);
@@ -372,7 +380,7 @@ test('a deadline-less claim holds and conflicts until the explicit release', asy
 	const taken = await store.acquireClaim({ graphId, stepId: 'S-01', holder: 'agent-b', actor: 'agent', origin: 'a2a:agent-b' });
 	assert.equal((taken.payload as { claimId: string }).claimId, 'C-001-01', 'the exclusive per-step claim id is deterministic');
 	assert.equal(store.verifyJournal().ok, true);
-	assert.equal(new WorkspaceSeam(root).verifyLedger().ok, true);
+	assert.equal(seamLedgerVerifies(root), true);
 });
 
 // ---------------------------------------------------------------------------
@@ -386,11 +394,12 @@ test('a foreign release/expire of a LIVE lease is refused (no silent takeover th
 	// a foreign release of the LIVE lease is refused with the typed conflict
 	assert.throws(() => bus.post({ message: { kind: 'resource-claim', from: 'agent-b', to: 'flauz.watchers', ts: 1_700_000_010_000, payload: { action: 'release', resource: 'r-1', leaseUntil: null } } }), (error: unknown) => {
 		const facts = leaseConflictFacts(error);
+		assert.ok(facts !== null);
 		assert.equal(facts.holder, 'agent-a');
 		assert.equal(facts.deadline, 1_700_000_060_000);
 		return true;
 	}, 'only the active holder may clear a LIVE lease');
-	assert.equal(bus.activeClaimOf('r-1').holder, 'agent-a', 'the lease still holds');
+	assert.equal(bus.activeClaimOf('r-1')?.holder, 'agent-a', 'the lease still holds');
 	// the HOLDER's release clears it
 	bus.post({ message: { kind: 'resource-claim', from: 'agent-a', to: 'flauz.watchers', ts: 1_700_000_020_000, payload: { action: 'release', resource: 'r-1', leaseUntil: null } } });
 	assert.equal(bus.activeClaimOf('r-1'), undefined, 'the holder\'s release cleared the projection');
@@ -435,7 +444,7 @@ test('the approval gates stay fail-closed beside the conflict contract; the conf
 	assert.equal(reuse.status, 'reused');
 	assert.equal(reuse.leaseId, 'L-001-01-1');
 	assert.equal(reloaded.verifyJournal().ok, true, 'the journal chain verifies across the whole regression run');
-	assert.equal(new WorkspaceSeam(root).verifyLedger().ok, true, 'the evidence chain verifies across the whole regression run');
+	assert.equal(seamLedgerVerifies(root), true, 'the evidence chain verifies across the whole regression run');
 });
 
 // ---------------------------------------------------------------------------
@@ -449,7 +458,7 @@ test('claimStepLease validates its input fail-closed', async () => {
 	await assert.rejects(() => claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: '!not-an-agent', ttlMs: 1000, origin: 'test:tl2f3' }), /claimant must be an agent id/);
 	await assert.rejects(() => claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: 'agent-a', ttlMs: 0, origin: 'test:tl2f3' }), /ttlMs must be a positive integer/);
 	await assert.rejects(() => claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: 'agent-a', ttlMs: 1000, origin: '' }), /origin must be a non-empty provenance string/);
-	await assert.rejects(() => claimStepLease(store, null, { graphId, stepId: 'S-01', claimant: 'agent-a', ttlMs: 1000, origin: 'test:tl2f3' }), /requires an a2a bus port/);
+	await assert.rejects(() => claimStepLease(store, null as unknown as A2ABus, { graphId, stepId: 'S-01', claimant: 'agent-a', ttlMs: 1000, origin: 'test:tl2f3' }), /requires an a2a bus port/);
 	await assert.rejects(() => claimStepLease(store, bus, { graphId: 'G-999', stepId: 'S-01', claimant: 'agent-a', ttlMs: 1000, origin: 'test:tl2f3' }), /unknown graph/);
 });
 
@@ -476,11 +485,12 @@ test('concurrent conflicting claims serialize through the transition lock and ea
 	for (const row of store.journalRows.filter((candidate) => candidate.type === 'conflict-noticed')) {
 		const evidenceId = (row.payload as { evidenceId?: string }).evidenceId as string;
 		const ledgerRow = ledgerRowOfEvidenceId(ledger, evidenceId);
-		assert.equal(ledgerRow.uri, `flauz-orch-transition://${row.rowId}`, 'the rowId linkage held under concurrency (no shifted linkage)');
-		assert.equal(ledgerRow.sha256, contentHashOf(transitionFactsOf(row)));
+		assert.ok(ledgerRow !== undefined, `evidence row ${evidenceId} exists in the ledger`);
+		assert.equal(ledgerRow?.uri, `flauz-orch-transition://${row.rowId}`, 'the rowId linkage held under concurrency (no shifted linkage)');
+		assert.equal(ledgerRow?.sha256, contentHashOf(transitionFactsOf(row)));
 	}
 	assert.equal(store.verifyJournal().ok, true);
-	assert.equal(new WorkspaceSeam(root).verifyLedger().ok, true);
+	assert.equal(seamLedgerVerifies(root), true);
 });
 
 // ---------------------------------------------------------------------------

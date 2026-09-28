@@ -45,6 +45,8 @@ export interface LeaseConflictFacts {
  * takeover, no policy weakening.
  */
 export declare class LeaseConflictError extends OrchestrationError {
+	/** Constructs from the conflict facts (the typed fields ride the error). */
+	constructor(facts: LeaseConflictFacts);
 	/** The conflict identity (flauz.a2a.lease-conflict; distinct from the taxonomy domain code). */
 	conflictCode: 'flauz.a2a.lease-conflict';
 	resource: string;
@@ -82,6 +84,8 @@ export declare function evaluateLeaseClaim(input: {
 	claimant: string;
 	now: number;
 	resource: string;
+	/** The STORE posture (true): a lease is expired only when its expiry is RECORDED (DL-61) - a recorded-active lease conflicts regardless of the wall clock. The BUS posture (default): the notice's leaseUntil deadline IS the expiry observation. */
+	recordedExpiry?: boolean;
 }): LeaseClaimEvaluation;
 
 /** The bus resource id of a graph step (the routing-module convention, verbatim). */
