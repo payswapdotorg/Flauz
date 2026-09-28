@@ -105,8 +105,8 @@ async function rig(): Promise<FullRig> {
 				return (state.steps as Record<string, { status?: string }>)[stepId]?.status ?? 'unknown-step';
 			} catch { return 'unknown-graph'; }
 		},
-		acquireStepLease(input) {
-			const row = orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
+		async acquireStepLease(input) {
+			const row = await orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
 			return { leaseId: (row.payload as { leaseId: string }).leaseId, expiresAt: (row.payload as { expiresAt: number }).expiresAt };
 		},
 		activeStepLease(graphId, stepId) {
@@ -155,7 +155,7 @@ test('end to end: a durable step targets a browser session through the REAL TL3 
 		steps: [{ stepId: 'S-01', title: 'navigate', instruction: 'open a session and navigate to the docs', tool: 'flauz.exec.browser', toolInput: { action: 'open', url: 'https://docs.example.com', purpose: 'verify the docs page' } }],
 		actor: 'agent', origin: 'test:sink',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const state = r.orch.stateOf('G-001');
 	assert.equal((state.steps as Record<string, { status?: string }>)['S-01']?.status, 'succeeded', 'the step SUCCEEDED through the real runtime');
@@ -182,7 +182,7 @@ test('replay: re-driving the SAME step replays the settled effect (no duplicate 
 		steps: [{ stepId: 'S-01', title: 'navigate', instruction: 'open + navigate', tool: 'flauz.exec.browser', toolInput: { action: 'open', url: 'https://docs.example.com' } }],
 		actor: 'agent', origin: 'test:sink',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const rowsAfterFirst = r.journal.rowsAll().length;
 	const browserSessionsAfterFirst = r.journal.acquisitions().size;
@@ -203,7 +203,7 @@ test('a denied step fails the graph TERMINALLY (policy-violation is not retried)
 		steps: [{ stepId: 'S-01', title: 'navigate', instruction: 'navigate to a denied host', tool: 'flauz.exec.browser', toolInput: { action: 'open', url: 'https://evil.example.net' } }],
 		actor: 'agent', origin: 'test:sink',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const state = r.orch.stateOf('G-001');
 	const step = (state.steps as Record<string, { status?: string; failure?: { class?: string } }>)['S-01'];
@@ -228,7 +228,7 @@ test('an environment step: create + attach through the REAL lifecycle manager (l
 		],
 		actor: 'agent', origin: 'test:sink',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:sink' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const state = r.orch.stateOf('G-001');
 	const steps = state.steps as Record<string, { status?: string }>;

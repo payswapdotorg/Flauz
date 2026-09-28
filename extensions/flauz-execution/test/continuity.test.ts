@@ -148,8 +148,8 @@ async function rig(options: { trust?: string } = {}): Promise<Rig> {
 		stepStatus(graphId, stepId) {
 			try { const state = orch.stateOf(graphId); return (state.steps as Record<string, { status?: string }>)[stepId]?.status ?? 'unknown-step'; } catch { return 'unknown-graph'; }
 		},
-		acquireStepLease(input) {
-			const row = orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
+		async acquireStepLease(input) {
+			const row = await orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
 			return { leaseId: (row.payload as { leaseId: string }).leaseId, expiresAt: (row.payload as { expiresAt: number }).expiresAt };
 		},
 		activeStepLease(graphId, stepId) {
@@ -210,7 +210,7 @@ test('cross-environment restoration: destroy + restore rebinds the LOST acquisit
 		],
 		actor: 'agent', origin: 'test:continuity',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:continuity' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:continuity' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const attached = [...r.journal.acquisitions().values()].find((a) => a.lease !== null);
 	assert.notEqual(attached, undefined, 'the attach acquisition exists');
@@ -299,7 +299,7 @@ test('browser session loss + reattach: the same logical session rebinds with a f
 		steps: [{ stepId: 'S-01', title: 'open', instruction: 'open a session', tool: 'flauz.exec.browser', toolInput: { action: 'open', url: 'https://docs.example.com' } }],
 		actor: 'agent', origin: 'test:continuity',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:continuity' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:continuity' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const acquisition = [...r.journal.acquisitions().values()][0];
 	assert.notEqual(acquisition, undefined);
@@ -342,7 +342,7 @@ test('browser reattach: a closed session is NOT rebound (typed error, honest sta
 		steps: [{ stepId: 'S-01', title: 'open', instruction: 'open', tool: 'flauz.exec.browser', toolInput: { action: 'open', url: 'https://docs.example.com' } }],
 		actor: 'agent', origin: 'test:continuity',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:continuity' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:continuity' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const acquisition = [...r.journal.acquisitions().values()][0];
 	if (acquisition === undefined) { return; }

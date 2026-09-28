@@ -132,8 +132,8 @@ async function rig(): Promise<Rig> {
 		stepStatus(graphId, stepId) {
 			try { const state = orch.stateOf(graphId); return (state.steps as Record<string, { status?: string }>)[stepId]?.status ?? 'unknown-step'; } catch { return 'unknown-graph'; }
 		},
-		acquireStepLease(input) {
-			const row = orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
+		async acquireStepLease(input) {
+			const row = await orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
 			return { leaseId: (row.payload as { leaseId: string }).leaseId, expiresAt: (row.payload as { expiresAt: number }).expiresAt };
 		},
 		activeStepLease(graphId, stepId) {
@@ -175,7 +175,7 @@ test('B1 tab dies mid-step: resource-lost -> RETRYABLE -> the next attempt re-ac
 		steps: [{ stepId: 'S-01', title: 'navigate', instruction: 'navigate', tool: 'flauz.exec.browser', toolInput: { ...BROWSER_OPEN }, retryPolicy: { maxAttempts: 3, backoff: { kind: 'fixed', baseMs: 1, maxMs: 1 }, retryOn: ['unavailable', 'transient', 'timeout'] } }],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
 	// Deterministic injection: wrap the sink - fail the first attempt as a
 	// mid-step tab death (the transport drop accompanies it).
 	let firstRun = true;
@@ -216,7 +216,7 @@ test('B2 provider health degrades (stale probe): executor-death -> RETRYABLE -> 
 		steps: [{ stepId: 'S-01', title: 'attach', instruction: 'attach', tool: 'flauz.exec.environment', toolInput: { resource: { resourceClass: 'environment', kind: 'environment', id: 'flauz:environment:env-staging' }, action: 'attach', leaseTtlMs: 60000 }, retryPolicy: { maxAttempts: 3, backoff: { kind: 'fixed', baseMs: 1, maxMs: 1 }, retryOn: ['dependency-failure', 'transient', 'timeout'] } }],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
 	// Degrade the provider health BEFORE the first attempt.
 	r.executor.probeOverride = { health: 'stale', state: 'running', pid: null, message: 'persisted state outruns the backing truth' };
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1', now: 1730000005000 });
@@ -246,7 +246,7 @@ test('B3 policy gate denies MID-FLIGHT: use-denied -> TERMINAL policy-violation,
 		steps: [{ stepId: 'S-01', title: 'navigate', instruction: 'navigate the acquired session to a denied host', tool: 'flauz.exec.browser', toolInput: { resource: { resourceClass: 'browser-session', kind: 'browser-session', id: sessionId }, action: 'navigate', url: 'https://denied.example.net' }, retryPolicy: { maxAttempts: 3, backoff: { kind: 'fixed', baseMs: 1, maxMs: 1 }, retryOn: ['transient', 'timeout', 'unavailable'] } }],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const state = r.orch.stateOf('G-001');
 	const step = (state.steps as Record<string, { status?: string; failure?: { class?: string }; nextAttempt?: unknown }>)['S-01'];
@@ -274,7 +274,7 @@ test('B4 rollback: graph cancelled mid-run -> coherent end state (persisted canc
 		],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
 	// Drive: S-01 runs + holds its acquisition; S-02 requests approval and stalls.
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	const after = r.orch.stateOf('G-001');
@@ -304,12 +304,12 @@ test('B5 restart recovery: crash between acquire and settle -> the SAME attempt 
 		steps: [{ stepId: 'S-01', title: 'navigate', instruction: 'navigate', tool: 'flauz.exec.browser', toolInput: { ...BROWSER_OPEN } }],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
 	// Crash simulation: the step STARTS + the acquisition lands, then the
 	// process dies before the settle row (a torn exec journal tail + an
 	// interrupted step in the orch journal).
 	const key = 'flauz-orch/G-001/S-01/run/1';
-	const start = r.orch.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test:battery' });
+	const start = await r.orch.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test:battery' });
 	assert.equal(start.idempotencyKey, key);
 	const acquisitionId = 'flauz:exec:0000000000000001';
 	r.journal.appendRow('resource-acquired', {
@@ -334,8 +334,8 @@ test('B5 restart recovery: crash between acquire and settle -> the SAME attempt 
 			stepStatus(graphId, stepId) {
 				try { const state = orch2.stateOf(graphId); return (state.steps as Record<string, { status?: string }>)[stepId]?.status ?? 'unknown-step'; } catch { return 'unknown-graph'; }
 			},
-			acquireStepLease(input) {
-				const row = orch2.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
+			async acquireStepLease(input) {
+				const row = await orch2.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
 				return { leaseId: (row.payload as { leaseId: string }).leaseId, expiresAt: (row.payload as { expiresAt: number }).expiresAt };
 			},
 			activeStepLease(graphId, stepId) {
@@ -377,8 +377,8 @@ test('B6 executor death mid-acquisition: typed executor-death, the denial is the
 		steps: [{ stepId: 'S-01', title: 'attach', instruction: 'attach', tool: 'flauz.exec.environment', toolInput: { resource: { resourceClass: 'environment', kind: 'environment', id: 'flauz:environment:env-staging' }, action: 'attach', leaseTtlMs: 60000 } }],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
-	r.orch.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test:battery' });
 	r.executor.failNext = { op: 'attach', code: 'EXECUTOR_DIED', message: 'provider process died mid-attach' };
 	const binding = { graphId: 'G-001', stepId: 'S-01', attempt: 1, idempotencyKey: 'flauz-orch/G-001/S-01/run/1', runnerId: 'worker-1', actor: 'agent' as const, origin: 'test:battery' };
 	const outcome = await r.runtime.manager.acquire({ resource: { resourceClass: 'environment', kind: 'environment', id: 'flauz:environment:env-staging' }, action: 'attach', leaseTtlMs: 60000 }, binding);
@@ -403,7 +403,7 @@ test('the completion sweep after a full run: no acquisition left held for termin
 		],
 		actor: 'agent', origin: 'test:battery',
 	});
-	r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
+	await r.orch.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:battery' });
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1' });
 	assert.ok(r.journal.heldAcquisitions().length >= 1, 'acquisitions are held while steps are terminal-pending sweep');
 	const sweep = await settleExecution(r.runtime.manager, r.journal, stepsPort(r.orch));

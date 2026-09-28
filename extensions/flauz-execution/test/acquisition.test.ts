@@ -83,8 +83,8 @@ function realGraph(root: string): { store: OrchestrationStore; port: GraphStateP
 				return 'unknown-graph';
 			}
 		},
-		acquireStepLease(input) {
-			const row = store.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
+		async acquireStepLease(input) {
+			const row = await store.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
 			const payload = row.payload as { leaseId: string; expiresAt: number };
 			return { leaseId: payload.leaseId, expiresAt: payload.expiresAt };
 		},
@@ -122,7 +122,7 @@ async function rig(options: { leaseTtlMs?: number } = {}): Promise<Rig> {
 		actor: 'agent',
 		origin: 'test:acquisition',
 	});
-	store.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:acquisition' });
+	await store.approveGraph({ graphId: 'G-001', actor: 'human', origin: 'test:acquisition' });
 	const opener = new MockOpener();
 	const manager = new ExecutionResourceManager({ journal, graph: port, opener, clock: journalClock(journal) });
 	return { root, cleanup, store, manager, journal, opener, clock: journalClock(journal) };
@@ -141,7 +141,7 @@ function binding(overrides: Partial<StepBinding> = {}): StepBinding {
 
 test('acquire: happy path journals resource-acquired + handoff with the step binding', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://docs.flauz.dev', purpose: 'verify docs' }, binding());
 	assert.ok(outcome.ok, outcome.ok ? '' : JSON.stringify(outcome.failure));
 	if (!outcome.ok) { return; }
@@ -173,7 +173,7 @@ test('acquire: the graph-state gate denies unless the step is RUNNING (fail-clos
 
 test('acquire: an invalid request is a typed invalid-request denial (no fabricated resource rows)', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'sideways' }, binding());
 	assert.ok(!outcome.ok);
 	if (outcome.ok) { return; }
@@ -187,7 +187,7 @@ test('acquire: an invalid request is a typed invalid-request denial (no fabricat
 
 test('acquire: a policy denial from the opener is journaled and maps terminal (fail-closed posture)', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	r.opener.failNext = { gate: 'browser-policy', message: 'driver allowlist denies evil.example.com', verdictDigest: 'a'.repeat(64) };
 	const outcome = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://evil.example.com' }, binding());
 	assert.ok(!outcome.ok);
@@ -205,7 +205,7 @@ test('acquire: a policy denial from the opener is journaled and maps terminal (f
 
 test('acquire: idempotent - the same key + acquired resource replays as the same acquisition (no new rows)', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const first = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://docs.flauz.dev' }, binding());
 	const rowsAfterFirst = r.journal.rowsAll().length;
 	const second = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://docs.flauz.dev' }, binding());
@@ -219,7 +219,7 @@ test('acquire: idempotent - the same key + acquired resource replays as the same
 
 test('acquire: a denial then a retry reuses the SAME acquisition id (the next attempt)', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	r.opener.failNext = { gate: 'browser-policy', message: 'deny once' };
 	const denied = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://x' }, binding());
 	assert.ok(!denied.ok);
@@ -234,7 +234,7 @@ test('acquire: a denial then a retry reuses the SAME acquisition id (the next at
 
 test('acquire with leaseTtlMs: the TASK-STEP LEASE is taken through the real orchestration journal', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...ENVIRONMENT_REF }, action: 'attach', leaseTtlMs: 30000 }, binding());
 	assert.ok(outcome.ok);
 	if (!outcome.ok) { return; }
@@ -249,7 +249,7 @@ test('acquire with leaseTtlMs: the TASK-STEP LEASE is taken through the real orc
 
 test('release: completion path; the acquisition ends released', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://docs.flauz.dev' }, binding());
 	assert.ok(outcome.ok);
 	if (!outcome.ok) { return; }
@@ -262,7 +262,7 @@ test('release: completion path; the acquisition ends released', async () => {
 
 test('release: revocation is a HUMAN act (releaseKind revocation, actor human)', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://docs.flauz.dev' }, binding());
 	if (!outcome.ok) { return; }
 	const released = await r.manager.release({ acquisitionId: outcome.acquisition.acquisitionId, releaseKind: 'revocation', actor: 'human', origin: 'exec:revoke' });
@@ -277,7 +277,7 @@ test('release: unknown acquisition and terminal states are typed errors, never s
 	const r = await rig();
 	const unknown = await r.manager.release({ acquisitionId: 'flauz:exec:00000000000000ff', releaseKind: 'completion', actor: 'service', origin: 't' });
 	assert.ok(!unknown.ok);
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://x' }, binding());
 	if (!outcome.ok) { return; }
 	await r.manager.release({ acquisitionId: outcome.acquisition.acquisitionId, releaseKind: 'completion', actor: 'service', origin: 't' });
@@ -289,7 +289,7 @@ test('release: unknown acquisition and terminal states are typed errors, never s
 
 test('expiry sweep: the SERVICE actor expires lease-bound acquisitions; a fresh acquire needs a fresh id', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	const outcome = await r.manager.acquire({ resource: { ...ENVIRONMENT_REF }, action: 'attach', leaseTtlMs: 1000 }, binding());
 	if (!outcome.ok) { return; }
 	const sweep = r.manager.sweepExpirations(1730000100000);
@@ -307,7 +307,7 @@ test('expiry sweep: the SERVICE actor expires lease-bound acquisitions; a fresh 
 
 test('rollback: every held acquisition of the graph is released + the coherence record', async () => {
 	const r = await rig();
-	r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
+	await r.store.startStep({ graphId: 'G-001', stepId: 'S-01', runnerId: 'worker-1', actor: 'agent', origin: 'test' });
 	await r.manager.acquire({ resource: { ...BROWSER_REF }, action: 'navigate', url: 'https://a' }, binding());
 	r.opener.surface = { ...ENVIRONMENT_SURFACE };
 	await r.manager.acquire({ resource: { ...ENVIRONMENT_REF }, action: 'attach' }, binding({ idempotencyKey: 'flauz-orch/G-001/S-01/run/2', attempt: 2 }));

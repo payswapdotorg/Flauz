@@ -57,7 +57,7 @@ export interface GraphStatePort {
 	/** The effective status of a step ('unknown-graph'/'unknown-step' when absent). */
 	stepStatus(graphId: string, stepId: string): string;
 	/** Takes a task-step lease through the orchestration journal (L-NNN-NN-N). */
-	acquireStepLease(input: { graphId: string; stepId: string; holder: string; ttlMs: number }): { leaseId: string; expiresAt: number };
+	acquireStepLease(input: { graphId: string; stepId: string; holder: string; ttlMs: number }): Promise<{ leaseId: string; expiresAt: number }> | { leaseId: string; expiresAt: number };
 	/** The ACTIVE step lease, when one exists (the orch law: one active lease per step - retries REUSE it). */
 	activeStepLease(graphId: string, stepId: string): { leaseId: string; expiresAt: number; holder: string } | null;
 }
@@ -196,7 +196,7 @@ export class ExecutionResourceManager {
 			if (active !== null && active.holder === binding.runnerId) {
 				lease = { leaseId: active.leaseId, holder: active.holder, expiresAt: active.expiresAt };
 			} else {
-				const acquired = this.graph.acquireStepLease({ graphId: binding.graphId, stepId: binding.stepId, holder: binding.runnerId, ttlMs: verdict.request.leaseTtlMs });
+				const acquired = await this.graph.acquireStepLease({ graphId: binding.graphId, stepId: binding.stepId, holder: binding.runnerId, ttlMs: verdict.request.leaseTtlMs });
 				lease = { leaseId: acquired.leaseId, holder: binding.runnerId, expiresAt: acquired.expiresAt };
 			}
 		}
