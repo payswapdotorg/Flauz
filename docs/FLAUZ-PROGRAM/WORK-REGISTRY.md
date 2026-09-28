@@ -130,11 +130,23 @@ TL2 Worker A2 proposals (PR #26, TL2 ratifies):
 
 ### TL2-S1 — TL1 service-integration secondment
 Owner: TL2 / helper from TL1 Worker C
+Status: DONE (PR #26 2026-09-28 — see the landing record above)
 Scope: integrate durable Agent OS execution with the versioned TL1-003 service seam; protocol conformance, additive adapter layer, service lifecycle/auth/event usage.
 Acceptance: no duplicated transport/versioning logic; protocol conformance stays green; no fork-critical changes.
 
+TL2-S2 landing record (2026-09-28, TL2, PR #28 04fa8f9556): the additive extensions/flauz-execution/ module (38 files +27665; zero TL3-owned file edits; integration awaits per DL-60). Receipts: execution 99/99 + 577/577 across all extensions on the merged state. Decision log (TL2 ratifies, continuing from DL-67):
+
+- DL-68 ADOPT flauz.execution-journal/v0 as the durable execution-resource journal contract (additive sibling to flauz.orch.journal/v1; 15-field hash-chained rows; acquisition-level vs aggregate event levels; the acquisition transition law).
+- DL-69 ADOPT the execution-failure taxonomy mapping law (acquire/use-denied -> terminal policy-violation; resource-lost -> unavailable; executor-death -> dependency-failure; acquire-timeout -> timeout) as the bridge between execution adapters and the orchestration retry policy.
+- DL-70 ADOPT the structural-port discipline (ResourceOpenerPort / GraphStatePort / BrowserSessionManagerPort / EnvironmentLifecyclePort / ResourceGraphPort / ContinuityPort) as the sanctioned TL2-side integration pattern with TL3 extensions.
+- DL-71 ADOPT the actor-vocabulary law (service-driven sweeps attribute as 'tool' in TL3 actor vocabularies; the journal origin carries the precise source).
+- DL-72 ADOPT the lease-reuse law (a retry attempt of the same durable step REUSES the active task-step lease — the one-active-lease-per-step invariant).
+- DL-73 ADOPT the browser fresh-open mint registration (resource-less open requests register the minted ResourceRef + surface version with task provenance — the journal-bridge posture extended to task-driven session creation).
+- DL-74 ADOPT the completion/expiry/rollback sweeps + execution recovery scan as the canonical post-drive passes for the Agent OS runtime.
+
 ### TL2-S2 — TL3 resource/execution secondment
 Owner: TL2 / helper from TL3 Worker C
+Status: DONE (PR #28 2026-09-28 — see the landing record above)
 Scope: bridge durable task execution to BrowserSession, EnvironmentExecutor/provider, ResourceRef and Continuity contracts; preserve policy, trust, provenance and recovery.
 Acceptance: task-to-resource execution works through existing contracts; resource acquisition/release and continuity hand-off are testable; no TL3 invariant regresses.
 
