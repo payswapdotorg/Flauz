@@ -2,13 +2,14 @@
 
 Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 
-## Architect control-plane note — 2026-09-27
+## Architect control-plane note — 2026-09-28
 
-- Verified integrated `main`: `0fb23ff106e9807bc6dbf9e0bdb3974e8655d102`.
-- No open PRs were present at verification time.
-- The detailed TL work sections below are preserved to avoid stealing or reassigning active TL work.
-- Any progress paragraph carrying a date later than 2026-09-27 is stale metadata; determine present status from the exact commit/PR/CI evidence on `main`.
-- This note does not add a new active TL lane. CopilotKit/OpenMuse integration is intentionally not a dependency; any future AG-UI adapter is downstream of TL1-003 and must be additive.
+- Verified integrated `main`: `8ddeaae20004f87da5756ab79a07fab577e8827f`.
+- Repository control-plane documents are operationally authoritative after the integrated tree; chat history and stale progress snapshots are not.
+- No open pull requests are present at this reconciliation.
+- All four TL portfolios are complete at their registered rungs. Post-completion runtime findings are tracked explicitly below rather than changing completed work-item status.
+- Any progress paragraph carrying a date later than the verified control-plane date is historical metadata and must not override current code/CI evidence.
+- CopilotKit/OpenMuse are not runtime dependencies; any AG-UI work remains a future additive adapter.
 
 ## TL1 — Substrate, upstream compatibility and product integration
 
@@ -451,6 +452,70 @@ main's hygiene law earlier tonight (23c3a568b2b — the TL4-008 squash-merge
 had landed 13 unallowlisted compat-l3 fixture .js files; merged before its
 PR hygiene run failed at 22:43:40Z).
 
+## Post-completion hardening register
+
+These items are intentionally separate from the completed TL work-orders. They are the next executable registry, not retrospective status claims.
+
+### AO-H1 — Provider failure bounded retry
+Status: TODO
+Owner: TL2
+Evidence: TL2-S3 INV-2 FAIL.
+Acceptance: bounded automatic retry semantics are exercised in runtime mode with explicit retry policy, terminal behavior, provenance, and deterministic kill/recover evidence.
+
+### AO-H2 — Cancellation propagation
+Status: TODO
+Owner: TL2
+Evidence: TL2-S3 INV-3 FAIL.
+Acceptance: cancellation reaches all in-flight tool steps, no post-cancel side effect executes, and restart/recovery preserves the cancellation terminal state.
+
+### AO-H3 — Concurrent Agent OS ledger serialization
+Status: TODO
+Owner: TL2
+Evidence: TL2-S3 INV-6 FAIL.
+Acceptance: concurrent appends preserve a single valid chain with unique sequencing and deterministic conflict handling under runtime concurrency.
+
+### AO-H4 — Lease-conflict contract
+Status: TODO
+Owner: TL2
+Evidence: TL2-S3 INV-5 SKIP.
+Acceptance: resource claims become conflict-enforcing where required, with explicit error semantics and independent runtime verification.
+
+### TL3-H1 — Provider resolver rung 2
+Status: TODO
+Owner: TL3
+Evidence: TL3-004 registered rung 1 is DONE; rung 2 live workbench resolver code and `resolvers` grant remain outstanding.
+Acceptance: workbench resolves registered provider kinds through the intended runtime resolver path with trust/policy gating and CI evidence.
+
+### TL3-H2 — Browser product residuals
+Status: TODO
+Owner: TL3
+Evidence: documented browser B-POLICY/workbench boot, product partition minting, and application-scoped network-filter default posture residuals.
+Acceptance: each residual is either implemented through the architecture-allowed path or permanently recorded as a verified product limitation.
+
+### TL4-H1 — Runtime performance promotion
+Status: TODO
+Owner: TL4
+Evidence: TL4-005 has 9 pending-runtime budget rows.
+Acceptance: real runtime measurements are collected, reproducible, budgeted, and promoted without converting SKIP into PASS by assumption.
+
+### TL4-H2 — Product discovery/runtime polish promotion
+Status: TODO
+Owner: TL4
+Evidence: TL4-002 follow-ups include reveal-runtime smoke and live file events.
+Acceptance: runtime discovery/reveal and live-update behavior are verified on the product surface with honest coverage.
+
+### PLATFORM-H1 — Baseline CI debt
+Status: TODO
+Owner: TL1 + TL4
+Evidence: TL2-S3 station/CI addendum records pre-existing SBOM rows, packaging-parity rows and fixture-matrix deviations at the platform baseline.
+Acceptance: each deviation has an owner, reproduction, and either a fixed green result or an explicit documented exception.
+
+### TL2-H1 — Live-provider verification
+Status: TODO
+Owner: TL2
+Evidence: TL2-002 decision DL-40 explicitly separates fixture verification from live-provider evidence.
+Acceptance: representative credentialed or explicitly provisioned live-provider drills verify routing, authentication failure classes, retry semantics and provenance without storing secrets in the repo.
+
 ## Cross-TL rule
 
 No TL may wait for another TL to begin useful work.
@@ -463,7 +528,9 @@ When an interface is not implemented:
 
 A TL may depend on another TL for final integration, but never for starting work.
 
-## Current program start
+## Current program state
+
+The original four-TL build program is complete at its registered rungs. The active registry is now the post-completion hardening register above. New work must enter this register (or a superseding architecture-approved registry entry) before it is treated as program state.
 
 All four TLs are ACTIVE from this registry reset.
 
