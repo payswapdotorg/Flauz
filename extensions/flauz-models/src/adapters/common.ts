@@ -14,8 +14,8 @@
 
 import { Buffer } from 'node:buffer';
 import { ProviderError, isProviderError } from '../contract/errors.ts';
-import { HttpPortAbortError } from '../contract/ports.ts';
-import type { Clock, HashPort, HttpPort, HttpPortResponse, SecretResolverPort } from '../contract/ports.ts';
+import { HttpPortAbortError, type Clock, type HashPort, type HttpPort, type HttpPortResponse, type SecretResolverPort } from '../contract/ports.ts';
+
 import { collectBodyText } from '../contract/canonical.ts';
 import type { AdapterDescriptor, ModelDescriptor, Modality, ProviderCapabilities, WireFamily } from '../contract/types.ts';
 

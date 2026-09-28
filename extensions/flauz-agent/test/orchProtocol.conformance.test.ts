@@ -288,10 +288,10 @@ test('journal-row projection: every mapped row type projects onto its domain eve
 									: type === 'approval-expired'
 										? { expiredAt: 1700000009000 }
 										: type === 'approval-requested'
-										? { reason: 'gate' }
-										: type === 'conflict-noticed'
-											? { violation: 'claim', expectedHolder: 'agent-a', actualRunner: 'runner-b' }
-											: { reason: 'gate' };
+											? { reason: 'gate' }
+											: type === 'conflict-noticed'
+												? { violation: 'claim', expectedHolder: 'agent-a', actualRunner: 'runner-b' }
+												: { reason: 'gate' };
 		const projected = orchEventOfRow(row(type, payload));
 		assert.ok(projected !== null, type);
 		assert.equal(projected?.event, ORCH_ROW_EVENT_OF[type], type);
@@ -836,7 +836,7 @@ test('loopback: plain v1 client (no orch offer) - plain ready, no orch capabilit
 		loop.send(V1_PLAIN_HELLO);
 		const ready = await loop.next((message) => message.type === 'ready', 'ready');
 		assert.deepEqual(ready.message, PLAIN_V1_READY);
-		assert.equal('orchProtocolVersion' in ready.message, false);
+		assert.equal(Object.hasOwn(ready.message, 'orchProtocolVersion'), false);
 		// the orch method gate: unknown-method (the registry-derived seam discipline)
 		loop.send({ id: 1, cmd: 'flauz.orch.listGraphs', args: {} });
 		const refused = await loop.next((message) => message.id === 1, 'orch unknown');

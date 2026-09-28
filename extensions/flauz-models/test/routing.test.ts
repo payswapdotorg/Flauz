@@ -190,7 +190,7 @@ test('routing: fail-closed cost ceilings exclude unpriced records with the reaso
 	const decision = evaluateRoutingPolicy({ policy, request: { purpose: 't', requirements: { enabledOnly: true } }, records, decisionId: 'rd-000001', at: 1 });
 	strictEqual(decision.selected, null, 'unpriced record cannot prove it is within the ceiling');
 	strictEqual(decision.candidates[0]?.eligible, true, 'request-level eligibility is separate from rule-level exclusion');
-	ok(decision.explanation.includes("input cost unknown"), 'the rule-level exclusion is recorded in the decision explanation');
+	ok(decision.explanation.includes('input cost unknown'), 'the rule-level exclusion is recorded in the decision explanation');
 });
 
 test('routing: corrupt policy file fails closed with a typed error', async () => {
@@ -221,7 +221,7 @@ test('routing: restart recovers policy and ledger from disk', async () => {
 		const registry = new ModelCapabilityRegistry({ root: temp.root, fs: temp.port, clock: sequencedClock() });
 		await registry.load();
 		const first = new ModelRouter({ stateDir, fs: temp.port, clock: () => 1, records: () => registry.list(), policy: await loadRoutingPolicy(temp.port, stateDir, () => 1) });
-		await first.route({ purpose: 'a' , requirements: { enabledOnly: true } });
+		await first.route({ purpose: 'a', requirements: { enabledOnly: true } });
 		await first.route({ purpose: 'b', requirements: { enabledOnly: true } });
 		// restart: fresh router over the same disk state
 		const second = new ModelRouter({ stateDir, fs: temp.port, clock: () => 2, records: () => registry.list(), policy: await loadRoutingPolicy(temp.port, stateDir, () => 2) });

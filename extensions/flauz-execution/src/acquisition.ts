@@ -179,7 +179,7 @@ export class ExecutionResourceManager {
 
 		// 3. idempotent acquire: the journal is the substrate (a completed
 		//    acquire for this key + resource replays as the same acquisition).
-		const existing = this.journal.acquisitionRowsForKey(binding.idempotencyKey).find((row) => row.type === 'resource-acquired' && (verdict.request.resource === undefined || (row.payload as Record<string, unknown>)['resource'] !== undefined));
+		const existing = this.journal.acquisitionRowsForKey(binding.idempotencyKey).find((row) => row.type === 'resource-acquired' && (verdict.request.resource === undefined || (row.payload as Record<string, unknown>).resource !== undefined));
 		if (existing !== undefined && existing.acquisitionId !== null) {
 			const projection = this.journal.acquisitionOf(existing.acquisitionId);
 			if (projection.state === 'acquired') {

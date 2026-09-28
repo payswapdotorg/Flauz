@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { OrchestrationStore } from '../core/orchStore.mjs';
+import { OrchestrationStore, type TaskPort } from '../core/orchStore.mjs';
 import { A2ABus } from '../core/a2a.mjs';
 import { driveGraph } from '../core/runtime.mjs';
 import { recoveryScan } from '../core/recovery.mjs';
@@ -34,7 +34,7 @@ import {
 	stepResourceId,
 } from '../core/routing.mjs';
 import { makeClock } from './harness/orchWorkspace.ts';
-import type { TaskPort } from '../core/orchStore.mjs';
+
 
 function messageOf(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);

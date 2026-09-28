@@ -343,76 +343,76 @@ export function validateLogicalSurface(surface: unknown): string | undefined {
 	switch (kind) {
 		case 'file-system':
 			if (!hasOnlyKeys(surface, ['kind', 'root', 'path'], ['contentSha256'])) {
-				return "logical surface 'file-system' must have only the keys [contentSha256?, kind, path, root]";
+				return `logical surface 'file-system' must have only the keys [contentSha256?, kind, path, root]`;
 			}
 			if (!isNonEmptyString(surface.root) || !isNonEmptyString(surface.path)) {
-				return "logical surface 'file-system' root/path must be non-empty strings";
+				return `logical surface 'file-system' root/path must be non-empty strings`;
 			}
 			if (surface.contentSha256 !== undefined && !SHA256_HEX.test(String(surface.contentSha256))) {
-				return "logical surface 'file-system' contentSha256 must be 64 lowercase hex chars";
+				return `logical surface 'file-system' contentSha256 must be 64 lowercase hex chars`;
 			}
 			return undefined;
 		case 'browser':
 			if (!hasOnlyKeys(surface, ['kind'], ['cdpEndpoint', 'partition', 'tabIds'])) {
-				return "logical surface 'browser' must have only the keys [cdpEndpoint?, kind, partition?, tabIds?]";
+				return `logical surface 'browser' must have only the keys [cdpEndpoint?, kind, partition?, tabIds?]`;
 			}
 			if (surface.cdpEndpoint !== undefined && !isNonEmptyString(surface.cdpEndpoint)) {
-				return "logical surface 'browser' cdpEndpoint must be a non-empty string when present";
+				return `logical surface 'browser' cdpEndpoint must be a non-empty string when present`;
 			}
 			if (surface.partition !== undefined && !isNonEmptyString(surface.partition)) {
-				return "logical surface 'browser' partition must be a non-empty string when present";
+				return `logical surface 'browser' partition must be a non-empty string when present`;
 			}
 			if (surface.tabIds !== undefined && (!Array.isArray(surface.tabIds) || !surface.tabIds.every((tabId) => isNonEmptyString(tabId)))) {
-				return "logical surface 'browser' tabIds must be an array of strings when present";
+				return `logical surface 'browser' tabIds must be an array of strings when present`;
 			}
 			return undefined;
 		case 'environment':
 			if (!hasOnlyKeys(surface, ['kind', 'descriptorId', 'providerKind'], ['attachTarget'])) {
-				return "logical surface 'environment' must have only the keys [attachTarget?, descriptorId, kind, providerKind]";
+				return `logical surface 'environment' must have only the keys [attachTarget?, descriptorId, kind, providerKind]`;
 			}
 			if (!ENVIRONMENT_ID_PATTERN.test(String(surface.descriptorId))) {
-				return "logical surface 'environment' descriptorId must be an env-<slug> registry id";
+				return `logical surface 'environment' descriptorId must be an env-<slug> registry id`;
 			}
 			if (!ENVIRONMENT_PROVIDER_KINDS.includes(surface.providerKind as EnvironmentProviderKind)) {
-				return "logical surface 'environment' providerKind must be a flauz-environments kind";
+				return `logical surface 'environment' providerKind must be a flauz-environments kind`;
 			}
 			if (surface.attachTarget !== undefined && !isNonEmptyString(surface.attachTarget)) {
-				return "logical surface 'environment' attachTarget must be a non-empty string when present";
+				return `logical surface 'environment' attachTarget must be a non-empty string when present`;
 			}
 			return undefined;
 		case 'model':
 			if (!hasExactKeys(surface, ['kind', 'providerId', 'modelId'])) {
-				return "logical surface 'model' must have exactly the keys [kind, modelId, providerId]";
+				return `logical surface 'model' must have exactly the keys [kind, modelId, providerId]`;
 			}
 			if (!isNonEmptyString(surface.providerId) || !isNonEmptyString(surface.modelId)) {
-				return "logical surface 'model' providerId/modelId must be non-empty strings";
+				return `logical surface 'model' providerId/modelId must be non-empty strings`;
 			}
 			return undefined;
 		case 'task':
 			if (!hasExactKeys(surface, ['kind', 'envelopePath', 'taskId'])) {
-				return "logical surface 'task' must have exactly the keys [envelopePath, kind, taskId]";
+				return `logical surface 'task' must have exactly the keys [envelopePath, kind, taskId]`;
 			}
 			if (!isNonEmptyString(surface.envelopePath)) {
-				return "logical surface 'task' envelopePath must be a non-empty string";
+				return `logical surface 'task' envelopePath must be a non-empty string`;
 			}
 			if (!TASK_ID_PATTERN.test(String(surface.taskId))) {
-				return "logical surface 'task' taskId must match /^T-\\d{3,}$/";
+				return `logical surface 'task' taskId must match /^T-\\d{3,}$/`;
 			}
 			return undefined;
 		case 'artifact':
 			if (!hasExactKeys(surface, ['kind', 'uri', 'sha256'])) {
-				return "logical surface 'artifact' must have exactly the keys [kind, sha256, uri]";
+				return `logical surface 'artifact' must have exactly the keys [kind, sha256, uri]`;
 			}
 			if (!isNonEmptyString(surface.uri) || !SHA256_HEX.test(String(surface.sha256))) {
-				return "logical surface 'artifact' uri must be non-empty and sha256 64 lowercase hex chars";
+				return `logical surface 'artifact' uri must be non-empty and sha256 64 lowercase hex chars`;
 			}
 			return undefined;
 		case 'workspace':
 			if (!hasExactKeys(surface, ['kind', 'root'])) {
-				return "logical surface 'workspace' must have exactly the keys [kind, root]";
+				return `logical surface 'workspace' must have exactly the keys [kind, root]`;
 			}
 			if (!isNonEmptyString(surface.root)) {
-				return "logical surface 'workspace' root must be a non-empty string";
+				return `logical surface 'workspace' root must be a non-empty string`;
 			}
 			return undefined;
 	}

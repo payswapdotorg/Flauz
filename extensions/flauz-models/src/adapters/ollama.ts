@@ -25,8 +25,8 @@
 import { ProviderError } from '../contract/errors.ts';
 import type { HttpPortResponse } from '../contract/ports.ts';
 import { buildProvenance, estimateMessageTokens, estimateRequestTokens, estimateTextTokens } from '../contract/canonical.ts';
-import type { ChatInputPart, ChatMessage, ChatRequest, ChatToolDefinition, FinishReason, HealthReport, ModelDescriptor, ProviderCapabilities, ProviderStreamEvent, RequestContext } from '../contract/types.ts';
-import type { ProviderAdapter } from '../contract/types.ts';
+import type { ChatInputPart, ChatMessage, ChatRequest, ChatToolDefinition, FinishReason, HealthReport, ModelDescriptor, ProviderCapabilities, ProviderStreamEvent, RequestContext, ProviderAdapter } from '../contract/types.ts';
+
 import {
 	ADAPTER_VERSION,
 	classifyHttpStatus,

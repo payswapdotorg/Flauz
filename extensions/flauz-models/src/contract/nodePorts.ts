@@ -20,8 +20,8 @@
  * error) passes through as-is -- adapters classify those as NETWORK_ERROR.
  */
 
-import type { HttpPort, HttpPortRequest, HttpPortResponse } from './ports.ts';
-import { HttpPortAbortError } from './ports.ts';
+import { type HttpPort, type HttpPortRequest, type HttpPortResponse, HttpPortAbortError } from './ports.ts';
+
 
 /** True when the error looks like a fetch abort (DOMException name AbortError, or TimeoutError from AbortSignal.timeout). */
 function isAbortLike(error: unknown): boolean {

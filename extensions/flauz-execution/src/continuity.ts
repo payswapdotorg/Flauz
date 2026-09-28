@@ -30,14 +30,10 @@
  * returned to the caller; the journal stays the honest truth).
  */
 
-import {
-	type ExecActor,
-	execSha256Hex,
-	canonicalJson,
-} from './contracts.ts';
+import { type ExecActor, execSha256Hex, canonicalJson, type EnvironmentSurfaceSnapshot, type SurfaceSnapshot } from './contracts.ts';
 import { ExecJournalStore, type AcquisitionProjection } from './journal.ts';
 import type { BrowserSessionManagerPort, EnvironmentLifecyclePort } from './adapters.ts';
-import type { EnvironmentSurfaceSnapshot, SurfaceSnapshot } from './contracts.ts';
+
 
 // ---------------------------------------------------------------------------
 // The continuity port (structural; the REAL ContinuityManager satisfies it)

@@ -156,7 +156,7 @@ async function rig(): Promise<Rig> {
 	const lifecycle = new EnvironmentLifecycleManager({ registry, root: '/ws', fs: envFs, clock, executors: [executor] });
 	await lifecycle.bootstrap();
 	const journal = new ExecJournalStore(root, { clock, mintAcquisitionId: pinnedMinter() });
-	const runtime = createExecutionRuntime({ journal, graphState, browser, lifecycle, resourceGraph: { get: () => undefined, surfacesFor: () => [], async addRef() {}, async addSurface() {} }, clock });
+	const runtime = createExecutionRuntime({ journal, graphState, browser, lifecycle, resourceGraph: { get: () => undefined, surfacesFor: () => [], async addRef() { }, async addSurface() { } }, clock });
 	return { root, cleanup, orch, journal, runtime, transports, executor, lifecycle, browser };
 }
 
@@ -221,7 +221,7 @@ test('B2 provider health degrades (stale probe): executor-death -> RETRYABLE -> 
 	r.executor.probeOverride = { health: 'stale', state: 'running', pid: null, message: 'persisted state outruns the backing truth' };
 	await driveGraph(r.orch, { graphId: 'G-001', sink: r.runtime.sink, runnerId: 'worker-1', now: 1730000005000 });
 	let state = r.orch.stateOf('G-001');
-	let step = (state.steps as Record<string, { status?: string; failure?: { class?: string } }>)['S-01'];
+	const step = (state.steps as Record<string, { status?: string; failure?: { class?: string } }>)['S-01'];
 	assert.equal(step?.failure?.class, 'dependency-failure', 'executor-death maps to the retryable dependency-failure class');
 	// The provider recovers.
 	r.executor.probeOverride = undefined;
@@ -258,7 +258,7 @@ test('B3 policy gate denies MID-FLIGHT: use-denied -> TERMINAL policy-violation,
 	// usable) and the FAILURE was the mid-flight verdict, not the acquire.
 	const settled = r.journal.rowsAll().filter((row) => row.type === 'effect-settled');
 	assert.equal(settled.length, 1);
-	assert.equal((settled[0]?.payload as Record<string, unknown>)['failureClass'], 'use-denied');
+	assert.equal((settled[0]?.payload as Record<string, unknown>).failureClass, 'use-denied');
 	assert.ok(r.orch.verifyJournal().ok);
 	assert.ok(r.journal.verifyJournal().ok);
 	r.cleanup();
@@ -291,7 +291,7 @@ test('B4 rollback: graph cancelled mid-run -> coherent end state (persisted canc
 	assert.equal(r.journal.heldAcquisitions({ graphId: 'G-001' }).length, 0, 'coherent: nothing held after rollback');
 	const rollbackRow = r.journal.rowsAll().find((row) => row.type === 'rollback-recorded');
 	assert.notEqual(rollbackRow, undefined, 'the rollback record is PERSISTED');
-	assert.equal((rollbackRow?.payload as Record<string, unknown>)['cause'], 'user-cancel');
+	assert.equal((rollbackRow?.payload as Record<string, unknown>).cause, 'user-cancel');
 	assert.ok(r.journal.verifyJournal().ok, 'the execution journal verifies after rollback');
 	assert.ok(r.orch.verifyJournal().ok, 'the orchestration journal verifies after rollback');
 	r.cleanup();
@@ -348,7 +348,7 @@ test('B5 restart recovery: crash between acquire and settle -> the SAME attempt 
 		},
 		browser: r.browser,
 		lifecycle: r.lifecycle,
-		resourceGraph: { get: () => undefined, surfacesFor: () => [], async addRef() {}, async addSurface() {} },
+		resourceGraph: { get: () => undefined, surfacesFor: () => [], async addRef() { }, async addSurface() { } },
 	});
 	// The execution recovery scan records the truth (torn tail surfaced; nothing fabricated).
 	const report = await executionRecoveryScan(runtime2.manager, journal2, { now: 1730000090000 });

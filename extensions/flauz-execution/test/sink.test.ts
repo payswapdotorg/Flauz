@@ -213,7 +213,7 @@ test('a denied step fails the graph TERMINALLY (policy-violation is not retried)
 	assert.equal((state.steps as Record<string, { nextAttempt?: unknown }>)['S-01']?.nextAttempt ?? null, null);
 	const deniedRows = r.journal.rowsAll().filter((row) => row.type === 'acquire-denied');
 	assert.equal(deniedRows.length, 1);
-	assert.equal((deniedRows[0]?.payload as Record<string, unknown>)['gate'], 'browser-policy');
+	assert.equal((deniedRows[0]?.payload as Record<string, unknown>).gate, 'browser-policy');
 	r.cleanup();
 });
 

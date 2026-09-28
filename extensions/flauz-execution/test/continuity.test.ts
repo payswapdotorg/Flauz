@@ -176,7 +176,7 @@ async function rig(options: { trust?: string } = {}): Promise<Rig> {
 	const host = new CdpEndpointHost('ws://127.0.0.1:9222/devtools/browser/fake', { transportFactory: () => { const transport = new FakeCdpTransport({ state, commandTimeoutMs: 500 }); transports.push(transport); return transport; } });
 	const browser = new BrowserSessionManager({ engine: () => BrowserPolicyEngine.fromPolicyText(POLICY), host, workspaceRoot: '/ws/acme', commandTimeoutMs: 150, navigationTimeoutMs: 300 });
 	const journal = new ExecJournalStore(root, { clock, mintAcquisitionId: pinnedMinter() });
-	const runtime = createExecutionRuntime({ journal, graphState, browser, lifecycle, resourceGraph: { get: () => undefined, surfacesFor: () => [], async addRef() {}, async addSurface() {} }, clock });
+	const runtime = createExecutionRuntime({ journal, graphState, browser, lifecycle, resourceGraph: { get: () => undefined, surfacesFor: () => [], async addRef() { }, async addSurface() { } }, clock });
 	return { root, cleanup, orch, journal, runtime, lifecycle, executor, continuity, transports, browser };
 }
 
@@ -192,8 +192,8 @@ test('continuity export: the REAL ContinuityManager export is journaled as a fir
 	const row = r.journal.rowsAll().find((row) => row.type === 'continuity-exported');
 	assert.notEqual(row, undefined);
 	const payload = row?.payload as Record<string, unknown>;
-	assert.equal(payload['bundleId'], 'flauz:continuity:0123456789abcdef');
-	assert.equal(payload['environmentId'], 'env-staging');
+	assert.equal(payload.bundleId, 'flauz:continuity:0123456789abcdef');
+	assert.equal(payload.environmentId, 'env-staging');
 	assert.ok(r.journal.verifyJournal().ok);
 	r.cleanup();
 });
@@ -247,8 +247,8 @@ test('cross-environment restoration: destroy + restore rebinds the LOST acquisit
 	const restoredRows = r.journal.rowsAll().filter((row) => row.type === 'continuity-restored');
 	assert.equal(restoredRows.length, 1);
 	const payload = restoredRows[0]?.payload as Record<string, unknown>;
-	assert.equal(payload['bundleId'], 'flauz:continuity:0123456789abcdef');
-	assert.equal(payload['authorizationRegated'], true);
+	assert.equal(payload.bundleId, 'flauz:continuity:0123456789abcdef');
+	assert.equal(payload.authorizationRegated, true);
 	// Task state survived: the orchestration journal is intact + completed.
 	assert.ok(r.orch.verifyJournal().ok);
 	const state = r.orch.stateOf('G-001');
@@ -329,7 +329,7 @@ test('browser session loss + reattach: the same logical session rebinds with a f
 	assert.ok(after.surfaceDigests.length > digestsBefore, 'the fresh surface hand-off is recorded');
 	const reattachRow = r.journal.rowsAll().find((row) => row.type === 'session-reattached');
 	assert.notEqual(reattachRow, undefined);
-	assert.equal((reattachRow?.payload as Record<string, unknown>)['policyRecheck'], 'pass');
+	assert.equal((reattachRow?.payload as Record<string, unknown>).policyRecheck, 'pass');
 	assert.ok(r.journal.verifyJournal().ok);
 	assert.ok(r.orch.verifyJournal().ok);
 	r.cleanup();

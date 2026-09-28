@@ -141,7 +141,7 @@ test('modelsRows (fabric): capability, routing and tool-policy rows carry honest
 				{ providerId: 'flauz-mock', vendor: 'flauz-mock', modelId: 'echo-1', modelName: 'Flauz Mock Echo', family: 'flauz-echo', version: '1', wireFamily: 'mock-echo', locality: 'local', enabled: true, contextWindowTokens: 8192, maxOutputTokens: 4096, inputModalities: ['text'], toolCalling: false, tokenCounting: 'estimated', streaming: true, credentialConfigured: false, source: 'code-default', updatedAt: 1 },
 				{ providerId: 'openai-compat', vendor: 'flauz-openai-compat', modelId: 'gpt-4o-mini', modelName: 'GPT-4o mini', family: 'gpt-4o', version: '1', contextWindowTokens: 128_000, maxOutputTokens: 16_384, wireFamily: 'openai-chat-completions', locality: 'remote', enabled: false, inputModalities: ['text', 'image'], toolCalling: true, tokenCounting: 'both', streaming: true, credentialConfigured: false, source: 'code-default', updatedAt: 1, cost: { currency: 'USD', inputPerMillion: 0.15, outputPerMillion: 0.6 } },
 			],
-			routingDefault: "default rule 'zero-network-default' -> flauz-mock (priority 100)",
+			routingDefault: `default rule 'zero-network-default' -> flauz-mock (priority 100)`,
 			toolPolicy: '1 agent entry · default deny · .flauz/models/tool-policy.json',
 			inMemory: false,
 		}),

@@ -73,7 +73,7 @@ function memResourceGraph(): { graph: { get(id: string): { kind: string; id: str
 			surfacesFor: (id) => surfaces.get(id) ?? [],
 			async addRef(input) { refs.set(input.id, { kind: input.kind, id: input.id }); },
 			async addSurface(refId, surface) {
-				const family = String(surface['kind'] ?? 'unknown');
+				const family = String(surface.kind ?? 'unknown');
 				const records = surfaces.get(refId) ?? [];
 				const record = records.find((candidate) => candidate.family === family);
 				if (record === undefined) {

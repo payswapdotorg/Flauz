@@ -32,8 +32,8 @@ import { readFileSync } from 'node:fs';
 import { A2ABus } from '../../flauz-agent/core/a2a.mjs';
 import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';
 import { TaskService } from '../../flauz-workspace/src/taskService.ts';
-import { nodeFsPort, steppingClock } from './helpers.ts';
-import { goldenRun } from './helpers.ts';
+import { nodeFsPort, steppingClock, goldenRun } from './helpers.ts';
+
 import { WorkflowService } from '../src/envelope.ts';
 import { WorkflowRunService, validateWorkflowSpec, type WorkflowSpec } from '../src/executable.ts';
 import { CoordinationService } from '../src/coordination.ts';

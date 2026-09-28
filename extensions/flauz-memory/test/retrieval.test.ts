@@ -54,7 +54,7 @@ test('scope-match boosts the queried task over cross-task project memory', () =>
 	assert.equal(scope?.weight, 50);
 });
 
-test("another task's task-tier memory is invisible (scope law)", () => {
+test(`another task's task-tier memory is invisible (scope law)`, () => {
 	const records = [
 		record({ id: 'MEM-T-002-000001', tier: 'task', taskId: 'T-002' }),
 		record({ id: 'MEM-T-001-000001', tier: 'task', taskId: 'T-001' }),

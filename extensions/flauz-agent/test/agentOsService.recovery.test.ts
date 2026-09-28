@@ -33,9 +33,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
-import { AgentOsServiceBoundary, BoundaryFailure, BOUNDARY_FAILURE_CODES } from '../core/serviceBoundary.mjs';
+import { AgentOsServiceBoundary, BoundaryFailure, BOUNDARY_FAILURE_CODES, type AgentOsStateSnapshot, type BoundaryRecoveryReport } from '../core/serviceBoundary.mjs';
 import { SEAM_PROTOCOL_V1 } from '../core/protocol.mjs';
-import type { AgentOsStateSnapshot, BoundaryRecoveryReport } from '../core/serviceBoundary.mjs';
+
 
 function makeWorkspace(): string {
 	return mkdtempSync(join(tmpdir(), 'flauz-boundary-recovery-'));

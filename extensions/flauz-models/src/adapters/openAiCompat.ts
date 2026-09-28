@@ -25,7 +25,7 @@
 import { parseRetryAfterSeconds, ProviderError } from '../contract/errors.ts';
 import { buildProvenance, estimateMessageTokens, estimateRequestTokens, estimateTextTokens } from '../contract/canonical.ts';
 import type { HttpPortResponse } from '../contract/ports.ts';
-import type { ChatDataPart, ChatInputPart, ChatMessage, ChatRequest, ChatToolDefinition, FinishReason, HealthReport, ModelDescriptor, ProviderCapabilities, ProviderStreamEvent, RequestContext } from '../contract/types.ts';
+import type { ChatDataPart, ChatInputPart, ChatMessage, ChatRequest, ChatToolDefinition, FinishReason, HealthReport, ModelDescriptor, ProviderCapabilities, ProviderStreamEvent, RequestContext, ProviderAdapter } from '../contract/types.ts';
 import {
 	ADAPTER_VERSION,
 	classifyHttpStatus,
@@ -45,7 +45,7 @@ import {
 	type AdapterConfig,
 	type AdapterDeps,
 } from './common.ts';
-import type { ProviderAdapter } from '../contract/types.ts';
+
 
 /** The OpenAI wire message shape this adapter emits (subset it consumes back). */
 export interface OpenAiWireMessage {

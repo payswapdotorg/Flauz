@@ -205,15 +205,15 @@ function validateVerdictDocument(doc, label) {
 		return [`${label}: the verdict document must be a JSON object`];
 	}
 	const record = doc;
-	if (record['schema'] !== SCHEMA_ID) {
-		violations.push(`${label}: schema must be '${SCHEMA_ID}' (got ${JSON.stringify(record['schema'])})`);
+	if (record.schema !== SCHEMA_ID) {
+		violations.push(`${label}: schema must be '${SCHEMA_ID}' (got ${JSON.stringify(record.schema)})`);
 		return violations;
 	}
-	const rung = record['rung'];
+	const rung = record.rung;
 	if (rung !== 'fixture' && rung !== 'runtime') {
 		violations.push(`${label}: rung must be 'fixture' or 'runtime' (got ${JSON.stringify(rung)})`);
 	}
-	const rows = record['rows'];
+	const rows = record.rows;
 	if (!Array.isArray(rows)) {
 		violations.push(`${label}: rows must be an array`);
 		return violations;
@@ -225,28 +225,28 @@ function validateVerdictDocument(doc, label) {
 			continue;
 		}
 		const row = entry;
-		const invariant = row['invariant'];
+		const invariant = row.invariant;
 		if (typeof invariant !== 'string' || invariant.length === 0) {
 			violations.push(`${label}: row #${index} carries no invariant id`);
 			continue;
 		}
 		seen.push(invariant);
-		const verdict = row['verdict'];
+		const verdict = row.verdict;
 		if (verdict !== 'PASS' && verdict !== 'FAIL' && verdict !== 'SKIP') {
 			violations.push(`${label}: row ${invariant} verdict must be PASS|FAIL|SKIP (got ${JSON.stringify(verdict)})`);
 		}
-		if (typeof row['reason'] !== 'string' || row['reason'].length === 0) {
+		if (typeof row.reason !== 'string' || row.reason.length === 0) {
 			violations.push(`${label}: row ${invariant} carries no reason (mandatory for every verdict)`);
 		}
-		const assertions = row['assertions'];
-		if (typeof assertions !== 'object' || assertions === null || typeof assertions['pass'] !== 'number' || typeof assertions['fail'] !== 'number' || assertions['pass'] < 0 || assertions['fail'] < 0) {
+		const assertions = row.assertions;
+		if (typeof assertions !== 'object' || assertions === null || typeof assertions.pass !== 'number' || typeof assertions.fail !== 'number' || assertions.pass < 0 || assertions.fail < 0) {
 			violations.push(`${label}: row ${invariant} assertions must be {pass, fail} counts`);
 		}
-		if (typeof row['evidence'] !== 'string' || row['evidence'].length === 0) {
+		if (typeof row.evidence !== 'string' || row.evidence.length === 0) {
 			violations.push(`${label}: row ${invariant} carries no evidence`);
 		}
 		if (verdict === 'FAIL') {
-			const violated = row['violatedInvariant'];
+			const violated = row.violatedInvariant;
 			if (typeof violated !== 'string' || violated.length === 0) {
 				violations.push(`${label}: the FAIL row ${invariant} reports no violatedInvariant (symptom-only failure reports violate the verdict contract)`);
 			} else {
@@ -258,7 +258,7 @@ function validateVerdictDocument(doc, label) {
 				}
 			}
 		}
-		if (verdict === 'PASS' && typeof assertions === 'object' && assertions !== null && assertions['pass'] === 0) {
+		if (verdict === 'PASS' && typeof assertions === 'object' && assertions !== null && assertions.pass === 0) {
 			violations.push(`${label}: the PASS row ${invariant} rests on zero target assertions (a PASS with no evidence is blind)`);
 		}
 	}
@@ -277,20 +277,20 @@ function validateVerdictDocument(doc, label) {
 		violations.push(`${label}: duplicate row(s) for invariant(s): ${[...new Set(duplicates)].join(', ')}`);
 	}
 	// summary consistency
-	const summary = record['summary'];
+	const summary = record.summary;
 	if (typeof summary !== 'object' || summary === null) {
 		violations.push(`${label}: summary must be {pass, fail, skip}`);
 	} else {
-		const pass = rows.filter(row => typeof row === 'object' && row !== null && row['verdict'] === 'PASS').length;
-		const fail = rows.filter(row => typeof row === 'object' && row !== null && row['verdict'] === 'FAIL').length;
-		const skip = rows.filter(row => typeof row === 'object' && row !== null && row['verdict'] === 'SKIP').length;
-		if (summary['pass'] !== pass || summary['fail'] !== fail || summary['skip'] !== skip) {
+		const pass = rows.filter(row => typeof row === 'object' && row !== null && row.verdict === 'PASS').length;
+		const fail = rows.filter(row => typeof row === 'object' && row !== null && row.verdict === 'FAIL').length;
+		const skip = rows.filter(row => typeof row === 'object' && row !== null && row.verdict === 'SKIP').length;
+		if (summary.pass !== pass || summary.fail !== fail || summary.skip !== skip) {
 			violations.push(`${label}: summary (${JSON.stringify(summary)}) does not match the rows (pass ${pass}, fail ${fail}, skip ${skip})`);
 		}
 	}
 	// the INV-7 tamper-control marker (the doctored-ledger control status rides in the row evidence)
-	const inv7 = rows.find(row => typeof row === 'object' && row !== null && row['invariant'] === 'INV-7');
-	if (inv7 !== undefined && inv7['verdict'] === 'PASS' && !String(inv7['evidence']).includes('doctored-ledger-control: detected')) {
+	const inv7 = rows.find(row => typeof row === 'object' && row !== null && row.invariant === 'INV-7');
+	if (inv7 !== undefined && inv7.verdict === 'PASS' && !String(inv7.evidence).includes('doctored-ledger-control: detected')) {
 		violations.push(`${label}: the PASS INV-7 row carries no doctored-ledger-control: detected marker (the instrument's tamper control did not fire)`);
 	}
 	return violations;

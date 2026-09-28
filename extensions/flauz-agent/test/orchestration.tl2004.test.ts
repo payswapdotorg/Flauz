@@ -219,10 +219,10 @@ test('without a taskPort the transitions still land (the journal row stays the p
 	const store = new OrchestrationStore(root, { clock });
 	const graphId = await submittedApproved(store);
 	const requested = await store.approvalRequest({ graphId, stepId: 'S-01', reason: 'gate', expiresAt: 1700000900000, actor: 'agent', origin: 'test:tl2004' });
-	assert.equal('evidenceId' in requested.payload, false, 'no evidenceId key without a taskPort');
+	assert.equal(Object.hasOwn(requested.payload, 'evidenceId'), false, 'no evidenceId key without a taskPort');
 	assert.equal(readLedger(root).length, 0);
 	const expired = await store.expireApproval({ graphId, stepId: 'S-01', actor: 'service', origin: 'test:tl2004' });
-	assert.equal('evidenceId' in expired.payload, false);
+	assert.equal(Object.hasOwn(expired.payload, 'evidenceId'), false);
 	assert.equal((store.getGraphState(graphId) as { steps: Record<string, { status: string }> }).steps['S-01'].status, 'cancelled');
 	assert.equal(store.verifyJournal().ok, true);
 });

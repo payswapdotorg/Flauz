@@ -134,7 +134,7 @@ test('store: a broken hash chain fails the reload', () => {
 	});
 	const row = store.rowsAll()[0];
 	const doctored = JSON.parse(execJournalLine(row));
-	doctored.payload['purpose'] = 'tampered';
+	doctored.payload.purpose = 'tampered';
 	const doctoredLine = canonicalJson({ ...doctored, contentHash: execSha256Hex(canonicalJson(doctored.payload)) });
 	writeFileSync(join(root, JOURNAL_PATH), doctoredLine + '\n' + execJournalLine(store.rowsAll()[1]) + '\n' + execJournalLine(third) + '\n');
 	assert.throws(() => new ExecJournalStore(root, { clock: steppingClock(1), mintAcquisitionId: pinnedMinter() }), /broken hash chain/);

@@ -987,7 +987,7 @@ async function journeyInv1(origin: string): Promise<void> {
 		FLAUZ_AGENTOS_ORIGIN: origin,
 	});
 	const ready = await seed.waitFor('READY', 90_000);
-	drillAssert(typeof ready['taskId'] === 'string' && ready['taskId'] !== '', 'inv1 runtime: the seed child reached quiescence (READY)', JSON.stringify(ready));
+	drillAssert(typeof ready.taskId === 'string' && ready.taskId !== '', 'inv1 runtime: the seed child reached quiescence (READY)', JSON.stringify(ready));
 	seed.kill9();
 	const seedExit = await seed.waitExit(15_000);
 	drillAssert(seedExit !== 0, 'inv1 runtime: the seed child died by SIGKILL (nonzero exit)', `exit ${String(seedExit)}`);
@@ -997,16 +997,16 @@ async function journeyInv1(origin: string): Promise<void> {
 	const recoverExit = await recover.waitExit(15_000);
 	drillAssert(recoverExit === 0, 'inv1 runtime: the recovery child exited cleanly', `exit ${String(recoverExit)}`);
 
-	recorder.check('inv1.tasks-recover', report['taskCount'] === 1 && report['taskId'] === ready['taskId'], `recovered task count ${String(report['taskCount'])}`);
-	recorder.check('inv1.task-spine-recovers', report['taskStatus'] === 'done' && report['taskEvents'] === 7, `recovered task status ${String(report['taskStatus'])} events ${String(report['taskEvents'])}`);
-	recorder.check('inv1.ledger-recovers', report['ledgerVerifyOk'] === true && report['ledgerRows'] === 1, `recovered ledger verify ok=${String(report['ledgerVerifyOk'])} rows=${String(report['ledgerRows'])}`);
-	recorder.check('inv1.workflows-recover', Array.isArray(report['workflowIds']) && (report['workflowIds'] as string[]).join(',') === 'W-001', `recovered workflows ${JSON.stringify(report['workflowIds'])}`);
-	recorder.check('inv1.work-continues', report['rerunStopped'] === 'completed', `the recovered re-run stopped ${String(report['rerunStopped'])}`);
-	recorder.check('inv1.journal-recovers', typeof report['journalLines'] === 'number' && (report['journalLines'] as number) >= 2, `journal lines after the kill ${String(report['journalLines'])}`);
-	recorder.check('inv1.env-state-recovers', report['envState'] === 'stopped', `environment state after the kill ${String(report['envState'])}`);
+	recorder.check('inv1.tasks-recover', report.taskCount === 1 && report.taskId === ready.taskId, `recovered task count ${String(report.taskCount)}`);
+	recorder.check('inv1.task-spine-recovers', report.taskStatus === 'done' && report.taskEvents === 7, `recovered task status ${String(report.taskStatus)} events ${String(report.taskEvents)}`);
+	recorder.check('inv1.ledger-recovers', report.ledgerVerifyOk === true && report.ledgerRows === 1, `recovered ledger verify ok=${String(report.ledgerVerifyOk)} rows=${String(report.ledgerRows)}`);
+	recorder.check('inv1.workflows-recover', Array.isArray(report.workflowIds) && (report.workflowIds as string[]).join(',') === 'W-001', `recovered workflows ${JSON.stringify(report.workflowIds)}`);
+	recorder.check('inv1.work-continues', report.rerunStopped === 'completed', `the recovered re-run stopped ${String(report.rerunStopped)}`);
+	recorder.check('inv1.journal-recovers', typeof report.journalLines === 'number' && (report.journalLines as number) >= 2, `journal lines after the kill ${String(report.journalLines)}`);
+	recorder.check('inv1.env-state-recovers', report.envState === 'stopped', `environment state after the kill ${String(report.envState)}`);
 
 	registerRow(recorder.buildRow(
-		`real child processes against ${root}: seed READY -> SIGKILL (exit ${String(seedExit)}) -> cold recovery (task done/7 events, ledger verify ok, W-001 re-run completed, journal ${String(report['journalLines'])} lines, env stopped)`,
+		`real child processes against ${root}: seed READY -> SIGKILL (exit ${String(seedExit)}) -> cold recovery (task done/7 events, ledger verify ok, W-001 re-run completed, journal ${String(report.journalLines)} lines, env stopped)`,
 	));
 	await nodeFs.rm(root, { recursive: true, force: true });
 }
@@ -1118,7 +1118,7 @@ async function journeyInv3(): Promise<void> {
 
 		const flight = spawnDrillChild('inv3-flight', ['--root', root], {});
 		const taskReport = await flight.waitFor('TASK', 90_000);
-		const runTaskId = typeof taskReport['taskId'] === 'string' ? taskReport['taskId'] : '';
+		const runTaskId = typeof taskReport.taskId === 'string' ? taskReport.taskId : '';
 		await flight.waitFor('TOOL-START', 90_000);
 		drillAssert(runTaskId !== '' && runTaskId !== taskId, 'inv3 runtime: the flight child reported the run task and blocked on tool 1', `runTaskId ${runTaskId}`);
 
@@ -1130,13 +1130,13 @@ async function journeyInv3(): Promise<void> {
 		const flightExit = await flight.waitExit(15_000);
 		drillAssert(flightExit === 0, 'inv3 runtime: the flight child exited cleanly after the report', `exit ${String(flightExit)}`);
 
-		recorder.check('inv3.cancel-recorded-with-attribution', report['cancelEventActor'] === 'human', `the cancel event is recorded with actor ${String(report['cancelEventActor'])}`);
-		recorder.check('inv3.downstream-stopped', report['toolCalls'] === 1, `downstream work stopped by the mid-flight cancel: ${String(report['toolCalls'])} tool step(s) executed by the flight child (tool 2 ran after the cancel on the v0 slice)`);
-		recorder.check('inv3.typed-surface', report['finalStatus'] === 'cancelled', `the cancelled task stays terminal '${String(report['finalStatus'])}'`);
-		recorder.check('inv3.run-surface-typed-error', report['crashTyped'] === true, `the in-flight run surfaced a typed error at the next transition: ${String(report['crashExcerpt'])}`);
+		recorder.check('inv3.cancel-recorded-with-attribution', report.cancelEventActor === 'human', `the cancel event is recorded with actor ${String(report.cancelEventActor)}`);
+		recorder.check('inv3.downstream-stopped', report.toolCalls === 1, `downstream work stopped by the mid-flight cancel: ${String(report.toolCalls)} tool step(s) executed by the flight child (tool 2 ran after the cancel on the v0 slice)`);
+		recorder.check('inv3.typed-surface', report.finalStatus === 'cancelled', `the cancelled task stays terminal '${String(report.finalStatus)}'`);
+		recorder.check('inv3.run-surface-typed-error', report.crashTyped === true, `the in-flight run surfaced a typed error at the next transition: ${String(report.crashExcerpt)}`);
 
 		registerRow(recorder.buildRow(
-			`real child process flight on ${root}: human cancel recorded mid-flight (actor human); ${String(report['toolCalls'])} tool step(s) executed; typed crash ${String(report['crashTyped'])}; final status ${String(report['finalStatus'])}`,
+			`real child process flight on ${root}: human cancel recorded mid-flight (actor human); ${String(report.toolCalls)} tool step(s) executed; typed crash ${String(report.crashTyped)}; final status ${String(report.finalStatus)}`,
 		));
 	} finally {
 		await nodeFs.rm(root, { recursive: true, force: true });
@@ -1250,7 +1250,7 @@ async function journeyInv6(): Promise<void> {
 		drillAssert(exitA === 0 && exitB === 0, 'inv6 runtime: both concurrent agent children exited cleanly', `exits ${String(exitA)}/${String(exitB)}`);
 
 		const rowsAfter = await new EvidenceLedger({ root, fs: runtimeFsPort(), clock: steppingClock(90_000) }).readRows();
-		recorder.check('inv6.attribution-under-concurrency', rowsAfter.some(row => row.taskId === parentTask.id && row.sha256 === sha256Hex('inv6-runtime-a')) && rowsAfter.some(row => row.taskId === workerTask.id && row.sha256 === sha256Hex('inv6-runtime-b')), `both concurrent rows carry their own agent's taskId (${String(reportA['evidenceId'])} -> ${parentTask.id}, ${String(reportB['evidenceId'])} -> ${workerTask.id})`);
+		recorder.check('inv6.attribution-under-concurrency', rowsAfter.some(row => row.taskId === parentTask.id && row.sha256 === sha256Hex('inv6-runtime-a')) && rowsAfter.some(row => row.taskId === workerTask.id && row.sha256 === sha256Hex('inv6-runtime-b')), `both concurrent rows carry their own agent's taskId (${String(reportA.evidenceId)} -> ${parentTask.id}, ${String(reportB.evidenceId)} -> ${workerTask.id})`);
 		const verify = await new EvidenceLedger({ root, fs: runtimeFsPort(), clock: steppingClock(95_000) }).verify();
 		recorder.check('inv6.no-clobber', verify.ok, `concurrent appends from two REAL processes preserve the append-only chain: verify ok=${String(verify.ok)}${verify.ok ? '' : ` firstBadSeq=${String(verify.firstBadSeq)} (${verify.reason ?? ''})`}`);
 		const duplicateSeq = rowsAfter.filter(row => row.seq === rowsBefore + 1).length;

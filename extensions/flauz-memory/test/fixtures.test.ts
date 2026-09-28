@@ -31,7 +31,7 @@ const EXPECTED_RULES: Record<string, { validate: (value: unknown) => unknown; ru
 	'10-record-task-no-taskid.json': { validate: validateMemoryRecord, rule: 'task tier requires taskId' },
 	'11-record-project-with-taskid.json': { validate: validateMemoryRecord, rule: 'project tier is cross-task' },
 	'12-record-authorization-origin.json': { validate: validateMemoryRecord, rule: 'authorization-bearing records may only be minted' },
-	'13-record-ledger-row-no-evidence.json': { validate: validateMemoryRecord, rule: "origin 'ledger-row' requires the evidence row" },
+	'13-record-ledger-row-no-evidence.json': { validate: validateMemoryRecord, rule: `origin 'ledger-row' requires the evidence row` },
 	'14-record-bad-content-hash.json': { validate: validateMemoryRecord, rule: 'contentHash must be 64 lowercase hex chars' },
 	'15-record-provenance-extra-key.json': { validate: validateMemoryRecord, rule: 'provenance must have exactly the keys' },
 	'16-promotion-bad-action.json': { validate: validatePromotionRecord, rule: 'action must be one of' },

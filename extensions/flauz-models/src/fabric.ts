@@ -34,8 +34,8 @@ import { ModelCapabilityRegistry, type CapabilityRecord } from './discovery/regi
 import { joinStatePath } from './discovery/stateFiles.ts';
 import { DEFAULT_ROUTING_POLICY, type RoutingPolicyFile } from './routing/policy.ts';
 import { loadRoutingPolicy } from './routing/store.ts';
-import { DEFAULT_TOOL_POLICY, type ToolPolicyFile } from './mcp/policy.ts';
-import { loadToolPolicy } from './mcp/policy.ts';
+import { DEFAULT_TOOL_POLICY, type ToolPolicyFile, loadToolPolicy } from './mcp/policy.ts';
+
 import type { WireFamily } from './contract/types.ts';
 
 /** The adapter-backed vendor registrations activation contributes. */

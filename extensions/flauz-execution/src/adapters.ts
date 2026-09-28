@@ -198,7 +198,7 @@ export class BrowserExecutionAdapter {
 		}
 		if (request.action === 'close') {
 			const closed = await this.browser.close(resource.id);
-			if ('error' in closed && closed.error !== undefined) {
+			if (Object.hasOwn(closed, 'error') && closed.error !== undefined) {
 				return { ok: false, failure: { failureClass: 'resource-lost', message: `close failed: ${closed.error.message}` } };
 			}
 			return { ok: true, value: `closed ${resource.id}` };
@@ -207,7 +207,7 @@ export class BrowserExecutionAdapter {
 			return { ok: false, failure: { failureClass: 'invalid-request', message: 'browser use requires action navigate + url (or close)' } };
 		}
 		const outcome = await this.browser.navigate(resource.id, request.url, request.tabId !== undefined ? { tabId: request.tabId } : {});
-		if ('error' in outcome && outcome.error !== undefined && !('sent' in outcome)) {
+		if (Object.hasOwn(outcome, 'error') && outcome.error !== undefined && !Object.hasOwn(outcome, 'sent')) {
 			return { ok: false, failure: { failureClass: 'resource-lost', message: `navigation failed (resource lost mid-step): ${outcome.error.message}` } };
 		}
 		const navigation = outcome as NavigationOutcomeLike;

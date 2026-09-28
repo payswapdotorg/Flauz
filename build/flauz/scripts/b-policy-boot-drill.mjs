@@ -392,12 +392,12 @@ async function main() {
 
 		// the A4 runtime log lines (log-backed channel -> logs tree)
 		if (corpusMatches(corpus, RUNTIME_HOST_LINE)) {
-			pass('boot.runtime-host-log-line', "'flauz.browser: runtime host = workbench (proposed browser API, posture P0)' present in the corpus (the A4 runtime log line, boot-verified)");
+			pass('boot.runtime-host-log-line', `'flauz.browser: runtime host = workbench (proposed browser API, posture P0)' present in the corpus (the A4 runtime log line, boot-verified)`);
 		} else {
 			fail('boot.runtime-host-log-line', 'the P0 runtime-host log line is absent from the corpus - either the session never opened (see the driver rows) or the log-backed channel file is not under the --log-dir tree');
 		}
 		if (corpusMatches(corpus, OPEN_SESSION_LINE)) {
-			pass('boot.openSession-log-line', "'flauz.browser: openSession flauz:browser:<id> initiator=agent partition=persist:flauz-<16hex>-boot-drill state=active' present in the corpus (the A4 openSession runtime log line, boot-verified)");
+			pass('boot.openSession-log-line', `'flauz.browser: openSession flauz:browser:<id> initiator=agent partition=persist:flauz-<16hex>-boot-drill state=active' present in the corpus (the A4 openSession runtime log line, boot-verified)`);
 		} else {
 			fail('boot.openSession-log-line', 'the openSession runtime log line is absent from the corpus (the driver rows carry the authoritative result; this grep proves the log-corpus surface)');
 		}

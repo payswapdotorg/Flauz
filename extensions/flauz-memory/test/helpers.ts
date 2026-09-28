@@ -10,8 +10,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';
-import { sha256Hex } from '../../flauz-workspace/src/api.ts';
+import { type FileSystemPort, sha256Hex } from '../../flauz-workspace/src/api.ts';
+
 import { MemoryStore } from '../src/memory.ts';
 
 /** Deterministic but distinguishable timestamps (advances 1000 per call). */

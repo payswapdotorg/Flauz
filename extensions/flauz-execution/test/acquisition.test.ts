@@ -181,7 +181,7 @@ test('acquire: an invalid request is a typed invalid-request denial (no fabricat
 	assert.equal(toOrchFailureClass('invalid-request'), 'invalid-input');
 	const rows = r.journal.rowsAll().filter((row) => row.type === 'acquire-denied');
 	assert.equal(rows.length, 1);
-	assert.deepEqual((rows[0]?.payload as Record<string, unknown>)['resource'], { ...BROWSER_REF }, 'the attempted resource is recorded when the request carries a parseable one');
+	assert.deepEqual((rows[0]?.payload as Record<string, unknown>).resource, { ...BROWSER_REF }, 'the attempted resource is recorded when the request carries a parseable one');
 	r.cleanup();
 });
 
@@ -196,8 +196,8 @@ test('acquire: a policy denial from the opener is journaled and maps terminal (f
 	assert.equal(toOrchFailureClass('acquire-denied'), 'policy-violation');
 	const deniedRow = r.journal.rowsAll().find((row) => row.type === 'acquire-denied');
 	assert.notEqual(deniedRow, undefined);
-	assert.equal((deniedRow?.payload as Record<string, unknown>)['gate'], 'browser-policy');
-	assert.deepEqual((deniedRow?.payload as Record<string, unknown>)['resource'], { ...BROWSER_REF }, 'the attempted resource is recorded');
+	assert.equal((deniedRow?.payload as Record<string, unknown>).gate, 'browser-policy');
+	assert.deepEqual((deniedRow?.payload as Record<string, unknown>).resource, { ...BROWSER_REF }, 'the attempted resource is recorded');
 	// the fail-closed law: the manager does NOT retry the denial itself
 	assert.equal(r.opener.calls.length, 1);
 	r.cleanup();
@@ -268,7 +268,7 @@ test('release: revocation is a HUMAN act (releaseKind revocation, actor human)',
 	const released = await r.manager.release({ acquisitionId: outcome.acquisition.acquisitionId, releaseKind: 'revocation', actor: 'human', origin: 'exec:revoke' });
 	assert.ok(released.ok);
 	const row = r.journal.rowsAll().find((row) => row.type === 'resource-released');
-	assert.equal((row?.payload as Record<string, unknown>)['releaseKind'], 'revocation');
+	assert.equal((row?.payload as Record<string, unknown>).releaseKind, 'revocation');
 	assert.equal(row?.actor, 'human');
 	r.cleanup();
 });
@@ -319,8 +319,8 @@ test('rollback: every held acquisition of the graph is released + the coherence 
 	assert.equal(report.coherent, true);
 	assert.equal(r.journal.heldAcquisitions({ graphId: 'G-001' }).length, 0, 'coherent end state - nothing held');
 	const rollbackRow = r.journal.rowsAll().find((row) => row.type === 'rollback-recorded');
-	assert.equal((rollbackRow?.payload as Record<string, unknown>)['cause'], 'user-cancel');
-	assert.equal((rollbackRow?.payload as Record<string, unknown>)['coherent'], true);
+	assert.equal((rollbackRow?.payload as Record<string, unknown>).cause, 'user-cancel');
+	assert.equal((rollbackRow?.payload as Record<string, unknown>).coherent, true);
 	assert.ok(r.journal.verifyJournal().ok);
 	assert.ok(r.store.verifyJournal().ok, 'the orchestration journal is untouched by the rollback sweep (its own rows only)');
 	r.cleanup();

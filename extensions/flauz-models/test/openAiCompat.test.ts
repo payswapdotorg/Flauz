@@ -17,11 +17,11 @@ import { test } from 'node:test';
 import { deepStrictEqual, ok, rejects, strictEqual } from 'node:assert';
 import { createHash } from 'node:crypto';
 
-import { createOpenAiCompatAdapter } from '../src/adapters/openAiCompat.ts';
-import { buildOpenAiRequestBody } from '../src/adapters/openAiCompat.ts';
+import { createOpenAiCompatAdapter, buildOpenAiRequestBody } from '../src/adapters/openAiCompat.ts';
+
 import { nodeHttpPort } from '../src/contract/nodePorts.ts';
-import type { ProviderError } from '../src/contract/errors.ts';
-import { isProviderError } from '../src/contract/errors.ts';
+import { type ProviderError, isProviderError } from '../src/contract/errors.ts';
+
 import type { ChatMessage, ChatRequest, ProviderStreamEvent } from '../src/contract/types.ts';
 import { startFixtureServer, type FixtureServer } from './fixtureServer.ts';
 import {

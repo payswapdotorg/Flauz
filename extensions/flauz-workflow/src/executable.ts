@@ -690,7 +690,7 @@ export class WorkflowRunService {
 	private async execute(spec: WorkflowSpec, inputs: Record<string, unknown>, options: RunOptions, existing: WorkflowRun | undefined): Promise<RunOutcome> {
 		const mode = options.approvalMode ?? 'replay';
 		if (mode === 'ask' && options.ask === undefined) {
-			throw new Error("flauz.workflow.exec: approvalMode 'ask' requires an ask port");
+			throw new Error(`flauz.workflow.exec: approvalMode 'ask' requires an ask port`);
 		}
 		const ask = options.ask ?? (async () => 'approve' as const);
 		const isRecovery = existing !== undefined;

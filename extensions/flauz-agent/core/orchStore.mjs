@@ -305,7 +305,7 @@ export class OrchestrationStore {
 			this.requireStep(graph, fields.stepId);
 		}
 		const level = eventLevel(type);
-		if (level === 'graph' && fields.stepId != null) {
+		if (level === 'graph' && fields.stepId !== null && fields.stepId !== undefined) {
 			throw new OrchestrationError(`${type} is graph-level (stepId must be null)`, 'invalid-params');
 		}
 		if (level === 'step' && !isStepId(fields.stepId)) {

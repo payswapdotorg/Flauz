@@ -355,7 +355,7 @@ export class ExecJournalStore {
 		const acquisitionId = row.acquisitionId ?? '';
 		switch (row.type) {
 			case 'acquire-denied': {
-				const resource = row.payload['resource'] as ExecutionResourceRef;
+				const resource = row.payload.resource as ExecutionResourceRef;
 				const lease = current?.lease ?? null;
 				return {
 					acquisitionId,
@@ -369,20 +369,20 @@ export class ExecJournalStore {
 					lease,
 					surfaceDigests: current?.surfaceDigests ?? [],
 					settled: current?.settled ?? null,
-					denied: { gate: String(row.payload['gate'] ?? ''), message: String(row.payload['message'] ?? ''), rowId: row.rowId },
+					denied: { gate: String(row.payload.gate ?? ''), message: String(row.payload.message ?? ''), rowId: row.rowId },
 					lost: null,
 					createdAt: current?.createdAt ?? row.ts,
 					updatedAt: row.ts,
 				};
 			}
 			case 'resource-acquired': {
-				const resource = row.payload['resource'] as ExecutionResourceRef;
-				const lease = row.payload['lease'] as { leaseId: string; holder: string; expiresAt: number } | undefined;
+				const resource = row.payload.resource as ExecutionResourceRef;
+				const lease = row.payload.lease as { leaseId: string; holder: string; expiresAt: number } | undefined;
 				return {
 					acquisitionId,
 					resource,
 					state: 'acquired',
-					purpose: String(row.payload['purpose'] ?? ''),
+					purpose: String(row.payload.purpose ?? ''),
 					graphId: row.graphId,
 					stepId: row.stepId,
 					attempt: row.attempt,
@@ -407,14 +407,14 @@ export class ExecJournalStore {
 				return {
 					...current,
 					state: 'lost',
-					lost: { failureClass: String(row.payload['failureClass'] ?? ''), message: String(row.payload['message'] ?? ''), rowId: row.rowId },
+					lost: { failureClass: String(row.payload.failureClass ?? ''), message: String(row.payload.message ?? ''), rowId: row.rowId },
 					updatedAt: row.ts,
 				};
 			}
 			case 'session-reattached':
 			case 'continuity-restored': {
 				if (current === undefined) { throw new ExecError('EXEC_TRANSITION_ILLEGAL', `row ${row.rowId}: ${row.type} on unknown acquisition`); }
-				const digest = row.type === 'session-reattached' ? String(row.payload['surfaceDigest'] ?? '') : null;
+				const digest = row.type === 'session-reattached' ? String(row.payload.surfaceDigest ?? '') : null;
 				return {
 					...current,
 					state: 'acquired',
@@ -424,19 +424,19 @@ export class ExecJournalStore {
 			}
 			case 'handoff-recorded': {
 				if (current === undefined) { throw new ExecError('EXEC_TRANSITION_ILLEGAL', `row ${row.rowId}: handoff-recorded on unknown acquisition`); }
-				return { ...current, surfaceDigests: [...current.surfaceDigests, String(row.payload['surfaceDigest'] ?? '')], updatedAt: row.ts };
+				return { ...current, surfaceDigests: [...current.surfaceDigests, String(row.payload.surfaceDigest ?? '')], updatedAt: row.ts };
 			}
 			case 'effect-settled': {
 				if (current === undefined) { throw new ExecError('EXEC_TRANSITION_ILLEGAL', `row ${row.rowId}: effect-settled on unknown acquisition`); }
-				const outcome = row.payload['outcome'] === 'ok' ? 'ok' : 'failed';
+				const outcome = row.payload.outcome === 'ok' ? 'ok' : 'failed';
 				return {
 					...current,
 					settled: {
 						outcome,
 						rowId: row.rowId,
-						valueDigest: outcome === 'ok' ? String(row.payload['valueDigest'] ?? '') : undefined,
-						failureClass: outcome === 'failed' ? String(row.payload['failureClass'] ?? '') : undefined,
-						message: outcome === 'failed' ? String(row.payload['message'] ?? '') : undefined,
+						valueDigest: outcome === 'ok' ? String(row.payload.valueDigest ?? '') : undefined,
+						failureClass: outcome === 'failed' ? String(row.payload.failureClass ?? '') : undefined,
+						message: outcome === 'failed' ? String(row.payload.message ?? '') : undefined,
 					},
 					updatedAt: row.ts,
 				};

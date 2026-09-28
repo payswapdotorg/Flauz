@@ -16,22 +16,9 @@
 import { test } from 'node:test';
 import { deepStrictEqual, ok, rejects, strictEqual } from 'node:assert';
 
-import {
-	buildProvenance,
-	canonicalJson,
-	estimateMessageTokens,
-	estimateTextTokens,
-	estimateRequestTokens,
-	serializeDocument,
-	isProviderError,
-	HttpPortAbortError,
-	parseRetryAfterSeconds,
-	ProviderError,
-	RETRY_POLICY,
-	nodeHttpPort,
-} from '../src/contract/index.ts';
+import { buildProvenance, canonicalJson, estimateMessageTokens, estimateTextTokens, estimateRequestTokens, serializeDocument, isProviderError, HttpPortAbortError, parseRetryAfterSeconds, ProviderError, RETRY_POLICY, nodeHttpPort, type ChatMessage, type ChatRequest } from '../src/contract/index.ts';
 import { startFixtureServer } from './fixtureServer.ts';
-import type { ChatMessage, ChatRequest } from '../src/contract/index.ts';
+
 
 /** Deterministic sha256 double for tests (identity-preserving fake). */
 const fakeHash = { sha256Hex: (input: string): string => `sha256:${input.length}:${input.slice(0, 12)}` };

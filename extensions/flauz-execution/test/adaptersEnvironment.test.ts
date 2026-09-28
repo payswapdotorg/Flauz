@@ -139,7 +139,7 @@ function memGraphPort() {
 		surfacesFor: (id: string) => surfaces.get(id) ?? [],
 		async addRef(input: { kind: string; id: string; provenance: unknown }) { refs.set(input.id, { kind: input.kind, id: input.id }); },
 		async addSurface(refId: string, surface: Record<string, unknown>) {
-			const family = String(surface['kind'] ?? 'unknown');
+			const family = String(surface.kind ?? 'unknown');
 			const records = surfaces.get(refId) ?? [];
 			const record = records.find((candidate) => candidate.family === family);
 			if (record === undefined) { records.push({ refId, family, versions: [{ surface, updatedAt: 1 }] }); } else { record.versions.push({ surface, updatedAt: 1 }); }
