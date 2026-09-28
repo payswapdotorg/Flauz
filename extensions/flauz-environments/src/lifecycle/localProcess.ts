@@ -29,8 +29,8 @@
  * Ports (vscode-free core): LocalEnvFsPort, ProcessPort (the node port
  * implements the ELECTRON_RUN_AS_NODE=1-when-Electron pattern), HashPort.
  */
-import { joinPath, serializeEnvelope, type Clock } from '../api.ts';
-import type { EnvironmentDescriptor, EnvironmentKind } from '../api.ts';
+import { type Clock, type EnvironmentDescriptor, type EnvironmentKind, joinPath, serializeEnvelope } from '../api.ts';
+
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 

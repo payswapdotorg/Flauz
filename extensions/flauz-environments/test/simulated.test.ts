@@ -13,8 +13,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, ok, strictEqual } from 'node:assert';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, SimulatedRemoteExecutor } from '../src/lifecycle/index.ts';
-import type { SimFsPort } from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, type SimFsPort, SimulatedRemoteExecutor } from '../src/lifecycle/index.ts';
 import type { EnvironmentKind } from '../src/api.ts';
 import { fixedClock, cloudSandboxRegistrationInput, containerRegistrationInput, sshRegistrationInput } from './helpers.ts';
 

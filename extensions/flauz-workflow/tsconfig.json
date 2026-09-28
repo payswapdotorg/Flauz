@@ -1,7 +1,9 @@
 {
 	"compilerOptions": {
 		"target": "ES2022",
-		"lib": ["ES2022"],
+		"lib": [
+			"ES2022"
+		],
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
@@ -23,5 +25,9 @@
 		"shims/**/*.d.ts",
 		"test/**/*.ts",
 		"vscode-dts/vscode.d.ts"
+	],
+	"exclude": [
+		"test/session-battery.test.ts",
+		"test/canaries/session-battery-runtime.drill.ts"
 	]
 }

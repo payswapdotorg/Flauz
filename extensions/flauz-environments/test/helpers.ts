@@ -14,6 +14,27 @@ export function fixedClock(): () => number {
 	return () => FIXED_TS;
 }
 
+/**
+ * Virtual time for the CLI executor rigs: one shared clock + a latency cue
+ * that ADVANCES it. The executors bound every poll window with
+ * `clock() + windowMs` deadlines and `latency(pollIntervalMs)` sleeps, so a
+ * rig wired with this object terminates any readiness/stop window in a
+ * bounded number of iterations with ZERO wall-clock waiting — a test NEVER
+ * depends on a real readiness window (the TL3-004 hang lesson: a fixed clock
+ * with real-sleep loops, or a wall-clock window in a scripted drill, both
+ * wedge the suite).
+ */
+export function virtualTime(start = FIXED_TS): { clock(): number; latency(ms: number): Promise<void>; now(): number } {
+	let current = start;
+	return {
+		clock: () => current,
+		now: () => current,
+		latency: async (ms: number) => {
+			current += Math.max(0, ms);
+		},
+	};
+}
+
 /** Advances by 1000 on every call -- deterministic but distinguishable timestamps. */
 export function steppingClock(start = 1000): () => number {
 	let current = start;
@@ -112,7 +133,7 @@ export function memFsPort(seed: Record<string, string> = {}): FileSystemPort & {
 		},
 		rename: async (from, to) => {
 			if (!files.has(from)) {
-				throw (Object.assign(new Error(`ENOENT: ${from}`), { code: 'ENOENT' }) as Error);
+				throw Object.assign(new Error(`ENOENT: ${from}`), { code: 'ENOENT' });
 			}
 			files.set(to, files.get(from)!);
 			files.delete(from);

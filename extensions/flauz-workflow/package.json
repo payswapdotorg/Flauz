@@ -39,7 +39,8 @@
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",
-		"test": "node --test test/*.test.ts"
+		"test": "node --test test/*.test.ts",
+		"typecheck-session-battery": "tsc --noEmit -p tsconfig.session-battery.json"
 	},
 	"devDependencies": {
 		"typescript": "5.9.3"

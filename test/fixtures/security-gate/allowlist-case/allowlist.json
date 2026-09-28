@@ -1,0 +1,10 @@
+{
+	"$schema": "flauz.security-allowlist/v0",
+	"allow": [
+		{
+			"file": "keys/deploy-key.pem",
+			"pattern": "private-key",
+			"reason": "fixture proof: the allowlist suppresses a planted key with a documented reason"
+		}
+	]
+}

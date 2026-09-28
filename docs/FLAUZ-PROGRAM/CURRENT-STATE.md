@@ -2,15 +2,21 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 62e46ad013d (TL3 wave 2: TL3-002 browser session security + TL3-003 environment lifecycle merged, station-verified; TL1-001 upstream-sync PR #10 + TL4 DONE flips + hygiene wave integrated between waves)
+Integrated head at verification: d9bf2fa878e (2026-09-28, wave-3 COMPLETE: TL4-007 session-battery runtime rung landed via PR #19 (station GREEN, real CDP + LocalProcessExecutor J1-J4); TL4-008 compat L3 runtime boot smoke via PR #14 TL4-008 compat L3 runtime boot smoke landed via PR #14 (station-green squash-merge c1d9414ec13b) with the CI hygiene allowlist hotfix 23c3a568b2b; TL4-009 security runtime rung landed via PR #15 (337aac0df5d8) with station-completion bundle-manifest pins 46e36ba71e4 and the TL4-station fixture-coverage restore (144/144, 0 deviations); architect control-plane reconciliation merged (PR #13, 76cc28e2a3cf); TL4-007 session-battery runtime rung re-dispatched and in flight; preceding TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates with same-head 6-workflow CI green)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 62e46ad013d (TL4-001/002/003/005 done; TL3-001/002/003/005 done; TL1-001 active; hygiene + prep fixes c6e2d5c6df6/a8da42937b7 lineage).
+- main is the canonical Flauz product line at d9bf2fa878e (TL4 COMPLETE: 001-009 all done — the wave-3 runtime-promotion items 007/008/009 landed 2026-09-27/28 with station-green squash-merges; TL3-001/002/003/005 + TL3-004 rung 1 + TL3-006 done; TL1-001 active). Existing TL1-TL4 ownership remains unchanged.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
 - Do not implement product work on upstream/main.
+
+## Control-plane reconciliation
+
+The program documents previously recorded older integrated heads and several future-dated status annotations. Those annotations are historical metadata, not additional code state. The current `main` tree and exact merge/CI evidence are authoritative.
+
+There is intentionally no CopilotKit or OpenMuse runtime dependency. An AG-UI adapter remains a future, additive interoperability option after TL1-003's native Flauz service protocol is stable.
 
 ## Present product surfaces
 
@@ -64,7 +70,7 @@ Do not call this full production provider support yet.
 
 The browser extension now provides the layered policy engine, partition semantics, fail-closed behavior, CDP-bypass protection AND the TL3-001 runtime: CDP transport (+ test simulator), session manager with human/agent separation, policy-gated navigation (deny sends zero CDP commands), capture->evidence, recovery, and workbench/endpoint host adapters (proposed browser API grant active). TL3-002 session-security hardening is merged (62e46ad0): per-session UA discipline, download deny, popup/new-target gate, G6 forced-reset execution (security.enforceReset), partition-scoped tab ownership, the PIN-1 session journal, untrusted-content evidence markers.
 
-Remaining for the complete browser product: real-workbench E2E of the driver path (B-POLICY boot residuals), G5 partition minting (product-side), L2 default-on (G3/P1, flauz-defaults lane).
+Remaining for the complete browser product: real-workbench E2E of the driver path (B-POLICY boot residuals — the workbench-level window.openBrowserTab boot verification stays with the B-POLICY canary), G5 partition minting (product-side), L2 default-on (G3/P1 — RESOLVED AS FINDING 2026-09-27: an extension CANNOT contribute a configurationDefault for the restricted APPLICATION-scoped `chat.agent.networkFilter`; the zero-fork alternatives live in INTEGRATION-GAP G3). The real-Chromium behavior rung landed (f430e01090c lineage, rebased to 112c72e1): the optional real-chromium-hardening drill (station REAL RUN exit 0 against headless Chromium 153) pins FIVE real-Chromium divergences from the FakeCdpTransport contract as drift canaries (F-DELIVERY, F-POPUP-URL, F-RELEASE-CMD, F-OPENER-BLOCK, F-RECOVERY-DOMAINS) — recorded TL fix candidates, semantics untouched.
 
 ### Environments
 
@@ -74,13 +80,21 @@ The current environment extension provides:
 - continuity model;
 - adapters/plans for local/SSH/container/cloud-style environments.
 
-The TL3-003 lifecycle is DONE (PR #11 a9f51d61): create/start/stop/attach/detach/snapshot/destroy behind the EnvironmentExecutor contract, local-real LocalProcessExecutor (fixed harness, SIGKILL escalation, real fs snapshots) + remote-simulated executors (explicit opt-in), PIN-2 lifecycle envelopes, trust-gated ops. Real providers remain TL3-004.
+The TL3-003 lifecycle is DONE (PR #11 a9f51d61): create/start/stop/attach/detach/snapshot/destroy behind the EnvironmentExecutor contract, local-real LocalProcessExecutor (fixed harness, SIGKILL escalation, real fs snapshots) + remote-simulated executors (explicit opt-in), PIN-2 lifecycle envelopes, trust-gated ops. TL3-004 rung 1 is DONE (merge 29bc28ba645): the remote kinds are REAL behind the same contract — SshCliExecutor (system ssh, fixed-harness-over-stdin), DockerCliExecutor (docker daemon, typed CLI_NOT_AVAILABLE), CloudHttpAdapter (injectable HttpPort, apiKeyRef vault-gated, mock-server drills), CliPort seam, FakeCli + skip-gated liveRemote suites. Rung 2 (live workbench resolver code + the resolvers grant, DL-33) remains the documented residual.
 
 Do not call every adapter a production provider.
 
-### Resources (TL3-005, merged)
+### Resources (TL3-005, merged; TL3-006 merged)
 
-extensions/flauz-resources provides the logical resource graph: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the provenance ops ledger, persisted under .flauz/ with the sibling-envelope discipline.
+extensions/flauz-resources provides the logical resource graph: ResourceRef identity, kind-specific access surfaces, typed edges, continuity/restoration plans and the provenance ops ledger, persisted under .flauz/ with the sibling-envelope discipline. TL3-006 is DONE (merge 6e014f59aa4): continuity is an EXECUTABLE capability — flauz-environments src/continuityExec/ (content-addressed bundles with the secret-redaction law, the continuity ops ledger, flauz.continuity.export/restore/verify/status typed commands, force-gated atomic restore, the planSwitch hand-off) + the flauz-resources PIN-1 journal bridge (strict READ-ONLY parser, ResourceRef minting from logical session ids, attribution-real edges, flauz.res.syncBrowserSessions).
+
+### Whole-session acceptance battery (TL4-004, merged)
+
+Four scripted user journeys drive the real Flauz surfaces end to end (task state machine, evidence ledger, workflow envelope save/re-run, browser session manager with policy + journal, environment lifecycle): golden session, recovery re-run with derived evidence, fail-closed denial paths, and continuity after full restart. Pinned transcript fixtures make every observable outcome machine-checked on each Flauz-relevant change; the runtime rung (real CDP, real executor) is the documented promotion.
+
+### Integrated security and release gates (TL4-006, merged)
+
+One machine-checked verdict for the release-blocking security surface: credential-pattern scan over the Flauz namespace with a documented allowlist, supply-chain dependency purity, the proposed-API permissions rota, and reproducible packaging (double-bundle byte-identical dist hashes). Dynamic rows (DL-20 ledger integrity, browser deny-by-default) run in their own CI lanes and are named in the coverage matrix.
 
 ### Workflow
 
@@ -90,18 +104,18 @@ Later workflow capabilities must be re-established from current code and tests b
 
 ## Known gaps
 
-1. Real provider adapters and real model execution.
-2. Durable multi-agent orchestration.
-3. Durable context and memory.
-4. Reusable workflow execution beyond the current envelope.
-5. Fully integrated Flauz-controlled browser runtime.
-6. Real environment lifecycle execution.
-7. Resource graph, leases/conflicts, takeover and collaboration semantics.
-8. Coherent premium product UX.
-9. Whole-product end-to-end acceptance on a real build.
-10. Repeatable upstream synchronization and production packaging/release.
-11. Linux, Windows, web and desktop verification without regressing Code OSS features.
-12. Proposed-API dependencies and their upgrade/retirement plan.
+1. Real model/provider execution and provider routing.
+2. Durable multi-agent orchestration, retry/cancel/recovery and collaborative execution.
+3. Durable context/memory compilation, retrieval and provenance.
+4. Complete human approval/takeover/lease semantics integrated with the durable execution graph.
+5. Production-grade reusable workflow execution/versioning/recovery.
+6. Real environment providers beyond the fixed local harness and explicitly simulated remote executors.
+7. Cross-surface continuity/restoration across agent task, browser, environment and resource state.
+8. Browser runtime promotion from fixture/driver coverage to real-workbench E2E and remaining partition/default-policy work.
+9. Whole-session acceptance promotion from fixture-backed simulation to real product/runtime coverage (DONE by TL4-007: J1-J4 over real CDP + LocalProcessExecutor, station-green, PR #19).
+10. Runtime performance/security/release promotion for currently fixture-backed or pending-runtime gates (advanced by TL4-009: audit delta + SBOM + pinned bundle manifest landed; runtime CI confirmation in flight).
+11. TL1-003's versioned native Flauz service protocol and packaging/release parity.
+12. Upstream synchronization as an ongoing maintenance lane plus web/desktop verification.
 
 Previous TL2 lab reports are evidence of work performed, not a substitute for current integrated verification.
 The code on main plus these program documents is now the authoritative starting point.

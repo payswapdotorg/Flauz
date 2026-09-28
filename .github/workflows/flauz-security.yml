@@ -1,0 +1,182 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL4 — TL4-006: integrated security + release gates.
+# TL4-009: the RUNTIME rung (security-runtime-gate.mjs -- jobs 2/3).
+#
+# Three jobs:
+#   1. security-gate (zero-dep, no install): the static rows — secrets scan
+#      over the Flauz namespace (credential battery + documented allowlist +
+#      unused-entry hygiene), dependency purity (flauz extensions: zero
+#      runtime deps, allowlisted devDeps), the proposed-API permissions rota
+#      (composed). The packaging row SKIPs pre-install (documented).
+#   2. packaging-reproducibility (after the root npm install): the full gate
+#      with --require — the packaging row bundles every flauz extension
+#      TWICE with the repo's own esbuild and asserts byte-identical dist
+#      artifacts (reproducible release artifacts) + --verify (every flauz
+#      main exists on disk). THEN the TL4-009 runtime rows: the audit-delta
+#      row goes live (npm audit over the installed tree, filtered to the
+#      flauz-added dependency delta), and the SBOM + bundle-manifest rows
+#      verify against the COMMITTED pinned artifacts (ANY drift = FAIL,
+#      the pinning law; regeneration is PR-reviewed diff-by-diff).
+#   3. security-runtime-report (workflow_dispatch only): runs the runtime
+#      gate with --json and uploads the report + the committed SBOM as
+#      artifacts (informational evidence stream; enforcement is job 2).
+#
+# Failability proof: the fixture matrix (verify-fixtures.sh) plants synthetic
+# credentials (GitHub PAT, Neon key, connection string, private key block),
+# asserts each fires the gate (exit 1), and proves allowlist suppression +
+# unused-allowlist-entry detection. A gate that cannot fail is not a gate.
+#
+# Delegated dynamic rows (documented in the spec, never faked): DL-20
+# hardened-ledger integrity (tamper/wrong-key/truncated-tail) runs in
+# flauz-workflow.yml (hardening.test.ts); browser deny-by-default + session
+# hardening runs in flauz-browser.yml.
+#
+# Constraints honored (same conventions as flauz-budgets.yml): no secrets,
+# read-only perms, actions pinned to the SHAs upstream's own workflows use.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Security
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/security-gate/**'
+      - 'test/fixtures/security-runtime/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/security-gate/**'
+      - 'test/fixtures/security-runtime/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-gate:
+    name: Security gate (secrets, supply chain, permissions — zero-dep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      # ---- the static rows: secrets scan + allowlist hygiene + dependency
+      # purity + proposed-API rota. FAIL is FAIL (no --require needed); the
+      # packaging row SKIPs pre-install by design (job 2 enforces it). ----
+      - name: Run the security gate (static rows)
+        run: node build/flauz/scripts/security-gate.mjs --root .
+
+      # ---- failability proof: every planted synthetic credential fires,
+      # allowlist suppression + unused-entry detection work ----
+      - name: Fixture matrix (verify-fixtures.sh, security subset)
+        run: sh build/flauz/scripts/verify-fixtures.sh --quiet
+
+  packaging-reproducibility:
+    name: Packaging reproducibility (double-bundle, byte-identical dist)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      # ---- the repo's node_modules provides esbuild (same install preamble
+      # as the hygiene lane: build tools + libkrb5-dev for the native kerberos
+      # module, Electron headers via the repo's own preinstall, then npm
+      # install; ELECTRON_SKIP mirrors the upstream pipeline) ----
+      - name: Setup Node.js (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install build tools (kerberos + native-keymap headers)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev
+
+      - name: Install Electron headers
+        run: node build/npm/preinstall.ts
+
+      - name: Install (esbuild for the bundler)
+        run: npm install
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+      # ---- evidence mode: every row must run — the packaging row bundles
+      # every flauz extension TWICE and asserts byte-identical artifacts ----
+      - name: Run the full security gate (--require)
+        run: node build/flauz/scripts/security-gate.mjs --root . --require
+
+      # ---- TL4-009: the runtime rung. The upstream fetch materializes
+      # origin/upstream/main for the delta computation (the shallow checkout
+      # does not carry it). The audit-delta row goes live post-install; the
+      # sbom + bundle-manifest rows verify against the committed pins. NOTE:
+      # the bundle manifest is STATION-PENDING on the worker branch -- the TL
+      # generates the pins at the integration station (procedure in the
+      # manifest notes); until then this step FAILS by design (not-pinned =
+      # divergence, the tamper-signal posture). ----
+      - name: Run the security runtime gate (audit-delta + SBOM/manifest verify)
+        run: |
+          git fetch --depth=1 origin upstream/main:refs/remotes/origin/upstream/main
+          node build/flauz/scripts/security-runtime-gate.mjs --root . --require
+
+      # ---- TL4-009: the SBOM pinning law -- regenerate + diff vs the
+      # committed artifact (ANY drift = FAIL; regeneration is PR-reviewed) ----
+      - name: SBOM drift check (regenerate + diff vs committed)
+        run: |
+          git fetch --depth=1 origin upstream/main:refs/remotes/origin/upstream/main
+          node build/flauz/scripts/security-runtime-gate.mjs --root . --row sbom --sbom-out "$RUNNER_TEMP/flauz-sbom.check.json"
+          diff -u build/flauz/security/flauz-sbom.json "$RUNNER_TEMP/flauz-sbom.check.json"
+
+  security-runtime-report:
+    name: Security runtime report (audit-delta + SBOM + manifest, informational)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      # ---- informational evidence stream (no install: the audit row SKIPs
+      # and is reported as such; enforcement lives in job 2) ----
+      - name: Run the security runtime gate (report posture)
+        run: |
+          git fetch --depth=1 origin upstream/main:refs/remotes/origin/upstream/main
+          node build/flauz/scripts/security-runtime-gate.mjs --root . --json --out runtime-report.json
+
+      - name: Upload the runtime report + SBOM
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flauz-security-runtime-report
+          path: |
+            runtime-report.json
+            build/flauz/security/flauz-sbom.json

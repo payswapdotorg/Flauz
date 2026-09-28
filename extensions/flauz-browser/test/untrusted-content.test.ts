@@ -17,9 +17,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { BrowserPolicyEngine } from '../src/policy.ts';
+import { BrowserPolicyEngine, canonicalJson, verdictCore } from '../src/policy.ts';
 import { CdpEndpointHost } from '../src/runtime/host.ts';
-import { BrowserSessionManager, isNavigationOutcome } from '../src/runtime/sessionManager.ts';
+import { isSessionError, BrowserSessionManager, isNavigationOutcome } from '../src/runtime/sessionManager.ts';
 import { FakeBrowserState, FakeCdpTransport } from '../src/cdp/fake.ts';
 import {
 	UNTRUSTED_CONTENT_MARKER,
@@ -29,7 +29,6 @@ import {
 	screenshotEvidenceRow,
 	untrustedContentNote,
 } from '../src/runtime/capture.ts';
-import { canonicalJson, verdictCore } from '../src/policy.ts';
 
 const WORKSPACE_ROOT = '/ws/acme';
 
@@ -114,7 +113,7 @@ test('screenshot rows through the REAL pipeline carry the marker (live wiring, r
 	const opened = await markerRig.manager.open({ initiator: 'agent', agentId: 'worker-1', startUrl: 'https://docs.example.com/shot' });
 	const sessionId = opened.descriptor.sessionId;
 	const result = await markerRig.manager.screenshot(sessionId);
-	assert.ok(!('error' in result));
+	assert.ok(!isSessionError(result));
 	assert.ok(isUntrustedContentNote(result.evidenceRow.note), 'the screenshot row note is marked (the committed URL is page-derived state)');
 	assert.match(result.evidenceRow.note, /^untrusted-content: screenshot: /);
 	assert.match(result.evidenceRow.note, /https:\/\/docs\.example\.com\/shot/, 'the verdict summary (with the URL) is intact behind the marker');

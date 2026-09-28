@@ -1,0 +1,15 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
+	},
+	"include": [
+		"test/session-battery.test.ts",
+		"test/canaries/session-battery-runtime.drill.ts",
+		"shims/**/*.d.ts",
+		"../flauz-browser/shims/**/*.d.ts",
+		"../flauz-environments/shims/**/*.d.ts",
+		"vscode-dts/vscode.d.ts"
+	]
+}

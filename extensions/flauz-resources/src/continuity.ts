@@ -116,7 +116,7 @@ export type RestorationPlan =
 		readonly hint: string;
 	};
 
-export type RestorationFamily = RestorationPlan.family;
+export type RestorationFamily = RestorationPlan['family'];
 
 export interface RestoreOptions {
 	/** Fail-closed provenance: the actor is MANDATORY on the recorded edge. */
@@ -140,7 +140,7 @@ const FAMILY_BY_KIND: Partial<Record<string, RestorationFamily>> = {
 	'artifact': 'file-artifact',
 };
 
-function currentSurface(graph: ResourceGraph, refId: string, family: Surface.kind): Surface | undefined {
+function currentSurface(graph: ResourceGraph, refId: string, family: Surface['kind']): Surface | undefined {
 	const record = graph.surfaceRecord(refId, family);
 	if (record === undefined) {
 		return undefined;
@@ -202,7 +202,7 @@ export interface ContinuityOptions {
 }
 
 export class ContinuityService {
-	private readonly graph: ContinuityOptions.graph;
+	private readonly graph: ContinuityOptions['graph'];
 
 	constructor(options: ContinuityOptions) {
 		this.graph = options.graph;
@@ -254,8 +254,8 @@ export class ContinuityService {
 	/** The newest ref X with edge `X snapshot-of refId` (by edge createdAt, tie-break by X id). */
 	private newestSnapshotAncestor(refId: string): string | undefined {
 		const candidates = this.graph.envelope().edges
-			.filter(edge => edge.kind === 'snapshot-of' && edge.to === refId && edge.from !== refId)
-			.sort((a, b) => (b.createdAt - a.createdAt) || (a.from < b.from ? -1 : 1));
+			.filter((edge: GraphEdge) => edge.kind === 'snapshot-of' && edge.to === refId && edge.from !== refId)
+			.sort((a: GraphEdge, b: GraphEdge) => (b.createdAt - a.createdAt) || (a.from < b.from ? -1 : 1));
 		const first = candidates[0];
 		return first === undefined ? undefined : first.from;
 	}

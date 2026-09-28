@@ -11,21 +11,13 @@
 import { test } from 'node:test';
 import { deepStrictEqual, ok, rejects, strictEqual, throws } from 'node:assert';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import {
-	EnvironmentLifecycleManager,
-	EnvironmentLifecycleError,
-	canTransition,
-	failureState,
-	legalOpsFrom,
-	successState,
-	transitionFor,
-} from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, EnvironmentLifecycleError, canTransition, failureState, legalOpsFrom, successState, transitionFor, type DescribeVerdict, type EnvironmentExecutor, type ExecutorEffectResult } from '../src/lifecycle/index.ts';
+
 import { LifecycleStore, parseLifecycleEnvelope, parseOpLine, serializeLifecycleEnvelope, serializeOpRecord } from '../src/lifecycle/store.ts';
 import { SimulatedRemoteExecutor } from '../src/lifecycle/simulated.ts';
-import type { DescribeVerdict, EnvironmentExecutor, ExecutorEffectResult } from '../src/lifecycle/index.ts';
-import type { EnvironmentDescriptor } from '../src/api.ts';
+
+import { type EnvironmentDescriptor, joinPath } from '../src/api.ts';
 import { cloudSandboxRegistrationInput, fixedClock, memFsPort, steppingClock, workspaceRemoteRegistrationInput } from './helpers.ts';
-import { joinPath } from '../src/api.ts';
 
 const ROOT = '/ws';
 const LIFECYCLE_FILE = joinPath(ROOT, '.flauz/environments-lifecycle.json');

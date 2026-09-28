@@ -69,10 +69,10 @@ test('every live tab auto-attaches (Target.setAutoAttach flatten + waitForDebugg
 	const commands = gateRig.transports[0]?.commandsOf('Target.setAutoAttach') ?? [];
 	assert.equal(commands.length, 1, 'the initial tab is gated');
 	const params = commands[0]?.params as Record<string, unknown>;
-	assert.equal(params['autoAttach'], true);
-	assert.equal(params['waitForDebuggerOnStart'], true, 'new targets pause BEFORE first use — the gate runs first');
-	assert.equal(params['flatten'], true);
-	assert.deepEqual(params['filter'], [{ type: 'page' }], 'scoped to page targets (the window.open/target=_blank class)');
+	assert.equal(params.autoAttach, true);
+	assert.equal(params.waitForDebuggerOnStart, true, 'new targets pause BEFORE first use — the gate runs first');
+	assert.equal(params.flatten, true);
+	assert.deepEqual(params.filter, [{ type: 'page' }], 'scoped to page targets (the window.open/target=_blank class)');
 	assert.ok(commands[0]?.sessionId !== undefined, 'session-scoped');
 	await gateRig.manager.dispose();
 });
@@ -106,7 +106,7 @@ test('a popup to a DENIED host never survives: closed immediately + evidence row
 	assert.equal(event.evidenceRow.kind, 'note');
 	assert.match(event.evidenceRow.sha256, /^[0-9a-f]{64}$/);
 	// and ZERO Page.navigate was ever sent for the popup (the gate closes BEFORE use):
-	assert.ok((gateRig.transports[0]?.pageNavigateCommands() ?? []).every(command => command.params['url'] !== 'https://evil.org/popup'));
+	assert.ok((gateRig.transports[0]?.pageNavigateCommands() ?? []).every(command => command.params.url !== 'https://evil.org/popup'));
 	// the session is untouched by the denial (still active, still one tab):
 	assert.equal(gateRig.manager.getSession(sessionId)?.state, 'active');
 	assert.equal(gateRig.manager.getSession(sessionId)?.tabs.length, 1);

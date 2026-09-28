@@ -1,0 +1,245 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL4 — TL4-004: whole-session acceptance battery.
+#
+# The session-battery job:
+#   1. session-battery.mjs --require — runs the four whole-user-session
+#      journeys (golden, recovery re-run, fail-closed, continuity) against
+#      the REAL extension sources (node:test + type stripping, node >= 22.6)
+#      and compares the distilled transcript against the pinned fixture
+#      test/fixtures/session-battery/golden-transcript.json. Evidence mode:
+#      SKIP is a FAIL.
+#   2. A doctored-fixture probe (expected exit 1) proves the gate fires —
+#      a gate that cannot fail is not a gate.
+#   3. The fixture matrix — sh build/flauz/scripts/verify-fixtures.sh (every
+#      harness script against every fixture, expected outcomes asserted in
+#      both directions).
+#
+# Honesty note (spec section 4, promotion ladder): the browser leg runs the
+# FakeCdpTransport and the environment leg runs the simulated remote
+# executor — this is the FIXTURE rung. The real-runtime rung (CDP against a
+# booted browser, LocalProcessExecutor) is the documented follow-up once the
+# product runtime surfaces expose a CI-driveable seam.
+#
+# The session-runtime job (TL4-007, a SECOND job -- never a modification of
+# job 1): the SAME J1-J4 journeys over the REAL ports -- the real
+# CdpEndpointHost + BrowserSessionManager against a real headless
+# Chrome-for-Testing (153.0.8010.12, the version the TL3-003 drill was
+# verified against) over a real CDP WebSocket, and the real
+# LocalProcessExecutor for the environment leg -- via the drill
+# extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts,
+# driven by `session-battery.mjs --runtime --require` (the gate enforces
+# the drill's exit code AND its GREEN line). Opt-in for cost, honest in
+# the trigger list: workflow_dispatch (input `runtime`, default true) AND
+# pushes that change the drill / runtime-transcript fixtures / the gate
+# (an in-job path filter; PRs run job 1 only). No secrets; Chrome comes
+# from the official Chrome-for-Testing distribution. The booted-workbench
+# seam remains future work.
+#
+# The compiled-unit-subset lane (flauz-hygiene.yml "Run unit tests touching
+# Flauz dirs") additionally runs this suite as compiled .js — two runners,
+# one battery.
+#
+# Constraints honored (same conventions as flauz-budgets.yml): no secrets,
+# read-only perms, actions pinned to the SHAs upstream's own workflows use.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Session
+
+on:
+  push:
+    branches: [flauz/main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/session-battery*/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/session-battery*/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Run the session-runtime job (the real-Chromium runtime lane)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-session-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  session-battery:
+    name: Whole-session acceptance battery (TL4-004, fixture rung)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- the battery typecheck: spans three extensions (the pulled-in
+      # flauz-environments sources run under their own laxer noUnused* flags;
+      # flauz-browser sources carry their own shims) — its own tsconfig,
+      # excluded from flauz-workflow's main typecheck ----
+      - name: Typecheck the battery (tsconfig.session-battery.json)
+        run: |
+          set -e
+          cd extensions/flauz-workflow
+          npm install --no-audit --no-fund
+          npm run typecheck-session-battery
+
+      # ---- the battery: four journeys, real sources, pinned transcript ----
+      - name: Run the whole-session battery (--require evidence mode)
+        run: node build/flauz/scripts/session-battery.mjs --root . --require
+
+      # ---- a gate that cannot fail is not a gate: the doctored fixture
+      # (golden ledger row count claims 2) MUST flip the verdict to FAIL ----
+      - name: Prove the gate fires (doctored fixture must exit 1)
+        run: |
+          set +e
+          node build/flauz/scripts/session-battery.mjs --root . \
+            --fixtures test/fixtures/session-battery-doctored \
+            > /tmp/session-battery-doctored.log 2>&1
+          code=$?
+          set -e
+          cat /tmp/session-battery-doctored.log
+          if [ "$code" -ne 1 ]; then
+            echo "::error::session battery unexpectedly exited $code on the doctored fixture (expected 1 — the gate must fire)"
+            exit 1
+          fi
+          echo "expected: the doctored fixture fired the battery (exit 1)"
+
+      # ---- the fixture matrix: every harness script against every fixture ----
+      - name: Fixture matrix (verify-fixtures.sh)
+        run: sh build/flauz/scripts/verify-fixtures.sh
+
+  # ---------------------------------------------------------------------------
+  # TL4-007 -- the RUNTIME rung: the same J1-J4 journeys over REAL ports
+  # (real CDP against a real headless Chrome-for-Testing + the real
+  # LocalProcessExecutor). Opt-in for cost; never modifies job 1.
+  # ---------------------------------------------------------------------------
+  session-runtime:
+    name: 'Whole-session acceptance battery (TL4-007, runtime rung: real CDP + LocalProcessExecutor)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # fetch-depth 2: the in-job path filter diffs HEAD^..HEAD
+          fetch-depth: 2
+
+      # ---- opt-in for cost, honest in the trigger list: the lane runs on
+      # workflow_dispatch (input `runtime`, default true) or when the push
+      # changed the drill / runtime-transcript fixtures / the gate. PRs run
+      # job 1 only. ----
+      - name: Decide whether the runtime lane runs
+        id: plan
+        run: |
+          set -e
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.runtime }}" = "false" ]; then
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (workflow_dispatch input runtime=false)"
+              exit 0
+            fi
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "runtime lane dispatched (input runtime=true)"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            CHANGED=$(git diff --name-only HEAD^ HEAD || true)
+            if printf '%s\n' "$CHANGED" | grep -Eq '^extensions/flauz-workflow/test/canaries/|^test/fixtures/session-battery-runtime|^build/flauz/scripts/session-battery\.mjs'; then
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "runtime lane runs (drill / runtime-transcript fixtures / gate changed):"
+              printf '%s\n' "$CHANGED" | grep -E '^extensions/flauz-workflow/test/canaries/|^test/fixtures/session-battery-runtime|^build/flauz/scripts/session-battery\.mjs' || true
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (no drill / runtime-transcript fixtures / gate change in this push)"
+            fi
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "runtime lane skipped (event $GITHUB_EVENT_NAME runs job 1 only)"
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        if: steps.plan.outputs.run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- download Chrome-for-Testing: the exact version the TL3-003 and
+      # TL4-007 drills were developed and verified against (153.0.8010.12).
+      # The official CfT JSON endpoints
+      # (https://googlechromelabs.github.io/chrome-for-testing/) index every
+      # published build; the pinned artifact lives at the well-known official
+      # storage path. A 404 fails the job loudly (honest: the version was
+      # unpublished, re-pin deliberately). No secrets. ----
+      - name: Download Chrome-for-Testing (pinned 153.0.8010.12)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          CFT_VERSION="153.0.8010.12"
+          # drift visibility (non-fatal): what the official JSON index says
+          # for milestone 153 today
+          LATEST_153=$(curl -fsSL --retry 2 \
+            "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone.json" \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const m=JSON.parse(d).milestones['153'];console.log(m?m.version:'unknown')})" \
+            || echo unknown)
+          echo "Chrome-for-Testing: pinned $CFT_VERSION (milestone 153 latest today: $LATEST_153)"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" \
+            "https://storage.googleapis.com/chrome-for-testing-public/$CFT_VERSION/linux64/chrome-linux64.zip"
+          unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/chrome-linux64/chrome" --version
+
+      # ---- launch the real browser + export the CDP endpoint (the
+      # TL3-003 drill documents this exact launch pattern) ----
+      - name: Launch headless Chromium with --remote-debugging-port
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          "$RUNNER_TEMP/chrome-linux64/chrome" --headless=new --no-sandbox --disable-gpu \
+            --disable-popup-blocking --remote-debugging-port=9222 \
+            --user-data-dir="$RUNNER_TEMP/flauz-chrome-profile" about:blank &
+          sleep 6
+          EP=$(curl -fsS --max-time 10 http://127.0.0.1:9222/json/version \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).webSocketDebuggerUrl))")
+          if [ -z "$EP" ]; then
+            echo "::error::no webSocketDebuggerUrl from http://127.0.0.1:9222/json/version"
+            exit 1
+          fi
+          echo "FLAUZ_CDP_ENDPOINT=$EP" >> "$GITHUB_ENV"
+          echo "CDP endpoint: $EP"
+
+      # ---- the runtime rung: J1-J4 over real CDP + LocalProcessExecutor,
+      # evidence mode (SKIP is a FAIL; the gate enforces the drill's exit
+      # code AND its GREEN line) ----
+      - name: Run the runtime drill (session-battery.mjs --runtime --require)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node build/flauz/scripts/session-battery.mjs --runtime --require 2>&1 | tee "$RUNNER_TEMP/session-runtime.log"
+
+      - name: Assert the GREEN line
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          grep -q 'session-battery: PASS -- runtime drill green' "$RUNNER_TEMP/session-runtime.log"
+          grep -q 'session-battery runtime drill: GREEN (J1-J4 over real CDP + LocalProcessExecutor)' "$RUNNER_TEMP/session-runtime.log"
+          echo "session-runtime: GREEN line verified (J1-J4 over real CDP + LocalProcessExecutor)"

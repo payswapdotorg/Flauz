@@ -2,7 +2,7 @@
 
 Repository: payswapdotorg/Flauz
 Product branch: main
-Current product head at verification: acc40d609d482597387d75a3764221cdf3dbec44
+Current product head at verification: 2dd52fc6fe39b3ff8cada7a0e4ead33477e7ff8f
 
 This repository and the product branch are sufficient to operate the Flauz engineering program without prior chat history.
 
@@ -28,6 +28,14 @@ When sources disagree, use this order:
 6. Historical lab artifacts and reports.
 
 The companion payswapdotorg/flauz-code-lab repository is historical research/evidence. It is not required to operate this program.
+
+## Current control-plane reconciliation — 2026-09-27
+
+- Verified integrated product head on `main`: `2dd52fc6fe39b3ff8cada7a0e4ead33477e7ff8f`.
+- No open pull requests were present at verification time.
+- Recent integrated work includes TL3 browser/security/environment waves plus TL4 security/release, session-battery and hygiene work; the exact current `main` tree is authoritative over stale control-plane annotations.
+- This reconciliation is documentation-only and does not change ownership, branch strategy or the active work lanes of TL1, TL2, TL3 or TL4.
+- The external-agent interoperability decision is intentionally downstream of TL1-003: no CopilotKit/OpenMuse runtime dependency is introduced.
 
 ## Completion law
 

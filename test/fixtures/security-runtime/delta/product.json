@@ -1,0 +1,14 @@
+{
+	"name": "flauz-fixture-product",
+	"version": "0.0.0-fixture",
+	"private": true,
+	"dependencies": {
+		"flauz-dep-a": "^1.2.3",
+		"flauz-dep-b": "2.0.0",
+		"shared-lib": "^3.1.0"
+	},
+	"devDependencies": {
+		"flauz-devtool-c": "^0.9.0",
+		"shared-dev": "^2.2.0"
+	}
+}

@@ -58,6 +58,7 @@ import {
 	formatVerdictLine,
 } from './policy.ts';
 import {
+	isSessionError,
 	BrowserSessionManager,
 	isNavigationOutcome,
 	type OpenSessionResult,
@@ -448,7 +449,7 @@ async function commandCloseSession(arg: unknown): Promise<unknown> {
 		return { error: `flauz.browser.closeSession: ${runtime.error}` };
 	}
 	const result = await runtime.close(sessionId);
-	log(`flauz.browser: closeSession ${sessionId} -> ${'state' in result ? result.state : `error: ${result.error.message}`}`);
+	log(`flauz.browser: closeSession ${sessionId} -> ${isSessionError(result) ? `error: ${result.error.message}` : result.state}`);
 	return result;
 }
 
@@ -504,7 +505,7 @@ async function commandScreenshot(arg: unknown): Promise<unknown> {
 		return { error: `flauz.browser.screenshot: ${runtime.error}` };
 	}
 	const result = await runtime.screenshot(sessionId, tabId);
-	if ('error' in result) {
+	if (isSessionError(result)) {
 		log(`flauz.browser: screenshot ${sessionId} error: ${result.error.message}`);
 		return result;
 	}

@@ -52,6 +52,8 @@ declare module 'node:fs' {
         export function readFileSync(path: string, encoding: 'utf-8'): string;
         export function readdirSync(path: string): string[];
         export function statSync(path: string): { isFile(): boolean; isDirectory(): boolean };
+        /** TL3-003 (real-Chromium drill): best-effort temp-dir cleanup. */
+        export function rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void;
 }
 
 declare module 'node:fs/promises' {
@@ -81,9 +83,32 @@ declare module 'node:crypto' {
         export function randomBytes(size: number): { toString(encoding: 'hex'): string; toString(): string; readonly length: number };
 }
 
+declare module 'node:http' {
+        /** TL3-003 (real-Chromium drill): the local origin server for real allowed/denied navigations. */
+        export interface ShimServerRequest {
+                readonly url: string | undefined;
+        }
+        export interface ShimServerResponse {
+                writeHead(status: number, headers: Record<string, string>): void;
+                end(data?: string | Uint8Array): void;
+        }
+        export interface ShimServer {
+                listen(port: number, host: string, callback?: () => void): ShimServer;
+                address(): { port: number } | null;
+                close(): void;
+        }
+        export function createServer(handler: (request: ShimServerRequest, response: ShimServerResponse) => void): ShimServer;
+}
+
 declare module 'node:url' {
         export function fileURLToPath(url: string | URL): string;
 }
+
+/**
+ * The stable global fetch (Node 18+), minimal surface: the real-Chromium drill
+ * (TL3-003) reads /json/version from the real browser's DevTools HTTP endpoint.
+ */
+declare function fetch(url: string): Promise<{ ok: boolean; json(): Promise<unknown> }>;
 
 declare module 'node:module' {
         export function registerHooks(hooks: {

@@ -415,7 +415,7 @@
 			"surface": "extensions/flauz-environments",
 			"capability": "environment registry, descriptors, continuity and lifecycle core (port-injected)",
 			"class": "web-full",
-			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged.",
+			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 \u2014 node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
 			"evidence": [
 				{
 					"kind": "node-free",
@@ -423,7 +423,47 @@
 				},
 				{
 					"kind": "node-free",
-					"path": "extensions/flauz-environments/src/lifecycle"
+					"path": "extensions/flauz-environments/src/lifecycle/cloudHttp.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/dockerCli.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/executor.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/index.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/localProcess.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/manager.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/simulated.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/sshCli.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/stateMachine.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/store.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-environments/src/lifecycle/types.ts"
 				}
 			],
 			"recoveryPath": "Packaging only: ship the core from the browser entrypoint; remote provider executors (TL3-004) plug into the same EnvironmentExecutor port."

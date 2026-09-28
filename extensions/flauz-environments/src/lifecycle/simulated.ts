@@ -32,8 +32,8 @@
  *     truth; attach/detach mint logical leases recorded in the sim state
  *     (id + held-since — the lease a real provider would hand back).
  */
-import { joinPath, type Clock } from '../api.ts';
-import type { EnvironmentDescriptor, EnvironmentKind, FileSystemPort } from '../api.ts';
+import { type EnvironmentDescriptor, type EnvironmentKind, type FileSystemPort, joinPath, type Clock } from '../api.ts';
+
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult, ProvenanceActor } from './types.ts';
 

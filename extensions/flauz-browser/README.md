@@ -213,6 +213,66 @@ sanitization**: the raw page-derived string stays in the note (forensically
 useful); consumers must treat everything after the marker as untrusted. No
 sanitization claim is made or implied, and nothing is rewritten or stripped.
 
+## Real-Chromium verification (TL3-003 — the optional real-endpoint drill)
+
+The FakeCdpTransport pins the SHAPES of the runtime's CDP conversations; it
+makes no claim about real Chromium's behavior. `test/canaries/
+real-chromium-hardening.drill.ts` closes that gap the only honest way: it
+drives the REAL runtime (`CdpEndpointHost` + `BrowserSessionManager` + the
+navigation pipeline + the TL3-002 hardening + the popup gate + the recovery)
+against a REAL Chromium over a real CDP WebSocket and asserts REAL observed
+evidence — wire frames recorded on the real socket (a `WebSocketCdpTransport`
+subclass records every frame SENT — the real-wire analog of the fake's
+sent-command log), real committed URLs, real PNG screenshot bytes, real
+`navigator.userAgent` reads through an independent observer connection, the
+real download state machine, and the real suspend -> reconnect -> re-attach
+-> re-harden -> re-check recovery after a mid-session socket kill. Verified
+GREEN (43 assertions) against Chrome for Testing 153.0.8010.12 headless.
+
+What it PROVES holds on real Chromium: transport E2E (including ZERO
+`Page.navigate` frames on policy deny — asserted on the real wire); the UA
+discipline both directions (agent tabs carry `FlauzAgent/0`, observable
+cross-session; human tabs keep the browser default with zero override
+frames); `Browser.setDownloadBehavior {behavior:'deny'}` acceptance on real
+page sessions, its EFFECT (`Browser.downloadWillBegin` ->
+`Browser.downloadProgress` state `canceled`), and per-session scoping; and
+the recovery path (re-attach + re-hardening + the current-policy recheck
+against real browser state — including the hot-swapped-deny variant that
+flags the real committed URL).
+
+What it PINS as real-Chromium divergences from the FakeCdpTransport contract
+(asserted as observed — drift canaries; if Chromium changes, the drill fails
+and forces a re-look): **F-DELIVERY** (page-session `Target.setAutoAttach` —
+the popup gate's placement — does NOT deliver `window.open` popups; they are
+browser-level targets and free-run), **F-POPUP-URL** (at browser-level
+attach a popup arrives with `targetInfo.url` EMPTY — the pending URL is not
+available at gate time), **F-RELEASE-CMD** (`Runtime.run` is not a real CDP
+method; the real release is `Runtime.runIfWaitingForDebugger` — the gate's
+allow-path sends `Runtime.run`), **F-OPENER-BLOCK** (`window.open` blocks the
+opener while a popup is held; never returns if the held popup is closed),
+and **F-RECOVERY-DOMAINS** (the recovery re-attach does not re-send
+`Page.enable`, so post-recovery commit observation times out — the fake
+cannot catch this because it does not model domain-enable state). These are
+recorded for the TL as fix candidates (see INTEGRATION-GAP.md "What
+remains"); this lane reports and pins them, it does not paper over them.
+
+```sh
+# launch a real Chromium (a DevTools endpoint + popup blocking disabled —
+# Runtime.evaluate runs without a user gesture):
+chromium --headless=new --no-sandbox --disable-gpu --disable-popup-blocking \
+         --remote-debugging-port=9222 --user-data-dir=/tmp/flauz-chrome about:blank
+# take the webSocketDebuggerUrl from http://127.0.0.1:9222/json/version
+FLAUZ_CDP_ENDPOINT=ws://127.0.0.1:9222/devtools/browser/<id> \
+  node test/canaries/real-chromium-hardening.drill.ts
+# no FLAUZ_CDP_ENDPOINT (or FLAUZ_REALCHROMIUM_SKIP=1, or an unreachable
+# endpoint) => SKIP with exit 0: never fail a gate for lacking a browser.
+```
+
+The drill is NOT part of `npm test` and CI does not require it (B-POLICY
+documents it as the optional real-endpoint drill). Local allowed/denied
+hosts come from a 127.0.0.1 origin server the drill starts itself — real
+navigations, no external network, no secrets.
+
 ## Development
 
 Zero dependencies; Node >= 20 stdlib only (runs under plain `node --test`
@@ -223,6 +283,7 @@ cd extensions/flauz-browser
 npm run typecheck   # tsc --noEmit (typescript 5.9.x)
 npm run test        # node --test "test/*.test.ts"  (205 cases: 100 policy-family + 105 runtime)
 node test/canaries/policy-gated-navigation.drill.ts   # the B-POLICY A-class driver drill (TL3-001 + TL3-002 assertions)
+FLAUZ_CDP_ENDPOINT=<real ws endpoint> node test/canaries/real-chromium-hardening.drill.ts   # the OPTIONAL real-Chromium drill (TL3-003; SKIPs without a real endpoint)
 ```
 
 Suites: `policy` / `partition` / `precedence` / `cdpBypass` / `extension`
