@@ -21,6 +21,7 @@
  */
 
 import type * as vscode from 'vscode';
+import type { CapabilityRecord } from './discovery/registry.ts';
 import { claudeVendorPlan } from './vendors/claude.ts';
 import { codexVendorPlan } from './vendors/codex.ts';
 import { qwenVendorPlan } from './vendors/qwen.ts';
@@ -55,8 +56,29 @@ export interface RegisteredProviderInfo {
 /** The design-only vendor plans, in stable display order. */
 export const VENDOR_PLANS: readonly VendorPlan[] = [claudeVendorPlan, codexVendorPlan, qwenVendorPlan];
 
+/**
+ * TL2-002: the fabric summary the view renders after the stub rows (pure
+ * data built by extension.ts through fabric.summary(); absent in the plain
+ * two-arg call shape so existing consumers are unaffected).
+ */
+export interface FabricViewInfo {
+	readonly records: readonly CapabilityRecord[];
+	readonly routingDefault: string;
+	readonly toolPolicy: string;
+	readonly degraded?: string;
+	readonly inMemory: boolean;
+}
+
+/** Honest per-record status text (mock stays labeled mock; real adapters stay labeled FIXTURE-VERIFIED). */
+function recordStatusText(record: CapabilityRecord): string {
+	if (record.wireFamily === 'mock-echo') {
+		return 'deterministic mock vendor (no network)';
+	}
+	return 'FIXTURE-VERIFIED adapter: verified against local fixture servers; live-provider verification is a future integration gap';
+}
+
 /** Builds the rows (pure; exported for tests). */
-export function modelsRows(registered: readonly RegisteredProviderInfo[]): ModelsRow[] {
+export function modelsRows(registered: readonly RegisteredProviderInfo[], fabric?: FabricViewInfo): ModelsRow[] {
 	const rows: ModelsRow[] = registered.map(provider => ({
 		id: `registered-${provider.vendor}`,
 		label: provider.vendor,
@@ -75,6 +97,44 @@ export function modelsRows(registered: readonly RegisteredProviderInfo[]): Model
 			contextValue: 'flauzModelStub',
 		});
 	}
+	if (fabric !== undefined) {
+		if (fabric.degraded !== undefined) {
+			rows.push({
+				id: 'fabric-degraded',
+				label: 'models fabric',
+				description: 'registry degraded · in-memory defaults active',
+				tooltip: `The durable model-fabric state failed to load; the in-memory code defaults are active (nothing is silently reinterpreted). Reason: ${fabric.degraded}`,
+				icon: 'warning',
+				contextValue: 'flauzModelFabricDegraded',
+			});
+		}
+		for (const record of fabric.records) {
+			rows.push({
+				id: `capability-${record.providerId}-${record.modelId}`,
+				label: record.providerId,
+				description: `${record.modelId} · ${record.enabled ? 'enabled' : 'disabled'} · ${record.source} · ${record.locality}`,
+				tooltip: `Capability record for ${record.providerId}/${record.modelId}: window ${record.contextWindowTokens} tokens, max output ${record.maxOutputTokens}, tools ${record.toolCalling === false ? 'no' : String(record.toolCalling)}, credentials ${record.credentialConfigured ? 'referenced (vault)' : 'not configured'}. ${recordStatusText(record)}. ${fabric.inMemory ? 'In-memory posture (no workspace root: nothing durable is written).' : 'Durable under .flauz/models/.'}`,
+				icon: record.enabled ? 'check' : 'circle-slash',
+				contextValue: 'flauzModelCapability',
+			});
+		}
+		rows.push({
+			id: 'fabric-routing',
+			label: 'routing',
+			description: fabric.routingDefault,
+			tooltip: `The routing policy default. Every route is a recorded decision with candidates and exclusion reasons (.flauz/models/routing-decisions.jsonl). ${fabric.routingDefault}`,
+			icon: 'signpost',
+			contextValue: 'flauzModelRouting',
+		});
+		rows.push({
+			id: 'fabric-tool-policy',
+			label: 'tool-policy',
+			description: fabric.toolPolicy,
+			tooltip: `Agent tool policy (fail closed; native lm/MCP tool UX stays authoritative -- this only scopes Flauz agent tool-set assembly). ${fabric.toolPolicy}`,
+			icon: 'shield',
+			contextValue: 'flauzModelToolPolicy',
+		});
+	}
 	return rows;
 }
 
@@ -89,15 +149,17 @@ export interface ModelsViewApi {
 	TreeItemCollapsibleState: typeof vscode.TreeItemCollapsibleState;
 }
 
-/** The Models tree: registered providers + honestly-labeled design stubs. */
+/** The Models tree: registered providers + honestly-labeled design stubs (+ fabric rows when supplied). */
 export class ModelsTreeProvider implements vscode.TreeDataProvider<ModelsRow> {
 	private readonly api: ModelsViewApi;
 	private readonly getRegistered: () => readonly RegisteredProviderInfo[];
+	private readonly getFabric?: () => Promise<FabricViewInfo>;
 	private readonly emitter: vscode.EventEmitter<ModelsRow | undefined>;
 
-	constructor(api: ModelsViewApi, getRegistered: () => readonly RegisteredProviderInfo[]) {
+	constructor(api: ModelsViewApi, getRegistered: () => readonly RegisteredProviderInfo[], getFabric?: () => Promise<FabricViewInfo>) {
 		this.api = api;
 		this.getRegistered = getRegistered;
+		this.getFabric = getFabric;
 		this.emitter = new api.EventEmitter<ModelsRow | undefined>();
 	}
 
@@ -111,7 +173,17 @@ export class ModelsTreeProvider implements vscode.TreeDataProvider<ModelsRow> {
 	}
 
 	async getChildren(): Promise<ModelsRow[]> {
-		return modelsRows(this.getRegistered());
+		if (this.getFabric === undefined) {
+			return modelsRows(this.getRegistered());
+		}
+		const fabric = await this.getFabric().catch((error: unknown): FabricViewInfo => ({
+			records: [],
+			routingDefault: 'unavailable',
+			toolPolicy: 'unavailable',
+			degraded: error instanceof Error ? error.message : String(error),
+			inMemory: true,
+		}));
+		return modelsRows(this.getRegistered(), fabric);
 	}
 
 	getTreeItem(element: ModelsRow): vscode.TreeItem {
@@ -128,8 +200,8 @@ export class ModelsTreeProvider implements vscode.TreeDataProvider<ModelsRow> {
 }
 
 /** Registers the tree data provider plus its focus/refresh commands. */
-export function registerModelsView(api: ModelsViewApi, getRegistered: () => readonly RegisteredProviderInfo[]): { readonly disposables: readonly vscode.Disposable[]; readonly provider: ModelsTreeProvider } {
-	const provider = new ModelsTreeProvider(api, getRegistered);
+export function registerModelsView(api: ModelsViewApi, getRegistered: () => readonly RegisteredProviderInfo[], getFabric?: () => Promise<FabricViewInfo>): { readonly disposables: readonly vscode.Disposable[]; readonly provider: ModelsTreeProvider } {
+	const provider = new ModelsTreeProvider(api, getRegistered, getFabric);
 	const handlers: Record<(typeof VIEW_COMMAND_IDS)[number], () => unknown> = {
 		'flauz.focusView.models': () => api.executeCommand(`${MODELS_VIEW_ID}.focus`),
 		'flauz.models.refreshView': () => provider.refresh(),

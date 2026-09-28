@@ -130,3 +130,61 @@ test('registration: view + both commands register; focus delegates; refresh fire
 	api.registeredHandlers.get('flauz.models.refreshView')?.();
 	strictEqual(changeEvents, 1);
 });
+
+test('modelsRows (fabric): capability, routing and tool-policy rows carry honest labels', async () => {
+	const api = createApiDouble();
+	const provider = new ModelsTreeProvider(
+		api,
+		() => [{ vendor: 'flauz-mock', modelId: 'echo-1', modelName: 'Flauz Mock Echo' }],
+		async () => ({
+			records: [
+				{ providerId: 'flauz-mock', vendor: 'flauz-mock', modelId: 'echo-1', modelName: 'Flauz Mock Echo', family: 'flauz-echo', version: '1', wireFamily: 'mock-echo', locality: 'local', enabled: true, contextWindowTokens: 8192, maxOutputTokens: 4096, inputModalities: ['text'], toolCalling: false, tokenCounting: 'estimated', streaming: true, credentialConfigured: false, source: 'code-default', updatedAt: 1 },
+				{ providerId: 'openai-compat', vendor: 'flauz-openai-compat', modelId: 'gpt-4o-mini', modelName: 'GPT-4o mini', family: 'gpt-4o', version: '1', contextWindowTokens: 128_000, maxOutputTokens: 16_384, wireFamily: 'openai-chat-completions', locality: 'remote', enabled: false, inputModalities: ['text', 'image'], toolCalling: true, tokenCounting: 'both', streaming: true, credentialConfigured: false, source: 'code-default', updatedAt: 1, cost: { currency: 'USD', inputPerMillion: 0.15, outputPerMillion: 0.6 } },
+			],
+			routingDefault: "default rule 'zero-network-default' -> flauz-mock (priority 100)",
+			toolPolicy: '1 agent entry · default deny · .flauz/models/tool-policy.json',
+			inMemory: false,
+		}),
+	);
+	const rows = await provider.getChildren();
+	const labels = rows.map(row => row.label);
+	strictEqual(labels[0], 'flauz-mock', 'registered provider row first');
+	ok(labels.includes('flauz-claude'), 'stub rows still present');
+	const capabilityRows = rows.filter(row => row.contextValue === 'flauzModelCapability');
+	strictEqual(capabilityRows.length, 2);
+	const mockRow = capabilityRows.find(row => row.description.startsWith('echo-1'));
+	ok(mockRow !== undefined);
+	strictEqual(mockRow.icon, 'check');
+	ok(mockRow.tooltip.includes('deterministic mock vendor'), 'the mock stays labeled mock');
+	ok(mockRow.tooltip.includes('Durable under .flauz/models'), 'durable posture recorded');
+	const openaiRow = capabilityRows.find(row => row.description.startsWith('gpt-4o-mini'));
+	ok(openaiRow !== undefined);
+	strictEqual(openaiRow.icon, 'circle-slash', 'disabled record shows the disabled icon');
+	ok(openaiRow.description.includes('disabled'));
+	ok(openaiRow.tooltip.includes('FIXTURE-VERIFIED'), 'real adapters stay labeled FIXTURE-VERIFIED');
+	ok(openaiRow.tooltip.includes('future integration gap'), 'live-provider gap stated in the row itself');
+	const routingRow = rows.find(row => row.contextValue === 'flauzModelRouting');
+	ok(routingRow?.description.includes('zero-network-default'));
+	const toolPolicyRow = rows.find(row => row.contextValue === 'flauzModelToolPolicy');
+	ok(toolPolicyRow?.tooltip.includes('native lm/MCP tool UX stays authoritative'));
+});
+
+test('modelsRows (fabric): degraded loads surface as a row, never a silent state', async () => {
+	const api = createApiDouble();
+	const provider = new ModelsTreeProvider(
+		api,
+		() => [],
+		async () => ({
+			records: [],
+			routingDefault: 'unavailable',
+			toolPolicy: 'unavailable',
+			degraded: 'capability registry: boom',
+			inMemory: true,
+		}),
+	);
+	const rows = await provider.getChildren();
+	const degradedRow = rows.find(row => row.contextValue === 'flauzModelFabricDegraded');
+	ok(degradedRow !== undefined, 'the degraded state is a visible row');
+	ok(degradedRow.tooltip.includes('capability registry: boom'), 'the reason is recorded in the row');
+	strictEqual(degradedRow.icon, 'warning');
+});

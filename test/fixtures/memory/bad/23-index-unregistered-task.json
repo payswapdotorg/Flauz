@@ -1,0 +1,25 @@
+{
+	"$schema": "flauz.memory.index/v1",
+	"journals": [
+		"P",
+		"S"
+	],
+	"entries": [
+		{
+			"id": "MEM-T-001-000001",
+			"tier": "task",
+			"taskId": "T-001",
+			"agentId": null,
+			"kind": "summary",
+			"tags": [
+				"build"
+			],
+			"tokens": 5,
+			"created": 1740000000000,
+			"updatedAt": 1740000000000,
+			"pinned": false,
+			"evidenceId": null
+		}
+	],
+	"generatedAt": 1740000000000
+}

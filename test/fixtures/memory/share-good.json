@@ -1,0 +1,10 @@
+{
+	"id": "SH-000001",
+	"action": "grant",
+	"recordId": "MEM-T-001-000001",
+	"fromAgent": "flauz.agent.worker-1",
+	"toAgent": "flauz.agent",
+	"actor": "agent",
+	"ts": 1740000000000,
+	"reason": "parent needs the finding"
+}

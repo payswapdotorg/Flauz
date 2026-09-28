@@ -1,0 +1,14 @@
+{
+	"id": "P-000001",
+	"action": "compact",
+	"ts": 1740000000000,
+	"actor": "agent",
+	"humanApproved": false,
+	"recordId": null,
+	"resultRecordId": null,
+	"journal": "session",
+	"fromTier": null,
+	"toTier": null,
+	"reason": "task ended - persist the finding",
+	"droppedRecordIds": []
+}
