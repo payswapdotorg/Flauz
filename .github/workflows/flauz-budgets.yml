@@ -76,10 +76,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Node.js (zero-dep script needs node >= 20 only)
+      - name: Setup Node.js (zero-dep scripts need node >= 20; the fixture matrix's
+          runtime-drill cases run TypeScript via --experimental-strip-types, node >= 22.6)
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 22
 
       # ---- registry self-check: the real registry validates and every row SKIPs
       # with a documented reason when no measurements are given (skip-vs-fail) ----
@@ -256,6 +257,10 @@ jobs:
           fi
           echo "FLAUZ_CDP_ENDPOINT=$EP" >> "$GITHUB_ENV"
           echo "endpoint: $EP"
+
+      - name: Prepare the runtime records dir (the drills --out into it)
+        if: steps.plan.outputs.run == 'true'
+        run: mkdir -p "$RUNNER_TEMP/budget-runtime-records"
 
       # ---- the three runtime drills; each writes the budget-gate measurement
       # envelope and exits 1 ONLY on a real divergence (SKIP is exit 0: the
