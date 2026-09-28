@@ -1,0 +1,126 @@
+{
+  "$schema": "flauz.environments/v0",
+  "activeId": "env-fixture-running",
+  "environments": [
+    {
+      "capabilities": {
+        "agentHost": true,
+        "browser": true,
+        "exec": true,
+        "terminal": true
+      },
+      "enabled": true,
+      "id": "env-fixture-running",
+      "kind": "ssh-local",
+      "label": "fixture running env",
+      "timing": {
+        "created": 1730000000000,
+        "updatedAt": 1730000001000
+      },
+      "trust": {
+        "inheritsWorkspaceTrust": false,
+        "posture": "trusted"
+      }
+    },
+    {
+      "capabilities": {
+        "agentHost": true,
+        "browser": true,
+        "exec": true,
+        "terminal": true
+      },
+      "enabled": true,
+      "id": "env-fixture-attached",
+      "kind": "ssh-local",
+      "label": "fixture attached env",
+      "timing": {
+        "created": 1730000000000,
+        "updatedAt": 1730000002000
+      },
+      "trust": {
+        "inheritsWorkspaceTrust": false,
+        "posture": "trusted"
+      }
+    },
+    {
+      "capabilities": {
+        "agentHost": false,
+        "browser": false,
+        "exec": true,
+        "terminal": true
+      },
+      "enabled": true,
+      "id": "env-fixture-untrusted",
+      "kind": "container",
+      "label": "fixture untrusted env",
+      "timing": {
+        "created": 1730000000000,
+        "updatedAt": 1730000003000
+      },
+      "trust": {
+        "inheritsWorkspaceTrust": false,
+        "posture": "untrusted"
+      }
+    },
+    {
+      "capabilities": {
+        "agentHost": false,
+        "browser": false,
+        "exec": true,
+        "terminal": true
+      },
+      "enabled": true,
+      "id": "env-fixture-failed",
+      "kind": "cloud-sandbox",
+      "label": "fixture failed env",
+      "timing": {
+        "created": 1730000000000,
+        "updatedAt": 1730000004000
+      },
+      "trust": {
+        "inheritsWorkspaceTrust": false,
+        "posture": "trusted"
+      }
+    },
+    {
+      "capabilities": {
+        "agentHost": true,
+        "browser": true,
+        "exec": true,
+        "terminal": true
+      },
+      "enabled": true,
+      "id": "env-fixture-destroyed",
+      "kind": "ssh-local",
+      "label": "fixture destroyed env",
+      "timing": {
+        "created": 1730000000000,
+        "updatedAt": 1730000005000
+      },
+      "trust": {
+        "inheritsWorkspaceTrust": false,
+        "posture": "trusted"
+      }
+    },
+    {
+      "capabilities": {
+        "agentHost": true,
+        "browser": true,
+        "exec": true,
+        "terminal": true
+      },
+      "enabled": true,
+      "id": "env-fixture-unknown",
+      "kind": "ssh-local",
+      "label": "fixture unknown-trust env",
+      "timing": {
+        "created": 1730000000000,
+        "updatedAt": 1730000001000
+      },
+      "trust": {
+        "inheritsWorkspaceTrust": true,
+        "posture": "unknown"
+      }
+    }
+  ]
+}

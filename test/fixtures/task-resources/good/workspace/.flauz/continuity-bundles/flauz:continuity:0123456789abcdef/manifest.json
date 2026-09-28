@@ -1,0 +1,48 @@
+{
+  "actor": "human",
+  "bundleId": "flauz:continuity:0123456789abcdef",
+  "createdAt": 1760000100000,
+  "schema": "flauz.continuity-bundle/v0",
+  "schemaVersion": 0,
+  "sourceEnvironmentId": "env-fixture-running",
+  "surfaces": {
+    "flauz-environments-lifecycle": {
+      "artifactPath": "surfaces/flauz-environments-lifecycle.json",
+      "bytes": 101,
+      "note": "carried from .flauz/environments-lifecycle.json",
+      "sha256": "d25a0d94c5124c1b2a0df67e359705f19e4d9bae3d431ad1db10f7df6995c796",
+      "status": "carried"
+    },
+    "flauz-environments-ops": {
+      "artifactPath": "surfaces/flauz-environments-ops.jsonl",
+      "bytes": 0,
+      "note": "carried from .flauz/environments-ops.jsonl (empty in the fixture)",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "carried"
+    },
+    "flauz-environments-registry": {
+      "artifactPath": "surfaces/flauz-environments-registry.json",
+      "bytes": 69,
+      "note": "carried from .flauz/environments.json",
+      "sha256": "f636872215c245648a4b1abd824a07fefc0a35a22c683c177a10069a111f9d2d",
+      "status": "carried"
+    },
+    "flauz-evidence-ledger": {
+      "note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)",
+      "sha256": "a8975b99781aca7220bf6eec0261a6a24e83b6ab93abec0d7af8ca8f3020e340",
+      "status": "redacted"
+    },
+    "flauz-tasks-envelope": {
+      "artifactPath": "surfaces/flauz-tasks-envelope.json",
+      "bytes": 39,
+      "note": "carried from .flauz/tasks.json",
+      "sha256": "54feda87ee5d020ee5d721a883fcc8b78bb30791c7ba3dec111a84973132938e",
+      "status": "carried"
+    },
+    "scm-working-tree": {
+      "note": "rides the SCM substrate (git working tree + branches); not a .flauz/ surface",
+      "status": "lost"
+    }
+  },
+  "switchPlanRef": "flauz.switchPlan/v0:env-fixture-attached@1760000090000"
+}

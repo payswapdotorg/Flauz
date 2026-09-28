@@ -1,0 +1,30 @@
+{
+  "$schema": "flauz.tasks/v0",
+  "tasks": [
+    {
+      "events": [
+        {
+          "actor": "agent",
+          "at": 1730000000000,
+          "note": "plan",
+          "type": "submit-plan"
+        },
+        {
+          "actor": "human",
+          "at": 1730000001000,
+          "note": "approved",
+          "type": "approve"
+        }
+      ],
+      "id": "T-001",
+      "status": "execute",
+      "title": "fixture task 1"
+    },
+    {
+      "events": [],
+      "id": "T-002",
+      "status": "plan",
+      "title": "fixture task 2"
+    }
+  ]
+}

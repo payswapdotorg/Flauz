@@ -1,0 +1,79 @@
+{
+  "$schema": "flauz.resources/v0",
+  "edges": [
+    {
+      "createdAt": 1730000040000,
+      "from": "flauz:task:T-001",
+      "kind": "depends-on",
+      "provenance": {
+        "actor": "agent",
+        "actorId": "flauz-agent"
+      },
+      "to": "flauz:file:4d5e6f708192a3b4"
+    }
+  ],
+  "nodes": [
+    {
+      "createdAt": 1730000000000,
+      "id": "flauz:browser:0123456789abcdef",
+      "kind": "browser-session",
+      "provenance": {
+        "actor": "agent",
+        "actorId": "flauz-agent"
+      },
+      "schemaVersion": 0
+    },
+    {
+      "createdAt": 1730000000000,
+      "id": "flauz:environment:env-fixture-running",
+      "kind": "environment",
+      "provenance": {
+        "actor": "agent",
+        "actorId": "flauz-agent"
+      },
+      "schemaVersion": 0
+    },
+    {
+      "createdAt": 1730000000000,
+      "displayName": "fixture-file.txt",
+      "id": "flauz:file:4d5e6f708192a3b4",
+      "kind": "file",
+      "provenance": {
+        "actor": "human",
+        "actorId": "user-1"
+      },
+      "schemaVersion": 0
+    },
+    {
+      "createdAt": 1730000000000,
+      "displayName": "fixture-evidence-row",
+      "id": "flauz:evidence:abcdef0123456789",
+      "kind": "evidence",
+      "provenance": {
+        "actor": "tool",
+        "actorId": "flauz-snapshot"
+      },
+      "schemaVersion": 0
+    }
+  ],
+  "surfaces": [
+    {
+      "family": "file-system",
+      "refId": "flauz:file:4d5e6f708192a3b4",
+      "versions": [
+        {
+          "provenance": {
+            "actor": "human",
+            "actorId": "user-1"
+          },
+          "surface": {
+            "kind": "file-system",
+            "path": "fixture-file.txt",
+            "root": "/workspace"
+          },
+          "updatedAt": 1730000044000
+        }
+      ]
+    }
+  ]
+}

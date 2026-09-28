@@ -1,0 +1,37 @@
+{
+  "entries": {
+    "env-fixture-attached": {
+      "executorKind": "simulated-ssh-local",
+      "lastOpRef": 2,
+      "state": "running/attached",
+      "updatedAt": 1730000002000
+    },
+    "env-fixture-destroyed": {
+      "executorKind": "local-process",
+      "lastOpRef": 5,
+      "state": "destroyed",
+      "updatedAt": 1730000005000
+    },
+    "env-fixture-failed": {
+      "executorKind": "simulated-cloud-sandbox",
+      "lastOpRef": 4,
+      "state": "failed",
+      "updatedAt": 1730000004000
+    },
+    "env-fixture-running": {
+      "executorKind": "local-process",
+      "lastOpRef": 1,
+      "state": "running",
+      "updatedAt": 1730000001000
+    },
+    "env-fixture-untrusted": {
+      "executorKind": "simulated-container",
+      "lastOpRef": 3,
+      "state": "stopped",
+      "updatedAt": 1730000003000
+    }
+  },
+  "schema": "flauz.environments-lifecycle/v0",
+  "schemaVersion": 0,
+  "updatedAt": 1730000005000
+}

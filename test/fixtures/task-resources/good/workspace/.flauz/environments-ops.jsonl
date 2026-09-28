@@ -1,0 +1,5 @@
+{"actor":"agent","environmentId":"env-fixture-running","fromState":"created","op":"start","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"running","ts":1730000001000}
+{"actor":"agent","environmentId":"env-fixture-attached","fromState":"running","op":"attach","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"running/attached","ts":1730000002000}
+{"actor":"tool","environmentId":"env-fixture-untrusted","fromState":"running/attached","op":"stop","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"stopped","ts":1730000003000}
+{"actor":"agent","environmentId":"env-fixture-failed","error":{"code":"SIM_REMOTE_UNREACHABLE","message":"simulated cloud-sandbox control plane unreachable"},"fromState":"stopped","op":"start","result":"error","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"failed","ts":1730000004000}
+{"actor":"human","environmentId":"env-fixture-destroyed","fromState":"failed","op":"destroy","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"destroyed","ts":1730000005000}
