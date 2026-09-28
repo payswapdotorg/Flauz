@@ -2,11 +2,11 @@
 
 Program control-plane refresh: 2026-09-28
 Integrated product branch: main
-Integrated head at verification: 8ddeaae20004f87da5756ab79a07fab577e8827f (2026-09-28; latest verified main head)
+Integrated head at verification: 6fcf329afc5ee1d6cbc10150a66e31363cd098f8 (2026-09-28; latest verified main head)
 
 ## Branch state
 
-- main is the canonical Flauz product line at `8ddeaae20004f87da5756ab79a07fab577e8827f`. All registered TL1/TL2/TL3/TL4 work-items are DONE at their recorded rungs; the TL2-S3 evidence addendum is the latest integrated control-plane commit.
+- main is the canonical Flauz product line at `6fcf329afc5ee1d6cbc10150a66e31363cd098f8`. All registered TL1/TL2/TL3/TL4 work-items are DONE at their recorded rungs; the final control-plane reconciliation is the latest integrated commit.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 221 commits ahead of upstream/main and 0 behind at the reset point.
