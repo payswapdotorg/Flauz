@@ -55,27 +55,27 @@ Progress note (2026-09-29, Worker B, branch `feat/tl1-005-packaging-parity`, bas
 Merge record (2026-09-28, TL1 lead): branch `feat/tl1-005-packaging-parity` merged to main at `e0832400` (PR #20; packaging-parity registry + re-derivation gate (28 rows, posture classes, per-extension parity summary) + 17-case matrix + PACKAGING-PARITY.md report). Gate judgment: completed failures all within the platform pre-existing set; lane's own checks GREEN (Packaging parity report, compat battery L1+L2 --require, Packaging reproducibility); cross-lane NodeCliPort evidence amendment (TL3-004 injectable excluded from node-free set); count suite-verified 183/183; manifest regenerated. Precedents #10/#14-#18 applied. Status DONE. TL1 lane complete: all five work-orders landed on main (001 PR #10, 002 PR #18, 003 PR #17, 004 PR #16, 005 PR #20).
 
 ### TL2-001 — Durable orchestration
-Status: ACTIVE
+Status: ACTIVE (M1-M3 landed PR #23 2026-09-28; M4/M5 + full delivery in flight on the worker pod — TL2 continues the lane)
 Turn the current agent/workspace slice into durable task/agent execution with recovery, retry, cancellation and multi-agent routing.
 
 ### TL2-002 — Real model/provider adapters
-Status: TODO
+Status: DONE (PR #23 2026-09-28: M1-M5 complete — vendor-neutral ProviderAdapter contract, OpenAI-SSE/Anthropic-events/Ollama-NDJSON adapters fixture-verified, capability registry + routing policy w/ provenance ledger, context budgets, fail-closed tool policy + MCP-POSTURE; 106/106 tests)
 Implement real adapters and routing for external and local models while preserving Code OSS language-model/tool APIs.
 
 ### TL2-003 — Context and memory
-Status: TODO
+Status: DONE (PR #23 2026-09-28: durable tiered memory + context compilation + deterministic retrieval + provenance; 48/48 tests)
 Implement tiered memory/context compilation, retrieval, provenance and model-aware budgets as Flauz service capabilities.
 
 ### TL2-004 — Approval/takeover/lease semantics
-Status: TODO
+Status: ACTIVE (retry/cancel/takeover semantics suite landed with TL2-001 M2 PR #23; approval/lease integration into the durable graph continues with M4/M5)
 Integrate human approval, takeover, cancellation propagation and resource leases into the execution graph.
 
 ### TL2-005 — Reusable workflows
-Status: TODO
+Status: DONE (PR #23 2026-09-28: executable reusable workflows w/ validation, versioning, recovery + checkpoints/watermarks/claims kill-recover matrix; 101/101 tests)
 Promote workflow envelopes into executable reusable workflows with validation, versioning and recovery.
 
 ### TL2-006 — Agent-to-agent collaboration
-Status: TODO
+Status: DONE (PR #23 2026-09-28: real A2A coordination on the typed seam w/ private-context/shared-task-state separation; coordination suite green)
 Extend the current A2A seam into actual multi-agent coordination with private context and shared task state.
 
 ## TL2 Agent OS surge — cross-TL secondments (2026-09-28)
