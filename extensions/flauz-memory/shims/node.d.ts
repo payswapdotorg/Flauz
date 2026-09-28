@@ -31,30 +31,6 @@ declare module 'node:fs' {
 }
 
 declare module 'node:child_process' {
-	// The seamClient spawn surface (TL2-006 M4 stdio loopback; declarations
-	// ported from extensions/flauz-agent/shims/node.d.ts - the owner of that
-	// client's typing).
-	export interface ShimStream {
-		write(data: string): boolean;
-		end(callback?: () => void): void;
-		on(event: 'data', listener: (chunk: { toString(encoding?: string): string }) => void): void;
-		on(event: 'close', listener: (code: number | null) => void): void;
-		on(event: 'error', listener: (error: Error) => void): void;
-	}
-	export interface ShimChildProcess {
-		stdin: ShimStream;
-		stdout: ShimStream;
-		stderr: ShimStream;
-		killed: boolean;
-		kill(signal?: string): void;
-		on(event: 'error', listener: (error: Error) => void): void;
-		on(event: 'close', listener: (code: number | null) => void): void;
-	}
-	export function spawn(
-		command: string,
-		args: readonly string[],
-		options?: { stdio?: string | string[]; cwd?: string; env?: Record<string, string | undefined> }
-	): ShimChildProcess;
 	export function execFile(
 		file: string,
 		args: readonly string[],
@@ -93,10 +69,6 @@ declare class Buffer extends Uint8Array {
 	static from(input: string, encoding: string): Buffer;
 	static from(input: Uint8Array): Buffer;
 	toString(encoding?: string): string;
-}
-
-declare module 'node:url' {
-	export function fileURLToPath(url: string | URL): string;
 }
 
 declare module 'node:path' {
@@ -143,7 +115,6 @@ declare module 'node:module' {
 
 declare const process: {
 	platform: string;
-	execPath: string;
 	cwd(): string;
 	readonly env: Record<string, string | undefined>;
 };

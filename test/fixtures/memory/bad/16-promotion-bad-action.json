@@ -1,0 +1,14 @@
+{
+	"id": "P-000001",
+	"action": "teleport",
+	"ts": 1740000000000,
+	"actor": "agent",
+	"humanApproved": false,
+	"recordId": "MEM-S-000001",
+	"resultRecordId": "MEM-T-001-000001",
+	"journal": null,
+	"fromTier": "session",
+	"toTier": "task",
+	"reason": "task ended - persist the finding",
+	"droppedRecordIds": []
+}
