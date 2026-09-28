@@ -41,6 +41,11 @@
   (+ job `b-policy-unit` for the zero-dep `node --test` suites, which include
   the TL3-001 runtime suites; and the A-class driver drill
   `test/canaries/policy-gated-navigation.drill.ts` in the unit job).
+- **WORKBENCH BOOT DRILL (TL3-H2)**: job `b-policy-boot-drill` in the same
+  workflow — the REAL workbench driver that closed the A4/A6/A10
+  "stays boot-level" notes as far as the architecture allows. See the
+  "Workbench boot drill" section below (the driver mechanism, the row
+  catalogue, the honest SKIP rows).
 - **OPTIONAL real-endpoint drill (TL3-003, NOT CI-required)**:
   `extensions/flauz-browser/test/canaries/real-chromium-hardening.drill.ts`
   — the real-Chromium verification of the runtime + hardening the fake drill
@@ -89,15 +94,16 @@
    of 2 is reserved for the bridge + workspace extensions, activation-lint
    R3), so the `flauz.browser: effective policy ...` log-line greps belong
    to the driver steps below (the driver invokes the command surface).
-4. **[driver — LANDED at the unit level by TL3-001 (fake-driver drills)]**
+4. **[LANDED at the unit level by TL3-001; BOOT-VERIFIED by the TL3-H2
+   workbench boot drill]**
    The Flauz runtime now exists (`src/runtime/`): the session manager opens
    agent/human browser sessions, and the navigation pipeline consults the
    driver-side verdict BEFORE any `Page.navigate`. The
    `flauz.browser.*` command surface (activation still command-only,
    activation-lint R2-clean) is invoked by any driver/bridge. Boot-level
    verification of the WORKBENCH surface (real `window.openBrowserTab` with
-   the product grant) still requires a real workbench — see the A4 note
-   below.
+   the product grant) is LANDED as the TL3-H2 boot drill — see the
+   "Workbench boot drill" section below.
 5. **[LANDED at the unit level]** The DRIVER layer blocks it: a
    policy-denied navigation sends ZERO CDP `Page.navigate` commands — pinned
    in `test/runtime-tabs.test.ts` (asserted on the FakeCdpTransport
@@ -141,13 +147,89 @@
 | A1 | Fixture policy parses through the real engine; CDP nav to evil.org = `deny/driver/agent-tool` | zero-dep `node --input-type=module` step (step 2) | boot-level, automated |
 | A2 | Boot clean with flauz-browser installed + workspace open; every flauz-* dist main exists (`--verify`) | boot log greps + `bundle-extensions.mjs --verify` (step 3) | boot-level, automated |
 | A3 | networkFilter service + browserView contrib compiled in | `grep -rq` on `out/vs/platform/networkFilter/` + `out/vs/workbench/contrib/browserView/` | boot-level, automated |
-| A4 | Extension activates on first command; policy-file log lines present | unit: activation + log-line cases (`test/extension.test.ts`, unchanged); runtime: command surface registered (`flauz.browser.openSession` et al.) | **LANDED (unit level) by TL3-001**; workbench-boot grep of the runtime log lines stays boot-level (needs a real driver invoking the command surface in a booted workbench) |
+| A4 | Extension activates on first command; policy-file log lines present | unit: activation + log-line cases (`test/extension.test.ts`, unchanged); runtime: command surface registered (`flauz.browser.openSession` et al.) | **BOOT-VERIFIED (TL3-H2, job `b-policy-boot-drill`)**: the test-driver extension invokes `flauz.browser.openSession` through the REAL onCommand activation machinery in the BOOTED workbench — the ExtensionService activation record, the command-surface registration, and the runtime log lines (host selection + openSession) are asserted on the real log corpus (the channel is log-backed since TL3-H2, so the `flauz.browser:` lines land at `<logs>/<ext-id>/<name>.log`). Unit-level rows unchanged. |
 | A5 | CDP nav to non-allowlisted host blocked at the driver layer (tool error, no navigation) | `test/runtime-tabs.test.ts` + `test/session-manager.test.ts` + the driver drill (unit job step) | **LANDED (unit level) by TL3-001** (fake-driver drill: ZERO `Page.navigate` sent) |
-| A6 | With driver kill-switched: CDP nav issues, content blocked (`ERR_BLOCKED_BY_CLIENT` in log) | reconciliation half LANDED (unit level: the post-commit violation + about:blank reset, `test/runtime-tabs.test.ts` commitUrlMapper drill); the `ERR_BLOCKED_BY_CLIENT` log line itself is a real-browser (Electron webRequest) surface | **PARTIALLY LANDED (unit level)**; the log-line grep stays boot-level — exact reason: the FakeCdpTransport simulator is TEST infrastructure and does not emit Electron webRequest interception logs |
+| A6 | With driver kill-switched: CDP nav issues, content blocked (`ERR_BLOCKED_BY_CLIENT` in log) | reconciliation half LANDED (unit level: the post-commit violation + about:blank reset, `test/runtime-tabs.test.ts` commitUrlMapper drill); the `ERR_BLOCKED_BY_CLIENT` log line itself is a real-browser (Electron webRequest) surface | **BOOT-VERIFIED as far as the architecture allows (TL3-H2)**: the workbench boot drill asserts the runtime's typed denial at boot (`driver.deny-start-typed` / `driver.navigate-denied`: deny + zero CDP sends + evidence row, in the booted workbench). The `ERR_BLOCKED_BY_CLIENT` LOG LINE stays an honest SKIP row in the drill — exact reason: the runtime's driver-layer deny is authoritative BEFORE the wire (zero CDP commands, so no request exists for the in-tree L2 webRequest filter to cancel); observing the line would require a real agent-scope content cancellation under the canary settings — recorded as the remaining boundary, never faked. The unit-level reconciliation rows are unchanged. |
 | A7 | will-navigate never fires for the CDP nav; overall verdict still deny; reconciliation row recorded | `test/session-manager.test.ts` (both-direction separation) + `test/runtime-tabs.test.ts` (reconciliation row) + drill A7/F2 row | **LANDED (unit level) by TL3-001** |
 | A8 | Each layer individually kill-switched: the others still deny (B1c insurance, 3 variants + user-path variant) | the legacy 96-case matrix (`test/cdpBypass.test.ts`, unchanged) + runtime re-gating (`test/recovery.test.ts`) | **LANDED (unit level)** (engine matrix unchanged; the runtime adds post-recovery re-gating) |
 | A9 | Partition name in the verdicts matches `persist:flauz-<16hex>` and the workspace hash | `test/session-manager.test.ts` (partition shapes per initiator) + drill A9 rows | **LANDED (unit level) by TL3-001** |
-| A10 | Denied attempts land as evidence rows; ledger verifies | evidence-row production LANDED (unit level: `test/runtime-tabs.test.ts`, `test/capture.test.ts`, drill A10 row); the `flauz.workspace.appendEvidence` ledger append + `verifyLedger` check stays product-side (Agent Bridge seam) | **PARTIALLY LANDED (unit level)**; ledger append stays boot-level — exact reason: the append is the bridge's command flow, not the browser runtime's |
+| A10 | Denied attempts land as evidence rows; ledger verifies | evidence-row production LANDED (unit level: `test/runtime-tabs.test.ts`, `test/capture.test.ts`, drill A10 row); the `flauz.workspace.appendEvidence` ledger append + `verifyLedger` check stays product-side (Agent Bridge seam) | **BOOT-VERIFIED at the runtime boundary (TL3-H2)**: the workbench boot drill asserts the evidence rows at boot (the denied-start + denied-navigation rows in the driver report) AND the PIN-1 session journal the booted runtime writes (`.flauz/browser-sessions.jsonl`: the agent session's opened/closed records carrying the `persist:flauz-<16hex>-boot-drill` partition). The `flauz.workspace.appendEvidence` ledger append REMAINS product-side (Agent Bridge seam) — exact reason: the append is the bridge's command flow, not the browser runtime's. |
+
+## Workbench boot drill (TL3-H2 — job `b-policy-boot-drill`)
+
+The A4/A6/A10 "stays boot-level" notes asked for a REAL driver invoking the
+command surface in a BOOTED workbench. The TL3-H2 drill delivers exactly
+that. CI job `b-policy-boot-drill` (`.github/workflows/flauz-browser.yml`;
+trigger policy = the compat-l3 precedent: `workflow_dispatch` + ONE weekly
+schedule canary, because the job compiles the workbench) boots the compiled
++ bundled flauz build under xvfb with the fixture policy workspace and the
+test-driver extension installed, then the zero-dep evaluator
+`build/flauz/scripts/b-policy-boot-drill.mjs` asserts both sides.
+
+**The driver mechanism (and why a test-driver extension).** The
+architecture-allowed invocation path for `flauz.browser.*` is
+`vscode.commands.executeCommand` — the product extension activates lazily
+`onCommand:flauz.browser.*` and registers NO other invocation surface
+(no URI handler, no CLI surface; adding one would WEAKEN the
+command-driven activation discipline this canary exists to protect). The
+driving options evaluated:
+
+1. a TEST-DRIVER EXTENSION installed into the canary profile's
+   `--extensions-dir` — CHOSEN: it is CI test infrastructure exactly like
+   the fixture workspaces (source under `test/fixtures/
+   browser-policy-driver/`, the compat-l3 fixture hygiene precedent), it
+   carries NO flauz- prefix, it never touches the activation-lint's
+   built-in caps (the lint scans `extensions/flauz-*` only), and it
+   invokes the command surface through the REAL activation machinery;
+2. a workbench URI/CLI invocation path — REJECTED: flauz-browser
+   deliberately registers none (the activation discipline is invariant);
+3. renderer CDP `Runtime.evaluate` — REJECTED: it drives internal page
+   state, not the extension API contract (not a product-surface
+   verification).
+
+The driver (activates `onStartupFinished`, which is lawful for CI test
+infrastructure that is not a flauz-* built-in) waits for
+`flauz.flauz-browser` in the registry, then exercises the command surface
+and writes `<workspace>/.flauz/boot-drill/driver-report.json`.
+
+**One extension-side change makes the A4 runtime log lines boot-greppable**
+(the legitimate boot-drill support this lane ships): the output channel is
+created LOG-BACKED (`createOutputChannel('Flauz Browser Policy',
+{ log: true })`) — every `flauz.browser:` line ALSO lands in the workbench
+log corpus at `<logsLocation>/flauz.flauz-browser/<name>.log`
+(`src/vs/workbench/api/common/extHostOutput.ts:190-200`), which is what
+the drill greps. A plain output channel never reaches the log corpus; the
+channel surface itself is unchanged (`appendLine`).
+
+**Row catalogue** (evaluator rows; driver rows mirror the
+`driver.*` ids in the report):
+
+| Row | What it asserts | Status |
+|---|---|---|
+| `boot.cdp-reachable` | CDP `/json/version` answered (boot readiness, the compat-l3 pattern) | PASS-capable (SKIP when no port wired) |
+| `boot.driver-report` | the driver report appeared + parses + schema matches | PASS-capable |
+| `boot.log-corpus` / `boot.log-clean` | the corpus is non-empty; no fatal patterns | PASS-capable |
+| `boot.flauz-activated` | `ExtensionService#_doActivateExtension flauz.flauz-browser` in the corpus (the lazy onCommand activation record) | PASS-capable |
+| `boot.proposal-grant-live` | NO proposal trip-wire fired (`DOES NOT EXIST` / `CANNOT use API proposal: browser` / `CANNOT USE these API proposals`, `extensionsProposedApi.ts:48,73,112` + `extensions.ts:332`); the grant is exercised live by the session-open row (the API call itself runs `checkProposedApiEnabled` under the grant) | PASS-capable |
+| `boot.runtime-host-log-line` | `flauz.browser: runtime host = workbench (proposed browser API, posture P0)` in the corpus (log-backed channel) | PASS-capable |
+| `boot.openSession-log-line` | `flauz.browser: openSession flauz:browser:<id> initiator=agent partition=persist:flauz-<16hex>-boot-drill state=active` in the corpus | PASS-capable |
+| `boot.err-blocked-by-client` | the A6 Electron webRequest log line | **PASS when observed; honest SKIP otherwise** — exact reason: the runtime's driver deny is authoritative BEFORE the wire (zero CDP commands, so no request exists for the in-tree L2 webRequest filter to cancel); observing the line needs a real agent-scope content cancellation under the canary settings |
+| `driver.flauz-extension-present` | the built-in is in the workbench registry | PASS-capable |
+| `driver.deny-start-typed` | a policy-DENIED startUrl fails the session BEFORE any host interaction (typed `flauz.browser.policy.deny` + deny/driver/agent-tool verdict + evidence row) — the A5-at-boot assertion, network-free | PASS-capable |
+| `driver.activation-triggered` | the first `executeCommand` activated the extension (isActive) | PASS-capable |
+| `driver.command-surface` | all ten `flauz.browser.*` commands registered after activation | PASS-capable |
+| `driver.session-open-workbench` | an agent session OPENS through the real workbench host adapter: `window.openBrowserTab` (about:blank) + `BrowserTab.startCDPSession` + the TL3-002 hardening commands over the REAL session, partition `persist:flauz-<16hex>-boot-drill` — the P0 posture boot fact, network-free | PASS-capable |
+| `driver.navigate-denied` | a policy-DENIED navigation on the LIVE session: `sent=false` + typed deny verdict + evidence row (zero CDP sends) | PASS-capable |
+| `driver.navigate-allowed` | the allowed navigation SENDS `Page.navigate` over the real workbench session (`sent=true` — the wire fact, network-independent); the COMMIT observation is network-dependent and is RECORDED, never gated, never faked | PASS-capable (commit recorded as observed) |
+| `driver.sessions-audit` / `driver.session-close` | the audit list carries the session; closeSession seals it | PASS-capable |
+| `boot.journal-records` | the booted runtime wrote `.flauz/browser-sessions.jsonl` with the agent session's opened/closed records carrying the flauz partition (PIN-1 runtime file evidence) | PASS-capable |
+
+**Honesty law** (the compat-l3 discipline): SKIP rows carry exact reasons;
+the drill FAILS loudly on every real defect; the allowed-navigation commit
+state is observed data, never a gated claim. If a REAL browser surface
+(Electron browserView) proves unreachable in a CI environment, the
+session-open/denial rows FAIL with the typed error text — that is the
+drill doing its job (the boundary must be PROVEN, not assumed).
 
 ## Optional real-endpoint drill (TL3-003 — NOT CI-required)
 
@@ -230,3 +312,16 @@ lands in CI (it SKIPs harmlessly until then, which is also acceptable).
 - The driver drill exiting non-zero in CI with green `node --test` suites:
   environment-dependent drift in the drill script itself (it must stay
   zero-dep, zero-network, zero-secrets — FakeCdpTransport only).
+- The workbench boot drill (TL3-H2) FAILING with green unit suites:
+  `boot.proposal-grant-live` firing = the `browser` proposal died/was renamed
+  upstream or the product grant was stripped (extensionsProposedApi.ts:48,73
+  trip-wires) — sync runbook blocks; `driver.session-open-workbench` failing
+  with a typed tab/hardening error = the workbench CDP surface moved (the
+  mainThreadBrowsers path) — escalate to TL with the driver report; the
+  `boot.*-log-line` rows failing with a GREEN driver report = the log-backed
+  channel surface moved (extHostOutput.ts) — re-point the corpus glob.
+- The workbench boot drill SKIPping `boot.err-blocked-by-client` is NOT a
+  failure (the honest SKIP row; see the row catalogue for the exact reason).
+  It flips to PASS only when a real agent-scope webRequest cancellation
+  appears in the corpus — treat a PASS as a bonus observation, never as a
+  gate that must stay green.

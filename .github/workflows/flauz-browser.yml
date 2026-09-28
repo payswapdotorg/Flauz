@@ -2,7 +2,7 @@
 # Flauz Wave 4 — Lane I (browser policy engine + partition model + the
 # blocked-at-all-layers verification story).
 #
-# Two jobs:
+# Three jobs:
 #   1. b-policy-unit   — the zero-dep verification standard: the flauz-browser
 #                        node --test suites (156 cases as of TL3-001: the 96
 #                        legacy policy cases + the browser-runtime suites —
@@ -27,15 +27,40 @@
 #                        are marked as such in the spec. The jobs detect
 #                        lane presence by glob (never hardcode) and report
 #                        skips with reasons instead of failing.
+#   3. b-policy-boot-drill (TL3-H2) — the WORKBENCH BOOT DRILL: compiles the
+#                        workbench, installs the test-driver extension
+#                        fixture (test/fixtures/browser-policy-driver) into
+#                        the canary profile's --extensions-dir, boots under
+#                        xvfb with the fixture policy workspace, and lets the
+#                        driver invoke the flauz.browser.* command surface
+#                        through the REAL activation machinery in the BOOTED
+#                        workbench (the P0 posture: window.openBrowserTab +
+#                        BrowserTab.startCDPSession under the live `browser`
+#                        product grant + the TL3-002 hardening over the real
+#                        session). The zero-dep evaluator
+#                        build/flauz/scripts/b-policy-boot-drill.mjs asserts
+#                        the driver report, the activation record, the
+#                        proposal trip-wires, the runtime log lines (the
+#                        log-backed channel in the logs tree) and the session
+#                        journal — closing the B-POLICY A4/A6/A10 "stays
+#                        boot-level" notes as far as the architecture allows
+#                        (ERR_BLOCKED_BY_CLIENT stays an honest SKIP row).
+#                        Trigger policy (the compat-l3 precedent, documented
+#                        in the job): the job COMPILES the workbench — too
+#                        expensive for every push. workflow_dispatch + ONE
+#                        weekly schedule canary; push/PR triggers keep
+#                        running jobs 1-2 only.
 #
 # Constraints honored (work order section 3):
 #   - zero-secrets posture: b-policy-unit uses NO tokens at all. b-policy-canary
-#     mirrors flauz-canaries.yml and carries ONLY the auto-provided workflow
-#     token on the install step — the DL-20/DL-28 adjudicated narrow exception
-#     (auto-token only; nothing configured in the repo; lifts the api.github.com
-#     rate limits that break the ripgrep-prebuilt fetch, the round-7 flake).
+#     and b-policy-boot-drill mirror flauz-canaries.yml and carry ONLY the
+#     auto-provided workflow token on the install step — the DL-20/DL-28
+#     adjudicated narrow exception (auto-token only; nothing configured in
+#     the repo; lifts the api.github.com rate limits that break the
+#     ripgrep-prebuilt fetch, the round-7 flake).
 #   - ubuntu-latest, gated on the Flauz paths (DL-25) + workflow_dispatch
-#     (the sync runbook triggers this workflow at EVERY sync — DL-11).
+#     (the sync runbook triggers this workflow at EVERY sync — DL-11) + the
+#     weekly schedule for job 3.
 # ---------------------------------------------------------------------------------------------
 
 name: Flauz Browser Policy
@@ -48,6 +73,7 @@ on:
       - 'build/flauz/**'
       - 'product.flauz.json'
       - '.github/workflows/flauz-*'
+      - 'test/fixtures/browser-policy-driver/**'
   pull_request:
     branches: [flauz/main, main]
     paths:
@@ -55,7 +81,13 @@ on:
       - 'build/flauz/**'
       - 'product.flauz.json'
       - '.github/workflows/flauz-*'
+      - 'test/fixtures/browser-policy-driver/**'
   workflow_dispatch:
+  schedule:
+    # TL3-H2 trigger policy (the compat-l3 precedent): ONE weekly canary run
+    # of the boot drill (it compiles the workbench; jobs 1-2 stay on push/PR).
+    # Tuesdays 04:41 UTC - off the hour to avoid scheduler contention.
+    - cron: '41 4 * * 2'
 
 permissions:
   contents: read
@@ -140,6 +172,10 @@ jobs:
 
   b-policy-canary:
     name: 'B-POLICY canary: policy-gated browser pane (boot-level)'
+    # TL3-H2 trigger discipline: keeps its EXISTING triggers (push/PR paths +
+    # workflow_dispatch); the weekly schedule is the boot drill's + the cheap
+    # unit job's lane (the compat-l3 weekly-canary convention).
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -259,6 +295,157 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
         with:
           name: flauz-canary-bpolicy
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  b-policy-boot-drill:
+    name: 'B-POLICY workbench boot drill: openBrowserTab E2E under the grant (TL3-H2)'
+    # Trigger policy (the compat-l3 precedent, flauz-compat.yml compat-l3):
+    # this job COMPILES the workbench (npm install + compile + bundle + the
+    # electron setup) - far too expensive for every push. It runs ONLY on
+    # workflow_dispatch (opt-in) plus ONE weekly schedule canary so the
+    # workbench-boot P0 claim stays continuously proven. Push/PR triggers
+    # keep running jobs 1-2 (their steps are untouched).
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90  # install + compile + bundle + electron + xvfb + boot + drill (the compat-l3 budget)
+    env:
+      # Mirrors the sibling jobs: binaries are fetched explicitly later
+      # (setup-electron composite action), never during npm install.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      VSCODE_QUALITY: 'oss'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the drill observes RUNTIME state, not git history - the same
+          # shallow shape the boot lanes use (b-policy-canary / compat-l3)
+          fetch-depth: 1
+
+      - name: Spec + driver fixture present?
+        run: |
+          set -e
+          test -f build/flauz/canaries/B-POLICY.md \
+            || { echo 'B-POLICY spec missing (build/flauz/canaries/B-POLICY.md)'; exit 1; }
+          test -f build/flauz/scripts/b-policy-boot-drill.mjs \
+            || { echo 'boot drill evaluator missing (build/flauz/scripts/b-policy-boot-drill.mjs)'; exit 1; }
+          test -f test/fixtures/browser-policy-driver/package.json \
+            || { echo 'test-driver extension fixture missing (test/fixtures/browser-policy-driver/)'; exit 1; }
+          echo 'B-POLICY boot drill: spec + evaluator + driver fixture OK'
+
+      - name: Setup Node (per .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install Linux build deps (kerberos headers, xvfb, electron libs)
+        run: sudo apt update -y && sudo apt install -y build-essential pkg-config libx11-dev libx11-xcb-dev libxkbfile-dev libnotify-bin libkrb5-dev xvfb libgtk-3-0 libgbm1
+
+      - name: Install dependencies (setup-electron needs vinyl-fs from node_modules)
+        run: node build/npm/preinstall.ts && npm install
+        env:
+          # auto-provided workflow token ONLY (DL-20/DL-28 narrow exception,
+          # same as b-policy-canary / flauz-hygiene): lifts api.github.com rate
+          # limits on the ripgrep-prebuilt release fetch. Nothing is configured
+          # in the repo; the no-secrets policy holds.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compile the bootable dev tree (out/, the b-policy-canary compile)
+        run: npm run compile
+
+      - name: Bundle the flauz built-ins so boots ACTIVATE them
+        run: |
+          set -e
+          node build/flauz/scripts/bundle-extensions.mjs
+          node build/flauz/scripts/bundle-extensions.mjs --verify \
+            || { echo 'B-POLICY boot drill: a flauz-* extension main is missing from dist/ - the boot below would not activate the flauz built-ins'; exit 1; }
+
+      - name: Setup Electron
+        uses: ./.github/actions/setup-electron
+        with:
+          arch: x64
+
+      - name: Boot with the test-driver extension and run the workbench boot drill
+        run: |
+          set -e
+          # X server the way this repo's own boot lanes do (b-policy-canary +
+          # compat-l3): xvfb as a service, DISPLAY=:10
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
+          sudo update-rc.d xvfb defaults && sudo service xvfb start
+          mkdir -p artifacts
+          # Fixture workspace: the B-POLICY 'base' policy (the canary matrix)
+          # with perAgent partitions so the agent session mints the
+          # persist:flauz-<hash>-boot-drill name the drill pins.
+          WS="$RUNNER_TEMP/bpolicy-drill-ws"
+          mkdir -p "$WS/.flauz"
+          cat > "$WS/.flauz/browser-policy.json" <<'POLICY'
+          {
+            "schemaVersion": 0,
+            "driver": { "allow": ["*.example.com"] },
+            "webRequest": { "allow": ["*.example.com"] },
+            "willNavigate": { "allow": ["*.example.com"] },
+            "partitions": { "scope": "persist", "perAgent": true }
+          }
+          POLICY
+          # Canary-profile settings: networkFilter default-on for the agent
+          # scope (canary scope only; the product default flip is the
+          # product-side decision recorded in INTEGRATION-GAP.md G3 - the
+          # TL3-H2 permanent limitation record).
+          UD="$RUNNER_TEMP/bpolicy-drill-userdata"
+          mkdir -p "$UD/User"
+          cat > "$UD/User/settings.json" <<'SETTINGS'
+          { "chat.agent.networkFilter": true }
+          SETTINGS
+          # The TEST-DRIVER EXTENSION (CI test infrastructure, NOT a product
+          # extension): installed into the canary profile's --extensions-dir.
+          # It carries no flauz- prefix, lives under test/fixtures/ (the
+          # fixture-workspace hygiene class), and activates onStartupFinished
+          # (allowed: the activation-lint caps apply to extensions/flauz-*
+          # built-ins only). It invokes the flauz.browser.* command surface
+          # through the REAL lazy onCommand activation machinery and writes
+          # .flauz/boot-drill/driver-report.json in the workspace.
+          EXTS="$RUNNER_TEMP/bpolicy-drill-exts"
+          mkdir -p "$EXTS"
+          cp -r test/fixtures/browser-policy-driver "$EXTS/flauztest.bpolicy-boot-driver"
+          # Boot: the compiled + bundled workbench (flauz built-ins activate
+          # from the in-repo extensions scan), the driver in the profile
+          # extensions dir, CDP endpoint on 9333 for the boot readiness row.
+          DISPLAY=:10 ./scripts/code.sh \
+            --verbose --user-data-dir "$UD" \
+            --extensions-dir "$EXTS" \
+            --disable-gpu --disable-telemetry --skip-welcome --skip-release-notes \
+            --disable-updates --disable-experiments --disable-workspace-trust \
+            --remote-debugging-port=9333 \
+            "$WS" > artifacts/bpolicy-drill-boot.log 2>&1 &
+          BOOT_PID=$!
+          echo "$BOOT_PID" > artifacts/bpolicy-drill-boot.pid
+          # The zero-dep evaluator: polls the driver report, asserts the
+          # activation record + the proposal trip-wires + the runtime log
+          # lines (the log-backed channel file under the logs tree) + the
+          # session journal. SKIP rows carry exact reasons (honesty law);
+          # FAIL rows exit non-zero. The process tree is killed ALWAYS.
+          status=0
+          node build/flauz/scripts/b-policy-boot-drill.mjs \
+            --report "$WS/.flauz/boot-drill/driver-report.json" \
+            --report-timeout 180000 \
+            --cdp-port 9333 --boot-timeout 120000 \
+            --log artifacts/bpolicy-drill-boot.log \
+            --log-dir "$UD/logs" \
+            --workspace "$WS" \
+            --json --out artifacts/bpolicy-drill-report.json || status=$?
+          kill "$BOOT_PID" 2>/dev/null || true
+          sleep 2
+          pkill -f "bpolicy-drill-userdata" 2>/dev/null || true
+          exit $status
+
+      - name: Upload boot drill artifacts (boot log + driver report + evaluator report, always)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-bpolicy-boot-drill
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 14

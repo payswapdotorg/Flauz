@@ -2,9 +2,11 @@
 
 **Lane:** Wave 4 / Worker I (`flauz-I-w4`), branch `flauz/wave4/browser-policy`;
 updated by TL3-001 (browser runtime, Worker A), TL3-002 (browser session
-security, Worker A, branch `tl3/a2-browser-security`) and TL3-003 (the
+security, Worker A, branch `tl3/a2-browser-security`), TL3-003 (the
 real-Chromium hardening drill + the G3/P1 verification, Worker A, branch
-`tl3/a3-browser-real`).
+`tl3/a3-browser-real`) and TL3-H2 (the post-completion hardening: the
+workbench boot drill + the G5/G3 permanent limitation records, Worker A,
+branch `tl3/h2-browser-product-residuals`).
 **Scope:** what `extensions/flauz-browser` owns today vs. what only a
 product-side change can wire into the in-tree browser platform. Tree
 citations are repo-relative `path:line` against the flauz/main base
@@ -81,6 +83,19 @@ drives its own tabs through the proposed browser API and gates them itself.
 
 ### G3 — webRequest enablement default
 
+**STATUS: PERMANENTLY RECORDED (TL3-H2) — a VERIFIED EXTENSION-PLATFORM
+LIMITATION, not a TODO.** The verified blocker below is final as far as
+extension-land is concerned: no `extensions/flauz-*` code path can pin
+this default. Any future implementation MUST use an architecture-allowed
+product-side path (one of the three alternatives below) — that is the
+standing law recorded in TL3-HANDOFF ("The network-filter default is
+documented as an extension-platform limitation. Any future
+implementation must use an architecture-allowed product-side path.").
+The DECISION-LOG proposal recording the blocker + the alternatives is
+drafted in the TL3-H2 delivery (DL number pending station assignment at
+the merge wave); until the station promotes it, this section is the
+in-repo record.
+
 `chat.agent.networkFilter` defaults to `false`
 (`chat.shared.contribution.ts:1551`), so L2 is off unless the user/enterprise
 enables it (the setting is `restricted` + backed by an enterprise policy,
@@ -88,10 +103,11 @@ enables it (the setting is `restricted` + backed by an enterprise policy,
 SECURITY-MODEL section 2.4).
 
 **VERIFIED BLOCKER (TL3-003, branch `tl3/a3-browser-real`, read-only tree
-analysis — DELIVERED-AS-FINDING):** the candidate zero-fork fix — a future
-`flauz-defaults` built-in contributing `configurationDefaults` pinning
-`chat.agent.networkFilter: true` — is IMPOSSIBLE. The `configurationDefaults`
-extension-point handler builds `allowedScopes =
+analysis — DELIVERED-AS-FINDING; status made permanent by TL3-H2):** the
+candidate zero-fork fix — a future `flauz-defaults` built-in contributing
+`configurationDefaults` pinning `chat.agent.networkFilter: true` — is
+IMPOSSIBLE. The `configurationDefaults` extension-point handler builds
+`allowedScopes =
 [MACHINE_OVERRIDABLE, WINDOW, RESOURCE, LANGUAGE_OVERRIDABLE]`
 (`src/vs/workbench/api/common/configurationExtensionPoint.ts:217`) and DELETES
 any contributed default whose registered property's scope is outside that
@@ -109,7 +125,8 @@ explicit scope (`src/vs/workbench/contrib/extensions/browser/extensions.contribu
 → WINDOW → allowed); networkFilter cannot use the same mechanism.
 
 **The P1 posture therefore needs one of the product-side alternatives**
-(exact, with tree citations):
+(exact, with tree citations — all three remain OPEN product-side decisions;
+none is a TODO of this lane):
 
 1. **Enterprise policy `ChatAgentNetworkFilter`** (declared at
    `chat.shared.contribution.ts:1554-1563`): policy values ride the policy
@@ -133,11 +150,14 @@ explicit scope (`src/vs/workbench/contrib/extensions/browser/extensions.contribu
    only in default profile user settings" (`configurationRegistry.ts:185-187`)
    — so the Flauz packaging/first-boot layer can pin the value by seeding the
    default profile's `settings.json` (the exact mechanism the B-POLICY canary
-   already proves per-boot, `build/flauz/canaries/B-POLICY.md` setup step 1).
-   Per-install posture, not a repo default.
+   already proves per-boot, `build/flauz/canaries/B-POLICY.md` setup step 1,
+   and the workbench boot drill job reuses). Per-install posture, not a repo
+   default.
 
-Until one of those lands, extension-land's defense is posture P0 (LANDED:
-the runtime gates its OWN tabs through the policy engine per-workspace).
+Until one of those lands (a product-side decision), extension-land's
+defense is posture P0 (LANDED: the runtime gates its OWN tabs through the
+policy engine per-workspace — boot-verified end to end by the TL3-H2
+workbench boot drill).
 
 ### G4 — will-navigate as a security gate
 
@@ -149,17 +169,55 @@ to close; documented to prevent a future lane from "fixing" it wrong.
 
 ### G5 — Partition naming control
 
+**STATUS: PERMANENTLY RECORDED (TL3-H2) — a VERIFIED PRODUCT LIMITATION,
+not a TODO.** Extension-land CANNOT mint Electron partitions carrying the
+flauz names. This is a structural property of the tree surfaces, verified
+against them (citations below); it cannot be worked around from
+`extensions/flauz-browser` by any architecture-allowed path, and the
+zero-fork postures below are the standing answer.
+
 `BrowserSession` factories derive partition identity from
 scope/workspaceId/affinity/windowId (`browserSession.ts:134-180`); the
 proposed `vscode.proposed.browser.d.ts` surface (`window.openBrowserTab`,
 `:90`; `BrowserTab.startCDPSession`, `:24`) exposes NO session/partition
-options (`BrowserTabShowOptions :50-62` is view-only). Flauz's
-`persist:flauz-<hash>[-<agent>]` names can therefore only be minted by a
-product-side change: either (a) expose partition/session selection on the
-proposed browser API (upstream-proposal-shaped, zero fork today), or (b) the
-G2-style provider hook extended to session creation. Until then the engine's
-partition verdicts are audit/containment surface (and the naming contract for
-the future wiring) — DL-29 candidate records the name shape as normative.
+options (`BrowserTabShowOptions :50-62` is view-only: viewColumn,
+preserveFocus, background). Flauz's `persist:flauz-<hash>[-<agent>]` names
+can therefore only be minted by a product-side change.
+
+**Classification (fork-critical-demoted per the DL-12 pattern):** no
+`src/vs` divergence is carried for this gap. The DEMOTION ALTERNATIVE —
+what ships instead, zero fork — is exactly what LANDED: posture P0 (the
+extension drives its own tabs through the proposed browser API and gates
+them itself) plus the partition NAMING CONTRACT as the audit/containment
+surface: the engine derives/validates flauz partition names
+(`src/policy.ts` `derivePartition` / `validatePartitionName` /
+`checkPartition`), the runtime enforces partition-scoped tab ownership
+over the targets it mints (TL3-002 item 3.5, typed
+cross-partition/foreign-session errors), and every session record —
+descriptor, verdicts, the PIN-1 journal — carries the flauz partition
+name, so the naming contract stays the audit surface for any future
+wiring. The workbench boot drill (TL3-H2, job `b-policy-boot-drill`)
+boot-verifies the audit side: the booted runtime's session + journal
+records carry `persist:flauz-<16hex>-boot-drill` end to end.
+
+**Future architecture-allowed paths (the only ways this limitation can
+lift; both are product-side decisions, recorded here so a future lane
+does not rediscover the analysis):**
+
+1. an UPSTREAM PROPOSAL CHANGE exposing session/partition selection on
+   the proposed browser API (an `openBrowserTab` options surface that
+   accepts a partition/session identity; upstream-proposal-shaped, zero
+   fork once upstreamed — the `vscode.proposed.browser.d.ts:50-62`
+   surface would carry it);
+2. the G2-style provider hook extended to session creation (fork-critical
+   ledger entry, DL-12 class, DL-31 family — requires TL adjudication and
+   a demotion alternative before any `src/vs` divergence).
+
+**Decision record:** the DECISION-LOG proposal recording this limitation
+is drafted in the TL3-H2 delivery (fork-critical-demoted, demotion
+alternative = P0 + the naming contract; DL number pending station
+assignment at the merge wave). Until the station promotes it, this
+section is the in-repo record.
 
 ### G6 — Post-commit forced reset (the committed-URL residual)
 
@@ -180,8 +238,8 @@ upstream-proposal issue).
 
 | Posture | Fork cost | What it gives | Status |
 |---|---|---|---|
-| **P0 — extension-driven tabs (proposed API)** | zero (DL-19 product grant `extensionEnabledApiProposals["flauz.flauz-browser"] = ["browser"]`) | The extension opens agent browser tabs itself via `window.openBrowserTab` + `startCDPSession` (proposed `vscode.proposed.browser.d.ts:64-91`) and consults its OWN driver-layer verdict BEFORE any `Page.navigate` — the driver-side allowlist is then genuinely authoritative for the Flauz agent path, per-workspace, zero fork. L2 still needs G3/P1 for defense-in-depth. | **LANDED (TL3-001)**: the grant is live in `product.flauz.json` (plus the manifest `enabledApiProposals: ["browser"]`), `WorkbenchBrowserHost` implements the adapter over structural ports, and the runtime + driver drill satisfy the DL-33 no-dead-config discipline (live code path behind the grant). Workbench-level boot verification stays with the B-POLICY canary's boot assertions. |
-| **P1 — config-only default-on L2** | zero (`flauz-defaults` configurationDefaults, or enterprise policy `ChatAgentNetworkFilter`) | Turns the in-tree webRequest filter on for all agent sessions (application scope) | **BLOCKED-AS-SPECIFIED (TL3-003 finding):** the `flauz-defaults` configurationDefaults mechanism CANNOT pin `chat.agent.networkFilter` — APPLICATION scope is rejected at the extension point (`configurationExtensionPoint.ts:217,227-232`; details in G3 above). The posture needs one of the named product-side alternatives: enterprise policy `ChatAgentNetworkFilter`, a fork-critical in-tree `registerDefaultConfigurations` contribution (DL-12 class, precedent `configurationService.ts:1351+`), or the zero-fork default-profile settings.json provisioning pin (the B-POLICY canary pattern) |
+| **P0 — extension-driven tabs (proposed API)** | zero (DL-19 product grant `extensionEnabledApiProposals["flauz.flauz-browser"] = ["browser"]`) | The extension opens agent browser tabs itself via `window.openBrowserTab` + `startCDPSession` (proposed `vscode.proposed.browser.d.ts:64-91`) and consults its OWN driver-layer verdict BEFORE any `Page.navigate` — the driver-side allowlist is then genuinely authoritative for the Flauz agent path, per-workspace, zero fork. L2 still needs G3/P1 for defense-in-depth. | **LANDED (TL3-001) + BOOT-VERIFIED END TO END (TL3-H2)**: the grant is live in `product.flauz.json` (plus the manifest `enabledApiProposals: ["browser"]`), `WorkbenchBrowserHost` implements the adapter over structural ports, and the runtime + driver drill satisfy the DL-33 no-dead-config discipline (live code path behind the grant). The TL3-H2 workbench boot drill (job `b-policy-boot-drill`) boot-verified the full path in a REAL booted workbench: the lazy onCommand activation, the live grant (no proposal trip-wire), a session opened through `window.openBrowserTab` + `BrowserTab.startCDPSession` + the TL3-002 hardening over the real session, the typed policy denial, and the runtime log lines in the log corpus. |
+| **P1 — config-only default-on L2** | zero (`flauz-defaults` configurationDefaults, or enterprise policy `ChatAgentNetworkFilter`) | Turns the in-tree webRequest filter on for all agent sessions (application scope) | **BLOCKED-AS-SPECIFIED, PERMANENTLY RECORDED (TL3-003 finding; TL3-H2 permanent record):** the `flauz-defaults` configurationDefaults mechanism CANNOT pin `chat.agent.networkFilter` — APPLICATION scope is rejected at the extension point (`configurationExtensionPoint.ts:217,227-232`; details in G3 above). The posture needs one of the three named product-side alternatives: enterprise policy `ChatAgentNetworkFilter`, a fork-critical in-tree `registerDefaultConfigurations` contribution (DL-12 class, precedent `configurationService.ts:1351+`), or the zero-fork default-profile settings.json provisioning pin (the B-POLICY canary / boot-drill pattern). A VERIFIED extension-platform limitation awaiting a product-side decision — not a TODO. |
 | **P2 — minimal src/vs hook (provider interface)** | FORK-CRITICAL ledger entry (DL-12/DL-10) | Per-workspace verdicts feed the tree's own L1/L2 gates directly (G2/G5/G6 closure) | DECISION-LOG proposal only (DL-31); demotion alternative = P0+P1 |
 
 ## 5. The evidence-ledger seam (no file changes required)
@@ -220,13 +278,23 @@ drill, GREEN against Chrome for Testing 153, pinning five real-Chromium
 divergences from the FakeCdpTransport contract) plus the VERIFIED G3/P1
 answer (the `flauz-defaults` configurationDefaults posture is impossible for
 `chat.agent.networkFilter`; the alternatives are named in G3) are
-extension-land facts. The remaining wiring is precisely enumerated above
-(G1-G6 residuals) with zero-fork postures (P0 landed / P1
-blocked-as-specified with product-side alternatives) ranked ahead of any
+extension-land facts. — since TL3-H2 — the P0 posture is BOOT-VERIFIED END
+TO END (the workbench boot drill: the lazy onCommand activation, the live
+`browser` grant, `window.openBrowserTab` + `startCDPSession` + the TL3-002
+hardening over the real session, the typed policy denial, the runtime log
+lines in the log corpus, the PIN-1 journal from the booted runtime), and the
+two product-side residuals are PERMANENTLY RECORDED as verified product
+limitations (G3: the extension-platform APPLICATION-scope blocker with the
+three named product-side alternatives; G5: the partition-minting limitation
+with the demotion alternative = P0 + the naming contract). The remaining
+wiring is precisely enumerated above (G1-G6 residuals) with zero-fork
+postures (P0 landed + boot-verified / P1 blocked-as-specified with
+product-side alternatives, both permanently recorded) ranked ahead of any
 src/vs hook (P2), keeping the FORK-CRITICAL ledger empty (DL-12) unless the
 TL adjudicates DL-31.
 
-**What remains (state after the TL3-003 delivery — branch `tl3/a3-browser-real`):**
+**What remains (state after the TL3-H2 delivery — branch
+`tl3/h2-browser-product-residuals`):**
 
 - SHIPPED (TL3-002, `tl3/a2-browser-security`): 3.1 per-session
   user-agent discipline, 3.2 deny-by-default downloads (no allow surface by
@@ -289,27 +357,41 @@ TL adjudicates DL-31.
   release-command rename; domain re-enable on recovery) — each changes
   landed TL3-001/TL3-002 runtime semantics pinned by the unit suites, so
   they are recorded, not patched, by this lane.
-- OPEN — G5 (partition NAMING control): the workbench host still cannot
-  mint Electron partitions with the flauz names; the endpoint host gets
-  whatever partition the external Chromium/sidecar configures. Extension-land
+- RECORDED — G5 (partition NAMING control): **PERMANENTLY RECORDED
+  (TL3-H2) as a verified product limitation** — the workbench host cannot
+  mint Electron partitions with the flauz names (the proposed API exposes
+  no session/partition options; the in-tree factories derive identity from
+  scope/workspace/affinity/window); the endpoint host gets whatever
+  partition the external Chromium/sidecar configures. Extension-land
   enforces ownership/isolation over the targets it mints; the Electron
   cookie-jar minting stays product-side (do not attempt extension-side).
-- OPEN — the in-tree L2 default-on posture (G3/P1): **DELIVERED-AS-FINDING
-  (TL3-003)** — the `flauz-defaults` `configurationDefaults` mechanism is
-  IMPOSSIBLE for `chat.agent.networkFilter` (APPLICATION scope rejected at
-  the extension point; see G3 above for the verified enforcement path and
-  the three named product-side alternatives).
+  Standing posture: fork-critical-demoted — P0 + the partition naming
+  contract as the audit surface (see G5 above for the full record, the
+  demotion alternative, and the two future architecture-allowed paths).
+- RECORDED — the in-tree L2 default-on posture (G3/P1):
+  **PERMANENTLY RECORDED (TL3-H2)** — the verified extension-platform
+  limitation that the `flauz-defaults` `configurationDefaults` mechanism
+  is IMPOSSIBLE for `chat.agent.networkFilter` (APPLICATION scope rejected
+  at the extension point; see G3 above for the verified enforcement path
+  and the three named product-side alternatives: enterprise policy
+  `ChatAgentNetworkFilter`, the fork-critical in-tree
+  `registerDefaultConfigurations` contribution, the zero-fork
+  default-profile settings.json provisioning pin). Awaiting a
+  product-side decision; not a TODO of any extension lane.
 - OPEN — G6 residual: main-process `loadURL` authority for targets the
   Flauz runtime does not own.
-- OPEN — boot-level workbench verification of the P0 surface (real
-  `window.openBrowserTab` under the grant — the B-POLICY boot residuals).
-  The TL3-003 real-Chromium drill covers the REAL-Chromium behavior of the
-  TL3-002 hardening commands (download deny acceptance/effect/scoping, UA
-  override effectiveness + cross-session visibility, base-UA sources, popup
-  interception mechanics, recovery primitives) — the part of that residual
-  that does NOT need a workbench. What REMAINS with the B-POLICY canary is
-  exactly the workbench-boot surface: the real `window.openBrowserTab` +
-  `BrowserTab.startCDPSession` under the product grant, the
-  `flauz.browser.*` command surface activation log lines, and the
-  in-tree L1/L2 surfaces (the `ERR_BLOCKED_BY_CLIENT` webRequest log line
-  class).
+- CLOSED — boot-level workbench verification of the P0 surface (real
+  `window.openBrowserTab` under the grant — the B-POLICY boot residuals):
+  **LANDED by the TL3-H2 workbench boot drill** (job `b-policy-boot-drill`;
+  spec: `build/flauz/canaries/B-POLICY.md` "Workbench boot drill") — the
+  real `window.openBrowserTab` + `BrowserTab.startCDPSession` under the
+  product grant, the `flauz.browser.*` command surface activation (the
+  ExtensionService record + the command registration + the runtime log
+  lines in the log corpus), the typed policy denial at boot, and the
+  PIN-1 journal from the booted runtime are all boot-verified through the
+  test-driver extension. The one remaining in-tree surface — the
+  `ERR_BLOCKED_BY_CLIENT` webRequest log line class — is the drill's
+  honest SKIP row (exact reason recorded in the spec's row catalogue: the
+  runtime's driver deny is authoritative BEFORE the wire, so no request
+  exists for the in-tree L2 filter to cancel; PASS only when genuinely
+  observed).

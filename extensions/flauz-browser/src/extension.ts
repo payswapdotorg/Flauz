@@ -89,7 +89,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 async function activateInner(context: vscode.ExtensionContext): Promise<void> {
-	const channel = vscode.window.createOutputChannel('Flauz Browser Policy');
+	// TL3-H2 boot-drill support: the channel is LOG-BACKED ({ log: true }),
+	// so every `flauz.browser:` line ALSO lands in the workbench log corpus
+	// at <logsLocation>/<extension-id>/<name>.log (extHostOutput.ts:190-200).
+	// That file is what the B-POLICY workbench-boot drill greps (the A4
+	// "runtime log lines" boot assertions) -- a plain output channel never
+	// reaches the log corpus. The output-channel surface itself is
+	// unchanged (appendLine; LogOutputChannel extends OutputChannel).
+	const channel = vscode.window.createOutputChannel('Flauz Browser Policy', { log: true });
 	log = (message: string) => channel.appendLine(message);
 	context.subscriptions.push({ dispose: () => channel.dispose() });
 

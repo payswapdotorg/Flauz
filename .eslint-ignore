@@ -62,3 +62,4 @@
 src/vs/base/common/lit-html/**
 src/vs/base/common/signals-core/**
 **/test/fixtures/compat-l3/**
+**/test/fixtures/browser-policy-driver/**
