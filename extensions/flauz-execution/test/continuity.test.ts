@@ -152,6 +152,15 @@ async function rig(options: { trust?: string } = {}): Promise<Rig> {
 			const row = orch.acquireLease({ graphId: input.graphId, stepId: input.stepId, holder: input.holder, ttlMs: input.ttlMs, actor: 'agent', origin: 'exec:lease' });
 			return { leaseId: (row.payload as { leaseId: string }).leaseId, expiresAt: (row.payload as { expiresAt: number }).expiresAt };
 		},
+		activeStepLease(graphId, stepId) {
+			try {
+				const state = orch.stateOf(graphId);
+				const lease = (state.leases as Record<string, { leaseId: string; holder: string; expiresAt: number } | undefined>)[stepId];
+				return lease ?? null;
+			} catch {
+				return null;
+			}
+		},
 	};
 	const envFs = contFs({ [join('.flauz', 'tasks.json')]: '{"$schema":"flauz.tasks/v0","tasks":[]}' });
 	const registry = new EnvironmentRegistry({ root: '/ws', fs: envFs, clock });

@@ -88,6 +88,15 @@ function realGraph(root: string): { store: OrchestrationStore; port: GraphStateP
 			const payload = row.payload as { leaseId: string; expiresAt: number };
 			return { leaseId: payload.leaseId, expiresAt: payload.expiresAt };
 		},
+		activeStepLease(graphId, stepId) {
+			try {
+				const state = store.stateOf(graphId);
+				const lease = (state.leases as Record<string, { leaseId: string; holder: string; expiresAt: number } | undefined>)[stepId];
+				return lease ?? null;
+			} catch {
+				return null;
+			}
+		},
 	};
 	return { store, port };
 }

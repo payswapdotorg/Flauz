@@ -292,3 +292,46 @@ export async function settleExecution(manager: ExecutionResourceManager, journal
 function isAcquireAction(action: string): boolean {
 	return action === 'open' || action === 'attach' || action === 'resolve';
 }
+
+// ---------------------------------------------------------------------------
+// The execution recovery scan (mirrors core/recovery.mjs over acquisitions)
+// ---------------------------------------------------------------------------
+
+export interface ExecutionRecoveryReport {
+	readonly scannedAt: number;
+	readonly clean: boolean;
+	readonly journalRows: number;
+	readonly tornTail: { line: string; reason: string } | null;
+	readonly actions: readonly string[];
+}
+
+/**
+ * The recovery pass over the execution journal (after a restart): expiry
+ * sweep + the torn-tail surfacing + a recovery-scan row recording what
+ * was done. NEVER fabricates: it does not rebind (reattach/restore are
+ * explicit continuity decisions), does not settle effects, does not
+ * release (rollback is a graph-level decision) - it only expires leases
+ * whose time passed while the process was down and records the scan.
+ */
+export async function executionRecoveryScan(manager: ExecutionResourceManager, journal: ExecJournalStore, options: { now?: number; origin?: string } = {}): Promise<ExecutionRecoveryReport> {
+	const now = options.now ?? Date.now();
+	const origin = options.origin ?? 'exec:recovery';
+	const sweep = manager.sweepExpirations(now);
+	const actions = sweep.expired.map((acquisitionId) => `lease-expired:${acquisitionId}`);
+	if (journal.tornTail !== null) {
+		actions.push(`torn-tail-dropped:${journal.tornTail.reason}`);
+	}
+	journal.appendRow('recovery-scan', {
+		graphId: null,
+		actor: 'service',
+		origin,
+		payload: { actions, clean: actions.length === 0 },
+	});
+	return {
+		scannedAt: now,
+		clean: actions.length === 0,
+		journalRows: journal.rowsAll().length,
+		tornTail: journal.tornTail,
+		actions,
+	};
+}

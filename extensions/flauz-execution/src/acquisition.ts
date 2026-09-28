@@ -58,6 +58,8 @@ export interface GraphStatePort {
 	stepStatus(graphId: string, stepId: string): string;
 	/** Takes a task-step lease through the orchestration journal (L-NNN-NN-N). */
 	acquireStepLease(input: { graphId: string; stepId: string; holder: string; ttlMs: number }): { leaseId: string; expiresAt: number };
+	/** The ACTIVE step lease, when one exists (the orch law: one active lease per step - retries REUSE it). */
+	activeStepLease(graphId: string, stepId: string): { leaseId: string; expiresAt: number; holder: string } | null;
 }
 
 /** The resource-specific opener (M3 adapters; mock drivers in tests). */
@@ -185,11 +187,18 @@ export class ExecutionResourceManager {
 			}
 		}
 
-		// 4. the task-step lease (through the orchestration journal).
+		// 4. the task-step lease (through the orchestration journal). The
+		//    orch law allows ONE ACTIVE LEASE PER STEP: a retry attempt of the
+		//    same step REUSES the active lease (no double-leasing).
 		let lease: LeaseRef | undefined;
 		if (verdict.request.leaseTtlMs !== undefined) {
-			const acquired = this.graph.acquireStepLease({ graphId: binding.graphId, stepId: binding.stepId, holder: binding.runnerId, ttlMs: verdict.request.leaseTtlMs });
-			lease = { leaseId: acquired.leaseId, holder: binding.runnerId, expiresAt: acquired.expiresAt };
+			const active = this.graph.activeStepLease(binding.graphId, binding.stepId);
+			if (active !== null && active.holder === binding.runnerId) {
+				lease = { leaseId: active.leaseId, holder: active.holder, expiresAt: active.expiresAt };
+			} else {
+				const acquired = this.graph.acquireStepLease({ graphId: binding.graphId, stepId: binding.stepId, holder: binding.runnerId, ttlMs: verdict.request.leaseTtlMs });
+				lease = { leaseId: acquired.leaseId, holder: binding.runnerId, expiresAt: acquired.expiresAt };
+			}
 		}
 
 		// 5. the opener (the real TL3 adapter or the mock driver).
