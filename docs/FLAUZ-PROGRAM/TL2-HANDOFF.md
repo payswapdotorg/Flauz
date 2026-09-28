@@ -23,7 +23,7 @@ TL2-S3 uses one behavioral contract across fixture and runtime promotion.
 - **3 FAIL findings:** INV-2 bounded provider retry, INV-3 cancellation propagation, INV-6 concurrent ledger serialization.
 - **1 SKIP:** INV-5 lease-conflict because A2A v0 resource claims are informational rather than conflict-enforcing.
 
-Latest repository head is `8ddeaae20004f87da5756ab79a07fab577e8827f`. AgentOS runtime/session-core jobs are green there; remaining red lanes were traced to the pre-existing platform baseline set.
+The TL2-S3 CI evidence addendum is the latest Agent OS verification record in the repository. Resolve the current integrated product head from `git rev-parse main`.
 
 ## Immediate hardening ownership
 - AO-H1 — bounded provider retry.
