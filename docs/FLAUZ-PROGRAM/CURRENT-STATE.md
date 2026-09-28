@@ -2,11 +2,11 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: a1e8df5fc99 (2026-09-28, wave-3 COMPLETE + LAWS CONFIRMED: all three runtime rungs CI-green — TL4-007 session-runtime (J1-J4 real CDP + LocalProcessExecutor), TL4-008 compat-l3 (workbench booted + flauz activated on a CI runner, verdict PASS 12/0/6 @ 7ce8a9dd280), TL4-009 security runtime (pins + audit + SBOM green); the upstream-law debt across lanes cleared (hygiene whitespace/format/unicode, eslint zero-warning): TL4-007 session-battery runtime rung landed via PR #19 (station GREEN, real CDP + LocalProcessExecutor J1-J4); TL4-008 compat L3 runtime boot smoke via PR #14 TL4-008 compat L3 runtime boot smoke landed via PR #14 (station-green squash-merge c1d9414ec13b) with the CI hygiene allowlist hotfix 23c3a568b2b; TL4-009 security runtime rung landed via PR #15 (337aac0df5d8) with station-completion bundle-manifest pins 46e36ba71e4 and the TL4-station fixture-coverage restore (144/144, 0 deviations); architect control-plane reconciliation merged (PR #13, 76cc28e2a3cf); TL4-007 session-battery runtime rung re-dispatched and in flight; preceding TL4 wave 2: TL4-004 whole-session acceptance battery + TL4-006 integrated security/release gates with same-head 6-workflow CI green)
+Integrated head at verification: 68ea3e7e43bc484d17b2034fef27a2759d30a913 (2026-09-28; current main verification point after TL1 completion, TL3 provider/continuity completion, and TL4 runtime-rung completion)
 
 ## Branch state
 
-- main is the canonical Flauz product line at d9bf2fa878e (TL4 COMPLETE: 001-009 all done — the wave-3 runtime-promotion items 007/008/009 landed 2026-09-27/28 with station-green squash-merges; TL3-001/002/003/005 + TL3-004 rung 1 + TL3-006 done; TL1-001 active). Existing TL1-TL4 ownership remains unchanged.
+- main is the canonical Flauz product line at 68ea3e7e43bc484d17b2034fef27a2759d30a913. TL1-001..005 are complete; TL3-001..006 are complete at their current registered rungs; TL4-001..009 are complete at their current registered rungs. TL2 remains the active Agent OS lane. Existing TL ownership remains unchanged.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 76 commits ahead of upstream/main and 0 behind at the reset point.
@@ -17,6 +17,10 @@ Integrated head at verification: a1e8df5fc99 (2026-09-28, wave-3 COMPLETE + LAWS
 The program documents previously recorded older integrated heads and several future-dated status annotations. Those annotations are historical metadata, not additional code state. The current `main` tree and exact merge/CI evidence are authoritative.
 
 There is intentionally no CopilotKit or OpenMuse runtime dependency. An AG-UI adapter remains a future, additive interoperability option after TL1-003's native Flauz service protocol is stable.
+
+## Agent OS surge
+
+TL2 is the active architectural bottleneck. Three bounded cross-TL secondments are now attached to TL2: TL1 service integration, TL3 resource/execution integration, and TL4 runtime verification. This is a capacity increase only; ownership remains with the home TLs and Agent OS semantics remain owned by TL2.
 
 ## Present product surfaces
 

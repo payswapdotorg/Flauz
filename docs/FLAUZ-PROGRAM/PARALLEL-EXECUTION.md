@@ -124,3 +124,53 @@ External agent UI frameworks are downstream clients, not alternate Flauz runtime
 - AG-UI may later be exposed as an additive adapter/projection; CopilotKit remains optional client technology.
 - OpenMuse is a reference/interoperability target only and must not become a runtime dependency or architectural fork.
 - No TL is blocked by this decision, and no current TL work should be rebased or reprioritized solely because of it.
+
+## Agent OS surge execution
+
+TL2 is currently the program bottleneck. To increase parallel throughput without creating architecture drift, three workers are temporarily seconded into TL2:
+
+```
+                 TL2 — Agent OS owner
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+     TL2-A            TL2-B            TL2-C
+ orchestration      providers        memory/workflows/A2A
+        ▲                ▲                ▲
+        │                │                │
+     TL2-S1           TL2-S2           TL2-S3
+     from TL1         from TL3         from TL4
+     service          resources/      runtime
+     integration      execution       verification
+        │                │                │
+        └────────────────┼────────────────┘
+                         ▼
+                   durable Agent OS
+```
+
+Secondment rules:
+- ownership stays with the home TL and Agent OS semantics stay with TL2;
+- seconded workers get bounded, named work-orders in WORK-REGISTRY.md;
+- helpers may work independently using fixtures/contracts and must not wait on the owner for every implementation detail;
+- shared-file overlap is minimized; prefer additive adapters, protocol contracts and test harnesses;
+- TL2 arbitrates semantic conflicts inside Agent OS; TL1 arbitrates Code OSS substrate conflicts; TL3 arbitrates browser/environment contract conflicts; TL4 owns independent quality verdicts;
+- release the helper back to its home TL when its bounded work-order is satisfied.
+
+### Preferred fan-out
+
+```
+main
+ │
+ ├── TL2-A durable orchestration
+ ├── TL2-B provider routing/execution
+ ├── TL2-C memory/workflows/A2A
+ ├── TL2-S1 service integration (TL1)
+ ├── TL2-S2 resource/execution integration (TL3)
+ └── TL2-S3 runtime verification (TL4)
+            │
+            ▼
+      durable Agent OS
+            │
+            ▼
+     integrated product
+```
