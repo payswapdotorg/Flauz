@@ -802,6 +802,39 @@ export class OrchestrationStore {
 		return this.withTransitionLock(() => this.retryStepLocked(input));
 	}
 
+	/**
+	 * Record one bounded provider-retry attempt row (TL2-F2, the INV-2
+	 * contract): actor attribution, the step attempt + window key, the
+	 * provider attempt ordinal, the typed outcome (the DL-35 code and
+	 * retryable class), the vendor retryAfterMs hint and the wait applied
+	 * before the attempt. Serialized by the transition lock (DL-60); the
+	 * row rides the hash chain and is full-replay-validated before write
+	 * (the window legality lives in orchestration.mjs applyRowToState).
+	 */
+	async recordProviderRetry(input) {
+		// DL-77 (F1's serialized-append discipline): the in-lock append must
+		// route through appendRowInternal — the public appendRow refuses
+		// lock-free writes under contention with 'lock-violation'.
+		return this.withTransitionLock(() => this.appendRowInternal('provider-retry', {
+			graphId: input.graphId,
+			stepId: input.stepId,
+			actor: input.actor ?? 'service',
+			origin: input.origin ?? 'runtime:provider-retry',
+			attempt: input.attempt,
+			idempotencyKey: input.idempotencyKey,
+			payload: {
+				attemptOrdinal: input.attemptOrdinal,
+				outcome: input.outcome,
+				code: input.code,
+				retryClass: input.retryClass,
+				waitAppliedMs: input.waitAppliedMs,
+				maxAttempts: input.maxAttempts,
+				...(input.retryAfterMs !== undefined ? { retryAfterMs: input.retryAfterMs } : {}),
+				...(input.nextAttemptOrdinal !== undefined ? { nextAttemptOrdinal: input.nextAttemptOrdinal } : {}),
+			},
+		}));
+	}
+
 	/** The retryStep core (caller holds the transition lock). */
 	retryStepLocked(input) {
 		const graph = this.requireGraph(input.graphId);

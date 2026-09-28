@@ -103,6 +103,28 @@ export const ROUTING_REASONS = ['capability-match', 'load-balance', 'operator-ch
 
 export const CONFLICT_VIOLATIONS = ['claim', 'lease'];
 
+/**
+ * The bounded provider-retry window outcomes (TL2-F2, the INV-2 contract):
+ *   - 'retryable-failed'  the provider attempt failed with a DL-35 retryable
+ *                         typed error and the window still has budget; the
+ *                         next attempt ordinal is named in the payload.
+ *   - 'exhausted'         the window's final retryable failure (attemptOrdinal
+ *                         === maxAttempts): the step now fails terminally
+ *                         (fail-closed - never a silent success, never an
+ *                         auto-pass).
+ *   - 'recovered'         a later attempt of an engaged window SUCCEEDED
+ *                         (after at least one recorded retryable failure); the
+ *                         code/retryClass fields name the failure the window
+ *                         recovered FROM.
+ */
+export const PROVIDER_RETRY_OUTCOMES = ['retryable-failed', 'exhausted', 'recovered'];
+
+/**
+ * The DL-35 retryable retry classes (the retry executor's trigger set; the
+ * fourth class 'none' is terminal-by-contract and never opens a window).
+ */
+export const PROVIDER_RETRY_CLASSES = ['immediate', 'short-backoff', 'long-backoff'];
+
 const GRAPH_ID_PATTERN = /^G-\d{3,}$/;
 const STEP_ID_PATTERN = /^S-\d{2,}$/;
 const ROW_ID_PATTERN = /^R-\d{6,}$/;
@@ -193,6 +215,10 @@ function hasExactKeys(value, required, optional = []) {
 
 function isPositiveInteger(value) {
 	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+function isNonNegativeInteger(value) {
+	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isNonEmptyString(value) {
@@ -659,6 +685,52 @@ export function validateJournalPayload(type, payload) {
 		}
 		return undefined;
 	}
+	if (type === 'provider-retry') {
+		if (!hasExactKeys(payload, ['attemptOrdinal', 'code', 'maxAttempts', 'outcome', 'retryClass', 'waitAppliedMs'], ['nextAttemptOrdinal', 'retryAfterMs'])) {
+			return `${label} payload must have exactly the keys [attemptOrdinal, code, maxAttempts, outcome, retryClass, waitAppliedMs] plus optionals [nextAttemptOrdinal?, retryAfterMs?]`;
+		}
+		if (!PROVIDER_RETRY_OUTCOMES.includes(payload.outcome)) {
+			return `${label} payload outcome must be one of ${PROVIDER_RETRY_OUTCOMES.join(' | ')} (got ${JSON.stringify(payload.outcome)})`;
+		}
+		if (!isPositiveInteger(payload.attemptOrdinal) || !isPositiveInteger(payload.maxAttempts)) {
+			return `${label} payload attemptOrdinal/maxAttempts must be positive integers`;
+		}
+		if (payload.attemptOrdinal > payload.maxAttempts) {
+			return `${label} payload attemptOrdinal must be <= maxAttempts (the window bound)`;
+		}
+		if (!isNonEmptyString(payload.code)) {
+			return `${label} payload code must be a non-empty string (the DL-35 provider error code)`;
+		}
+		if (!PROVIDER_RETRY_CLASSES.includes(payload.retryClass)) {
+			return `${label} payload retryClass must be one of ${PROVIDER_RETRY_CLASSES.join(' | ')} (a retryable DL-35 class; 'none' is terminal and never opens a window)`;
+		}
+		if (!isNonNegativeInteger(payload.waitAppliedMs)) {
+			return `${label} payload waitAppliedMs must be a non-negative integer (the wait applied before this attempt)`;
+		}
+		if (payload.retryAfterMs !== undefined && !isNonNegativeInteger(payload.retryAfterMs)) {
+			return `${label} payload retryAfterMs must be a non-negative integer (the vendor hint, when present)`;
+		}
+		if (payload.outcome === 'retryable-failed') {
+			if (payload.nextAttemptOrdinal === undefined) {
+				return `${label} payload nextAttemptOrdinal is required when outcome is 'retryable-failed'`;
+			}
+			if (!isPositiveInteger(payload.nextAttemptOrdinal) || payload.nextAttemptOrdinal !== payload.attemptOrdinal + 1) {
+				return `${label} payload nextAttemptOrdinal must be attemptOrdinal + 1 (a strictly ordinal window)`;
+			}
+			if (payload.attemptOrdinal >= payload.maxAttempts) {
+				return `${label} payload outcome 'retryable-failed' requires remaining budget (attemptOrdinal < maxAttempts; the final retryable failure is 'exhausted')`;
+			}
+		} else if (payload.nextAttemptOrdinal !== undefined) {
+			return `${label} payload nextAttemptOrdinal is only allowed when outcome is 'retryable-failed' (terminal windows name no next attempt)`;
+		}
+		if (payload.outcome === 'exhausted' && payload.attemptOrdinal !== payload.maxAttempts) {
+			return `${label} payload outcome 'exhausted' requires attemptOrdinal === maxAttempts (the bound was consumed)`;
+		}
+		if (payload.outcome === 'recovered' && payload.attemptOrdinal < 2) {
+			return `${label} payload outcome 'recovered' requires attemptOrdinal >= 2 (a recovery follows at least one recorded failure)`;
+		}
+		return undefined;
+	}
 	if (type === 'route-decided') {
 		if (!hasExactKeys(payload, ['targetAgent', 'reason'], ['details'])) {
 			return `${label} payload must have exactly the keys [details?, reason, targetAgent]`;
@@ -824,6 +896,7 @@ export const JOURNAL_EVENT_TYPES = [
 	'lease-released',
 	'lease-expired',
 	'conflict-noticed',
+	'provider-retry',
 	'route-decided',
 	'delegation-sent',
 	'result-received',
@@ -854,6 +927,7 @@ const EVENT_LEVELS = {
 	'lease-released': 'step',
 	'lease-expired': 'step',
 	'conflict-noticed': 'step',
+	'provider-retry': 'step',
 };
 
 export function eventLevel(type) {
@@ -953,6 +1027,7 @@ function freshStepState(stepId) {
 		takeover: null,
 		startedAt: null,
 		updatedAt: null,
+		providerRetry: null,
 	};
 }
 
@@ -1101,6 +1176,7 @@ function applyRowToState(state, row) {
 			step.attempt = row.attempt;
 			step.runnerId = row.payload.runnerId;
 			step.startedAt = row.ts;
+			step.providerRetry = null;
 		}
 		if (type === 'step-succeeded' || type === 'step-failed') {
 			if (row.attempt !== step.lastStartedAttempt) {
@@ -1164,6 +1240,41 @@ function applyRowToState(state, row) {
 	}
 	if (type === 'cancel-observed') {
 		state.cancelObserved = { rowId: row.rowId, reason: row.payload.reason, actor: row.actor, stepId: row.stepId, at: row.ts, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
+		return undefined;
+	}
+	if (type === 'provider-retry') {
+		const step = state.steps[row.stepId];
+		if (step === undefined) {
+			return `unknown step ${row.stepId}`;
+		}
+		const current = effectiveStepStatus(state, row.stepId);
+		if (current !== 'running') {
+			return `provider-retry for step ${row.stepId} requires the step to be running (the bounded window lives inside one in-flight step attempt; got '${current}')`;
+		}
+		if (row.attempt !== step.lastStartedAttempt) {
+			return `provider-retry attempt must be ${String(step.lastStartedAttempt)} (the in-flight step attempt; got ${String(row.attempt)})`;
+		}
+		if (row.idempotencyKey !== idempotencyKeyOf(row.graphId, row.stepId, step.lastStartedAttempt)) {
+			return `provider-retry idempotencyKey must be ${idempotencyKeyOf(row.graphId, row.stepId, step.lastStartedAttempt)} (the window key of the in-flight attempt)`;
+		}
+		const window = step.providerRetry;
+		if (window !== null && window.ended) {
+			return `provider-retry for step ${row.stepId} after the window already ended (${window.lastOutcome} at ordinal ${String(window.lastOrdinal)}) - a bounded window is one terminal sequence, never reopened`;
+		}
+		if (window === null) {
+			if (row.payload.attemptOrdinal !== 1) {
+				return `the first provider-retry row of a window must be attemptOrdinal 1 (got ${String(row.payload.attemptOrdinal)})`;
+			}
+		} else if (row.payload.attemptOrdinal !== window.lastOrdinal + 1) {
+			return `provider-retry attemptOrdinal must be ${String(window.lastOrdinal + 1)} (strictly ordinal window; got ${String(row.payload.attemptOrdinal)})`;
+		}
+		step.providerRetry = {
+			rows: (window === null ? 0 : window.rows) + 1,
+			lastOrdinal: row.payload.attemptOrdinal,
+			maxAttempts: row.payload.maxAttempts,
+			lastOutcome: row.payload.outcome,
+			ended: row.payload.outcome !== 'retryable-failed',
+		};
 		return undefined;
 	}
 	if (type === 'claim-acquired') {
@@ -1301,6 +1412,7 @@ export function summarizeState(state) {
 			evidence: step.evidence,
 			approval: step.approval,
 			takeover: step.takeover,
+			providerRetry: step.providerRetry,
 		};
 	}
 	return {

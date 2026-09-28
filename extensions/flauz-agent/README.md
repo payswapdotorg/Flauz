@@ -229,6 +229,65 @@ bus acquire notice. The Agent OS battery's INV-5 row drives exactly this
 contract at both rungs (fixture suite + runtime drill; census 5/3/0 with
 INV-5 PASS — see `build/flauz/agentos-battery-baseline.md`).
 
+## Bounded, recorded provider retry (TL2-F2 — the INV-2 contract)
+
+`core/providerRetry.mjs` is the automatic bounded provider-retry executor of
+the durable orchestration runtime. It lives at the durable step-execution
+seam — `core/runtime.mjs driveGraph` wraps every `sink.run` provider call in
+`runProviderCallWithBoundedRetry` — and NEVER inside a provider adapter (the
+adapters stay frozen; the runtime owns the retry policy). The semantics:
+
+- **Trigger**: a typed provider error whose DL-35 `retryClass` is retryable
+  (`immediate`/`short-backoff`/`long-backoff`), surfaced by the sink as
+  `providerError: { code, retryClass, retryAfterMs? }` on a failed effect
+  (the structural fields of the flauz-models `ProviderError`). Terminal-class
+  (`none`), untyped, and malformed provider errors fail immediately — the
+  pre-F2 single-shot honest path, byte-identical. A sink that THROWS (a lost
+  response) is never retried optimistically (DL-53: the attempt stays
+  running, recovery owns it, the key replays the settle).
+- **Bound**: up to `maxAttempts` TOTAL provider attempts per step attempt
+  (default 3). Configurable additively through the routing-policy/providers
+  state family (DL-36): the optional `providerRetry: { maxAttempts?: int }`
+  field passed as `driveGraph`'s `providerRetry` input — absent = default,
+  zero migration; an invalid config throws a typed error (fail-closed).
+- **Backoff**: `retryAfterMs` honored when present, capped at
+  `min(retryAfterMs, 30 000)`; absent → an immediate next attempt (the
+  deterministic posture). The wait is an INJECTED PORT (`driveGraph`'s
+  `wait`; default: a real timer) — harnesses control it, never a real sleep
+  in tests. The wait actually applied is recorded on every attempt row.
+- **Recording**: every attempt of an engaged window appends a
+  `provider-retry` journal row (DL-60 discipline: serialized by the store
+  transition lock via `OrchestrationStore.recordProviderRetry`,
+  replay-validated before write, hash-chained): actor, the step attempt +
+  window key, the attempt ordinal, the typed outcome (DL-35 code, retryable
+  class, vendor hint), the wait applied, and the next ordinal when another
+  attempt follows. The replay enforces window legality: rows only while the
+  step is running, strictly ascending ordinals from 1, one terminal row
+  (`exhausted`/`recovered`) per window, the canonical window key. Windows
+  that never retry mint no rows.
+- **Exhaustion**: after `maxAttempts` retryable failures the step fails
+  with the terminal typed failure through the EXISTING honest path —
+  `step-failed` with `retryPlanned` pinned FALSE (the automatic
+  step-retry loop stays silent), lifecycle `failed`, all rows recorded; no
+  silent success, no auto-pass.
+- **Composability**: caller-driven retries ride ABOVE the automatic loop —
+  an explicit `store.retryStep` opens a FRESH bounded window with a FRESH
+  idempotency key (`.../run/<next-attempt>`); within one window, attempt 1
+  keeps the canonical window key and later attempts are keyed
+  `<window-key>#p<ordinal>` so each provider attempt settles its own sink
+  key (idempotent replay, never a duplicate effect).
+- **Zero-network posture (DL-37)**: the loop only re-issues calls through
+  the already-wired sink — it never touches provider enablement,
+  credentials, or routing.
+
+Unit coverage: `test/providerRetry.test.ts` (the packet's a–f matrix plus
+the recovery window, the DL-53 throw case, and the fabricated-row replay
+rejections). The battery's INV-2 journey measures the raw
+flauz-environments cloud seam (outside this extension); the census flip
+requires the sanctioned INV-2 journey extension to drive this contract —
+see flauz-delivery/tl2-f2-bounded-retry/REPORT.md (the lane's STOP-and-
+report record per the ground rules).
+
 ## Golden path
 
 request → createTask → submit-plan → **/approve** (human) → terminal tool

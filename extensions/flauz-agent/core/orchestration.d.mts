@@ -25,6 +25,8 @@ export declare const JOURNAL_ROW_FIELDS: string[];
 export declare const STEP_TRANSITION_TYPES: string[];
 export declare const GRAPH_TRANSITION_TYPES: string[];
 export declare const JOURNAL_EVENT_TYPES: string[];
+export declare const PROVIDER_RETRY_OUTCOMES: string[];
+export declare const PROVIDER_RETRY_CLASSES: string[];
 
 export interface StepTransitionRule {
 	type: string;
@@ -126,6 +128,8 @@ export interface DerivedStepState {
 	takeover: Record<string, unknown> | null;
 	startedAt: number | null;
 	updatedAt: number | null;
+	/** The bounded provider-retry window projection (TL2-F2): null until the first provider-retry row of an attempt. */
+	providerRetry: { rows: number; lastOrdinal: number; maxAttempts: number; lastOutcome: string; ended: boolean } | null;
 }
 
 export interface DerivedGraphState {

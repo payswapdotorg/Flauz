@@ -118,6 +118,23 @@ export declare class OrchestrationStore {
 	}): Promise<JournalRow>;
 	retryStep(input: { graphId: string; stepId: string; actor?: string; origin: string }): Promise<JournalRow>;
 	retryStepLocked(input: { graphId: string; stepId: string; actor?: string; origin: string }): JournalRow;
+	/** Record one bounded provider-retry attempt row (TL2-F2): serialized by the transition lock, hash-chained, replay-validated. */
+	recordProviderRetry(input: {
+		graphId: string;
+		stepId: string;
+		attempt: number;
+		idempotencyKey: string;
+		attemptOrdinal: number;
+		outcome: 'retryable-failed' | 'exhausted' | 'recovered';
+		code: string;
+		retryClass: string;
+		retryAfterMs?: number;
+		waitAppliedMs: number;
+		maxAttempts: number;
+		nextAttemptOrdinal?: number;
+		actor?: string;
+		origin?: string;
+	}): Promise<JournalRow>;
 	cancelGraph(input: { graphId: string; reason?: string; actor: string; origin: string }): Promise<{ cancelledSteps: string[] }>;
 
 	approvalRequest(input: { graphId: string; stepId: string; reason: string; expiresAt?: number; actor?: string; origin: string }): Promise<JournalRow>;
