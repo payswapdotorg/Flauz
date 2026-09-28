@@ -136,6 +136,7 @@
         },
         "scripts": {
                 "typecheck": "tsc --noEmit",
+                "typecheck-live-events": "tsc --noEmit -p tsconfig.live-events.json",
                 "test": "node --test test/*.test.ts"
         },
         "devDependencies": {

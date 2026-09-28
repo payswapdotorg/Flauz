@@ -326,6 +326,21 @@ if [ "$NODE_MAJOR_SB" -gt 22 ] || { [ "$NODE_MAJOR_SB" -eq 22 ] && [ "$NODE_MINO
     expect "session-battery runtime transcript doctored FAIL"  1 node --experimental-strip-types "$RUNTIME_DRILL" --check-transcript "$F/session-battery-runtime-doctored/golden-runtime.json"
     expect "session-battery --runtime no-endpoint SKIP"  0 env FLAUZ_CDP_ENDPOINT= node "$S/session-battery.mjs" --runtime
     expect "session-battery --runtime --require no-endpoint FAIL"  1 env FLAUZ_CDP_ENDPOINT= node "$S/session-battery.mjs" --runtime --require
+    # ---- TL4-H2: the workspace live-events/reveal runtime drill. Unlike the
+    # session-battery runtime rung the drill is SELF-CONTAINED (temp
+    # workspace + REAL fs.watch; no Chromium, no endpoint), so the full
+    # runtime rung IS runnable zero-dep here. Cases: the machinery selftest
+    # (its matcher/coalescing reject directions are the doctored cases), the
+    # REAL RUN (GREEN, or the documented honest SKIP on sandboxes without
+    # real fs events -- the CI lane asserts GREEN strictly), the forced-SKIP
+    # semantics, and the usage contract. ----
+    LIVE_DRILL="$ROOT/extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts"
+    LIVE_LOG="$(mktemp 2>/dev/null || echo "/tmp/flauz-live-events-$$")"
+    expect "live-events runtime selftest PASS"        0 node --experimental-strip-types "$LIVE_DRILL" --selftest
+    expect "live-events runtime REAL RUN green"       0 sh -c "node --experimental-strip-types --test '$LIVE_DRILL' > '$LIVE_LOG' 2>&1 && { grep -q 'live-events runtime drill: GREEN (real fs events + reveal chain over real on-disk state)' '$LIVE_LOG' || grep -q 'live-events runtime drill: SKIP' '$LIVE_LOG'; }"
+    expect "live-events runtime forced SKIP exit 0"   0 env FLAUZ_LIVE_EVENTS_RUNTIME_SKIP=1 node --experimental-strip-types "$LIVE_DRILL"
+    expect "live-events runtime usage error"          2 node --experimental-strip-types "$LIVE_DRILL" --bogus-flag
+    rm -f "$LIVE_LOG"
 else
     echo "  note  session-battery run cases need node >= 22.6 (runner has $(node --version)) -- covered by the flauz-session CI lane"
 fi

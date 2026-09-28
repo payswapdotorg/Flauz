@@ -337,3 +337,81 @@ Same state language, same verbs, same dates, same numbers — on every surface:
    error row already carries recovery, message risks double-announcing).
 3. Evidence → task reverse reveal (needs provider-wide element cache).
 4. Guide deep links per surface (one guide v1; split when it grows).
+
+The two TL4-002 recorded follow-ups — reveal-runtime smoke and live file
+events — are DELIVERED by TL4-H2 (section 14); the four above remain open.
+
+## 14. TL4-H2 — live file events + reveal-runtime coverage (delivered rung)
+
+Date: 2026-09-28 · Branch: `tl4/a-h2-reveal-runtime` · Owner: TL4 Worker A ·
+Drill: `extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts`
+· CI: `flauz-session.yml` job `workspace-live-events` (workflow_dispatch input
+`live_events` + push path-filter on `extensions/flauz-workspace/`).
+
+The two recorded follow-ups (the TL4-002 merge record: "reveal-runtime smoke
++ live file events remain recorded follow-ups") are promoted to the runtime
+rung with honest coverage.
+
+### 14.1 Live file events (the contract)
+
+- **Watcher surface:** ONE real `vscode.workspace.createFileSystemWatcher`
+  over the WORKSPACE ROOT with the `.flauz/**` pattern — every path the
+  trees render: `tasks.json`, the evidence ledger, `environments.json`,
+  `browser-policy.json`, the workflow index. Based on the root, NOT on
+  `.flauz/` itself: the state directory may not exist yet at activation
+  (bootstrap runs after activation), and a recursive watcher over a missing
+  directory never fires; over the root the globstar still scopes events to
+  the `.flauz/` tree and the real watcher service reuses the
+  workspace-root recursive watcher it already maintains (no new OS watch
+  tree).
+- **Debounce:** trailing-edge, **300ms** — the perceived-performance rules
+  (section 8) applied: one `flauz.tasks/v0` atomic save is a tmp-write +
+  rename burst (2-4 inotify events) that coalesces into ONE refresh; rows
+  are plain data objects re-read asynchronously off the critical path
+  ("cheap by construction", "never blocks the composer"); 300ms stays below
+  the ~1s instantaneous-perception threshold while the last-known-good rows
+  cover the gap (never blank).
+- **Refresh path:** the EXISTING `refresh()` path only — the providers'
+  `onDidChangeTreeData` fire and the tree re-queries `getChildren`. There is
+  no parallel loading path. A failed re-read keeps the last-known-good rows
+  below the unified error row exactly as a manual Refresh does (section 4
+  recovery law, unchanged by live delivery).
+- **Observed state only:** the tree always renders OBSERVED state — no
+  optimistic UI, no fabricated intermediate rows (the sessionsView law from
+  flauz-agent is the precedent).
+- **Guard + disposal:** no workspace folder open → the watcher is not
+  created and the skip is logged (the flauz-agent connect-guard posture).
+  The watcher, its three event subscriptions and any pending debounce timer
+  ride `context.subscriptions` (a disposed wiring never fires another
+  refresh); no unbounded buffers — the only retained state is one timer
+  handle.
+- **Verification:** fixture tests (synthetic watcher events through the shim
+  harness: burst → ONE refresh → rows re-render the observed disk state;
+  failed re-read → last-known-good + error row; pattern misses stay inert;
+  dispose cancels the pending debounce) + the runtime drill below (REAL
+  `fs.watch` events over a REAL temp workspace).
+
+### 14.2 Reveal-runtime coverage
+
+`flauz.workspace.revealTask` (section 5) was fixture-covered only. The
+runtime drill drives it over the REAL modules and REAL on-disk state:
+fresh-read task resolution, the `getParent` chain (evidence → its task,
+task → root), the reveal landing on the RIGHT row with
+`{ select: true, focus: true, expand: true }` (focus restoration), and the
+unknown-id degradation to the Tasks-view focus (never a dead command) —
+each asserted end-to-end below the workbench boundary, with the tree
+re-renders driven by REAL file events.
+
+### 14.3 The honest residue (what stays fixture-only)
+
+The WORKBENCH TreeView boundary itself: rendered pixels, keyboard focus,
+and the extHost reveal → main-thread round trip are shimmed — reveal calls
+are RECORDED (the session-battery recording-transport pattern), and tree
+re-renders are observed by pulling `getChildren` exactly as the workbench
+does when `onDidChangeTreeData` fires. Everything below that seam is real:
+real disk state, real OS events (real `fs.watch`), the real providers, the
+real command handlers, the real debounce timer. The booted-workbench seam
+remains future work (the same residue class as the session-battery runtime
+rung; see docs/FLAUZ-PROGRAM/TL4-SESSION-BATTERY.md section 4). A drill
+that cannot obtain real fs events (exotic sandbox) reports SKIP honestly;
+the CI lane asserts the GREEN line strictly (CI must have real events).

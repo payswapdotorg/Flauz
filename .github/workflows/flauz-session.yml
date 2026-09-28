@@ -68,6 +68,10 @@ on:
         description: 'Run the session-runtime job (the real-Chromium runtime lane)'
         type: boolean
         default: true
+      live_events:
+        description: 'Run the workspace-live-events job (the TL4-H2 real-fs runtime lane)'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -243,3 +247,77 @@ jobs:
           grep -q 'session-battery: PASS -- runtime drill green' "$RUNNER_TEMP/session-runtime.log"
           grep -q 'session-battery runtime drill: GREEN (J1-J4 over real CDP + LocalProcessExecutor)' "$RUNNER_TEMP/session-runtime.log"
           echo "session-runtime: GREEN line verified (J1-J4 over real CDP + LocalProcessExecutor)"
+
+  # ---------------------------------------------------------------------------
+  # TL4-H2 -- the workspace live-events + reveal-navigation RUNTIME rung: the
+  # real flauz-workspace modules (TaskService, EvidenceLedger, views,
+  # live-events wiring) over a REAL temp workspace on disk and a REAL fs.watch
+  # watcher (real OS events, no Chromium, no CDP -- the cheapest true-runtime
+  # lane). Opt-in for cost, honest in the trigger list: workflow_dispatch
+  # (input `live_events`, default true) or pushes that change anything under
+  # extensions/flauz-workspace/ (the surface under test). PRs run job 1 only.
+  # No secrets; node stdlib only; actions pinned to the sibling SHAs.
+  # ---------------------------------------------------------------------------
+  workspace-live-events:
+    name: 'Workspace live events + reveal runtime drill (TL4-H2, real fs events)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # fetch-depth 2: the in-job path filter diffs HEAD^..HEAD
+          fetch-depth: 2
+
+      - name: Decide whether the live-events lane runs
+        id: plan
+        run: |
+          set -e
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.live_events }}" = "false" ]; then
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "live-events lane skipped (workflow_dispatch input live_events=false)"
+              exit 0
+            fi
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "live-events lane dispatched (input live_events=true)"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            CHANGED=$(git diff --name-only HEAD^ HEAD || true)
+            if printf '%s\n' "$CHANGED" | grep -Eq '^extensions/flauz-workspace/'; then
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "live-events lane runs (flauz-workspace changed):"
+              printf '%s\n' "$CHANGED" | grep -E '^extensions/flauz-workspace/' || true
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "live-events lane skipped (no flauz-workspace change in this push)"
+            fi
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "live-events lane skipped (event $GITHUB_EVENT_NAME runs job 1 only)"
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        if: steps.plan.outputs.run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- the runtime drill: real fs events + the reveal chain over real
+      # on-disk state (the drill SKIPs honestly where a sandbox lacks real fs
+      # events; ubuntu-latest has them, so the GREEN line is required) ----
+      - name: Run the live-events runtime drill
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node --experimental-strip-types --test             extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts             2>&1 | tee "$RUNNER_TEMP/live-events-runtime.log"
+
+      - name: Assert the GREEN line + the assertion census
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          grep -q 'live-events runtime drill: GREEN (real fs events + reveal chain over real on-disk state)' "$RUNNER_TEMP/live-events-runtime.log"
+          grep -Eq 'live-events runtime drill: [0-9]+ assertions, 0 failures' "$RUNNER_TEMP/live-events-runtime.log"
+          echo "workspace-live-events: GREEN line verified (real fs events + reveal chain over real on-disk state)"

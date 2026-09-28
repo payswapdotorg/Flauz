@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+import * as nodeFsSync from 'node:fs';
 import type * as vscode from 'vscode';
 import { setVscodeApi } from '../src/globals.ts';
 
@@ -63,6 +64,72 @@ export interface MockTreeViewHandle {
 	dispose(): void;
 }
 
+/**
+ * Options for the mock vscode surface (TL4-H2 live file events).
+ */
+export interface MockVscodeOptions {
+	/**
+	 * Backs every createFileSystemWatcher with a REAL recursive `fs.watch`
+	 * (REAL OS events, not synthetic callbacks) -- the runtime-drill posture.
+	 * Default false: watchers accept synthetic fire() injections only (the
+	 * fixture-rung posture).
+	 */
+	readonly realFileEvents?: boolean;
+}
+
+/** A recorded vscode.RelativePattern (TL4-H2 live file events). */
+export interface MockRelativePattern {
+	readonly base: string;
+	readonly pattern: string;
+}
+
+/** The FileSystemWatcher event kinds (mirrors the real API surface). */
+export type MockWatcherEventKind = 'change' | 'create' | 'delete';
+
+/** Structural double of vscode.FileSystemWatcher (synthetic + real-fs backends). */
+export interface MockFileSystemWatcher {
+	readonly base: string;
+	readonly pattern: string;
+	/** 'real-fs' = backed by a real recursive fs.watch; 'synthetic-only' = fire() injections only. */
+	readonly backend: 'real-fs' | 'synthetic-only';
+	/** Pattern-matching events dispatched through the API surface (the coalescing evidence). */
+	readonly eventCount: number;
+	readonly disposed: boolean;
+	/** Last raw-watcher error (real-backend diagnostics; undefined when healthy). */
+	readonly lastError: string | undefined;
+	onDidChange(listener: (uri: MockUri) => void): { dispose(): void };
+	onDidCreate(listener: (uri: MockUri) => void): { dispose(): void };
+	onDidDelete(listener: (uri: MockUri) => void): { dispose(): void };
+	/** Injects a synthetic API-surface event (fixture rung); honors the pattern. */
+	fire(kind: MockWatcherEventKind, absolutePath: string): void;
+	dispose(): void;
+}
+
+/**
+ * The glob subset the live-events wiring uses ('**' and '<dir>/**'), matched
+ * the way the real workbench scopes watcher events to the pattern. Exported
+ * for the runtime drill's zero-dep selftest.
+ */
+export function matchesWatchPattern(pattern: string, relativePath: string): boolean {
+	if (pattern === '**') {
+		return true;
+	}
+	if (pattern.endsWith('/**')) {
+		const prefix = pattern.slice(0, -'/**'.length);
+		return relativePath === prefix || relativePath.startsWith(`${prefix}/`);
+	}
+	return relativePath === pattern;
+}
+
+/**
+ * fs.watch reports 'rename' for BOTH creates and deletes; the API-surface
+ * translation classifies by target existence at event time (the standard
+ * watcher translation). Exported for the runtime drill's zero-dep selftest.
+ */
+export function classifyRenameEvent(targetExists: boolean): MockWatcherEventKind {
+	return targetExists ? 'create' : 'delete';
+}
+
 export interface MockVscode {
 	readonly commands: {
 		registerCommand(id: string, handler: (arg?: unknown) => unknown): { dispose(): void };
@@ -73,6 +140,7 @@ export interface MockVscode {
 		file(path: string): MockUri;
 		parse(value: string): MockUri;
 	};
+	readonly RelativePattern: new (base: MockUri | string | { uri: MockUri }, pattern: string) => MockRelativePattern;
 	readonly window: {
 		readonly showTextDocumentCalls: MockUri[];
 		showTextDocument(document: { uri: MockUri }): Promise<unknown>;
@@ -85,6 +153,8 @@ export interface MockVscode {
 	readonly workspace: {
 		readonly openTextDocumentCalls: MockUri[];
 		openTextDocument(uri: MockUri): Promise<{ uri: MockUri }>;
+		readonly fileSystemWatchers: MockFileSystemWatcher[];
+		createFileSystemWatcher(globPattern: string | MockRelativePattern): MockFileSystemWatcher;
 	};
 	readonly env: {
 		readonly openExternalCalls: MockUri[];
@@ -136,7 +206,7 @@ function makeUri(scheme: string, rest: string, display: string): MockUri {
 	return { scheme, path, fsPath: path, toString: () => display };
 }
 
-export function createMockVscode(): MockVscode {
+export function createMockVscode(options: MockVscodeOptions = {}): MockVscode {
 	const entries = new Map<string, MockCommandEntry>();
 	const showTextDocumentCalls: MockUri[] = [];
 	const openTextDocumentCalls: MockUri[] = [];
@@ -144,6 +214,111 @@ export function createMockVscode(): MockVscode {
 	const created: MockSourceControl[] = [];
 	const treeViews: MockTreeViewRegistration[] = [];
 	const treeViewHandles: Record<string, MockTreeViewHandle> = {};
+	const fileSystemWatchers: MockFileSystemWatcher[] = [];
+
+	/** Resolves a RelativePattern base (Uri | string | WorkspaceFolder shape) to its path. */
+	const baseToPath = (base: MockUri | string | { uri: MockUri }): string => {
+		if (typeof base === 'string') {
+			return base;
+		}
+		const asRecord = base as { fsPath?: string; uri?: { fsPath?: string } };
+		if (typeof asRecord.fsPath === 'string') {
+			return asRecord.fsPath;
+		}
+		if (asRecord.uri !== undefined && typeof asRecord.uri.fsPath === 'string') {
+			return asRecord.uri.fsPath;
+		}
+		return String(base);
+	};
+
+	/**
+	 * Builds a FileSystemWatcher double. With options.realFileEvents the
+	 * watcher is backed by a REAL recursive fs.watch over `base` -- the OS
+	 * events are translated onto the API surface (change stays change; a
+	 * 'rename' is classified create/delete by target existence) and scoped
+	 * by the pattern. Without it the watcher accepts synthetic fire()
+	 * injections only. Pattern misses never dispatch (the real API scopes
+	 * events to the glob the same way).
+	 */
+	const makeWatcher = (base: string, pattern: string): MockFileSystemWatcher => {
+		const listeners: Record<MockWatcherEventKind, Array<(uri: MockUri) => void>> = { change: [], create: [], delete: [] };
+		let eventCount = 0;
+		let disposed = false;
+		let lastError: string | undefined;
+		let raw: { close(): void; on(event: 'error', listener: (error: Error) => void): void } | undefined;
+		const joinBase = (relative: string): string => base === '' ? relative : `${base}/${relative}`;
+		const emit = (kind: MockWatcherEventKind, relativePath: string): void => {
+			if (disposed || !matchesWatchPattern(pattern, relativePath)) {
+				return;
+			}
+			eventCount += 1;
+			const uri = makeUri('file', joinBase(relativePath), `file://${joinBase(relativePath)}`);
+			for (const listener of [...listeners[kind]]) {
+				listener(uri);
+			}
+		};
+		if (options.realFileEvents === true && base !== '') {
+			try {
+				raw = nodeFsSync.watch(base, { recursive: true }, (eventType, filename) => {
+					if (disposed || filename === null || filename === undefined) {
+						return;
+					}
+					const relativePath = String(filename).split('\\').join('/');
+					if (eventType === 'change') {
+						emit('change', relativePath);
+						return;
+					}
+					let targetExists = false;
+					try {
+						nodeFsSync.statSync(joinBase(relativePath));
+						targetExists = true;
+					} catch {
+						targetExists = false;
+					}
+					emit(classifyRenameEvent(targetExists), relativePath);
+				});
+				raw.on('error', err => {
+					lastError = err instanceof Error ? err.message : String(err);
+				});
+			} catch (err) {
+				// Base missing or recursive watching unsupported here: the watcher
+				// stays synthetic-only (the runtime drill reports the honest SKIP
+					// on the backend flag; synthetic fire() keeps working).
+				lastError = err instanceof Error ? err.message : String(err);
+			}
+		}
+		const subscribe = (kind: MockWatcherEventKind, listener: (uri: MockUri) => void): { dispose(): void } => {
+			listeners[kind].push(listener);
+			return {
+				dispose: () => {
+					listeners[kind] = listeners[kind].filter(candidate => candidate !== listener);
+				},
+			};
+		};
+		return {
+			get base() { return base; },
+			get pattern() { return pattern; },
+			get backend() { return raw !== undefined ? 'real-fs' : 'synthetic-only'; },
+			get eventCount() { return eventCount; },
+			get disposed() { return disposed; },
+			get lastError() { return lastError; },
+			onDidChange: listener => subscribe('change', listener),
+			onDidCreate: listener => subscribe('create', listener),
+			onDidDelete: listener => subscribe('delete', listener),
+			fire: (kind, absolutePath) => {
+				const relativePath = base !== '' && absolutePath.startsWith(`${base}/`) ? absolutePath.slice(base.length + 1) : absolutePath;
+				emit(kind, relativePath);
+			},
+			dispose: () => {
+				disposed = true;
+				raw?.close();
+				raw = undefined;
+				listeners.change = [];
+				listeners.create = [];
+				listeners.delete = [];
+			},
+		};
+	};
 
 	const mock: MockVscode = {
 		commands: {
@@ -159,6 +334,15 @@ export function createMockVscode(): MockVscode {
 				return entry.handler(arg);
 			},
 			registered: () => [...entries.keys()].sort(),
+		},
+		RelativePattern: class MockRelativePatternImpl {
+			readonly base: string;
+			readonly pattern: string;
+
+			constructor(base: MockUri | string | { uri: MockUri }, pattern: string) {
+				this.base = baseToPath(base);
+				this.pattern = pattern;
+			}
 		},
 		Uri: {
 			file: path => makeUri('file', path, `file://${path}`),
@@ -201,6 +385,15 @@ export function createMockVscode(): MockVscode {
 			openTextDocument: async uri => {
 				openTextDocumentCalls.push(uri);
 				return { uri };
+			},
+			fileSystemWatchers,
+			createFileSystemWatcher: globPattern => {
+				const resolved = typeof globPattern === 'string'
+					? { base: '', pattern: globPattern }
+					: { base: globPattern.base, pattern: globPattern.pattern };
+				const watcher = makeWatcher(resolved.base, resolved.pattern);
+				fileSystemWatchers.push(watcher);
+				return watcher;
 			},
 		},
 		env: {
@@ -248,8 +441,8 @@ export function createMockVscode(): MockVscode {
 }
 
 /** Installs a fresh mock vscode into globals and returns it. */
-export function installMockVscode(): MockVscode {
-	const mock = createMockVscode();
+export function installMockVscode(options: MockVscodeOptions = {}): MockVscode {
+	const mock = createMockVscode(options);
 	setVscodeApi(mock as unknown as typeof vscode);
 	return mock;
 }
