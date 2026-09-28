@@ -1,0 +1,39 @@
+{
+	"name": "flauz-execution",
+	"publisher": "flauz",
+	"displayName": "Flauz Execution Resources",
+	"description": "TL2-S2 resource/execution integration: the additive bridge that lets durable Agent OS task steps acquire, target and release browser sessions, environments and logical resources through the existing TL3 contracts (BrowserSessionDescriptor, EnvironmentExecutor, ResourceRef, Continuity), with an append-only execution journal and task-level failure taxonomy.",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"activationEvents": [
+		"onCommand:flauz.exec.status",
+		"onCommand:flauz.exec.verify"
+	],
+	"main": "./dist/extension.js",
+	"enabledApiProposals": [],
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.exec.status",
+				"title": "Show Execution Resource Acquisitions",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.exec.verify",
+				"title": "Verify Execution Journal",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"devDependencies": {
+		"typescript": "^5.9.0"
+	}
+}
