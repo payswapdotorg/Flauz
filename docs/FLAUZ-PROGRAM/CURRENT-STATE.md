@@ -114,7 +114,7 @@ The registered work-items are complete, but the integrated verification has expl
 
 1. TL2 Agent OS runtime findings: INV-2 bounded provider retry, INV-3 cancellation propagation, and INV-6 concurrent ledger serialization failed the runtime battery; INV-5 lease-conflict remains SKIP because A2A v0 resource claims are informational.
 2. TL3 provider rung 2: live workbench resolver code and the associated `resolvers` grant remain outstanding.
-3. TL3 browser product residuals: real-workbench `window.openBrowserTab` boot verification, product-side partition minting, and the application-scoped network-filter default posture finding remain documented.
+3. TL3 browser product residuals: CLOSED (TL3-H2 merged 2026-09-28, 5786446b633). The workbench `window.openBrowserTab` boot verification is LANDED as the CI-executable B-POLICY boot drill (job `b-policy-boot-drill`, workflow_dispatch + weekly Tuesday 04:41 UTC; the ERR_BLOCKED_BY_CLIENT honest-SKIP boundary recorded); G5 partition minting and the G3 networkFilter default posture are PERMANENTLY RECORDED as verified extension-platform limitations (INTEGRATION-GAP G5/G3; DL-75/DL-76).
 4. TL4 performance promotion: 9 pending-runtime budget rows remain to be measured on real runtime surfaces.
 5. Platform baseline debt observed by TL2-S3: the merged-state station still reported pre-existing SBOM/packaging-parity/fixture deviations; they are tracked as platform hardening rather than being attributed to the Agent OS battery.
 6. Live-provider drills remain follow-up evidence for TL2-002; fixture evidence must not be described as live-provider verification.

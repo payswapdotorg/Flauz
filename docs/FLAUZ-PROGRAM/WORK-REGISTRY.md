@@ -487,10 +487,13 @@ Evidence: TL3-004 registered rung 1 is DONE; rung 2 live workbench resolver code
 Acceptance: workbench resolves registered provider kinds through the intended runtime resolver path with trust/policy gating and CI evidence.
 
 ### TL3-H2 — Browser product residuals
-Status: TODO
+Status: DONE (merged 2026-09-28, merge 5786446b633 of branch tl3/h2-browser-product-residuals @ 5a4fa6b1b47; station-verified per the merge message)
 Owner: TL3
-Evidence: documented browser B-POLICY/workbench boot, product partition minting, and application-scoped network-filter default posture residuals.
-Acceptance: each residual is either implemented through the architecture-allowed path or permanently recorded as a verified product limitation.
+Evidence: R1 implemented as the CI-executable B-POLICY workbench boot drill (build/flauz/scripts/b-policy-boot-drill.mjs + the test/fixtures/browser-policy-driver fixture extension + the flauz-browser.yml b-policy-boot-drill job on workflow_dispatch/weekly; the log-backed channel in extension.ts is the drill's grep surface); R2 (G5) and R3 (G3) permanently recorded as verified extension-platform limitations in INTEGRATION-GAP with architecture-allowed future paths. Station gates: browser tsc 0 + 206 pass (205 baseline + 1 lawful drill test), agent 223/223, environments 148/0/2, resources 93/93, fork-critical EMPTY, activation-lint GREEN, fixture/bundle deviations proven identical to the pristine base.
+Acceptance: each residual is either implemented through the architecture-allowed path or permanently recorded as a verified product limitation. Decision log (station assigns at this merge wave):
+
+- DL-75 RECORD the G5 partition-minting permanent limitation: `persist:flauz-<hash>[-<agent>]` partition names are product-side-only (the proposed browser API exposes no session/partition options — vscode.proposed.browser.d.ts:90, BrowserTabShowOptions :50-62; in-tree factories derive identity from scope/workspace/affinity/window). Future paths: P0 + the naming contract, or the G2-style provider hook extended to session creation (fork-critical, DL-12 class — requires TL adjudication + a demotion alternative).
+- DL-76 RECORD the G3/P1 networkFilter default-posture permanent limitation: an extension CANNOT contribute a configurationDefault for the APPLICATION-scoped restricted `chat.agent.networkFilter` (configurationExtensionPoint.ts:217,227-232 rejects it). Zero-fork alternatives: the enterprise policy `ChatAgentNetworkFilter` (the tree's own managed floor), a fork-critical in-tree `registerDefaultConfigurations` contribution (DL-12 class, configurationService.ts:1351+ precedent), or default-profile settings.json provisioning pin.
 
 ### TL4-H1 — Runtime performance promotion
 Status: TODO

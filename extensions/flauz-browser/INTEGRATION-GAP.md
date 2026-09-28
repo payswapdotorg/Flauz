@@ -92,9 +92,8 @@ standing law recorded in TL3-HANDOFF ("The network-filter default is
 documented as an extension-platform limitation. Any future
 implementation must use an architecture-allowed product-side path.").
 The DECISION-LOG proposal recording the blocker + the alternatives is
-drafted in the TL3-H2 delivery (DL number pending station assignment at
-the merge wave); until the station promotes it, this section is the
-in-repo record.
+promoted by the TL3 station as **DL-75** (WORK-REGISTRY, TL3-H2 landing
+record, merge 5786446b633); this section is the in-repo record.
 
 `chat.agent.networkFilter` defaults to `false`
 (`chat.shared.contribution.ts:1551`), so L2 is off unless the user/enterprise
@@ -213,11 +212,9 @@ does not rediscover the analysis):**
    ledger entry, DL-12 class, DL-31 family — requires TL adjudication and
    a demotion alternative before any `src/vs` divergence).
 
-**Decision record:** the DECISION-LOG proposal recording this limitation
-is drafted in the TL3-H2 delivery (fork-critical-demoted, demotion
-alternative = P0 + the naming contract; DL number pending station
-assignment at the merge wave). Until the station promotes it, this
-section is the in-repo record.
+**Decision record:** promoted by the TL3 station as **DL-76** (WORK-REGISTRY,
+TL3-H2 landing record, merge 5786446b633) — fork-critical-demoted, demotion
+alternative = P0 + the naming contract. This section is the in-repo record.
 
 ### G6 — Post-commit forced reset (the committed-URL residual)
 

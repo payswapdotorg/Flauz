@@ -17,7 +17,7 @@ TL2-S2 is closed and the helper is released back to TL3.
 
 ## Immediate hardening ownership
 - TL3-H1 — Provider resolver rung 2: live workbench resolver code plus the intended `resolvers` grant.
-- TL3-H2 — Browser product residuals: workbench `window.openBrowserTab` boot verification, product-side partition minting, and the application-scoped `chat.agent.networkFilter` default posture finding.
+- TL3-H2 — Browser product residuals: COMPLETE (merged 2026-09-28, 5786446b633) — the boot drill landed (CI job `b-policy-boot-drill`), G5/G3 permanently recorded (DL-75/DL-76). The standing law below still governs any future implementation.
 
 The network-filter default is documented as an extension-platform limitation. Any future implementation must use an architecture-allowed product-side path.
 
