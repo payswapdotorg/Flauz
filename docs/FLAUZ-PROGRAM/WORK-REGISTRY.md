@@ -181,7 +181,17 @@ GREEN / 4 RED — every RED is the platform pre-existing set at bare main @ 0f21
 (sbom rows: flauz-execution + flauz-memory missing from the committed SBOM
 components; packaging-parity drift rows; 2 downstream verify-fixtures deviations —
 TL2 post-surge landing debt, flagged to TL2; the flauz-security CI job 2 will
-surface it post-install). Branch-owned gates GREEN at the merged state:
+surface it post-install). CI evidence at the flip head 0686f68f (all seven
+flauz lanes dispatched): the battery's own core jobs GREEN — the
+flauz-agentos runtime-rung job (real CfT 153 + FLAUZ_CDP_ENDPOINT + gate
+--runtime --require) SUCCESS and the flauz-session whole-session battery job
+SUCCESS; every failing step across the lanes traces to the same pre-existing
+set: the verify-fixtures matrix deviations (session/budgets/compat/agentos
+fixture jobs + security subset), the security-runtime sbom row, the Lane-K
+per-extension typecheck (seamClient.ts:209 `.pid` on the unextended
+ShimChildProcess shim — reproduced IDENTICALLY at bare 0f210295), and the
+compat-L3 compile+hygiene line (hygiene already failed at TL2's own landing
+head 04fa8f95). Branch-owned gates GREEN at the merged state:
 agentos-battery default rung + --require controls + gate exit 0. Contract
 deviations: NONE. Per the handoff release condition (battery landed +
 station-verified + merged), Worker B is RELEASED back to TL4 for product-wide
