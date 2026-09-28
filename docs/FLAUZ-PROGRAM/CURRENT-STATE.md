@@ -2,14 +2,14 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 0fb23ff106e9807bc6dbf9e0bdb3974e8655d102 (2026-09-28; current main verification point after TL1 completion, TL3 provider/continuity completion, and TL4 runtime-rung completion)
+Integrated head at verification: 6a2bc3a24bb5bf85c36a74e8551ab630a5316950 (2026-09-28; current main verification point after TL1 completion, TL3 provider/continuity completion, TL4 runtime-rung completion, the TL2 Agent OS surge landing (TL2-001..006 + secondments S1/S2), and the TL2-S3 Agent OS runtime verification battery landing)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 68ea3e7e43bc484d17b2034fef27a2759d30a913. TL1-001..005 are complete; TL3-001..006 are complete at their current registered rungs; TL4-001..009 are complete at their current registered rungs. TL2 remains the active Agent OS lane. Existing TL ownership remains unchanged.
+- main is the canonical Flauz product line at 6a2bc3a24bb5bf85c36a74e8551ab630a5316950. TL1-001..005 are complete; TL3-001..006 are complete at their current registered rungs; TL4-001..009 are complete at their current registered rungs; the TL2 Agent OS core (TL2-001..006) and secondments S1/S2/S3 are complete (TL2-S3 = the runtime verification battery, PR #30, with the 4 PASS / 3 FAIL / 1 SKIP census recorded as findings for TL2). Existing TL ownership remains unchanged.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
-- main is 76 commits ahead of upstream/main and 0 behind at the reset point.
+- main is 221 commits ahead of upstream/main and 0 behind at the reset point.
 - Do not implement product work on upstream/main.
 
 ## Control-plane reconciliation
@@ -21,6 +21,8 @@ There is intentionally no CopilotKit or OpenMuse runtime dependency. An AG-UI ad
 ## Agent OS surge
 
 TL2 is the active architectural bottleneck. Three bounded cross-TL secondments are now attached to TL2: TL1 service integration, TL3 resource/execution integration, and TL4 runtime verification. This is a capacity increase only; ownership remains with the home TLs and Agent OS semantics remain owned by TL2.
+
+The Agent OS runtime verification battery (TL2-S3, PR #30) is landed: the 8-invariant durability catalogue (flauz.agentos-battery/v1) with one behavioral contract across two promotion rungs (fixture -> runtime), the zero-dep agentos-battery gate (default / --require / --surge-rung / --runtime), doctored controls, the flauz-agentos CI lane, and the honest baseline. Its census (identical at both rungs): 4 PASS, 3 FAIL findings mapped to TL2-001/002 follow-ups (bounded retry, cancellation propagation, concurrent ledger appends), 1 SKIP for the pending lease-conflict contract (TL2-004). The surge completion claim bar is `agentos-battery.mjs --surge-rung`.
 
 ## Present product surfaces
 

@@ -150,8 +150,46 @@ Status: DONE (PR #28 2026-09-28 — see the landing record above)
 Scope: bridge durable task execution to BrowserSession, EnvironmentExecutor/provider, ResourceRef and Continuity contracts; preserve policy, trust, provenance and recovery.
 Acceptance: task-to-resource execution works through existing contracts; resource acquisition/release and continuity hand-off are testable; no TL3 invariant regresses.
 
+TL2-S3 landing record (2026-09-28, TL4 lead, PR #30 6a2bc3a2): the Agent OS runtime
+verification battery landed — 17 files (+4302/-2), dispatched from the replay agents
+tab (Worker B, GLM-5.3), delivered via the credential-free bundle protocol, verified at
+the TL4 station. Base census pinned at 2d9b4a43 per the one-contract law; the TL2
+surge (TL2-001..006 + S1/S2) landed while the battery was in flight, so main
+@ 0f210295 was merged in first (additive .eslint-allowed-javascript-files conflict
+union-resolved) and the battery re-verified at the merged state with an IDENTICAL
+census. The instrument: flauz.agentos-battery/v1 verdict documents (one row per
+invariant, coverage law, FAIL rows must name the violated invariant + first failing
+assertion), ONE behavioral contract across TWO promotion rungs (fixture -> runtime,
+only the ports change), zero-dep gate (default / --require / --surge-rung /
+--runtime), doctored controls (coverage-law + symptom-only-report blindness), CI
+lane flauz-agentos (fixture job on push + dispatch; runtime job workflow_dispatch +
+weekly canary, never per-push). The CENSUS — the finding set for TL2, 4 PASS / 3
+FAIL / 1 SKIP, identical at both rungs and live-proven against Chrome-for-Testing
+153.0.8010.12: PASS INV-1 restart-recovery, INV-4 approval-interruption,
+INV-7 evidence-provenance-integrity, INV-8 partial-environment-browser-failure;
+FAIL INV-2 provider-failure-retry (inv2.bounded-retry — no automatic bounded retry
+on the v0 slice, retries caller-driven only; TL2-001/TL2-002 follow-up); FAIL INV-3
+cancellation-propagation (inv3.downstream-stopped — tool 2 executes after the
+mid-flight cancel; TL2-001 follow-up); FAIL INV-6 multi-agent-coordination
+(inv6.no-clobber — concurrent ledger appends clobber the chain, duplicate seq with
+the first broken link named; TL2-001 follow-up); SKIP INV-5 lease-conflict (the
+flauz.a2a/v0 resource-claim surface remains informational-only even after TL2-004 —
+concurrent claimants cannot receive a conflict error; a follow-up WO writes the
+conflict journey once TL2-004 exposes the contract). Station evidence:
+verify-branch.sh 15/15 GREEN @ 6dda894d at the pinned base; at the merged state 11
+GREEN / 4 RED — every RED is the platform pre-existing set at bare main @ 0f210295
+(sbom rows: flauz-execution + flauz-memory missing from the committed SBOM
+components; packaging-parity drift rows; 2 downstream verify-fixtures deviations —
+TL2 post-surge landing debt, flagged to TL2; the flauz-security CI job 2 will
+surface it post-install). Branch-owned gates GREEN at the merged state:
+agentos-battery default rung + --require controls + gate exit 0. Contract
+deviations: NONE. Per the handoff release condition (battery landed +
+station-verified + merged), Worker B is RELEASED back to TL4 for product-wide
+verification and release-quality work.
+
 ### TL2-S3 — TL4 runtime-verification secondment
 Owner: TL2 / helper from TL4 Worker B
+Status: DONE (PR #30 2026-09-28 — see the landing record above; Worker B released back to TL4)
 Scope: independent runtime battery for restart, cancellation, provider failure, approval interruption, lease conflicts, multi-agent collaboration and evidence/provenance recovery.
 Acceptance: deterministic machine-checked verdicts; fixture-to-runtime promotion path; no test weakens fail-closed behavior.
 
