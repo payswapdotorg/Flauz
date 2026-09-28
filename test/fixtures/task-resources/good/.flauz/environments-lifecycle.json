@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 0,
+	"schema": "flauz.environments-lifecycle/v0",
+	"updatedAt": 1730000063000,
+	"entries": {
+		"env-build-agent": {
+			"state": "running",
+			"updatedAt": 1730000062000,
+			"executorKind": "local-process",
+			"lastOpRef": 2
+		},
+		"env-quarantine": {
+			"state": "created",
+			"updatedAt": 1730000063000,
+			"executorKind": "simulated-container",
+			"lastOpRef": 3
+		}
+	}
+}

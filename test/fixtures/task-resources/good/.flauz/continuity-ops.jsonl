@@ -1,0 +1,2 @@
+{"actor":"human","bundleId":"flauz:continuity:0123456789abcdef","details":{"fromEnvironmentId":"env-build-agent","surfacesCarried":6,"surfacesLost":13,"surfacesRedacted":3},"op":"export","result":"ok","schema":"flauz.continuity-ops/v0","schemaVersion":0,"ts":1730000300000}
+{"actor":"tool","bundleId":"flauz:continuity:0123456789abcdef","details":{"fromEnvironmentId":"env-build-agent","surfacesCarried":6,"surfacesLost":13,"surfacesRedacted":3},"op":"verify","result":"ok","schema":"flauz.continuity-ops/v0","schemaVersion":0,"ts":1730000310000}

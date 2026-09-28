@@ -1,0 +1,120 @@
+{
+	"schemaVersion": 0,
+	"schema": "flauz.continuity-bundle/v0",
+	"bundleId": "flauz:continuity:0123456789abcdef",
+	"createdAt": 1730000300000,
+	"actor": "human",
+	"sourceEnvironmentId": "env-build-agent",
+	"switchPlanRef": "flauz.switchPlan/v0:env-build-agent@1730000290000",
+	"surfaces": {
+		"flauz-tasks-envelope": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-tasks-envelope.json",
+			"sha256": "281a1bf8595559faeaff22f4bf2ded72cfcabfef13bfc7b7495fab0f8f2d84a9",
+			"bytes": 39,
+			"note": "carried from the fixture workspace"
+		},
+		"flauz-environments-registry": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-environments-registry.json",
+			"sha256": "7f2bee100eb6159b46bb35efb4a83e0ce9f9bdc3d259fdc48cd2a354accd2d8c",
+			"bytes": 1225,
+			"note": "carried from the fixture workspace"
+		},
+		"flauz-environments-lifecycle": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-environments-lifecycle.json",
+			"sha256": "c8e4c4347b6bd920d6ca34a467f21b68faf337e933d581b39edebc1182a4ab48",
+			"bytes": 101,
+			"note": "carried from the fixture workspace"
+		},
+		"flauz-environments-ops": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-environments-ops.json",
+			"sha256": "d88758b645fcefbf0afd7b253147af3857e5ab43324ce923326ca6345f340b96",
+			"bytes": 18,
+			"note": "carried from the fixture workspace"
+		},
+		"flauz-resources-graph": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-resources-graph.json",
+			"sha256": "ede95c471675afd761965c433d9d2b2c2e228ddd364e4cf0226479c7b6a2062a",
+			"bytes": 934,
+			"note": "carried from the fixture workspace"
+		},
+		"flauz-resources-ops": {
+			"status": "carried",
+			"artifactPath": "surfaces/flauz-resources-ops.json",
+			"sha256": "e05aefc19aed07b24d47d3c9269555e54c95df571f4850093a469ecf66785bbd",
+			"bytes": 37,
+			"note": "carried from the fixture workspace"
+		},
+		"flauz-evidence-ledger": {
+			"status": "redacted",
+			"sha256": "3d037653071a3fe8b663585b1e8f98ea1cbaabfc600d3f8925a89d5881bf46b8",
+			"note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+		},
+		"flauz-evidence-artifacts": {
+			"status": "redacted",
+			"sha256": "6d4588e3be17e5dad901bd1f0b1b19ddd64def02c54c641986c8184a6fa795b8",
+			"note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+		},
+		"flauz-browser-session-journal": {
+			"status": "redacted",
+			"sha256": "da5bbfec26d75636e5966ebae5bc228c7e6936bdd6e485ab8d92d30ad973ff98",
+			"note": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+		},
+		"scm-working-tree": {
+			"status": "lost",
+			"note": "rides the SCM substrate (git working tree + branches); not a .flauz/ surface"
+		},
+		"chat-sessions": {
+			"status": "lost",
+			"note": "natively re-hydrated by the sessions infra on the target env (N-8 re-open model)"
+		},
+		"chat-editing-checkpoints": {
+			"status": "lost",
+			"note": "natively re-hydrated by the chat editing/checkpoint infra (N-8 re-open model)"
+		},
+		"edit-sessions": {
+			"status": "lost",
+			"note": "natively re-hydrated by the edit-sessions infra (working-copy continuation, N-8)"
+		},
+		"agent-sessions": {
+			"status": "lost",
+			"note": "AHP server-side (sessionDatabase + taskEventReplay); not a workspace-local surface"
+		},
+		"flauz-task-state-machine": {
+			"status": "lost",
+			"note": "re-hydrates from the carried tasks envelope (no separate file)"
+		},
+		"persisted-approvals": {
+			"status": "lost",
+			"note": "AHP session-permission entries (SECURITY-MODEL 3.4); re-established by the agent host"
+		},
+		"terminal-scrollback": {
+			"status": "lost",
+			"note": "renderer-local (per-connection ptys) -- lost by design (N-8)"
+		},
+		"browser-pane-state": {
+			"status": "lost",
+			"note": "live CDP state is renderer-local -- lost by design (N-8); the PIN-1 journal carries its persistent trace as its own surface"
+		},
+		"inflight-chat-streams": {
+			"status": "lost",
+			"note": "in-flight streaming turns do not survive the re-open -- lost by design (N-8)"
+		},
+		"window-layout": {
+			"status": "lost",
+			"note": "machine-local workspace state -- lost by design (N-8)"
+		},
+		"resolver-connection-state": {
+			"status": "lost",
+			"note": "resolver sockets/tunnels are re-established by resolve() on the target env"
+		},
+		"flauz-workflow-state": {
+			"status": "lost",
+			"note": "no file materialized this surface at export time (typed lost, never fabricated)"
+		}
+	}
+}

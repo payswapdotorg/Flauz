@@ -1,0 +1,17 @@
+{
+	"$schema": "flauz.resources/v0",
+	"nodes": [
+		{
+			"schemaVersion": 0,
+			"kind": "task",
+			"id": "flauz:task:T-001",
+			"provenance": {
+				"actor": "agent",
+				"actorId": "flauz-agent"
+			},
+			"createdAt": 1730000050000
+		}
+	],
+	"edges": [],
+	"surfaces": []
+}

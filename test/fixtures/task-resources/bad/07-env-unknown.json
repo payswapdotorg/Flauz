@@ -1,0 +1,30 @@
+{
+	"$schema": "flauz.environments/v0",
+	"activeId": null,
+	"environments": [
+		{
+			"id": "env-quarantine",
+			"kind": "container",
+			"label": "Quarantine container",
+			"connection": {
+				"workspaceFolder": "/work/quarantine",
+				"name": "quarantine-box"
+			},
+			"trust": {
+				"posture": "untrusted",
+				"inheritsWorkspaceTrust": false
+			},
+			"capabilities": {
+				"browser": false,
+				"exec": true,
+				"agentHost": true,
+				"terminal": true
+			},
+			"enabled": true,
+			"timing": {
+				"created": 1730000000000,
+				"updatedAt": 1730000060000
+			}
+		}
+	]
+}

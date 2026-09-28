@@ -1,0 +1,23 @@
+{
+	"$schema": "flauz.tasks/v0",
+	"tasks": [
+		{
+			"id": "T-001",
+			"title": "Fixture task one",
+			"status": "execute",
+			"events": [
+				{
+					"ts": 1730000100000,
+					"actor": "human",
+					"type": "created",
+					"payload": {}
+				}
+			],
+			"timing": {
+				"created": 1730000100000,
+				"updatedAt": 1730000100000
+			},
+			"changes": []
+		}
+	]
+}

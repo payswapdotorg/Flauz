@@ -1,0 +1,3 @@
+{"actor":"human","environmentId":"env-build-agent","fromState":"registered","op":"create","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"created","ts":1730000060000}
+{"actor":"agent","environmentId":"env-build-agent","fromState":"created","op":"start","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"running","ts":1730000062000}
+{"actor":"agent","environmentId":"env-quarantine","fromState":"registered","op":"create","result":"ok","schema":"flauz.environments-ops/v0","schemaVersion":0,"toState":"created","ts":1730000063000}
