@@ -15,8 +15,7 @@ import { deepStrictEqual, ok, strictEqual } from 'node:assert';
 import * as http from 'node:http';
 import { createHash } from 'node:crypto';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { CloudHttpExecutor, nodeHttpPort } from '../src/lifecycle/index.ts';
-import type { LocalEnvFsPort } from '../src/lifecycle/index.ts';
+import { CloudHttpExecutor, nodeHttpPort, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import { cloudSandboxRegistrationInput, fixedClock } from './helpers.ts';
 
 const ROOT = '/ws';
@@ -215,7 +214,7 @@ test('cloud-http: the full happy path against the local mock (create/start/attac
 		strictEqual(createRequest.method, 'POST');
 		strictEqual(createRequest.path, '/v0/sandboxes');
 		deepStrictEqual(JSON.parse(createRequest.body), { template: 'base', metadata: { environmentId: id } });
-		strictEqual(createRequest.headers['authorization'], `Bearer ${rig.apiKey}`);
+		strictEqual(createRequest.headers.authorization, `Bearer ${rig.apiKey}`);
 		const track = JSON.parse(rig.files.get(`/ws/.flauz/env-cloud/${id}.json`)!);
 		strictEqual(track.schema, 'flauz.env-cloud/v0');
 		strictEqual(track.status, 'created');

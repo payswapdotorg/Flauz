@@ -14,8 +14,7 @@ import { test } from 'node:test';
 import { deepStrictEqual, ok, rejects, strictEqual, throws } from 'node:assert';
 import type { FileSystemPort } from '../src/api.ts';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { CONTINUITY_ARTIFACTS } from '../src/continuity.ts';
-import { planSwitch } from '../src/continuity.ts';
+import { CONTINUITY_ARTIFACTS, planSwitch } from '../src/continuity.ts';
 import {
 	CONTINUITY_SURFACES,
 	surfaceIds,
@@ -461,7 +460,7 @@ test('restore: trust gate — untrusted target environments are rejected fail-cl
 	const untrusted = await managerWithEnv.restore({ bundleId: exported.manifest.bundleId, actor: 'agent', targetEnvironmentId: 'env-target-cloud' });
 	ok(!untrusted.ok);
 	strictEqual(untrusted.error.code, 'TRUST_POSTURE_REJECTED');
-	ok(untrusted.error.message.includes("'untrusted'"), 'the message names the posture');
+	ok(untrusted.error.message.includes('\'untrusted\''), 'the message names the posture');
 	strictEqual(untrusted.record.result, 'error', 'the rejection is ledger-recorded');
 	const unknown = await managerWithEnv.restore({ bundleId: exported.manifest.bundleId, actor: 'agent', targetEnvironmentId: 'env-missing' });
 	ok(!unknown.ok);

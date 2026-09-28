@@ -61,8 +61,7 @@
  * `tail -f /dev/null` stdin holder); descriptor-supplied execution is
  * forbidden, fail-closed against injection.
  */
-import { joinPath, serializeEnvelope, type Clock } from '../api.ts';
-import type { EnvironmentDescriptor, EnvironmentKind } from '../api.ts';
+import { joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 import { excerpt, parseHarnessStdio, type CliPort } from './cliPort.ts';
