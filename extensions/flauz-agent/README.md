@@ -20,6 +20,20 @@ core/
                     (newline-delimited JSON), the 7 flauz.workspace.* commands,
                     tasks.json envelope, hash-chained evidence ledger,
                     globalStorage event relay
+  protocol.mjs      TL1-003 seam definition: version negotiation, the
+                    SEAM_METHODS registry, structured errors, event envelopes
+  serviceBoundary.mjs  TL2-S1 Agent OS service boundary: the orchestration-
+                    side adapter composing SeamClient (transport) and
+                    protocol.mjs (version/gating truth) - registry-derived
+                    method gate, flauz.os.err.* fail-closed failure taxonomy,
+                    client-side idempotency memo, health watch, start/
+                    recover (re-spawn + re-hello + state re-read)
+  serviceBoundary.d.mts  hand-written types for the boundary (.d.mts
+                    discipline, like contracts.d.mts)
+  seamUsageMap.json TL2-S1 machine-readable map: which seam methods/events
+                    serve each Agent OS lifecycle phase today, which need
+                    ADDITIVE protocol extensions (versioned artifact
+                    'flauz.seam-usage-map/v1')
 src/
   extension.ts      activation wiring + the documented code/flauz/* marks
   participant.ts    vscode.chat.createChatParticipant handler + followups
@@ -60,6 +74,35 @@ shims/              hand-written ambient Node typings (no @types/node)
   (verify-fail, agent); execute→failed (fail, agent);
   awaiting-signoff→done (sign-off, human); any-active→cancelled (cancel,
   human).
+
+## Agent OS service boundary (TL2-S1)
+
+`core/serviceBoundary.mjs` is the orchestration-side consumer of the TL1-003
+seam (the surge integration layer; see docs/FLAUZ-PROGRAM/SERVICE-SEAM.md -
+the AUTHORITATIVE wire spec):
+
+- ZERO duplication (binding): transport is the landed `src/seamClient.ts`
+  (composed, never re-implemented; the .mjs imports the .ts as a Node
+  type-stripping module - the shipped extension still imports types only);
+  version/gating logic is `core/protocol.mjs` (SEAM_METHODS,
+  seamMethodVersions, SEAM_PROTOCOL_VERSIONS - never a copied table).
+- Start/recover through the native boundary: `AgentOsServiceBoundary.start()`
+  spawns the REAL service, negotiates, affirms capabilities + lifecycle;
+  `recover()` re-spawns, re-hello, re-negotiates and re-reads state (the
+  kill-and-reconnect matrix proves snapshot identity - see
+  test/agentOsService.recovery.test.ts).
+- Fail-closed, machine-readable failures: every failure is a BoundaryFailure
+  with a closed-set `flauz.os.err.*` code, a retryHint and a retryable flag;
+  a side-effecting request whose response was lost is OUTCOME-UNKNOWN and is
+  never auto-retried - reconcile via snapshot, then a NEW idempotency key
+  (the client-side memo replays completed attempts and rejects unknown ones
+  fast, so a re-driven attempt can never double-apply on the wire).
+- The seam usage map (`core/seamUsageMap.json` + the typed mirror
+  `src/seamUsageMap.ts`, deep-equal pinned by test) records which lifecycle
+  phases are served today and which need additive protocol extensions
+  (orch journal rows, lease ops, recovery scan, journal verify, event
+  replay) - proposals only; nothing is implemented behind the registry's
+  back.
 
 ## Golden path
 
