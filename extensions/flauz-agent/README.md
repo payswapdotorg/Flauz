@@ -34,6 +34,20 @@ core/
                     serve each Agent OS lifecycle phase today, which need
                     ADDITIVE protocol extensions (versioned artifact
                     'flauz.seam-usage-map/v1')
+  orchestration.mjs / orchStore.mjs / policy.mjs / recovery.mjs /
+  runtime.mjs / routing.mjs
+                    the durable orchestration core (TL2-001/TL2-004):
+                    replay-derived task graphs over a hash-chained journal,
+                    retry/cancel/takeover policy, restart recovery, the
+                    deterministic executor, multi-agent A2A routing;
+                    approval/takeover/lease/claim ops are first-class
+                    transitions with minted evidence rows
+  orchProtocol.mjs / orch-protocol.schema.json / orchMediator.mjs
+                    the orchestration service protocol contract (TL2-001
+                    M4): flauz.orch/v1 method registry + event catalog +
+                    typed failure taxonomy ABOVE the TL1-003 seam, the
+                    versioned JSON schema, and the in-process mediator
+                    fixture the future stateful service dispatches through
 src/
   extension.ts      activation wiring + the documented code/flauz/* marks
   participant.ts    vscode.chat.createChatParticipant handler + followups

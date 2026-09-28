@@ -55,7 +55,7 @@ class ScriptedSink {
 async function submittedGraph(root: string, steps: Array<Record<string, unknown>>, policy: Record<string, unknown> = {}): Promise<{ store: OrchestrationStore; graphId: string }> {
 	const store = makeStore(root);
 	const submitted = await store.submitGraph({ title: 'policy graph', steps, policy, actor: 'agent', origin: 'test:policy' });
-	store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:policy' });
+	await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:policy' });
 	return { store, graphId: submitted.graphId };
 }
 
@@ -238,7 +238,7 @@ test('user cancel: persisted cancellation record + coherent graph-wide stop', as
 		{ stepId: 'S-03', title: 'c', instruction: 'c', gate: 'human-approval' },
 	]);
 	// one step running, one blocked, one gated-pending
-	store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:policy' });
+	await store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:policy' });
 	const result = await store.cancelGraph({ graphId, reason: 'user aborted the run', actor: 'human', origin: 'chat:/cancel' });
 	assert.deepEqual(result.cancelledSteps, ['S-01', 'S-02', 'S-03']);
 	const state = store.getGraphState(graphId) as { graphStatus: string; cancelRequested: boolean; cancelReason: string; steps: Record<string, { status: string }> };
@@ -257,7 +257,7 @@ test('user cancel: persisted cancellation record + coherent graph-wide stop', as
 		assert.equal(row.payload.cause, 'user-cancel');
 	}
 	// terminal statuses hold: nothing may move after cancellation
-	assert.throws(() => store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:policy' }),
+	await assert.rejects(() => store.startStep({ graphId, stepId: 'S-02', runnerId: 'r', actor: 'agent', origin: 'test:policy' }),
 		(error: unknown) => /not allowed from step status cancelled/.test(messageOf(error)));
 });
 
@@ -267,7 +267,7 @@ test('crash mid-sweep: recovery continues the cancellation to coherence', async 
 		{ stepId: 'S-01', title: 'a', instruction: 'a' },
 		{ stepId: 'S-02', title: 'b', instruction: 'b' },
 	]);
-	store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:policy' });
+	await store.startStep({ graphId, stepId: 'S-01', runnerId: 'r', actor: 'agent', origin: 'test:policy' });
 	// simulate the crash: only cancel-requested + ONE step-cancelled landed
 	store.appendRow('cancel-requested', {
 		graphId,
@@ -304,7 +304,7 @@ test('crash mid-sweep: recovery continues the cancellation to coherence', async 
 test('cancel from awaiting-approval: the human gate is also cancellable', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedGraph(root, [{ stepId: 'S-01', title: 'gated', instruction: 'gated', gate: 'human-approval' }]);
-	store.approvalRequest({ graphId, stepId: 'S-01', reason: 'gate', actor: 'service', origin: 'runtime:gate' });
+	await store.approvalRequest({ graphId, stepId: 'S-01', reason: 'gate', actor: 'service', origin: 'runtime:gate' });
 	const result = await store.cancelGraph({ graphId, reason: 'never mind', actor: 'human', origin: 'chat:/cancel' });
 	assert.deepEqual(result.cancelledSteps, ['S-01']);
 	const state = store.getGraphState(graphId) as { graphStatus: string };
@@ -318,9 +318,9 @@ test('cancel from awaiting-approval: the human gate is also cancellable', async 
 test('takeover: full lifecycle with provenance and evidence', async () => {
 	const root = makeRoot();
 	const { store, graphId } = await submittedGraph(root, [{ stepId: 'S-01', title: 'stuck', instruction: 'a stuck step' }]);
-	store.startStep({ graphId, stepId: 'S-01', runnerId: 'runner-a', actor: 'agent', origin: 'test:policy' });
+	await store.startStep({ graphId, stepId: 'S-01', runnerId: 'runner-a', actor: 'agent', origin: 'test:policy' });
 	// the human requests takeover of the running step
-	const requested = store.takeoverRequest({ graphId, stepId: 'S-01', actor: 'human', origin: 'chat:/takeover' });
+	const requested = await store.takeoverRequest({ graphId, stepId: 'S-01', actor: 'human', origin: 'chat:/takeover' });
 	assert.equal(requested.type, 'takeover-requested');
 	let state = store.getGraphState(graphId) as unknown as { graphStatus: string; steps: Record<string, { status: string; takeover: Record<string, unknown> | null }> };
 	assert.equal(state.steps['S-01'].status, 'takeover-pending');
@@ -329,7 +329,7 @@ test('takeover: full lifecycle with provenance and evidence', async () => {
 	const drive = await driveAll(store, graphId, new ScriptedSink(), FAR_FUTURE);
 	assert.equal(drive.started.length, 0, 'a takeover-pending step is not runnable by the runtime');
 	// accept + complete are HUMAN-ONLY (pinned in the core suite; here the happy path)
-	store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'human', origin: 'chat:/takeover' });
+	await store.takeoverAccept({ graphId, stepId: 'S-01', actor: 'human', origin: 'chat:/takeover' });
 	const completed = await store.takeoverComplete({
 		graphId, stepId: 'S-01', actor: 'human', origin: 'chat:/takeover',
 		summary: 'finished the debugging by hand',
@@ -344,7 +344,7 @@ test('takeover: full lifecycle with provenance and evidence', async () => {
 	assert.equal(completed.actor, 'human');
 	assert.equal(completed.origin, 'chat:/takeover');
 	// the graph can now complete
-	store.completeGraph({ graphId, actor: 'service', origin: 'runtime:completion' });
+	await store.completeGraph({ graphId, actor: 'service', origin: 'runtime:completion' });
 	assert.equal((store.getGraphState(graphId) as { graphStatus: string }).graphStatus, 'completed');
 });
 
@@ -401,7 +401,7 @@ test('a gated step NEVER runs without a human grant (drive stalls, then proceeds
 	await driveAll(store, graphId, sink, 999999);
 	assert.deepEqual((store.getGraphState(graphId) as { pendingApprovals: string[] }).pendingApprovals, ['S-01']);
 	// the human grants; only then does the step run
-	store.approvalDecide({ graphId, stepId: 'S-01', decision: 'granted', actor: 'human', origin: 'chat:/approve' });
+	await store.approvalDecide({ graphId, stepId: 'S-01', decision: 'granted', actor: 'human', origin: 'chat:/approve' });
 	report = await driveAll(store, graphId, sink, 1000000);
 	assert.deepEqual(report.started.map((entry) => entry.stepId), ['S-01']);
 	assert.equal(report.completed, true);
@@ -416,7 +416,7 @@ test('denial cancels the gated step with a denial failure record (the human can 
 	const { store, graphId } = await submittedGraph(root, [{ stepId: 'S-01', title: 'gated', instruction: 'gated', gate: 'human-approval' }]);
 	const sink = new ScriptedSink();
 	await driveAll(store, graphId, sink, 1000);
-	store.approvalDecide({ graphId, stepId: 'S-01', decision: 'denied', note: 'not this command', actor: 'human', origin: 'chat:/deny' });
+	await store.approvalDecide({ graphId, stepId: 'S-01', decision: 'denied', note: 'not this command', actor: 'human', origin: 'chat:/deny' });
 	const state = store.getGraphState(graphId) as { steps: Record<string, { status: string; failure: { class: string } | null; approval: { state: string } | null }> };
 	assert.equal(state.steps['S-01'].status, 'cancelled');
 	assert.equal(state.steps['S-01'].failure?.class, 'approval-denied');

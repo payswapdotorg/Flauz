@@ -1,0 +1,1870 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$id": "flauz.orch.protocol/v1",
+	"title": "Flauz orchestration service protocol contract (flauz.orch/v1)",
+	"description": "The message shapes between the extension layer and the Flauz orchestration service (TL2-001 M4). This schema is the versioned JSON contract document; core/orchProtocol.mjs is the typed executable mirror (validators + registry) and the conformance suite pins the two bidirectionally (method/event/failure enums and the per-method required/optional key lists must agree exactly). The protocol rides the TL1-003 service seam (flauz.seam/v1) for transport: hello/ready handshake, {id, cmd, args} request framing, structured flauz.err.* error envelopes and {type: event, event, payload, ts} wire events - never duplicated here. The approval-expiry surface (flauz.orch.expireApproval / orch-approval-expired) landed with the TL2-004 closure as additive v1 growth.",
+	"definitions": {
+		"orchProtocolVersion": {
+			"type": "string",
+			"enum": [
+				"flauz.orch/v1"
+			]
+		},
+		"methodName": {
+			"type": "string",
+			"enum": [
+				"flauz.orch.submitGraph",
+				"flauz.orch.approveGraph",
+				"flauz.orch.rejectGraph",
+				"flauz.orch.cancelGraph",
+				"flauz.orch.getGraph",
+				"flauz.orch.listGraphs",
+				"flauz.orch.verifyJournal",
+				"flauz.orch.startStep",
+				"flauz.orch.finishStep",
+				"flauz.orch.retryStep",
+				"flauz.orch.requestApproval",
+				"flauz.orch.decideApproval",
+				"flauz.orch.expireApproval",
+				"flauz.orch.requestTakeover",
+				"flauz.orch.acceptTakeover",
+				"flauz.orch.completeTakeover",
+				"flauz.orch.acquireClaim",
+				"flauz.orch.releaseClaim",
+				"flauz.orch.acquireLease",
+				"flauz.orch.renewLease",
+				"flauz.orch.releaseLease",
+				"flauz.orch.noticeConflict",
+				"flauz.orch.routeStep",
+				"flauz.orch.recoveryScan"
+			]
+		},
+		"eventName": {
+			"type": "string",
+			"enum": [
+				"orch-journal-row",
+				"orch-approval-requested",
+				"orch-approval-decided",
+				"orch-approval-expired",
+				"orch-takeover-requested",
+				"orch-takeover-accepted",
+				"orch-takeover-completed",
+				"orch-claim-acquired",
+				"orch-claim-released",
+				"orch-lease-acquired",
+				"orch-lease-renewed",
+				"orch-lease-released",
+				"orch-lease-expired",
+				"orch-conflict-noticed",
+				"orch-recovery-scan"
+			]
+		},
+		"failureCode": {
+			"type": "string",
+			"enum": [
+				"flauz.orch.err.unsupported-version",
+				"flauz.orch.err.unknown-method",
+				"flauz.orch.err.invalid-params",
+				"flauz.orch.err.not-ready",
+				"flauz.orch.err.shutting-down",
+				"flauz.orch.err.unknown-graph",
+				"flauz.orch.err.unknown-step",
+				"flauz.orch.err.illegal-transition",
+				"flauz.orch.err.not-implemented",
+				"flauz.orch.err.internal"
+			]
+		},
+		"requests": {
+			"flauz.orch.submitGraph": {
+				"type": "object",
+				"required": [
+					"actor",
+					"origin",
+					"steps",
+					"title"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"steps": {
+						"type": "array",
+						"minItems": 1
+					},
+					"title": {
+						"type": "string",
+						"minLength": 1
+					},
+					"policy": {
+						"type": "object"
+					},
+					"taskId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^T-\\d{3,}$"
+					}
+				}
+			},
+			"flauz.orch.approveGraph": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"flauz.orch.rejectGraph": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"flauz.orch.cancelGraph": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"reason": {
+						"type": "string",
+						"minLength": 1
+					}
+				}
+			},
+			"flauz.orch.getGraph": {
+				"type": "object",
+				"required": [
+					"graphId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					}
+				}
+			},
+			"flauz.orch.listGraphs": {
+				"type": "object",
+				"required": [],
+				"additionalProperties": false,
+				"properties": {}
+			},
+			"flauz.orch.verifyJournal": {
+				"type": "object",
+				"required": [],
+				"additionalProperties": false,
+				"properties": {}
+			},
+			"flauz.orch.startStep": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"runnerId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"runnerId": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"flauz.orch.finishStep": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"outcome",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"outcome": {
+						"type": "string",
+						"enum": [
+							"succeeded",
+							"failed"
+						]
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"attempt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"evidence": {
+						"type": "array"
+					},
+					"failureClass": {
+						"type": "string",
+						"minLength": 1
+					},
+					"message": {
+						"type": "string"
+					},
+					"output": {
+						"type": "string"
+					},
+					"retryPlanned": {
+						"type": "boolean"
+					}
+				}
+			},
+			"flauz.orch.retryStep": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"flauz.orch.requestApproval": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"reason",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"reason": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"expiresAt": {
+						"type": "integer",
+						"minimum": 1
+					}
+				}
+			},
+			"flauz.orch.decideApproval": {
+				"type": "object",
+				"required": [
+					"actor",
+					"decision",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"decision": {
+						"type": "string",
+						"enum": [
+							"granted",
+							"denied"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"flauz.orch.requestTakeover": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"reason": {
+						"type": "string",
+						"minLength": 1
+					}
+				}
+			},
+			"flauz.orch.acceptTakeover": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"flauz.orch.completeTakeover": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"evidence": {
+						"type": "array"
+					},
+					"summary": {
+						"type": "string"
+					}
+				}
+			},
+			"flauz.orch.acquireClaim": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"holder",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"flauz.orch.releaseClaim": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"flauz.orch.acquireLease": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"holder",
+					"origin",
+					"stepId",
+					"ttlMs"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"ttlMs": {
+						"type": "integer",
+						"minimum": 1
+					}
+				}
+			},
+			"flauz.orch.renewLease": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId",
+					"ttlMs"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"ttlMs": {
+						"type": "integer",
+						"minimum": 1
+					}
+				}
+			},
+			"flauz.orch.releaseLease": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"flauz.orch.noticeConflict": {
+				"type": "object",
+				"required": [
+					"actor",
+					"actualRunner",
+					"expectedHolder",
+					"graphId",
+					"origin",
+					"stepId",
+					"violation"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"actualRunner": {
+						"type": "string",
+						"minLength": 1
+					},
+					"expectedHolder": {
+						"type": "string",
+						"minLength": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					},
+					"violation": {
+						"type": "string",
+						"enum": [
+							"claim",
+							"lease"
+						]
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"flauz.orch.routeStep": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"reason",
+					"targetAgent"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"reason": {
+						"type": "string",
+						"enum": [
+							"capability-match",
+							"load-balance",
+							"operator-choice"
+						]
+					},
+					"targetAgent": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"details": {
+						"type": "object"
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"flauz.orch.recoveryScan": {
+				"type": "object",
+				"required": [
+					"actor",
+					"origin"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"now": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"record": {
+						"type": "boolean"
+					}
+				}
+			},
+			"flauz.orch.expireApproval": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"origin",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"expiredAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"note": {
+						"type": "string"
+					},
+					"origin": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			}
+		},
+		"events": {
+			"orch-journal-row": {
+				"type": "object",
+				"required": [
+					"actor",
+					"graphId",
+					"rowId",
+					"seq",
+					"stepId",
+					"type"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actor": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"seq": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					},
+					"type": {
+						"type": "string"
+					}
+				}
+			},
+			"orch-approval-requested": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"reason",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"reason": {
+						"type": "string",
+						"minLength": 1
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					},
+					"expiresAt": {
+						"type": "integer",
+						"minimum": 1
+					}
+				}
+			},
+			"orch-approval-decided": {
+				"type": "object",
+				"required": [
+					"decision",
+					"graphId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"decision": {
+						"type": "string",
+						"enum": [
+							"granted",
+							"denied"
+						]
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"orch-takeover-requested": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"requestedBy",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"requestedBy": {
+						"type": "string",
+						"enum": [
+							"human",
+							"agent",
+							"tool",
+							"service"
+						]
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-takeover-accepted": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-takeover-completed": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-claim-acquired": {
+				"type": "object",
+				"required": [
+					"claimId",
+					"graphId",
+					"holder",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"claimId": {
+						"type": "string",
+						"pattern": "^C-\\d{3,}-\\d{2,}$"
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-claim-released": {
+				"type": "object",
+				"required": [
+					"claimId",
+					"graphId",
+					"holder",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"claimId": {
+						"type": "string",
+						"pattern": "^C-\\d{3,}-\\d{2,}$"
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-lease-acquired": {
+				"type": "object",
+				"required": [
+					"expiresAt",
+					"graphId",
+					"holder",
+					"leaseId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"expiresAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"leaseId": {
+						"type": "string",
+						"pattern": "^L-\\d{3,}-\\d{2,}-\\d{1,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-lease-renewed": {
+				"type": "object",
+				"required": [
+					"expiresAt",
+					"graphId",
+					"holder",
+					"leaseId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"expiresAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"leaseId": {
+						"type": "string",
+						"pattern": "^L-\\d{3,}-\\d{2,}-\\d{1,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-lease-released": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"holder",
+					"leaseId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"leaseId": {
+						"type": "string",
+						"pattern": "^L-\\d{3,}-\\d{2,}-\\d{1,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-lease-expired": {
+				"type": "object",
+				"required": [
+					"expiredAt",
+					"graphId",
+					"holder",
+					"leaseId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"expiredAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"holder": {
+						"type": "string",
+						"pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+					},
+					"leaseId": {
+						"type": "string",
+						"pattern": "^L-\\d{3,}-\\d{2,}-\\d{1,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			},
+			"orch-conflict-noticed": {
+				"type": "object",
+				"required": [
+					"actualRunner",
+					"expectedHolder",
+					"graphId",
+					"stepId",
+					"violation"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actualRunner": {
+						"type": "string",
+						"minLength": 1
+					},
+					"expectedHolder": {
+						"type": "string",
+						"minLength": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					},
+					"violation": {
+						"type": "string",
+						"enum": [
+							"claim",
+							"lease"
+						]
+					},
+					"note": {
+						"type": "string"
+					}
+				}
+			},
+			"orch-recovery-scan": {
+				"type": "object",
+				"required": [
+					"actions",
+					"clean",
+					"graphId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"actions": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"clean": {
+						"type": "boolean"
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					}
+				}
+			},
+			"orch-approval-expired": {
+				"type": "object",
+				"required": [
+					"expiredAt",
+					"graphId",
+					"stepId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"expiredAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"stepId": {
+						"type": "string",
+						"pattern": "^S-\\d{2,}$"
+					}
+				}
+			}
+		},
+		"results": {
+			"flauz.orch.submitGraph": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"rowId",
+					"stepIds",
+					"taskId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"stepIds": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"pattern": "^S-\\d{2,}$"
+						}
+					},
+					"taskId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"pattern": "^T-\\d{3,}$"
+					}
+				}
+			},
+			"flauz.orch.approveGraph": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.rejectGraph": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.cancelGraph": {
+				"type": "object",
+				"required": [
+					"cancelledSteps"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"cancelledSteps": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"flauz.orch.getGraph": {
+				"type": "object",
+				"required": [
+					"graphId",
+					"graphStatus",
+					"steps"
+				],
+				"properties": {
+					"graphId": {
+						"type": "string",
+						"pattern": "^G-\\d{3,}$"
+					},
+					"graphStatus": {
+						"type": "string"
+					},
+					"steps": {
+						"type": "object"
+					}
+				}
+			},
+			"flauz.orch.listGraphs": {
+				"type": "object",
+				"required": [
+					"graphs"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"graphs": {
+						"type": "array"
+					}
+				}
+			},
+			"flauz.orch.verifyJournal": {
+				"type": "object",
+				"required": [
+					"ok",
+					"rows"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"ok": {
+						"type": "boolean"
+					},
+					"rows": {
+						"type": "integer",
+						"minimum": 0
+					}
+				}
+			},
+			"flauz.orch.startStep": {
+				"type": "object",
+				"required": [
+					"attempt",
+					"idempotencyKey",
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"attempt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"idempotencyKey": {
+						"type": "string"
+					},
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.finishStep": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.retryStep": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.requestApproval": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.decideApproval": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.requestTakeover": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.acceptTakeover": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.completeTakeover": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.acquireClaim": {
+				"type": "object",
+				"required": [
+					"claimId",
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"claimId": {
+						"type": "string",
+						"pattern": "^C-\\d{3,}-\\d{2,}$"
+					},
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.releaseClaim": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.acquireLease": {
+				"type": "object",
+				"required": [
+					"leaseId",
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"leaseId": {
+						"type": "string",
+						"pattern": "^L-\\d{3,}-\\d{2,}-\\d{1,}$"
+					},
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.renewLease": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.releaseLease": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.noticeConflict": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.routeStep": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			},
+			"flauz.orch.recoveryScan": {
+				"type": "object",
+				"required": [
+					"actions",
+					"clean",
+					"graphs",
+					"journalRows",
+					"scannedAt"
+				],
+				"properties": {
+					"actions": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						}
+					},
+					"clean": {
+						"type": "boolean"
+					},
+					"graphs": {
+						"type": "array"
+					},
+					"journalRows": {
+						"type": "integer",
+						"minimum": 0
+					},
+					"scannedAt": {
+						"type": "integer",
+						"minimum": 1
+					},
+					"tornTail": {
+						"type": [
+							"object",
+							"null"
+						]
+					}
+				}
+			},
+			"flauz.orch.expireApproval": {
+				"type": "object",
+				"required": [
+					"rowId"
+				],
+				"additionalProperties": false,
+				"properties": {
+					"rowId": {
+						"type": "string",
+						"pattern": "^R-\\d{6,}$"
+					},
+					"evidenceId": {
+						"type": "string",
+						"pattern": "^E-\\d{6,}$"
+					}
+				}
+			}
+		}
+	}
+}

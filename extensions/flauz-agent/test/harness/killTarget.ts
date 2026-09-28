@@ -20,11 +20,13 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { OrchestrationStore } from '../../core/orchStore.mjs';
+import { WorkspaceSeam } from '../../core/service.mjs';
 import { executeOp, freshContext, FileEffectSink, makeClock, type ScenarioOp } from './orchWorkspace.ts';
 
 interface Plan {
 	ops: ScenarioOp[];
 	clockBase: number;
+	taskPort?: boolean;
 }
 
 async function main(): Promise<void> {
@@ -36,7 +38,7 @@ async function main(): Promise<void> {
 	}
 	const plan = JSON.parse(readFileSync(planFile, 'utf-8')) as Plan;
 	const { clock } = makeClock(plan.clockBase);
-	const store = new OrchestrationStore(root, { clock });
+	const store = new OrchestrationStore(root, { clock, ...(plan.taskPort === true ? { taskPort: new WorkspaceSeam(root) } : {}) });
 	const sink = new FileEffectSink(join(root, 'effect-sink.jsonl'));
 	const ctx = freshContext();
 

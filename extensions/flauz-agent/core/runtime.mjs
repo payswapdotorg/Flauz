@@ -96,18 +96,29 @@ export async function driveGraph(store, input) {
 				}
 			}
 		}
-		// 2. gated steps that became eligible: record the approval REQUEST
-		//    (never a grant - the human decides via approvalDecide).
+		// 2. gated steps: record the approval REQUEST (never a grant - the
+		//    human decides via approvalDecide; the store op mints the evidence
+		//    row), then expire deadline-bearing requests whose deadline passed
+		//    (the fail-closed TL2-004 timeout - actor service, step cancelled).
 		const gateSummary = summarizeState(store.stateOf(input.graphId));
 		for (const step of graph.steps) {
 			const stepState = gateSummary.steps[step.stepId];
 			if (step.gate === 'human-approval' && stepState.status === 'ready' && stepState.approval === null) {
-				store.appendRow('approval-requested', {
+				await store.approvalRequest({
+					graphId: input.graphId,
+					stepId: step.stepId,
+					reason: `step ${step.stepId} is gated 'human-approval' and awaits a human decision`,
+					actor: 'service',
+					origin: 'runtime:gate',
+				});
+				progress = true;
+			}
+			if (step.gate === 'human-approval' && stepState.status === 'awaiting-approval' && stepState.approval !== null && stepState.approval.expiresAt !== undefined && stepState.approval.expiresAt <= (input.now ?? Date.now())) {
+				await store.expireApproval({
 					graphId: input.graphId,
 					stepId: step.stepId,
 					actor: 'service',
-					origin: 'runtime:gate',
-					payload: { reason: `step ${step.stepId} is gated 'human-approval' and awaits a human decision` },
+					origin: 'runtime:gate-expiry',
 				});
 				progress = true;
 			}
@@ -123,7 +134,7 @@ export async function driveGraph(store, input) {
 			.sort()[0];
 		if (candidate !== undefined) {
 			const spec = graph.steps.find((step) => step.stepId === candidate);
-			const start = store.startStep({ graphId: input.graphId, stepId: candidate, runnerId, actor, origin });
+			const start = await store.startStep({ graphId: input.graphId, stepId: candidate, runnerId, actor, origin });
 			const effect = await sink.run(start.idempotencyKey, {
 				graphId: input.graphId,
 				stepId: candidate,
@@ -174,7 +185,7 @@ export async function driveGraph(store, input) {
 	const allSucceeded = Object.values(after.steps).every((step) => step.status === 'succeeded');
 	let completed = false;
 	if (allSucceeded && after.graphStatus === 'approved') {
-		store.completeGraph({ graphId: input.graphId, actor: 'service', origin: 'runtime:completion' });
+		await store.completeGraph({ graphId: input.graphId, actor: 'service', origin: 'runtime:completion' });
 		completed = true;
 	}
 	return {
@@ -197,13 +208,19 @@ export async function driveGraph(store, input) {
 export async function applyFailurePolicy(store, graphId, state, options = {}) {
 	const graph = store.requireGraph(graphId);
 	const policy = graph.policy.onStepFailure ?? 'manual';
-	const permanentlyFailed = Object.values(state.steps).filter((step) => step.status === 'failed' && (step.failure === null || step.failure.retryPlanned === false));
+	// Permanently failed: exhausted/terminal FAILED steps, plus the
+	// GATE-TERMINAL cancellations (approval-denied / approval-expired carry
+	// a failure record with retryPlanned false - the step will never run;
+	// user/dependency cancellations carry no failure record and stay out).
+	const permanentlyFailed = Object.values(state.steps).filter((step) =>
+		(step.status === 'failed' && (step.failure === null || step.failure.retryPlanned === false))
+		|| (step.status === 'cancelled' && step.failure !== null && step.failure.retryPlanned === false));
 	if (permanentlyFailed.length === 0) {
 		return;
 	}
 	if (policy === 'fail-graph') {
 		if (state.graphStatus === 'approved') {
-			store.failGraph({ graphId, failedStepId: permanentlyFailed[0].stepId, actor: 'service', origin: options.origin ?? 'runtime:policy' });
+			await store.failGraph({ graphId, failedStepId: permanentlyFailed[0].stepId, actor: 'service', origin: options.origin ?? 'runtime:policy' });
 		}
 		return;
 	}

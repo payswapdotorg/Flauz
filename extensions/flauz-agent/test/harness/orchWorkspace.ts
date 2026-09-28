@@ -19,6 +19,7 @@ import { mkdtempSync, readFileSync, writeFileSync, appendFileSync, existsSync } 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { OrchestrationStore } from '../../core/orchStore.mjs';
+import { WorkspaceSeam } from '../../core/service.mjs';
 import { recoveryScan } from '../../core/recovery.mjs';
 
 /** A deterministic incrementing clock (identical call sequences give identical rows). */
@@ -121,9 +122,10 @@ export type ScenarioOp =
 	| { op: 'lease'; stepId: string; holder: string; ttlMs: number }
 	| { op: 'renewLease'; stepId: string; ttlMs: number }
 	| { op: 'releaseLease'; stepId: string }
-	| { op: 'approvalRequest'; stepId: string }
+	| { op: 'approvalRequest'; stepId: string; expiresAt?: number }
 	| { op: 'approvalGrant'; stepId: string }
 	| { op: 'approvalDeny'; stepId: string }
+	| { op: 'approvalExpire'; stepId: string; expiredAt?: number }
 	| { op: 'takeoverRequest'; stepId: string }
 	| { op: 'takeoverAccept'; stepId: string }
 	| { op: 'takeoverComplete'; stepId: string; summary: string }
@@ -180,34 +182,37 @@ export async function executeOp(store: OrchestrationStore, sink: FileEffectSink,
 			row(store.rejectGraph({ graphId: ctx.graphId as string, actor: 'human', origin }));
 			return;
 		case 'claim':
-			row(store.acquireClaim({ graphId: ctx.graphId as string, stepId: op.stepId, holder: op.holder, actor: 'agent', origin }));
+			row(await store.acquireClaim({ graphId: ctx.graphId as string, stepId: op.stepId, holder: op.holder, actor: 'agent', origin }));
 			return;
 		case 'releaseClaim':
-			row(store.releaseClaim({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'agent', origin }));
+			row(await store.releaseClaim({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'agent', origin }));
 			return;
 		case 'lease':
-			row(store.acquireLease({ graphId: ctx.graphId as string, stepId: op.stepId, holder: op.holder, ttlMs: op.ttlMs, actor: 'agent', origin }));
+			row(await store.acquireLease({ graphId: ctx.graphId as string, stepId: op.stepId, holder: op.holder, ttlMs: op.ttlMs, actor: 'agent', origin }));
 			return;
 		case 'renewLease':
-			row(store.renewLease({ graphId: ctx.graphId as string, stepId: op.stepId, ttlMs: op.ttlMs, actor: 'agent', origin }));
+			row(await store.renewLease({ graphId: ctx.graphId as string, stepId: op.stepId, ttlMs: op.ttlMs, actor: 'agent', origin }));
 			return;
 		case 'releaseLease':
-			row(store.releaseLease({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'agent', origin }));
+			row(await store.releaseLease({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'agent', origin }));
 			return;
 		case 'approvalRequest':
-			row(store.approvalRequest({ graphId: ctx.graphId as string, stepId: op.stepId, reason: `scenario approval request for ${op.stepId}`, actor: 'agent', origin }));
+			row(await store.approvalRequest({ graphId: ctx.graphId as string, stepId: op.stepId, reason: `scenario approval request for ${op.stepId}`, ...(op.expiresAt !== undefined ? { expiresAt: op.expiresAt } : {}), actor: 'agent', origin }));
+			return;
+		case 'approvalExpire':
+			row(await store.expireApproval({ graphId: ctx.graphId as string, stepId: op.stepId, ...(op.expiredAt !== undefined ? { expiredAt: op.expiredAt } : {}), actor: 'service', origin }));
 			return;
 		case 'approvalGrant':
-			row(store.approvalDecide({ graphId: ctx.graphId as string, stepId: op.stepId, decision: 'granted', actor: 'human', origin }));
+			row(await store.approvalDecide({ graphId: ctx.graphId as string, stepId: op.stepId, decision: 'granted', actor: 'human', origin }));
 			return;
 		case 'approvalDeny':
-			row(store.approvalDecide({ graphId: ctx.graphId as string, stepId: op.stepId, decision: 'denied', actor: 'human', origin }));
+			row(await store.approvalDecide({ graphId: ctx.graphId as string, stepId: op.stepId, decision: 'denied', actor: 'human', origin }));
 			return;
 		case 'takeoverRequest':
-			row(store.takeoverRequest({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'human', origin }));
+			row(await store.takeoverRequest({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'human', origin }));
 			return;
 		case 'takeoverAccept':
-			row(store.takeoverAccept({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'human', origin }));
+			row(await store.takeoverAccept({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'human', origin }));
 			return;
 		case 'takeoverComplete':
 			row(await store.takeoverComplete({
@@ -220,7 +225,7 @@ export async function executeOp(store: OrchestrationStore, sink: FileEffectSink,
 			}));
 			return;
 		case 'start': {
-			const started = store.startStep({ graphId: ctx.graphId as string, stepId: op.stepId, runnerId: op.runnerId, actor: 'agent', origin });
+			const started = await store.startStep({ graphId: ctx.graphId as string, stepId: op.stepId, runnerId: op.runnerId, actor: 'agent', origin });
 			ctx.lastStart.set(op.stepId, { attempt: started.attempt, idempotencyKey: started.idempotencyKey });
 			ctx.lastRowIds.push(started.rowId);
 			return;
@@ -266,7 +271,7 @@ export async function executeOp(store: OrchestrationStore, sink: FileEffectSink,
 			}));
 			return;
 		case 'retry':
-			row(store.retryStep({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'service', origin }));
+			row(await store.retryStep({ graphId: ctx.graphId as string, stepId: op.stepId, actor: 'service', origin }));
 			return;
 		case 'cancel':
 			await store.cancelGraph({ graphId: ctx.graphId as string, reason: op.reason, actor: 'human', origin });
@@ -333,10 +338,10 @@ export interface GoldenRun {
 	sink: FileEffectSink;
 }
 
-export async function goldenRun(prefix: string, ops: ScenarioOp[], clockBase: number): Promise<GoldenRun> {
+export async function goldenRun(prefix: string, ops: ScenarioOp[], clockBase: number, options: { taskPort?: boolean } = {}): Promise<GoldenRun> {
 	const root = makeWorkspace(prefix);
 	const { clock } = makeClock(clockBase);
-	const store = new OrchestrationStore(root, { clock });
+	const store = new OrchestrationStore(root, { clock, ...(options.taskPort === true ? { taskPort: new WorkspaceSeam(root) } : {}) });
 	const sink = new FileEffectSink(join(root, 'effect-sink.jsonl'));
 	const ctx = freshContext();
 	const snapshots: string[] = [];
@@ -367,6 +372,15 @@ export function readJournal(root: string): string[] {
 		return [];
 	}
 	return readFileSync(path, 'utf-8').split('\n').filter((line) => line.length > 0);
+}
+
+/** Read the evidence ledger rows of a workspace (the minted TL2-004 transition rows live here). */
+export function readEvidenceLedger(root: string): Array<Record<string, unknown>> {
+	const path = join(root, '.flauz', 'evidence', 'ledger.jsonl');
+	if (!existsSync(path)) {
+		return [];
+	}
+	return readFileSync(path, 'utf-8').split('\n').filter((line) => line.length > 0).map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 /** Read the graphs envelope (raw file bytes). */
