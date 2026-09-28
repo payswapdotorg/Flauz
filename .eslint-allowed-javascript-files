@@ -177,6 +177,7 @@ build/flauz/scripts/startup-pair.mjs
 build/flauz/stage-delivery.mjs
 extensions/flauz-agent/core/a2a.mjs
 extensions/flauz-agent/core/contracts.mjs
+extensions/flauz-agent/core/leaseConflict.mjs
 extensions/flauz-agent/core/protocol.mjs
 extensions/flauz-agent/core/service.mjs
 # Flauz Wave 4 Lane J (environments): canary runner + transit staging (zero-dep .mjs)
