@@ -25,19 +25,21 @@ export declare const JOURNAL_ROW_FIELDS: string[];
 export declare const STEP_TRANSITION_TYPES: string[];
 export declare const GRAPH_TRANSITION_TYPES: string[];
 export declare const JOURNAL_EVENT_TYPES: string[];
+export declare const PROVIDER_RETRY_OUTCOMES: string[];
+export declare const PROVIDER_RETRY_CLASSES: string[];
 
 export interface StepTransitionRule {
-	type: string;
-	from: string[];
-	actors: string[];
-	to: string;
+        type: string;
+        from: string[];
+        actors: string[];
+        to: string;
 }
 
 export interface GraphTransitionRule {
-	type: string;
-	from: string[];
-	actors: string[];
-	to: string;
+        type: string;
+        from: string[];
+        actors: string[];
+        to: string;
 }
 
 export declare const STEP_TRANSITIONS: StepTransitionRule[];
@@ -55,50 +57,50 @@ export declare function claimIdOf(graphId: string, stepId: string): string;
 export declare function leaseIdOf(graphId: string, stepId: string, ordinal: number): string;
 
 export declare class OrchestrationError extends Error {
-	code: string;
-	constructor(message: string, code: string);
+        code: string;
+        constructor(message: string, code: string);
 }
 
 export interface StepSpec {
-	stepId: string;
-	title: string;
-	instruction: string;
-	tool?: string | null;
-	toolInput?: Record<string, unknown> | null;
-	gate?: string;
-	dependsOn?: string[];
-	retryPolicy?: Record<string, unknown> | null;
-	routing?: { allowedAgents?: string[]; requiredCapability?: string } | null;
+        stepId: string;
+        title: string;
+        instruction: string;
+        tool?: string | null;
+        toolInput?: Record<string, unknown> | null;
+        gate?: string;
+        dependsOn?: string[];
+        retryPolicy?: Record<string, unknown> | null;
+        routing?: { allowedAgents?: string[]; requiredCapability?: string } | null;
 }
 
 export interface GraphRecord {
-	graphId: string;
-	taskId: string | null;
-	title: string;
-	policy: { onStepFailure?: string; defaultRetryPolicy?: Record<string, unknown> | null };
-	steps: StepSpec[];
-	createdAt: number;
-	updatedAt: number;
+        graphId: string;
+        taskId: string | null;
+        title: string;
+        policy: { onStepFailure?: string; defaultRetryPolicy?: Record<string, unknown> | null };
+        steps: StepSpec[];
+        createdAt: number;
+        updatedAt: number;
 }
 
 export declare function validateStepSpec(value: unknown): { ok: true; step: StepSpec } | { ok: false; error: string };
 export declare function validateGraphRecord(value: unknown): { ok: true; graph: GraphRecord } | { ok: false; error: string };
 
 export interface JournalRow {
-	$schema: string;
-	seq: number;
-	rowId: string;
-	ts: number;
-	graphId: string;
-	stepId: string | null;
-	type: string;
-	actor: string;
-	origin: string;
-	attempt: number | null;
-	idempotencyKey: string | null;
-	payload: Record<string, unknown>;
-	contentHash: string;
-	prev: string | null;
+        $schema: string;
+        seq: number;
+        rowId: string;
+        ts: number;
+        graphId: string;
+        stepId: string | null;
+        type: string;
+        actor: string;
+        origin: string;
+        attempt: number | null;
+        idempotencyKey: string | null;
+        payload: Record<string, unknown>;
+        contentHash: string;
+        prev: string | null;
 }
 
 export declare function rowHashOf(row: JournalRow): string;
@@ -109,47 +111,49 @@ export declare function validateJournalRow(row: unknown): { ok: true; row: Journ
 export declare function eventLevel(type: string): 'graph' | 'step' | 'either';
 
 export interface DerivedStepState {
-	stepId: string;
-	status: string | undefined;
-	blockedOn?: string[];
-	attempt: number;
-	lastStartedAttempt: number;
-	retrySameAttempt: number | null;
-	nextAttempt: number | null;
-	retryNotBefore: number | null;
-	runnerId: string | null;
-	failure: { class: string; message: string; retryPlanned: boolean } | null;
-	evidence: Array<{ evidenceId: string | null; kind: string; uri: string; sha256: string }>;
-	approval: { requestedAt: number; reason: string; state: string; grantedAt?: number; deniedAt?: number } | null;
-	takeover: Record<string, unknown> | null;
-	startedAt: number | null;
-	updatedAt: number | null;
+        stepId: string;
+        status: string | undefined;
+        blockedOn?: string[];
+        attempt: number;
+        lastStartedAttempt: number;
+        retrySameAttempt: number | null;
+        nextAttempt: number | null;
+        retryNotBefore: number | null;
+        runnerId: string | null;
+        failure: { class: string; message: string; retryPlanned: boolean } | null;
+        evidence: Array<{ evidenceId: string | null; kind: string; uri: string; sha256: string }>;
+        approval: { requestedAt: number; reason: string; state: string; grantedAt?: number; deniedAt?: number } | null;
+        takeover: Record<string, unknown> | null;
+        startedAt: number | null;
+        updatedAt: number | null;
+        /** The bounded provider-retry window projection (TL2-F2): null until the first provider-retry row of an attempt. */
+        providerRetry: { rows: number; lastOrdinal: number; maxAttempts: number; lastOutcome: string; ended: boolean } | null;
 }
 
 export interface DerivedGraphState {
-	graphId: string;
-	graph: GraphRecord;
-	spec: GraphRecord;
-	graphStatus: string;
-	steps: Record<string, DerivedStepState>;
-	claims: Record<string, { claimId: string; holder: string; since: number }>;
-	leases: Record<string, { leaseId: string; holder: string; expiresAt: number; acquiredAt: number; renewals: number }>;
-	leasesSeen: Record<string, number>;
-	pendingApprovals: string[];
-	takeover: { stepId: string; state: string } | null;
-	cancelRequested: boolean;
-	cancelReason: string | null;
-	routing: Record<string, unknown>;
-	delegations: Record<string, unknown>;
-	interrupted: string[];
-	completedAt: number | null;
-	derived: {
-		phase: string;
-		runnable: string[];
-		blocked: string[];
-		awaitingApproval: string[];
-		running: string[];
-	};
+        graphId: string;
+        graph: GraphRecord;
+        spec: GraphRecord;
+        graphStatus: string;
+        steps: Record<string, DerivedStepState>;
+        claims: Record<string, { claimId: string; holder: string; since: number }>;
+        leases: Record<string, { leaseId: string; holder: string; expiresAt: number; acquiredAt: number; renewals: number }>;
+        leasesSeen: Record<string, number>;
+        pendingApprovals: string[];
+        takeover: { stepId: string; state: string } | null;
+        cancelRequested: boolean;
+        cancelReason: string | null;
+        routing: Record<string, unknown>;
+        delegations: Record<string, unknown>;
+        interrupted: string[];
+        completedAt: number | null;
+        derived: {
+                phase: string;
+                runnable: string[];
+                blocked: string[];
+                awaitingApproval: string[];
+                running: string[];
+        };
 }
 
 export declare function deriveGraphState(graph: GraphRecord, rows: JournalRow[]): { ok: true; state: DerivedGraphState } | { ok: false; error: string };
