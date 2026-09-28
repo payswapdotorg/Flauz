@@ -52,6 +52,24 @@ function isPositiveInteger(value) {
 /**
  * Drive one graph as far as its gates allow.
  *
+ * INV-3 cancellation propagation (three levels):
+ *  1. DOWNSTREAM GATE - the loop re-reads the graph state from the store
+ *     before dispatching each next step; a terminal 'cancelled' graph never
+ *     starts a subsequent step. When the gate trips the drive records ONE
+ *     cancel-attributed evidence row (actor = the recorded cancel's actor,
+ *     reason 'downstream-stopped') and returns the typed cancellation
+ *     outcome.
+ *  2. IN-FLIGHT ABORT - after the effect sink resolves, the drive re-reads
+ *     the state before recording the step transition; a step (or graph) that
+ *     became 'cancelled' mid-flight is NOT completed (never a fake success,
+ *     never a silent step-succeeded): the abort is recorded with attribution
+ *     (reason 'in-flight-abort') and the drive unwinds with the typed
+ *     cancellation outcome.
+ *  3. TYPED PROPAGATION - a runner already past its last checkpoint that
+ *     appends a transition into the cancelled target gets the store's TYPED
+ *     stale-run/cancelled-observed outcome (code 'stale-run-cancelled'), not
+ *     the generic state-machine crash (see orchStore.assertNotStaleRun).
+ *
  * @param {import('./orchStore.mjs').OrchestrationStore} store
  * @param {{ graphId: string, sink: object, runnerId?: string, actor?: string,
  *           origin?: string, now?: number, logger?: (message: string) => void }} input
@@ -68,6 +86,26 @@ export async function driveGraph(store, input) {
 	const started = [];
 	let rounds = 0;
 	let progress = true;
+	let cancelObservation = null;
+	const recordCancelObservation = async (reason, stepId) => {
+		if (cancelObservation !== null) {
+			return;
+		}
+		const stateNow = store.stateOf(input.graphId);
+		const row = await store.appendEvidenceBearingRow('cancel-observed', {
+			graphId: input.graphId,
+			stepId: stepId ?? null,
+			actor: stateNow.cancelActor ?? 'service',
+			origin: 'runtime:cancel-propagation',
+			payload: { reason, note: `runner ${runnerId} observed the recorded cancellation (${reason})` },
+		});
+		cancelObservation = {
+			rowId: row.rowId,
+			evidenceId: row.payload.evidenceId ?? null,
+			reason,
+			...(stepId !== undefined ? { stepId } : {}),
+		};
+	};
 	while (progress) {
 		progress = false;
 		rounds += 1;
@@ -76,6 +114,10 @@ export async function driveGraph(store, input) {
 		}
 		const state = store.stateOf(input.graphId);
 		if (state.graphStatus === 'completed' || state.graphStatus === 'cancelled' || state.graphStatus === 'failed') {
+			if (state.graphStatus === 'cancelled') {
+				// Level 1: the downstream gate - record the attributed observation.
+				await recordCancelObservation('downstream-stopped');
+			}
 			break;
 		}
 		// 1. schedule pending retries (crash between step-failed and
@@ -85,7 +127,7 @@ export async function driveGraph(store, input) {
 				const spec = graph.steps.find((candidate) => candidate.stepId === step.stepId);
 				const plan = planRetry({ policy: store.policyFor(graph, spec), attempt: step.lastStartedAttempt, failureClass: step.failure.class, now: input.now ?? Date.now() });
 				if (plan.retry) {
-					store.appendRow('step-retry-scheduled', {
+					await store.appendRowLocked('step-retry-scheduled', {
 						graphId: input.graphId,
 						stepId: step.stepId,
 						actor: 'service',
@@ -144,6 +186,17 @@ export async function driveGraph(store, input) {
 				instruction: spec.instruction,
 			});
 			started.push({ stepId: candidate, attempt: start.attempt, idempotencyKey: start.idempotencyKey, replayed: effect.replayed === true });
+			// Level 2: the in-flight abort checkpoint - the state is re-read
+			// after the effect and before the step transition is recorded. A
+			// step/graph cancelled mid-flight is NEVER completed (no fake
+			// success, no silent step-succeeded): the abort is recorded with
+			// attribution and the drive unwinds with the typed outcome.
+			const postEffect = store.stateOf(input.graphId);
+			const stepCancelledMidFlight = postEffect.steps[candidate] !== undefined && postEffect.steps[candidate].status === 'cancelled';
+			if (postEffect.graphStatus === 'cancelled' || stepCancelledMidFlight) {
+				await recordCancelObservation('in-flight-abort', candidate);
+				break;
+			}
 			if (effect.ok) {
 				await store.finishStep({
 					graphId: input.graphId,
@@ -194,6 +247,8 @@ export async function driveGraph(store, input) {
 		started,
 		completed,
 		rounds,
+		cancelled: cancelObservation !== null || store.stateOf(input.graphId).graphStatus === 'cancelled',
+		cancelObservation,
 		summary: summarizeState(store.stateOf(input.graphId)),
 	};
 }
@@ -230,7 +285,7 @@ export async function applyFailurePolicy(store, graphId, state, options = {}) {
 		for (const stepId of dependents) {
 			const current = summarizeState(store.stateOf(graphId)).steps[stepId];
 			if (!['succeeded', 'cancelled'].includes(current.status)) {
-				store.appendRow('step-cancelled', {
+				await store.appendRowLocked('step-cancelled', {
 					graphId,
 					stepId,
 					actor: 'service',

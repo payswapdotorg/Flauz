@@ -7,6 +7,10 @@
  *
  * The restart/recovery safety contract, made mechanical:
  *
+ *  0. every journal append this pass makes rides the store's transition lock
+ *     (appendRowLocked - the DL-75 serialized-append discipline: no append
+ *     call site writes around the lock, so a recovery sweep can never
+ *     interleave another appender's mint window);
  *  1. the store's strict load already verified the global journal chain and
  *     dropped a torn FINAL line as a crash artifact (the transition never
  *     completed - dropping it loses nothing: side effects are keyed by
@@ -73,7 +77,7 @@ export async function recoveryScan(store, options = {}) {
 				continue;
 			}
 			if (record) {
-				store.appendRow('step-interrupted', {
+				await store.appendRowLocked('step-interrupted', {
 					graphId: graph.graphId,
 					stepId,
 					actor,
@@ -90,7 +94,7 @@ export async function recoveryScan(store, options = {}) {
 			const approval = step.approval;
 			if (approval !== null && approval.state === 'pending' && approval.expiresAt !== undefined && approval.expiresAt <= now) {
 				if (record) {
-					store.appendRow('approval-expired', {
+					await store.appendRowLocked('approval-expired', {
 						graphId: graph.graphId,
 						stepId,
 						actor,
@@ -104,7 +108,7 @@ export async function recoveryScan(store, options = {}) {
 		for (const [stepId, lease] of Object.entries(state.leases)) {
 			if (lease.expiresAt <= now) {
 				if (record) {
-					store.appendRow('lease-expired', {
+					await store.appendRowLocked('lease-expired', {
 						graphId: graph.graphId,
 						stepId,
 						actor,
@@ -121,7 +125,7 @@ export async function recoveryScan(store, options = {}) {
 			);
 			for (const stepId of plan.cancelStepIds) {
 				if (record) {
-					store.appendRow('step-cancelled', {
+					await store.appendRowLocked('step-cancelled', {
 						graphId: graph.graphId,
 						stepId,
 						actor,
@@ -132,7 +136,7 @@ export async function recoveryScan(store, options = {}) {
 				graphActions.push(`cancel-continued:${stepId}`);
 			}
 			if (record && plan.cancelStepIds.length > 0) {
-				store.appendRow('graph-cancelled', {
+				await store.appendRowLocked('graph-cancelled', {
 					graphId: graph.graphId,
 					actor,
 					origin: 'recovery:cancel-continuation',
@@ -145,7 +149,7 @@ export async function recoveryScan(store, options = {}) {
 		}
 		const clean = graphActions.length === 0;
 		if (record) {
-			store.appendRow('recovery-scan', {
+			await store.appendRowLocked('recovery-scan', {
 				graphId: graph.graphId,
 				actor,
 				origin,
