@@ -26,7 +26,19 @@
  *                       (IAgentSubagentResumedSignal.message analog, agent.ts:1046)
  *   - resource-claim    any -> watchers: Claim+Lease notices on shared
  *                       resources (AGENT-INTEGRATION section 5: mutation of a
- *                       shared resource requires Claim+Lease from Core)
+ *                       shared resource requires Claim+Lease from Core).
+ *                       TL2-F3: the claim path ENFORCES the lease-conflict
+ *                       contract (the informational-only posture is retired
+ *                       for acquires) - a claim against a resource whose
+ *                       lease is currently held (live, unexpired) by another
+ *                       holder receives the TYPED conflict error
+ *                       flauz.a2a.lease-conflict (holder, lease id,
+ *                       deadline); a same-claimant re-acquire lands (the
+ *                       DL-72 lease-reuse posture); an expired lease does
+ *                       not conflict; a non-holder release/expire of a LIVE
+ *                       lease is refused fail-closed (no silent takeover).
+ *                       See core/leaseConflict.mjs (the one law both
+ *                       enforcement surfaces speak).
  *
  * Pure, zero-dependency (node:fs only), imported at runtime by core/service.mjs
  * and by the Lane K parity tests; the typed TypeScript mirror + the
@@ -36,6 +48,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { LeaseConflictError, evaluateLeaseClaim, isLeaseLive } from './leaseConflict.mjs';
 
 export const A2A_SCHEMA = 'flauz.a2a/v0';
 export const A2A_DIR = '.flauz/a2a';
@@ -353,10 +366,64 @@ export class A2ABus {
 		if (!verdict.ok) {
 			throw new Error(verdict.error);
 		}
+		// The lease-conflict contract (TL2-F3): the claim path enforces.
+		// The evaluation uses the incoming claim's effective ts as the
+		// observation time (deterministic for explicit-ts callers).
+		if (row.kind === 'resource-claim') {
+			const active = this.activeClaimOf(row.payload.resource);
+			if (row.payload.action === 'acquire') {
+				const evaluation = evaluateLeaseClaim({ active, claimant: row.from, now: row.ts, resource: row.payload.resource });
+				if (evaluation.ok === false) {
+					throw new LeaseConflictError(evaluation.conflict);
+				}
+			} else if (active !== undefined && active.holder !== row.from && isLeaseLive(active.deadline, row.ts)) {
+				// fail-closed: only the active holder may clear a LIVE lease;
+				// a foreign release followed by a re-acquire would be a silent takeover
+				throw new LeaseConflictError({
+					resource: row.payload.resource,
+					violation: 'lease',
+					holder: active.holder,
+					leaseId: active.leaseId,
+					deadline: active.deadline,
+					claimant: row.from,
+					attempt: row.payload.action,
+				});
+			}
+		}
 		mkdirSync(this.dir, { recursive: true });
 		appendFileSync(this.messagesPath, `${messageLine(row)}\n`);
 		this.messages.push(row);
 		return { id: row.id, seq: row.seq, message: row };
+	}
+
+	/**
+	 * The journal-projected active lease of a resource (the claim surface's
+	 * lease state): the LAST acquire notice for the resource (holder = its
+	 * from, leaseId = its message id, deadline = its leaseUntil), cleared
+	 * by any later release/expire notice for the same resource. A
+	 * projection of the append-only journal - replay is re-derivation.
+	 *
+	 * The deadline is the acquire notice's leaseUntil (the a2a claim IS a
+	 * lease - AGENT-INTEGRATION section 5); there are no deadline-less
+	 * bus acquires (the v0 payload requires leaseUntil on acquire).
+	 */
+	activeClaimOf(resource) {
+		if (!isNonEmptyString(resource)) {
+			throw new Error(`a2a activeClaimOf requires a non-empty resource id (got ${JSON.stringify(resource)})`);
+		}
+		let active;
+		for (const message of this.messages) {
+			if (message.kind !== 'resource-claim' || message.payload.resource !== resource) {
+				continue;
+			}
+			if (message.payload.action === 'acquire') {
+				active = { holder: message.from, leaseId: message.id, deadline: message.payload.leaseUntil, seq: message.seq };
+			} else {
+				// release | expire: the projection clears the lease
+				active = undefined;
+			}
+		}
+		return active;
 	}
 
 	/**

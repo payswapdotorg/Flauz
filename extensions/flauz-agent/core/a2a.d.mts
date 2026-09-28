@@ -53,9 +53,27 @@ export declare function validateMessage(value: unknown): { ok: true; message: A2
 /** Canonical compact JSON of a message (the exact journal line bytes). */
 export declare function messageLine(message: A2aMessage): string;
 
+/** The journal-projected active lease of a resource: {holder, leaseId (the acquire notice's message id), deadline (leaseUntil), seq} or undefined. */
+export interface ActiveClaimRecord {
+	holder: string;
+	leaseId: string;
+	deadline: number;
+	seq: number;
+}
+
 export declare class A2ABus {
 	constructor(root: string);
+	/**
+	 * Post one typed message. The resource-claim path ENFORCES the
+	 * lease-conflict contract (TL2-F3): an acquire against a resource whose
+	 * lease is currently held (live, unexpired) by another holder throws the
+	 * typed LeaseConflictError (holder, lease id, deadline); a same-claimant
+	 * re-acquire lands (DL-72); an expired lease does not conflict; a
+	 * non-holder release/expire of a LIVE lease is refused fail-closed.
+	 */
 	post(args: { message: A2aMessageInput }): { id: string; seq: number; message: A2aMessage };
+	/** The journal-projected active lease of a resource (the claim surface's lease state; replay = re-derivation). */
+	activeClaimOf(resource: string): ActiveClaimRecord | undefined;
 	collect(args: { agentId: string; consume?: boolean }): { messages: A2aMessage[] };
 	list(): { agents: Array<{ agentId: string; pending: number }> };
 }

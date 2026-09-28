@@ -50,6 +50,15 @@
  * writer per workspace (the v0 ledger assumption, documented; the async
  * public ops serialize through the transition lock so concurrent callers
  * cannot interleave a mint window).
+ *
+ * TL2-F3 (the lease-conflict contract, the TL2-004 follow-up): the lease
+ * transitions ENFORCE - acquireLease/acquireClaim refuse a claim against a
+ * live foreign hold with the TYPED conflict flauz.a2a.lease-conflict
+ * (holder, lease id, deadline) after journaling the refusal as
+ * evidence-bearing history; an expired lease is taken over through the
+ * recorded expiry hygiene; a same-holder re-acquire reuses the active lease
+ * (DL-72). The one law lives in core/leaseConflict.mjs (shared with the
+ * flauz.a2a claim path).
  */
 
 import { mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -81,6 +90,7 @@ import {
 	eventLevel,
 } from './orchestration.mjs';
 import { DEFAULT_RETRY_POLICY, planRetry, classifyFailure } from './policy.mjs';
+import { LeaseConflictError, LEASE_CONFLICT_CODE } from './leaseConflict.mjs';
 
 const TASK_ID_PATTERN = /^T-\d{3,}$/;
 
@@ -953,18 +963,64 @@ export class OrchestrationStore {
 		});
 	}
 
-	/** Acquire the exclusive step claim - the notice with its evidence row. */
+	/**
+	 * Acquire the exclusive step claim - the notice with its evidence row.
+	 *
+	 * TL2-F3 (the lease-conflict contract): the claim is DEADLINE-LESS -
+	 * it holds until an explicit release (a human decides, the DL-66
+	 * posture) and CONFLICTS with every other claimant while it does. A
+	 * second claimant's claim against an active foreign claim is refused
+	 * with the TYPED conflict error flauz.a2a.lease-conflict (holder,
+	 * claim id, deadline null) AFTER the refusal is journaled as
+	 * evidence-bearing history (one conflict-noticed row, DL-60 - the
+	 * conflict is recorded, never a dropped message). The SAME holder
+	 * re-claiming its active claim reuses it (the DL-72 posture: a retry
+	 * of the same durable step never conflicts with itself) and gets the
+	 * claim's acquisition row back.
+	 */
 	async acquireClaim(input) {
 		if (!isAgentId(input.holder)) {
 			throw new OrchestrationError(`acquireClaim holder must be an agent id (got ${JSON.stringify(input.holder)})`, 'invalid-params');
 		}
-		const claimId = claimIdOf(input.graphId, input.stepId);
-		return this.appendEvidenceBearingRow('claim-acquired', {
-			graphId: input.graphId,
-			stepId: input.stepId,
-			actor: input.actor ?? 'agent',
-			origin: input.origin,
-			payload: { claimId, holder: input.holder },
+		return this.withTransitionLock(async () => {
+			const graph = this.requireGraph(input.graphId);
+			this.requireStep(graph, input.stepId);
+			const state = this.stateOf(input.graphId);
+			const active = state.claims[input.stepId];
+			const claimId = claimIdOf(input.graphId, input.stepId);
+			if (active !== undefined) {
+				if (active.holder !== input.holder) {
+					await this.appendEvidenceBearingRowLocked('conflict-noticed', {
+						graphId: input.graphId,
+						stepId: input.stepId,
+						actor: 'service',
+						origin: input.origin,
+						payload: {
+							violation: 'claim',
+							expectedHolder: active.holder,
+							actualRunner: input.holder,
+							note: `flauz.a2a lease-conflict on step ${input.stepId}: claim ${claimId} is active (held by ${active.holder}, no deadline - the hold ends only by an explicit release); the claim by ${input.holder} is refused with the typed conflict ${LEASE_CONFLICT_CODE}`,
+						},
+					});
+					throw new LeaseConflictError({
+						resource: `flauz-orch/${input.graphId}/${input.stepId}`,
+						violation: 'claim',
+						holder: active.holder,
+						leaseId: claimId,
+						deadline: null,
+						claimant: input.holder,
+					});
+				}
+				// same holder: the claim is reused (no second claim-acquired row)
+				return this.journalRows.find((row) => row.type === 'claim-acquired' && row.graphId === input.graphId && row.stepId === input.stepId) ?? null;
+			}
+			return this.appendEvidenceBearingRowLocked('claim-acquired', {
+				graphId: input.graphId,
+				stepId: input.stepId,
+				actor: input.actor ?? 'agent',
+				origin: input.origin,
+				payload: { claimId, holder: input.holder },
+			});
 		});
 	}
 
@@ -984,7 +1040,26 @@ export class OrchestrationStore {
 		});
 	}
 
-	/** Acquire a TTL lease on the step - the notice with its evidence row. */
+	/**
+	 * Acquire a TTL lease on the step - the notice with its evidence row.
+	 *
+	 * TL2-F3 (the lease-conflict contract): a claim against a lease that
+	 * is RECORDED-ACTIVE (held by another holder; its lease-expired row
+	 * has not landed - the journal's recorded state is the truth, the
+	 * STORE posture of core/leaseConflict.mjs) is refused with the TYPED
+	 * conflict error flauz.a2a.lease-conflict (holder, lease id,
+	 * deadline) AFTER the refusal is journaled as evidence-bearing
+	 * history (one conflict-noticed row, DL-60 - the conflict is
+	 * recorded, never a dropped message). An EXPIRED lease (its expiry
+	 * RECORDED - expiry from op + drive loop + recovery pass, DL-61)
+	 * does not conflict: the takeover goes through the existing expiry
+	 * hygiene (run the recovery pass, then re-claim; the acquisition
+	 * lands with the NEXT ordinal lease id - the recorded takeover). The
+	 * SAME holder re-acquiring reuses the active lease (DL-72: a retry
+	 * attempt of the same durable step reuses its active task-step lease
+	 * and never conflicts with itself) and gets the row that last set
+	 * the lease facts (acquisition or renewal) back.
+	 */
 	async acquireLease(input) {
 		if (!isAgentId(input.holder)) {
 			throw new OrchestrationError(`acquireLease holder must be an agent id (got ${JSON.stringify(input.holder)})`, 'invalid-params');
@@ -992,15 +1067,54 @@ export class OrchestrationStore {
 		if (!Number.isSafeInteger(input.ttlMs) || input.ttlMs <= 0) {
 			throw new OrchestrationError('acquireLease ttlMs must be a positive integer (epoch ms)', 'invalid-params');
 		}
-		const state = this.stateOf(input.graphId);
-		const ordinal = (state.leasesSeen[input.stepId] ?? 0) + 1;
-		const leaseId = leaseIdOf(input.graphId, input.stepId, ordinal);
-		return this.appendEvidenceBearingRow('lease-acquired', {
-			graphId: input.graphId,
-			stepId: input.stepId,
-			actor: input.actor ?? 'agent',
-			origin: input.origin,
-			payload: { leaseId, holder: input.holder, expiresAt: this.clock() + input.ttlMs },
+		return this.withTransitionLock(async () => {
+			const graph = this.requireGraph(input.graphId);
+			this.requireStep(graph, input.stepId);
+			const now = this.clock();
+			const state = this.stateOf(input.graphId);
+			const activeLease = state.leases[input.stepId];
+			if (activeLease !== undefined && activeLease.holder !== input.holder) {
+				await this.appendEvidenceBearingRowLocked('conflict-noticed', {
+					graphId: input.graphId,
+					stepId: input.stepId,
+					actor: 'service',
+					origin: input.origin,
+					payload: {
+						violation: 'lease',
+						expectedHolder: activeLease.holder,
+						actualRunner: input.holder,
+						note: `flauz.a2a lease-conflict on step ${input.stepId}: lease ${activeLease.leaseId} is active (held by ${activeLease.holder} until ${String(activeLease.expiresAt)}); the claim by ${input.holder} is refused with the typed conflict ${LEASE_CONFLICT_CODE}`,
+					},
+				});
+				throw new LeaseConflictError({
+					resource: `flauz-orch/${input.graphId}/${input.stepId}`,
+					violation: 'lease',
+					holder: activeLease.holder,
+					leaseId: activeLease.leaseId,
+					deadline: activeLease.expiresAt,
+					claimant: input.holder,
+				});
+			}
+			if (activeLease !== undefined && activeLease.holder === input.holder) {
+				// DL-72 lease reuse: the retry returns the row that LAST set the
+				// lease facts (the acquisition, or the latest renewal)
+				let lastFactsRow = null;
+				for (const row of this.journalRows) {
+					if ((row.type === 'lease-acquired' || row.type === 'lease-renewed') && row.graphId === input.graphId && row.stepId === input.stepId && row.payload.leaseId === activeLease.leaseId) {
+						lastFactsRow = row;
+					}
+				}
+				return lastFactsRow;
+			}
+			const ordinal = (state.leasesSeen[input.stepId] ?? 0) + 1;
+			const leaseId = leaseIdOf(input.graphId, input.stepId, ordinal);
+			return this.appendEvidenceBearingRowLocked('lease-acquired', {
+				graphId: input.graphId,
+				stepId: input.stepId,
+				actor: input.actor ?? 'agent',
+				origin: input.origin,
+				payload: { leaseId, holder: input.holder, expiresAt: now + input.ttlMs },
+			});
 		});
 	}
 

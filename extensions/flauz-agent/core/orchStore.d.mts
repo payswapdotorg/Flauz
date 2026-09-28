@@ -7,7 +7,7 @@
  * Hand-written per the zero-dependency discipline (contracts.d.mts pattern).
  */
 
-import type { GraphRecord, JournalRow, OrchestrationError } from './orchestration.d.mts';
+import type { GraphRecord, JournalRow, OrchestrationError, StepSpec } from './orchestration.d.mts';
 
 export declare class OrchestrationStoreError extends OrchestrationError {}
 
@@ -42,10 +42,12 @@ export declare class OrchestrationStore {
 	journalRows: JournalRow[];
 	tornTail: { line: string; reason: string } | null;
 	taskPort: TaskPort | null;
+	clock: () => number;
 
 	load(): void;
 	saveGraphs(): void;
 	requireGraph(graphId: string): GraphRecord;
+	requireStep(graph: GraphRecord, stepId: string): StepSpec;
 	appendRow(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): JournalRow;
 	/** Build one candidate row (validation + construction, NO write) - the preview half of the evidence-bearing ops. */
 	candidateRow(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): JournalRow;
@@ -126,8 +128,26 @@ export declare class OrchestrationStore {
 	takeoverAccept(input: { graphId: string; stepId: string; note?: string; actor: string; origin: string }): Promise<JournalRow>;
 	takeoverComplete(input: { graphId: string; stepId: string; summary?: string; evidence?: EvidenceItemInput[]; actor: string; origin: string }): Promise<JournalRow>;
 
+	/**
+	 * Acquire the exclusive (DEADLINE-LESS) step claim - the notice with
+	 * its evidence row. TL2-F3: a claim against an active FOREIGN claim is
+	 * refused with the typed LeaseConflictError (holder, claim id,
+	 * deadline null) after the refusal is journaled as evidence-bearing
+	 * history; the SAME holder re-claiming reuses the active claim and
+	 * gets its acquisition row back.
+	 */
 	acquireClaim(input: { graphId: string; stepId: string; holder: string; actor?: string; origin: string }): Promise<JournalRow>;
 	releaseClaim(input: { graphId: string; stepId: string; actor?: string; origin: string }): Promise<JournalRow>;
+	/**
+	 * Acquire a TTL lease on the step - the notice with its evidence row.
+	 * TL2-F3: a claim against a LIVE foreign lease is refused with the
+	 * typed LeaseConflictError (holder, lease id, deadline) after the
+	 * refusal is journaled as evidence-bearing history; an EXPIRED lease
+	 * does not conflict (the takeover records the expiry then acquires
+	 * with the next ordinal lease id); the SAME holder re-acquiring
+	 * reuses the active lease (DL-72) and gets the row that last set the
+	 * lease facts (acquisition or renewal) back.
+	 */
 	acquireLease(input: { graphId: string; stepId: string; holder: string; ttlMs: number; actor?: string; origin: string }): Promise<JournalRow>;
 	renewLease(input: { graphId: string; stepId: string; ttlMs: number; actor?: string; origin: string }): Promise<JournalRow>;
 	releaseLease(input: { graphId: string; stepId: string; actor?: string; origin: string }): Promise<JournalRow>;
