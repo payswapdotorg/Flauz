@@ -83,15 +83,15 @@ export const RETRY_AFTER_CAP_MS = 30000;
 const ALL_RETRY_CLASSES = ['none', ...PROVIDER_RETRY_CLASSES];
 
 function isPlainObject(value) {
-        return value !== null && typeof value === 'object' && !Array.isArray(value);
+	return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function isPositiveInteger(value) {
-        return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+	return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
 function isNonNegativeInteger(value) {
-        return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+	return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 /**
@@ -102,23 +102,23 @@ function isNonNegativeInteger(value) {
  * config is never silently defaulted (fail-closed).
  */
 export function resolveProviderRetryBound(config) {
-        if (config === undefined || config === null) {
-                return PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT;
-        }
-        if (!isPlainObject(config)) {
-                throw new OrchestrationError(`providerRetry config must be a JSON object { maxAttempts?: number } (the routing-policy state family additive field; got ${JSON.stringify(config)})`, 'invalid-params');
-        }
-        const keys = Object.keys(config);
-        if (keys.length > 1 || (keys.length === 1 && keys[0] !== 'maxAttempts')) {
-                throw new OrchestrationError(`providerRetry config must have at most the key [maxAttempts] (got ${JSON.stringify(keys)})`, 'invalid-params');
-        }
-        if (config.maxAttempts === undefined) {
-                return PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT;
-        }
-        if (!isPositiveInteger(config.maxAttempts)) {
-                throw new OrchestrationError(`providerRetry.maxAttempts must be a positive integer (got ${JSON.stringify(config.maxAttempts)})`, 'invalid-params');
-        }
-        return config.maxAttempts;
+	if (config === undefined || config === null) {
+		return PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT;
+	}
+	if (!isPlainObject(config)) {
+		throw new OrchestrationError(`providerRetry config must be a JSON object { maxAttempts?: number } (the routing-policy state family additive field; got ${JSON.stringify(config)})`, 'invalid-params');
+	}
+	const keys = Object.keys(config);
+	if (keys.length > 1 || (keys.length === 1 && keys[0] !== 'maxAttempts')) {
+		throw new OrchestrationError(`providerRetry config must have at most the key [maxAttempts] (got ${JSON.stringify(keys)})`, 'invalid-params');
+	}
+	if (config.maxAttempts === undefined) {
+		return PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT;
+	}
+	if (!isPositiveInteger(config.maxAttempts)) {
+		throw new OrchestrationError(`providerRetry.maxAttempts must be a positive integer (got ${JSON.stringify(config.maxAttempts)})`, 'invalid-params');
+	}
+	return config.maxAttempts;
 }
 
 /**
@@ -129,29 +129,29 @@ export function resolveProviderRetryBound(config) {
  * provider error or a MALFORMED one (fail-closed: garbage is never retried).
  */
 export function readProviderError(effect) {
-        if (!isPlainObject(effect) || !isPlainObject(effect.providerError)) {
-                return null;
-        }
-        const providerError = effect.providerError;
-        if (typeof providerError.code !== 'string' || providerError.code.length === 0) {
-                return null;
-        }
-        if (typeof providerError.retryClass !== 'string' || !ALL_RETRY_CLASSES.includes(providerError.retryClass)) {
-                return null;
-        }
-        if (providerError.retryAfterMs !== undefined && !isNonNegativeInteger(providerError.retryAfterMs)) {
-                return null;
-        }
-        return {
-                code: providerError.code,
-                retryClass: providerError.retryClass,
-                ...(providerError.retryAfterMs !== undefined ? { retryAfterMs: providerError.retryAfterMs } : {}),
-        };
+	if (!isPlainObject(effect) || !isPlainObject(effect.providerError)) {
+		return null;
+	}
+	const providerError = effect.providerError;
+	if (typeof providerError.code !== 'string' || providerError.code.length === 0) {
+		return null;
+	}
+	if (typeof providerError.retryClass !== 'string' || !ALL_RETRY_CLASSES.includes(providerError.retryClass)) {
+		return null;
+	}
+	if (providerError.retryAfterMs !== undefined && !isNonNegativeInteger(providerError.retryAfterMs)) {
+		return null;
+	}
+	return {
+		code: providerError.code,
+		retryClass: providerError.retryClass,
+		...(providerError.retryAfterMs !== undefined ? { retryAfterMs: providerError.retryAfterMs } : {}),
+	};
 }
 
 /** Is this typed provider error retryable per the DL-35 fixed table? */
 export function isRetryableProviderError(providerError) {
-        return providerError !== null && PROVIDER_RETRY_CLASSES.includes(providerError.retryClass);
+	return providerError !== null && PROVIDER_RETRY_CLASSES.includes(providerError.retryClass);
 }
 
 /**
@@ -160,10 +160,10 @@ export function isRetryableProviderError(providerError) {
  * deterministic posture (§3.3). Pure.
  */
 export function providerRetryWaitMs(providerError) {
-        if (providerError.retryAfterMs === undefined) {
-                return 0;
-        }
-        return Math.min(providerError.retryAfterMs, RETRY_AFTER_CAP_MS);
+	if (providerError.retryAfterMs === undefined) {
+		return 0;
+	}
+	return Math.min(providerError.retryAfterMs, RETRY_AFTER_CAP_MS);
 }
 
 /**
@@ -174,17 +174,17 @@ export function providerRetryWaitMs(providerError) {
  * idempotency discipline; DL-53's fresh-key reconciliation).
  */
 export function providerAttemptKeyOf(windowKey, attemptOrdinal) {
-        return attemptOrdinal === 1 ? windowKey : `${windowKey}#p${attemptOrdinal}`;
+	return attemptOrdinal === 1 ? windowKey : `${windowKey}#p${attemptOrdinal}`;
 }
 
 /** The default (real-time) wait port: 0 ms resolves immediately. */
 export function defaultProviderRetryWait(ms) {
-        if (!isNonNegativeInteger(ms) || ms === 0) {
-                return Promise.resolve();
-        }
-        return new Promise((resolve) => {
-                setTimeout(resolve, ms);
-        });
+	if (!isNonNegativeInteger(ms) || ms === 0) {
+		return Promise.resolve();
+	}
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 /**
@@ -204,67 +204,67 @@ export function defaultProviderRetryWait(ms) {
  *          the terminal retryPlanned=false on the step failure).
  */
 export async function runProviderCallWithBoundedRetry(store, sink, input) {
-        const maxAttempts = resolveProviderRetryBound(input.providerRetry);
-        const wait = input.wait ?? defaultProviderRetryWait;
-        const actor = input.actor ?? 'agent';
-        const origin = input.origin ?? 'runtime:drive';
-        const windowKey = input.start.idempotencyKey;
-        let attemptOrdinal = 1;
-        let waitAppliedMs = 0;
-        let lastProviderError = null;
-        for (;;) {
-                const effect = await sink.run(providerAttemptKeyOf(windowKey, attemptOrdinal), input.spec);
-                if (isPlainObject(effect) && effect.ok) {
-                        if (attemptOrdinal > 1 && lastProviderError !== null) {
-                                await store.recordProviderRetry({
-                                        graphId: input.graphId,
-                                        stepId: input.stepId,
-                                        attempt: input.start.attempt,
-                                        idempotencyKey: windowKey,
-                                        attemptOrdinal,
-                                        outcome: 'recovered',
-                                        code: lastProviderError.code,
-                                        retryClass: lastProviderError.retryClass,
-                                        waitAppliedMs,
-                                        maxAttempts,
-                                        actor,
-                                        origin,
-                                });
-                        }
-                        return { effect, providerAttempts: attemptOrdinal, exhausted: false };
-                }
-                const providerError = readProviderError(effect);
-                if (!isRetryableProviderError(providerError)) {
-                        // No trigger: terminal-class, no typed provider error, or a
-                        // malformed one - the existing honest single-shot path.
-                        return { effect, providerAttempts: attemptOrdinal, exhausted: false };
-                }
-                lastProviderError = providerError;
-                const isLast = attemptOrdinal >= maxAttempts;
-                await store.recordProviderRetry({
-                        graphId: input.graphId,
-                        stepId: input.stepId,
-                        attempt: input.start.attempt,
-                        idempotencyKey: windowKey,
-                        attemptOrdinal,
-                        outcome: isLast ? 'exhausted' : 'retryable-failed',
-                        code: providerError.code,
-                        retryClass: providerError.retryClass,
-                        ...(providerError.retryAfterMs !== undefined ? { retryAfterMs: providerError.retryAfterMs } : {}),
-                        waitAppliedMs,
-                        maxAttempts,
-                        ...(isLast ? {} : { nextAttemptOrdinal: attemptOrdinal + 1 }),
-                        actor,
-                        origin,
-                });
-                if (isLast) {
-                        // Exhaustion: the terminal typed failure rides the EXISTING
-                        // honest path (step-failed, retryPlanned pinned false).
-                        return { effect, providerAttempts: attemptOrdinal, exhausted: true };
-                }
-                const waitMs = providerRetryWaitMs(providerError);
-                await wait(waitMs);
-                attemptOrdinal += 1;
-                waitAppliedMs = waitMs;
-        }
+	const maxAttempts = resolveProviderRetryBound(input.providerRetry);
+	const wait = input.wait ?? defaultProviderRetryWait;
+	const actor = input.actor ?? 'agent';
+	const origin = input.origin ?? 'runtime:drive';
+	const windowKey = input.start.idempotencyKey;
+	let attemptOrdinal = 1;
+	let waitAppliedMs = 0;
+	let lastProviderError = null;
+	for (;;) {
+		const effect = await sink.run(providerAttemptKeyOf(windowKey, attemptOrdinal), input.spec);
+		if (isPlainObject(effect) && effect.ok) {
+			if (attemptOrdinal > 1 && lastProviderError !== null) {
+				await store.recordProviderRetry({
+					graphId: input.graphId,
+					stepId: input.stepId,
+					attempt: input.start.attempt,
+					idempotencyKey: windowKey,
+					attemptOrdinal,
+					outcome: 'recovered',
+					code: lastProviderError.code,
+					retryClass: lastProviderError.retryClass,
+					waitAppliedMs,
+					maxAttempts,
+					actor,
+					origin,
+				});
+			}
+			return { effect, providerAttempts: attemptOrdinal, exhausted: false };
+		}
+		const providerError = readProviderError(effect);
+		if (!isRetryableProviderError(providerError)) {
+			// No trigger: terminal-class, no typed provider error, or a
+			// malformed one - the existing honest single-shot path.
+			return { effect, providerAttempts: attemptOrdinal, exhausted: false };
+		}
+		lastProviderError = providerError;
+		const isLast = attemptOrdinal >= maxAttempts;
+		await store.recordProviderRetry({
+			graphId: input.graphId,
+			stepId: input.stepId,
+			attempt: input.start.attempt,
+			idempotencyKey: windowKey,
+			attemptOrdinal,
+			outcome: isLast ? 'exhausted' : 'retryable-failed',
+			code: providerError.code,
+			retryClass: providerError.retryClass,
+			...(providerError.retryAfterMs !== undefined ? { retryAfterMs: providerError.retryAfterMs } : {}),
+			waitAppliedMs,
+			maxAttempts,
+			...(isLast ? {} : { nextAttemptOrdinal: attemptOrdinal + 1 }),
+			actor,
+			origin,
+		});
+		if (isLast) {
+			// Exhaustion: the terminal typed failure rides the EXISTING
+			// honest path (step-failed, retryPlanned pinned false).
+			return { effect, providerAttempts: attemptOrdinal, exhausted: true };
+		}
+		const waitMs = providerRetryWaitMs(providerError);
+		await wait(waitMs);
+		attemptOrdinal += 1;
+		waitAppliedMs = waitMs;
+	}
 }
