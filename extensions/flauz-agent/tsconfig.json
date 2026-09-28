@@ -19,6 +19,7 @@
 		"shims/**/*.d.ts",
 		"core/contracts.d.mts",
 		"core/a2a.d.mts",
+		"core/protocol.d.mts",
 		"vscode-dts/vscode.d.ts"
 	]
 }

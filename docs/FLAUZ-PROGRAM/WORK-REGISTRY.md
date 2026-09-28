@@ -13,10 +13,12 @@ Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 ## TL1 — Substrate, upstream compatibility and product integration
 
 ### TL1-001 — Upstream synchronization lane
-Status: ACTIVE
+Status: DONE (PR #10, merge a72eb663, 2026-09-27)
 Maintain a deterministic upstream-sync process from the Code OSS reference line into the product line. Preserve Flauz additions and record merge conflicts/decisions.
 
 Acceptance: repeatable sync procedure, current diff report, no accidental upstream-only regressions.
+
+Merge record (2026-09-27, TL1 lead): PR #10 merged to main at `a72eb663` (branch `feat/tl1-001-upstream-sync`, 6 commits incl. two integration merges during gating — the drift-integration flow). Delivered: deterministic upstream-sync report/plan tool, delta report vs upstream/main, CI wiring. Status DONE.
 
 ### TL1-002 — Product build/release shell
 Status: TODO
@@ -25,14 +27,20 @@ Own product.flauz.json, packaging identity, default profile, extension inclusion
 Acceptance: clean Flauz build output with all six bundled Flauz extensions and no accidental Microsoft product branding.
 
 ### TL1-003 — Core integration seam
-Status: TODO
+Status: DONE (PR #17, merge 39ff3ab1, 2026-09-28)
 Establish the smallest stable client-to-Flauz-service IPC/API seam for commands, events, health, auth and lifecycle.
 
 Acceptance: versioned protocol usable by every feature TL without direct implementation coupling.
 
+Merge record (2026-09-28, TL1 lead): branch `feat/tl1-003-seam-protocol` merged to main at `39ff3ab1` (PR #17; versioned IPC/API protocol for commands, events, health, auth, lifecycle in flauz-agent; 12-path additive diff, zero src/vs outside contrib/flauz). Gate judgment: completed-failure set identical to merged PR #16's platform set (zero new); Linux/Electron + Upstream-sync + Packaging green; starved-suite precedents #14/#15/#16 applied. Second drift (PR #16 wave) resolved by manifest regeneration on the merged tree. Status DONE.
+
 ### TL1-004 — Core-change budget
-Status: TODO
+Status: DONE (PR #16, merge aff162d9, 2026-09-28)
 Audit all Flauz core patches, retire unnecessary ones, and keep the fork-critical guard at zero unless explicitly approved.
+
+Progress note (2026-09-27, Worker A, second dispatch, branch `feat/tl1-004-core-budget`, base `bfeb5e2df91`): the core-change budget landed at `docs/FLAUZ-PROGRAM/CORE-CHANGE-BUDGET.md`. Census at the pinned base (`git diff --name-status upstream/main...HEAD` + `sync-upstream.mjs --report`): 888 paths — 886 ADDITIVE / 2 SHARED-FILE CHANGE (`.eslint-allowed-javascript-files` +32/−0, `AGENTS.md` +39/−3, both allowlisted), 0 unallowlisted divergences, src/vs pristine (guard PASS exit 0; escape hatch `src/vs/workbench/contrib/flauz` unused/absent). Ledger: records CB-1/CB-2 with the four ARCHITECTURE-LOCK §4 fields, census summary table, ZERO-FORK-CRITICAL assertion with guard evidence, per-family template (F1–F5) for future core patches. Retirement verdicts: KEEP ×2 — nothing behavioral to retire, verified honestly (both shared-file changes are non-runtime; allowlist audit 23/23 lines live, 0 stale; no retirement proposed for execution). Guard integrity fix (surgical, `flauz-hygiene.yml` only): (a) push triggers now `[flauz/main, main]` — pushes to main previously bypassed the hygiene gate entirely post-reset; (b) the guard's "pristine base" now fetches `origin upstream/main` (the upstream-sync job's own fetch pattern) and runs `--base origin/upstream/main` — the old `--base origin/main` compared product-vs-product (PR delta only, never the accumulated upstream divergence). Gates: census verbatim, guard exit 0, YAML OK (python3 + pyyaml 6.0.3 parse + structural checks), verify-fixtures ALL 105 CASES AS EXPECTED (0 deviations), TL1-001 gates cited (sync census CLEAN exit 0; `node --test sync-upstream.test.mjs` 12/12). Follow-ups recorded in the ledger §9 (sibling push triggers F-1, machine-checkable ledger validator F-2, UPSTREAM-DELTA.md refresh F-3, path-filter residual gap F-4). Status stays ACTIVE pending merge to main + green CI (SOURCE-OF-TRUTH completion law — DONE is the Lead's flip).
+
+Merge record (2026-09-28, TL1 lead): branch `feat/tl1-004-core-budget` merged to main at `aff162d9` (PR #16; core-change budget ledger: 888-path census, 886 additive / 2 allowlisted shared-file / 0 fork-critical; fork-critical guard PASS — src/vs pristine outside contrib/flauz). Gate judgment: all completed check failures identical to merged PR #15's platform-wide pre-existing set (hygiene/perf/macOS/Linux-Remote); Packaging reproducibility green; PR #10/#14/#15 merge precedents applied. Status DONE.
 
 ### TL1-005 — Web/desktop packaging parity
 Status: TODO
@@ -235,6 +243,18 @@ worker's lane never landed; TL4 executed personally):
     browser deny-by-default (flauz-browser.yml suites + session-battery
     J3). Spec: docs/FLAUZ-PROGRAM/TL4-SECURITY-GATE.md.
 
+### TL4-007 — Session-battery RUNTIME rung
+Status: DONE (2026-09-28, TL4 lead merge record: station `verify-branch.sh tl4/a3-session-runtime` GREEN @ 3e26cf7eb49 — 13 gates incl. session-battery GREEN over the modified gate, compat-battery 1887/1887, secret sweep 0 hits, zero src/ changes; the new drill verified hygiene-law clean (TAB + TS Format Document via the station formatter replica); squash-merged as PR #19; branch deleted; `session-runtime` CI lane available via workflow_dispatch per the opt-in law)
+Promote the TL4-004 whole-session battery to the RUNTIME rung: the same J1-J4 journeys over the REAL ports (real CdpEndpointHost + BrowserSessionManager against a real headless Chromium over a real CDP WebSocket; real LocalProcessExecutor for the environment leg), the journey catalogue and transcript contract IDENTICAL — only the ports change.
+
+Progress note (2026-09-27, Worker A, branch `tl4/a3-session-runtime`, base `dcec0f8f7c9`):
+  - Drill `extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts` (the TL3-003 real-Chromium seam pattern): imports the REAL modules the fixture battery imports; recording WebSocketCdpTransport subclass so sent-command assertions hold on the real wire; a REAL local origin server (node:http, 127.0.0.1) as the allowed-navigation host; LocalProcessExecutor with real child processes + real on-disk state; J3's hard row (ZERO Page.navigate frames on the REAL socket after a denial) verified by grepping the recorded wire frames; skip-vs-fail policy (no FLAUZ_CDP_ENDPOINT → SKIP exit 0). REAL RUN GREEN: 38 assertions, 0 failures, against Chrome for Testing 153.0.8010.12 (headless=new).
+  - Transcript artifacts: `test/fixtures/session-battery-runtime/` (README with the normalization table + regeneration command + the checked-in golden-runtime.json produced by the drill's own real run) + the `-doctored` raw-port variant that MUST fail `--check-transcript` (exit 1). Documented contract deltas vs the fixture golden: the schema id, the normalized local-origin URL, ONE additive row (committedUrl — the real committed URL over the wire). No other row differs.
+  - Gate: `session-battery.mjs --runtime` (extend, never rewrite — default behavior byte-compatible; enforces the drill's exit code AND GREEN line; SKIP without the endpoint, FAIL under --require).
+  - CI: flauz-session.yml SECOND job `session-runtime` (job 1 untouched): workflow_dispatch input `runtime` default true + push path-filter on drill/fixtures/gate; downloads pinned Chrome-for-Testing 153.0.8010.12 from the official CfT distribution; launches headless with --remote-debugging-port; runs `session-battery.mjs --runtime --require`; asserts the GREEN line. No secrets; actions pinned to the sibling SHAs.
+  - verify-fixtures.sh: +5 zero-dep cases (104 → 109) — selftest, transcript check both directions, --runtime SKIP semantics both modes; the full runtime rung stays in the opt-in CI lane (documented why).
+  - Spec: TL4-SESSION-BATTERY.md section 4 runtime-rung rewrite (shipped state, the normalization table, the honest residue — UI seams stay fixture-only, the booted-workbench seam is future work).
+
 ### TL4-008 - Compat L3 runtime boot smoke
 Status: DONE (2026-09-27, TL4 lead merge record: station `verify-branch.sh tl4/b3-compat-l3` GREEN @ 7c02f356c8c — 13 gates, zero src/ changes, secret sweep clean, fixtures 116/116; squash-merged as PR #14 -> main @ c1d9414ec13b; branch deleted; `compat-l3` lane dispatched on main per SOURCE-OF-TRUTH completion law — first-run record in `build/flauz/compat-l3-baseline.md`)
 Promote the Code OSS compatibility battery's layer 3 (TL4-COMPAT-BATTERY section 11) from a PROBE-ONLY CI placeholder to a REAL, CI-executed runtime boot smoke: the workbench still boots and the pillar surfaces still function with the flauz extensions active, proven at runtime on a runner (never a worker sandbox).
@@ -244,7 +264,6 @@ Progress note (Worker B, branch `tl4/b3-compat-l3`):
 - CI `compat-l3` job in `.github/workflows/flauz-compat.yml` (job 1 untouched): the proven preamble (apt natives + xvfb stack, preinstall, npm install, electronTypes, the hygiene `npm-run-all2 -l core-ci hygiene ...` compile line, then `npm run compile` for the bootable dev `out/` tree, `bundle-extensions.mjs --verify`, setup-electron), then the b-policy-canary boot (`DISPLAY=:10 ./scripts/code.sh --verbose --remote-debugging-port=9333 ...` under the xvfb service), then the driver `--require`, then process-tree kill ALWAYS + boot-log/report artifacts (pinned SHAs, auto-token-only install env per DL-20/DL-28).
 - Trigger policy: `workflow_dispatch` (opt-in, the job compiles) + one weekly `schedule` canary (Mon 04:23 UTC); never per-push.
 - Fixture-backed: `test/fixtures/compat-l3/` (clean/fatal/no-ext/no-flauz log corpora + fake-out compiled trees), `build/flauz/compat-l3-smoke.test.mjs` (17 node --test cases incl. fake CDP servers and child-mode stubs), verify-fixtures.sh section. Baseline `build/flauz/compat-l3-baseline.md`: row census (14 PASS-capable, 4 functional SKIP rows), first-run record table, honest distance ladder (CDP-WebSocket DOM rows, lane F functional smokes, exit-clean in CI, browser-mode boot).
-
 ### TL4 merge-wave integration note (2026-09-27, TL4 lead)
 
 The upstream hygiene gate (`local/code-no-new-javascript-files`) rejected the
@@ -253,19 +272,6 @@ three new zero-dep gate scripts; fixed by allowlisting them in
 harness entries). Applies to future TL4 gate scripts: every new zero-dep
 `.mjs` gate merged to main must land with its allowlist line in the same PR.
 
-### TL4-007 — Session-battery runtime rung (real CDP + real executor)
-Status: ACTIVE (2026-09-27, Worker A dispatched from the replay, branch `tl4/a3-session-runtime`, base dcec0f8f7c9)
-Promote the whole-session acceptance battery (TL4-004) from the fixture
-rung to the runtime rung: the same four journeys (J1 golden, J2 recovery,
-J3 fail-closed, J4 continuity) over REAL ports — the real CdpEndpointHost
-against a real headless Chromium over a real CDP WebSocket (the proven
-TL3-003 drill seam) and the real LocalProcessExecutor for the environment
-leg. The journey catalogue and transcript contract stay IDENTICAL; only
-the ports change. Volatile runtime values are normalized via an explicit
-documented table, never a silent loosening. CI lane: opt-in
-`session-runtime` job in flauz-session.yml (Chrome-for-Testing download +
-FLAUZ_CDP_ENDPOINT). This is the CURRENT-STATE "Known gaps" item 9
-(whole-product end-to-end acceptance) executed at the battery level.
 
 ### TL4-009 — Security-gate runtime rung (audit delta, SBOM, bundle manifest)
 Status: DONE (2026-09-27, TL4 lead merge record: station `verify-branch.sh tl4/c3-security-runtime` GREEN @ a539330e044 — 13 gates incl. the NEW security-runtime-gate itself (audit-delta + CycloneDX 1.5 SBOM + pinned bundle-signature manifest), verify-fixtures GREEN, compat-battery 1887/1887, secret sweep 0 hits, zero src/ changes; eslint allowlist union-resolved with TL4-008 entries; squash-merged as PR #15 -> main @ 337aac0df5d8; branch deleted; flauz-security push lane re-runs the runtime gate at the merge head — CI-CONFIRMED GREEN at head 46e36ba71e4 (the Flauz Security workflow completed success 2026-09-27 incl. the runtime gate step with the committed pins), security-runtime-report available via workflow_dispatch) [station-of-record addendum, TL3 resident: the flip's "pinned bundle-signature manifest" gate row was verified in its esbuild-unresolvable SKIP shape, not against pins; the manifest shipped STATION-PENDING and the pins landed in the station-completion commit immediately after this flip — the flauz-security lane needs a head >= that commit to go green, per the SOURCE-OF-TRUTH completion law]

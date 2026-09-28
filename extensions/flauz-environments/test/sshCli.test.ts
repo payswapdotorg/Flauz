@@ -15,9 +15,8 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, SimulatedRemoteExecutor, SshCliExecutor } from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, SimulatedRemoteExecutor, SshCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor, EnvironmentKind } from '../src/api.ts';
-import type { LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import { FakeCli } from './fakeCli.ts';
 import { sshRegistrationInput, virtualTime } from './helpers.ts';
 

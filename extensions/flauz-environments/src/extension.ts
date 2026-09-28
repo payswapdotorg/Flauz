@@ -453,7 +453,8 @@ async function runContinuityExport(arg: unknown): Promise<ContinuityCommandResul
 			...(record.switchPlanRef !== undefined ? { switchPlanRef: record.switchPlanRef } : {}),
 		});
 		if (outcome.ok) {
-			const counts = Object.values(outcome.manifest.surfaces).reduce((acc, entry) => { acc[entry.status] = (acc[entry.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+			const emptyCounts: Record<string, number> = {};
+			const counts = Object.values(outcome.manifest.surfaces).reduce((acc, entry) => { acc[entry.status] = (acc[entry.status] ?? 0) + 1; return acc; }, emptyCounts);
 			void vscode.window.showInformationMessage(`flauz-environments: continuity bundle ${outcome.manifest.bundleId} exported (${counts.carried ?? 0} carried, ${counts.redacted ?? 0} redacted, ${counts.lost ?? 0} lost surfaces)`);
 			return { ok: true, op: 'export', manifest: outcome.manifest, record: outcome.record };
 		}

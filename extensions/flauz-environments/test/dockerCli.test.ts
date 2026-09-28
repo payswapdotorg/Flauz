@@ -17,9 +17,8 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, DockerCliExecutor } from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, DockerCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor } from '../src/api.ts';
-import type { LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import { FakeCli } from './fakeCli.ts';
 import { containerRegistrationInput, virtualTime } from './helpers.ts';
 
