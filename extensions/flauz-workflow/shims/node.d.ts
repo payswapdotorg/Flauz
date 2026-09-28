@@ -46,6 +46,8 @@ declare module 'node:child_process' {
 		stdout: ShimStream;
 		stderr: ShimStream;
 		killed: boolean;
+		/** OS process id; undefined before the process could start (additive, TL2-S1 supervision). */
+		pid: number | undefined;
 		kill(signal?: string): void;
 		on(event: 'error', listener: (error: Error) => void): void;
 		on(event: 'close', listener: (code: number | null) => void): void;

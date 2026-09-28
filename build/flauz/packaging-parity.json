@@ -1,7 +1,7 @@
 {
 	"version": 1,
 	"description": "TL1-005 web/desktop packaging parity registry. One row per Flauz surface capability: the class records the capability's web posture in the current tree, the evidence pins the manifest key / node dependency / node-free subtree that forces the classification, and the recovery path names how a web-blocked surface becomes web-capable without forking core. The gate (build/flauz/scripts/packaging-parity.mjs) re-derives every citation against the live tree and flags DRIFT when the tree moved without a registry update. Report: docs/FLAUZ-PROGRAM/PACKAGING-PARITY.md.",
-	"baseSha": "2ad07ba74dfc07af529a2dd89a0d17ac9f11dd2e",
+	"baseSha": "5845f81f8b8146bdbc6da979d1b1c905074530e7",
 	"classes": {
 		"desktop-full": "The capability binds to local OS resources or desktop-workbench-only surfaces by design (process spawn, local shell, integrated workbench browser tab). The web product excludes it; the web form, when wanted, is a different provider/executor class, not a degradation of this one.",
 		"web-degraded": "The capability can serve a web build in a consciously reduced form once unblocked: the forcing module surface is host-agnostic, but part of its backing (state sinks, execution, evidence storage) still rides a desktop-bound seam today. The reduction is documented in the row reason.",
@@ -415,7 +415,7 @@
 			"surface": "extensions/flauz-environments",
 			"capability": "environment registry, descriptors, continuity and lifecycle core (port-injected)",
 			"class": "web-full",
-			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 \u2014 node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
+			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 — node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
 			"evidence": [
 				{
 					"kind": "node-free",
@@ -493,6 +493,190 @@
 			"recoveryPath": "By design desktop: on web, environment execution goes through remote executors behind the same EnvironmentExecutor port. The lifecycle store/hashing wiring ports over (WebCrypto, workspace.fs) when the registry ships a browser entrypoint."
 		},
 		{
+			"surface": "extensions/flauz-execution",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.exec.*), no views, no proposed APIs. Row added by PLATFORM-H1 (the extension landed with the TL2-S2 Agent OS surge without parity rows).",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-execution/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-execution/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-execution/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the journal row below recovers; the command surface itself is host-agnostic (the store is injected)."
+		},
+		{
+			"surface": "extensions/flauz-execution",
+			"capability": "execution-resource contracts, acquisition, adapters, continuity and effect-sink core (port-injected)",
+			"class": "web-full",
+			"reason": "The TL2-S2 core is node-free and port-injected: the contract shapes/validators and the acquisition transition table (contracts.ts - zero imports), the task-level acquisition/release manager (acquisition.ts), the browser/environment/resource adapters over structural ports (adapters.ts), the continuity export/restore/reattach integration points (continuity.ts) and the effect sink the orchestration runtime drives (runtime.ts). ExecJournalStore appears in these modules ONLY in type positions (the journal instance is injected at runtime; it is constructed solely in the desktop wiring row below), so the compiled modules carry no node dependency. Same citation discipline as the flauz-workspace services rows.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-execution/src/contracts.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-execution/src/acquisition.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-execution/src/adapters.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-execution/src/continuity.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-execution/src/runtime.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed journal port: the core runs unchanged against any ExecJournalStore-shaped port implementation."
+		},
+		{
+			"surface": "extensions/flauz-execution",
+			"capability": "durable execution journal + desktop wiring (ExecJournalStore on local disk)",
+			"class": "web-blocked",
+			"reason": "journal.ts implements the append-only execution journal over node:fs (appendFileSync/readFileSync/mkdirSync), mints acquisition ids from node:crypto and joins paths with node:path; extension.ts constructs the store against the workspace root. The constraint is incidental (the store is constructed in one place; the core consumes it through injection) - the flauz-workspace wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-execution/src/journal.ts",
+					"module": "fs"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-execution/src/journal.ts",
+					"module": "crypto"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-execution/src/journal.ts",
+					"module": "path"
+				}
+			],
+			"recoveryPath": "A workspace.fs-backed ExecJournalStore (async port shape) in the browser build; the desktop entry keeps the sync node:fs store."
+		},
+		{
+			"surface": "extensions/flauz-memory",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.memory.*). Row added by PLATFORM-H1 (the extension landed with the TL2-003 tiered-memory work without parity rows).",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-memory/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-memory/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-memory/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the wiring row below recovers; the substrate core is already port-injected."
+		},
+		{
+			"surface": "extensions/flauz-memory",
+			"capability": "tiered memory substrate core (MemoryStore, checkpoints, claims, watermarks, retrieval, format - port-injected)",
+			"class": "web-full",
+			"reason": "The TL2-003 substrate is node-free and port-injected: the durable store over the injected FileSystemPort (memory.ts, api.ts), checkpoint/claim/watermark bookkeeping, retrieval, the on-disk format, the context composer and the command surface (commands.ts, globals.ts) use only vscode/host-agnostic APIs. The nodeFs port implementation is injected exclusively by the wiring row below - the flauz-workspace services-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/memory.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/checkpoints.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/claims.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/watermarks.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/retrieval.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/context.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-memory/src/globals.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus one port implementation: a workspace.fs-backed FileSystemPort ships the whole substrate to web with byte-identical state files (the port contract is shared with flauz-workspace)."
+		},
+		{
+			"surface": "extensions/flauz-memory",
+			"capability": "memory state wiring (nodeFs FileSystemPort over .flauz/memory/)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the MemoryStore to node:fs/promises (the node FileSystemPort backing the durable tiered memory under .flauz/memory/). The port abstraction is shared with flauz-workspace - the blocker is the wiring choice, not the substrate (see its row). The flauz-workspace wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-memory/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the FileSystemPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs."
+		},
+		{
 			"surface": "extensions/flauz-models",
 			"capability": "extension packaging posture",
 			"class": "web-blocked",
@@ -530,12 +714,8 @@
 			"surface": "extensions/flauz-models",
 			"capability": "multi-model provider seam, registry and mock provider",
 			"class": "web-full",
-			"reason": "The entire src tree is node-free: provider descriptors, the registry and the languageModelChatProviders contribution (vendor flauz-mock) use only vscode API surfaces that exist on web. No local resource binding anywhere in the module.",
+			"reason": "The seam modules are node-free: provider descriptors and the contract (src/contract), the durable capability registry (src/discovery), routing and tool policies (src/routing), the vendor plans (src/vendors), the MCP policy (src/mcp), budgets (src/budget), the deterministic flauz-mock provider (mockProvider.ts), the view surface (views.ts) and the provider bridge (adapters/bridge.ts) use only vscode/host-agnostic APIs. PLATFORM-H1 narrowing (2026-09-28): the citation previously covered the whole src tree; the TL2-002 fabric landing added node-bound modules to it (adapters/common.ts node:buffer; extension.ts node:fs/node:crypto) - those now carry their own web-blocked rows below, per the registry law (keep the node-free discipline or declare your own rows). The vendor adapters (anthropicCompat/ollama/openAiCompat) and fabric.ts value-import the node-bound wire plumbing and are therefore NOT cited here.",
 			"evidence": [
-				{
-					"kind": "node-free",
-					"path": "extensions/flauz-models/src"
-				},
 				{
 					"kind": "manifest-key",
 					"file": "extensions/flauz-models/package.json",
@@ -543,9 +723,78 @@
 						"contributes",
 						"languageModelChatProviders"
 					]
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/contract"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/discovery"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/routing"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/vendors"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/mcp"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/budget"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/mockProvider.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/views.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-models/src/adapters/bridge.ts"
 				}
 			],
-			"recoveryPath": "Packaging only: a browser entrypoint makes the provider seam web-shipped; real provider adapters (TL2-002) must keep the node-free discipline or declare their own rows."
+			"recoveryPath": "Packaging plus the adapter-plumbing row recovery: a browser entrypoint ships the seam, registry and mock provider once the Buffer-based wire plumbing (see its row) is host-agnostic; the vendor adapters follow it."
+		},
+		{
+			"surface": "extensions/flauz-models",
+			"capability": "provider adapter wire plumbing (SSE/NDJSON parsers, incremental UTF-8 decoder, credential resolution)",
+			"class": "web-blocked",
+			"reason": "adapters/common.ts - the shared vendor-neutral wire plumbing imported (value import) by every real vendor adapter (openAiCompat, anthropicCompat, ollama) - uses node:buffer for the incremental UTF-8 decoder wrapper. The web extension host cannot satisfy the node: import. The constraint is incidental, not architectural: the plumbing is byte-oriented and a TextDecoder/Uint8Array-based decoder is a drop-in port. Declared as its own row by PLATFORM-H1 after the TL2-002 landing broke the seam row's whole-tree node-free citation.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-models/src/adapters/common.ts",
+					"module": "buffer"
+				}
+			],
+			"recoveryPath": "Replace the Buffer-based decoder with a TextDecoder-backed incremental decoder over Uint8Array chunks (the HttpPort already streams bytes); the adapter plumbing then becomes node-free and the vendor adapters can rejoin the seam row's citation."
+		},
+		{
+			"surface": "extensions/flauz-models",
+			"capability": "fabric bootstrap wiring (durable .flauz/models state + adapter registration)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the TL2-002 fabric to node:fs/node:crypto (the node FileSystemPort + SecretResolver backing the durable capability registry under .flauz/models) and registers the vendor adapters; fabric.ts value-imports those adapter modules (which ride the node-bound wire plumbing row). Same shape as the flauz-workspace wiring row: the port contracts are shared and host-agnostic - only this wiring is desktop-bound. Declared as its own row by PLATFORM-H1.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-models/src/extension.ts",
+					"module": "fs"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-models/src/extension.ts",
+					"module": "crypto"
+				}
+			],
+			"recoveryPath": "A workspace.fs-backed FileSystemPort (the contract in src/contract/ports.ts is host-agnostic) in a browser entrypoint; the desktop entry keeps the nodeFs wiring - no fork, packaging only."
 		},
 		{
 			"surface": "extensions/flauz-resources",

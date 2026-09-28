@@ -250,11 +250,15 @@ test('--help: exit 0, single-line options, exit-code contract documented', () =>
 // case family 8: the real-repo pin - the committed registry classifies the live tree
 // ---------------------------------------------------------------------------------------------
 
-test('real repo: committed registry vs live tree -> exit 0 CLEAN with the seven extensions covered', () => {
+test('real repo: committed registry vs live tree -> exit 0 CLEAN with the nine extensions covered', () => {
 	const r = runTool(['--root', REPO_ROOT, '--require']);
 	assert.equal(r.status, 0, `exit ${r.status}\n${r.out}\n${r.err}`);
-	assert.match(r.out, /packaging-parity: CLEAN \(7 extension\(s\) covered, 28 rows, 0 drift, 0 violations\)/);
-	for (const name of ['flauz-agent', 'flauz-browser', 'flauz-environments', 'flauz-models', 'flauz-resources', 'flauz-workflow', 'flauz-workspace']) {
+	// PLATFORM-H1 (2026-09-28): flauz-execution + flauz-memory gained their first
+	// rows (3 each) and flauz-models gained the two node-bound TL2-002 rows
+	// (adapter wire plumbing + fabric wiring) after its seam citation was
+	// narrowed - 28 -> 36 rows, 7 -> 9 extensions.
+	assert.match(r.out, /packaging-parity: CLEAN \(9 extension\(s\) covered, 36 rows, 0 drift, 0 violations\)/);
+	for (const name of ['flauz-agent', 'flauz-browser', 'flauz-environments', 'flauz-execution', 'flauz-memory', 'flauz-models', 'flauz-resources', 'flauz-workflow', 'flauz-workspace']) {
 		assert.match(r.out, new RegExp(`extensions/${name}\\s+packaging=web-blocked`));
 	}
 });

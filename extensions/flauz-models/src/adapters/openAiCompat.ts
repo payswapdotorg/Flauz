@@ -328,7 +328,7 @@ export function createOpenAiCompatAdapter(deps: AdapterDeps): ProviderAdapter {
 								if (accumulated === undefined) {
 									continue;
 								}
-								if (call.function?.name !== undefined && call.id === undefined && accumulated.toolName === '' ) {
+								if (call.function?.name !== undefined && call.id === undefined && accumulated.toolName === '') {
 									// name arrives on a later delta than the id for some vendors
 									accumulated.toolName = call.function.name;
 									yield { type: 'tool-input-start', callId: accumulated.callId, toolName: accumulated.toolName };
