@@ -43,8 +43,7 @@ import {
 	joinPath,
 	sha256Hex,
 } from '../../flauz-workspace/src/api.ts';
-import type { TaskService } from '../../flauz-workspace/src/taskService.ts';
-import { StaleRunCancelledError } from '../../flauz-workspace/src/taskService.ts';
+import { StaleRunCancelledError, type TaskService } from '../../flauz-workspace/src/taskService.ts';
 import { hasKey, type EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';
 
 /** Schema identifier pinned into every workflow fragment. */
