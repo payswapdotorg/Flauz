@@ -131,5 +131,15 @@ export function __resetViewState(): void {
 	executedCommands.length = 0;
 }
 
+/** The workspace slice src/extension.ts reads (no folder open by default; tests may pin one). */
+export const workspace = {
+	workspaceFolders: undefined as ReadonlyArray<{ readonly uri: { readonly fsPath: string } }> | undefined,
+};
+
+/** Test-harness helper: pin/clear the workspace root the activation reads. */
+export function __setWorkspaceRoot(fsPath: string | undefined): void {
+	workspace.workspaceFolders = fsPath === undefined ? undefined : [{ uri: { fsPath } }];
+}
+
 /** Fidelity shim for vscode.CancellationTokenSource (not used by flauz-models v0). */
 export { MockCancellationTokenSource as CancellationTokenSource };

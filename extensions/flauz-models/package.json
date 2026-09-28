@@ -1,71 +1,86 @@
 {
-        "name": "flauz-models",
-        "publisher": "flauz",
-        "displayName": "Flauz Models",
-        "description": "Flauz model vendor pack: deterministic flauz-mock echo language model chat provider plus design-only vendor adapter stubs (Wave 3 Lane F).",
-        "version": "0.1.0",
-        "type": "module",
-        "private": true,
-        "engines": {
-                "vscode": "^1.140.0"
-        },
-        "activationEvents": [
-                "onView:flauz.models",
-                "onLanguageModelChatProvider:flauz-mock",
-                "onCommand:flauz.focusView.models",
-                "onCommand:flauz.models.refreshView"
-        ],
-        "main": "./dist/extension.js",
-        "enabledApiProposals": [],
-        "contributes": {
-                "views": {
-                        "flauz": [
-                                {
-                                        "id": "flauz.models",
-                                        "name": "Models"
-                                }
-                        ]
-                },
-                "viewsWelcome": [
-                        {
-                                "view": "flauz.models",
-                                "contents": "No Flauz model providers registered yet.\nFlauz ships the deterministic flauz-mock echo provider (activated on demand) plus design stubs for future vendor adapters.\n[Refresh Models View](command:flauz.models.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
-                        }
-                ],
-                "languageModelChatProviders": [
-                        {
-                                "vendor": "flauz-mock",
-                                "displayName": "Flauz Mock"
-                        }
-                ],
-                "commands": [
-                        {
-                                "command": "flauz.focusView.models",
-                                "title": "Focus Flauz Models",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.models.refreshView",
-                                "title": "Refresh Models View",
-                                "category": "Flauz",
-                                "icon": "$(refresh)"
-                        }
-                ],
-                "menus": {
-                        "view/title": [
-                                {
-                                        "command": "flauz.models.refreshView",
-                                        "when": "view == flauz.models",
-                                        "group": "navigation"
-                                }
-                        ]
-                }
-        },
-        "scripts": {
-                "typecheck": "tsc --noEmit",
-                "test": "node --test test/*.test.ts"
-        },
-        "devDependencies": {
-                "typescript": "^5.9.0"
-        }
+	"name": "flauz-models",
+	"publisher": "flauz",
+	"displayName": "Flauz Models",
+	"description": "Flauz model provider fabric: deterministic flauz-mock echo provider, real wire-family adapters (OpenAI-compatible, Anthropic-compatible, Ollama-style local; FIXTURE-VERIFIED), capability registry, routing policy and context budgets (TL2-002).",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"activationEvents": [
+		"onView:flauz.models",
+		"onLanguageModelChatProvider:flauz-mock",
+		"onLanguageModelChatProvider:flauz-openai-compat",
+		"onLanguageModelChatProvider:flauz-anthropic-compat",
+		"onLanguageModelChatProvider:flauz-ollama",
+		"onCommand:flauz.focusView.models",
+		"onCommand:flauz.models.refreshView"
+	],
+	"main": "./dist/extension.js",
+	"enabledApiProposals": [],
+	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.models",
+					"name": "Models"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.models",
+				"contents": "No Flauz model providers registered yet.\nFlauz ships the deterministic flauz-mock echo provider (activated on demand) plus design stubs for future vendor adapters.\n[Refresh Models View](command:flauz.models.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
+			}
+		],
+		"languageModelChatProviders": [
+			{
+				"vendor": "flauz-mock",
+				"displayName": "Flauz Mock"
+			},
+			{
+				"vendor": "flauz-openai-compat",
+				"displayName": "Flauz OpenAI Compatible"
+			},
+			{
+				"vendor": "flauz-anthropic-compat",
+				"displayName": "Flauz Anthropic Compatible"
+			},
+			{
+				"vendor": "flauz-ollama",
+				"displayName": "Flauz Ollama Local"
+			}
+		],
+		"commands": [
+			{
+				"command": "flauz.focusView.models",
+				"title": "Focus Flauz Models",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.models.refreshView",
+				"title": "Refresh Models View",
+				"category": "Flauz",
+				"icon": "$(refresh)"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "flauz.models.refreshView",
+					"when": "view == flauz.models",
+					"group": "navigation"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test test/*.test.ts"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.0"
+	}
 }
