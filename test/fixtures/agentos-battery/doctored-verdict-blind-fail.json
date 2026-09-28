@@ -1,0 +1,93 @@
+{
+	"schema": "flauz.agentos-battery/v1",
+	"rung": "fixture",
+	"rows": [
+		{
+			"invariant": "INV-1",
+			"verdict": "PASS",
+			"reason": "all 8 target assertions held (INV-1 restart-recovery)",
+			"assertions": {
+				"pass": 8,
+				"fail": 0
+			},
+			"evidence": ".flauz/tasks.json (1 task, done, 6 events); .flauz/evidence/ledger.jsonl (verify ok, 1 row, sha256-pinned); .flauz/workflows/W-001.json (re-run completed); journal 2 lines; env state stopped"
+		},
+		{
+			"invariant": "INV-2",
+			"verdict": "FAIL",
+			"reason": "test failed: 1 assertion failed (exit 1)",
+			"assertions": {
+				"pass": 7,
+				"fail": 1
+			},
+			"evidence": "cloud-sandbox seam over the scriptable HttpPort: typed CLOUD_PROVIDER_ERROR recorded (ops ledger + actor), lifecycle failed, caller-driven retry recorded; the flauz-models seam has no failure path on main (deterministic flauz-mock echo + design-only vendor stubs); TL2-002 pending"
+		},
+		{
+			"invariant": "INV-3",
+			"verdict": "FAIL",
+			"reason": "violated invariant INV-3 cancellation-propagation: downstream work stopped by the mid-flight cancel: 2 tool step(s) executed (tool 2 ran after the cancel on the v0 slice)",
+			"violatedInvariant": "INV-3 cancellation-propagation -- first failing assertion inv3.downstream-stopped: downstream work stopped by the mid-flight cancel: 2 tool step(s) executed (tool 2 ran after the cancel on the v0 slice)",
+			"assertions": {
+				"pass": 3,
+				"fail": 1
+			},
+			"evidence": "mid-flight human cancel on T-002: cancel event actor=human; 2 tool step(s) executed (downstream tool 2 executed post-cancel); run crashed at the next transition append with the typed state-machine error"
+		},
+		{
+			"invariant": "INV-4",
+			"verdict": "PASS",
+			"reason": "all 8 target assertions held (INV-4 approval-interruption)",
+			"assertions": {
+				"pass": 8,
+				"fail": 0
+			},
+			"evidence": "three ask-mode gate journeys over W-001: cancel -> task cancelled + 0 executor calls; request-changes -> task plan + 0 executor calls; sign-off skip -> awaiting-signoff; all gate events carry actor=human + gate attribution"
+		},
+		{
+			"invariant": "INV-5",
+			"verdict": "SKIP",
+			"reason": "no lease conflict contract on main (the flauz.a2a/v0 resource-claim surface is informational-only by design - AGENT-INTEGRATION section 5 records enforcement as a follow-up; concurrent claimants cannot receive a conflict error); TL2-004 pending",
+			"assertions": {
+				"pass": 0,
+				"fail": 0
+			},
+			"evidence": "no journey ran: the lease conflict contract is absent on main (the A2A resource-claim notice discipline is validated by the flauz-workflow messaging tests; enforcement is a recorded follow-up)"
+		},
+		{
+			"invariant": "INV-6",
+			"verdict": "FAIL",
+			"reason": "violated invariant INV-6 multi-agent-coordination: concurrent appends preserve the append-only chain: verify ok=false firstBadSeq=3 (row 3: seq must be 4 (contiguity broken - row deleted or reordered?))",
+			"violatedInvariant": "INV-6 multi-agent-coordination -- first failing assertion inv6.no-clobber: concurrent appends preserve the append-only chain: verify ok=false firstBadSeq=3 (row 3: seq must be 4 (contiguity broken - row deleted or reordered?))",
+			"assertions": {
+				"pass": 3,
+				"fail": 2
+			},
+			"evidence": "A2A round-trip flauz.agent -> flauz.agent.worker-1 (report M-000002 attributed; evidence E-000001 -> T-002); concurrent append over 2 rows: verify ok=false firstBadSeq=3 (deterministic rendezvous: both appends read the same pre-state)"
+		},
+		{
+			"invariant": "INV-7",
+			"verdict": "PASS",
+			"reason": "all 5 target assertions held (INV-7 evidence-provenance-integrity)",
+			"assertions": {
+				"pass": 5,
+				"fail": 0
+			},
+			"evidence": "live chain: 5 rows, verify ok; mid-chain doctor detected (firstBadSeq 4, prev hash mismatch); reorder detected (firstBadSeq 3); doctored-ledger-control: detected (firstBadSeq 4)"
+		},
+		{
+			"invariant": "INV-8",
+			"verdict": "PASS",
+			"reason": "all 9 target assertions held (INV-8 partial-environment-browser-failure)",
+			"assertions": {
+				"pass": 9,
+				"fail": 0
+			},
+			"evidence": "environment death: CLOUD_SANDBOX_UNKNOWN (HTTP 404) -> lifecycle failed + ops ledger + describe not-healthy; browser death: transport-closed mid-navigation (no committedUrl); task wrapping: tool-failed + 1 evidence row + downstream stopped"
+		}
+	],
+	"summary": {
+		"pass": 4,
+		"fail": 3,
+		"skip": 1
+	}
+}

@@ -1,0 +1,16 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
+	},
+	"include": [
+		"test/agentos-battery.test.ts",
+		"test/canaries/agentos-runtime.drill.ts",
+		"shims/**/*.d.ts",
+		"../flauz-browser/shims/**/*.d.ts",
+		"../flauz-environments/shims/**/*.d.ts",
+		"../flauz-agent/core/a2a.d.mts",
+		"vscode-dts/vscode.d.ts"
+	]
+}

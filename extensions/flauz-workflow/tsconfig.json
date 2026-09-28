@@ -28,6 +28,8 @@
 	],
 	"exclude": [
 		"test/session-battery.test.ts",
-		"test/canaries/session-battery-runtime.drill.ts"
+		"test/canaries/session-battery-runtime.drill.ts",
+		"test/agentos-battery.test.ts",
+		"test/canaries/agentos-runtime.drill.ts"
 	]
 }

@@ -40,7 +40,8 @@
 	"scripts": {
 		"typecheck": "tsc --noEmit",
 		"test": "node --test test/*.test.ts",
-		"typecheck-session-battery": "tsc --noEmit -p tsconfig.session-battery.json"
+		"typecheck-session-battery": "tsc --noEmit -p tsconfig.session-battery.json",
+		"typecheck-agentos-battery": "tsc --noEmit -p tsconfig.agentos-battery.json"
 	},
 	"devDependencies": {
 		"typescript": "5.9.3"

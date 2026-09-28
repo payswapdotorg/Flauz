@@ -332,6 +332,36 @@ fi
 expect "session-battery --list exit 0"                  0 node "$S/session-battery.mjs" --list
 expect "session-battery usage error (unknown flag)"     2 node "$S/session-battery.mjs" --bogus-flag
 
+# ---- agentos-battery (TL2-S3): the Agent OS runtime verification gate ----
+# The battery runner needs node >= 22.6 (type stripping). On older nodes the
+# gate SKIPs (exit 0) -- the run/failability cases only apply where the
+# runner can actually run; the flauz-agentos CI lane pins node 22 and runs
+# the full matrix. The --list/usage cases are runner-independent.
+NODE_MAJOR_AB="$(node -p 'process.versions.node.split(".")[0]')"
+NODE_MINOR_AB="$(node -p 'process.versions.node.split(".")[1]')"
+if [ "$NODE_MAJOR_AB" -gt 22 ] || { [ "$NODE_MAJOR_AB" -eq 22 ] && [ "$NODE_MINOR_AB" -ge 6 ]; }; then
+    AB="$S/agentos-battery.mjs"
+    ABF="$F/agentos-battery"
+    ABRUNTIME="$ROOT/extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts"
+    expect "agentos-battery default rung PASS"          0 node "$AB" --root "$ROOT"
+    expect "agentos-battery --json exit 0"              0 node "$AB" --root "$ROOT" --json
+    expect "agentos-battery golden verdict control PASS"    0 node "$AB" --verdict "$ABF/golden-verdict.json"
+    expect "agentos-battery doctored missing-row FAIL"      1 node "$AB" --verdict "$ABF/doctored-verdict-missing-row.json"
+    expect "agentos-battery doctored blind-fail FAIL"       1 node "$AB" --verdict "$ABF/doctored-verdict-blind-fail.json"
+    expect "agentos-battery surge-rung fires (findings)"     1 node "$AB" --root "$ROOT" --surge-rung
+    expect "agentos-battery runtime selftest PASS"      0 node --experimental-strip-types "$ABRUNTIME" --selftest
+    # The FULL runtime rung (real child processes + real CDP + the stub
+    # provider server) needs FLAUZ_CDP_ENDPOINT -- that lane lives in the
+    # flauz-agentos CI job `agentos-runtime`, never here. Zero-dep here:
+    # the gate's --runtime SKIP semantics (both modes).
+    expect "agentos-battery --runtime no-endpoint SKIP"  0 env FLAUZ_CDP_ENDPOINT= node "$AB" --runtime
+    expect "agentos-battery --runtime --require no-endpoint FAIL"  1 env FLAUZ_CDP_ENDPOINT= node "$AB" --runtime --require
+else
+    echo "  note  agentos-battery run cases need node >= 22.6 (runner has $(node --version)) -- covered by the flauz-agentos CI lane"
+fi
+expect "agentos-battery --list exit 0"                  0 node "$S/agentos-battery.mjs" --list
+expect "agentos-battery usage error (unknown flag)"     2 node "$S/agentos-battery.mjs" --bogus-flag
+
 # ---- security-gate (TL4-006): integrated security + release gate ----
 expect "security-gate clean fixture PASS"              0 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/clean"
 expect "security-gate planted-github FAIL"             1 node "$S/security-gate.mjs" --scan-tree "$F/security-gate/planted-github"
