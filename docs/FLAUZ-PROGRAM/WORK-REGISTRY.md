@@ -27,10 +27,12 @@ Own product.flauz.json, packaging identity, default profile, extension inclusion
 Acceptance: clean Flauz build output with all six bundled Flauz extensions and no accidental Microsoft product branding.
 
 ### TL1-003 — Core integration seam
-Status: TODO
+Status: DONE (PR #17, merge 39ff3ab1, 2026-09-28)
 Establish the smallest stable client-to-Flauz-service IPC/API seam for commands, events, health, auth and lifecycle.
 
 Acceptance: versioned protocol usable by every feature TL without direct implementation coupling.
+
+Merge record (2026-09-28, TL1 lead): branch `feat/tl1-003-seam-protocol` merged to main at `39ff3ab1` (PR #17; versioned IPC/API protocol for commands, events, health, auth, lifecycle in flauz-agent; 12-path additive diff, zero src/vs outside contrib/flauz). Gate judgment: completed-failure set identical to merged PR #16's platform set (zero new); Linux/Electron + Upstream-sync + Packaging green; starved-suite precedents #14/#15/#16 applied. Second drift (PR #16 wave) resolved by manifest regeneration on the merged tree. Status DONE.
 
 ### TL1-004 — Core-change budget
 Status: DONE (PR #16, merge aff162d9, 2026-09-28)
