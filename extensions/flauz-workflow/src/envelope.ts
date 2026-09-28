@@ -44,6 +44,7 @@ import {
 	sha256Hex,
 } from '../../flauz-workspace/src/api.ts';
 import type { TaskService } from '../../flauz-workspace/src/taskService.ts';
+import { StaleRunCancelledError } from '../../flauz-workspace/src/taskService.ts';
 import { hasKey, type EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';
 
 /** Schema identifier pinned into every workflow fragment. */
@@ -532,6 +533,33 @@ export interface WorkflowRunOutcome {
 	readonly stopped: 'completed' | 'request-changes' | 'cancelled' | 'tool-failed' | 'verify-fail' | 'awaiting-signoff';
 }
 
+/**
+ * The typed cancellation outcome of a run that observed a recorded cancel
+ * (INV-3): thrown when the drive loop's pre-dispatch checkpoint observes the
+ * task terminal 'cancelled' (downstream work stopped - the remaining tool
+ * steps never start), and re-thrown (with the propagated cancellation
+ * recorded) when a run already past its last checkpoint trips the store's
+ * typed StaleRunCancelledError. Never a silent success, never a fake
+ * completion: the task stays terminal 'cancelled' and every cancel-attributed
+ * record carries the cancel's actor.
+ */
+export class WorkflowRunCancelledError extends Error {
+	readonly code = 'flauz.tasks/v0:stale-run-cancelled';
+	readonly taskId: string;
+	readonly workflowId: string;
+	readonly plannedToolSeq: number | null;
+	readonly evidenceId: string | null;
+
+	constructor(args: { taskId: string; workflowId: string; plannedToolSeq?: number; evidenceId?: string; where: string }) {
+		super(`flauz.tasks/v0: stale run observed terminal 'cancelled' on task '${args.taskId}' at ${args.where}: downstream work stopped; the recorded cancellation is the propagated terminal outcome`);
+		this.name = 'WorkflowRunCancelledError';
+		this.taskId = args.taskId;
+		this.workflowId = args.workflowId;
+		this.plannedToolSeq = args.plannedToolSeq ?? null;
+		this.evidenceId = args.evidenceId ?? null;
+	}
+}
+
 export interface WorkflowSaveOptions {
 	readonly taskId: string;
 	readonly model?: WorkflowModel;
@@ -733,6 +761,20 @@ export class WorkflowService {
 					return this.outcome(fragment.id, taskId, 'cancelled', newEvidenceIds, 'cancelled');
 				}
 			}
+			// --- the pre-dispatch cancellation checkpoint (INV-3) ---
+			// The cooperative boundary before each tool call: the drive loop re-reads
+			// the task's state from the store BEFORE dispatching each next step. A
+			// task that became terminal 'cancelled' mid-flight (during the previous
+			// tool's execution, or while an ask gate was pending) NEVER starts this
+			// step: the run records ONE cancel-attributed evidence row and surfaces
+			// the typed cancellation outcome (never a silent success, never a fake
+			// completion - the remaining tool calls are simply not made).
+			const taskNow = await this.tasks.getTask(taskId);
+			if (taskNow.status === 'cancelled') {
+				const observation = await this.recordCancelledObservation(fragment, taskId, { plannedToolSeq: step.seq, where: `tool boundary ${String(step.seq)}` });
+				await this.recordHistory(fragment, taskId, newEvidenceIds);
+				throw new WorkflowRunCancelledError({ taskId, workflowId: fragment.id, plannedToolSeq: step.seq, evidenceId: observation.evidenceId, where: `tool boundary ${String(step.seq)}` });
+			}
 			const result = await options.executor(step);
 			toolIndex += 1;
 			const artifact = await this.writeArtifact(taskId, toolIndex, result.output);
@@ -764,31 +806,44 @@ export class WorkflowService {
 			}
 		}
 
-		await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'agent', type: 'report', payload: { workflowId: fragment.id, tools: fragment.tools.length } });
+		// --- report + verification + sign-off (INV-3 level 3: a run already past
+		// its last checkpoint appends transitions for a task that may have become
+		// terminal 'cancelled' underneath it - the store surfaces the TYPED
+		// stale-run/cancelled-observed outcome (StaleRunCancelledError), the runner
+		// unwinds cleanly with the propagated cancellation recorded; every other
+		// illegal transition still throws the generic state-machine error) ---
+		try {
+			await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'agent', type: 'report', payload: { workflowId: fragment.id, tools: fragment.tools.length } });
 
-		// --- verification (replay = verification by re-deriving, DL-20 posture) ---
-		const verdict = await this.ledger.verify();
-		if (verdict.ok) {
-			await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'tool', type: 'verify-pass', payload: { rows: verdict.rows, workflowId: fragment.id } });
-		} else {
-			await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'agent', type: 'verify-fail', payload: { rows: verdict.rows, firstBadSeq: verdict.firstBadSeq ?? null, workflowId: fragment.id } });
-			await this.recordHistory(fragment, taskId, newEvidenceIds);
-			return this.outcome(fragment.id, taskId, 'execute', newEvidenceIds, 'verify-fail');
-		}
-
-		// --- human gate 2: sign-off ---
-		if (mode === 'ask') {
-			const decision = await ask('sign-off', fragment);
-			if (decision === 'skip') {
+				const verdict = await this.ledger.verify();
+			if (verdict.ok) {
+				await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'tool', type: 'verify-pass', payload: { rows: verdict.rows, workflowId: fragment.id } });
+			} else {
+				await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'agent', type: 'verify-fail', payload: { rows: verdict.rows, firstBadSeq: verdict.firstBadSeq ?? null, workflowId: fragment.id } });
 				await this.recordHistory(fragment, taskId, newEvidenceIds);
-				return this.outcome(fragment.id, taskId, 'awaiting-signoff', newEvidenceIds, 'awaiting-signoff');
+				return this.outcome(fragment.id, taskId, 'execute', newEvidenceIds, 'verify-fail');
 			}
-			if (decision !== 'sign-off') {
-				throw new Error(`flauz.workflow.run: ask port returned an invalid sign-off decision '${String(decision)}'`);
+
+			// --- human gate 2: sign-off ---
+			if (mode === 'ask') {
+				const decision = await ask('sign-off', fragment);
+				if (decision === 'skip') {
+					await this.recordHistory(fragment, taskId, newEvidenceIds);
+					return this.outcome(fragment.id, taskId, 'awaiting-signoff', newEvidenceIds, 'awaiting-signoff');
+				}
+				if (decision !== 'sign-off') {
+					throw new Error(`flauz.workflow.run: ask port returned an invalid sign-off decision '${String(decision)}'`);
+				}
+				await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'human', type: 'sign-off', payload: { gate: 'sign-off', asked: true } });
+			} else {
+				await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'human', type: 'sign-off', payload: { gate: 'sign-off', replayed: true, workflowId: fragment.id } });
 			}
-			await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'human', type: 'sign-off', payload: { gate: 'sign-off', asked: true } });
-		} else {
-			await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'human', type: 'sign-off', payload: { gate: 'sign-off', replayed: true, workflowId: fragment.id } });
+		} catch (error) {
+			if (error instanceof StaleRunCancelledError) {
+				await this.recordCancelledObservation(fragment, taskId, { where: 'post-tool transitions' });
+				await this.recordHistory(fragment, taskId, newEvidenceIds);
+			}
+			throw error;
 		}
 
 		await this.recordHistory(fragment, taskId, newEvidenceIds);
@@ -797,6 +852,40 @@ export class WorkflowService {
 
 	private outcome(workflowId: string, taskId: string, status: string, evidenceIds: readonly string[], stopped: WorkflowRunOutcome['stopped']): WorkflowRunOutcome {
 		return { workflowId, taskId, status, evidenceIds, ledger: { ok: true, rows: 0 }, stopped };
+	}
+
+	/**
+	 * Record ONE cancel-attributed evidence row + observational task event for a
+	 * run that observed the task terminal 'cancelled' (INV-3). The attribution
+	 * carries the ACTOR OF THE RECORDED CANCEL (a human cancel attributes as
+	 * human); the evidence row is a ledger 'note' whose sha256 binds the canonical
+	 * cancellation facts; the task event is observational (never a transition), so
+	 * the task stays terminal 'cancelled'.
+	 */
+	private async recordCancelledObservation(fragment: WorkflowFragment, taskId: string, info: { plannedToolSeq?: number; where: string }): Promise<{ evidenceId: string; cancelActor: string }> {
+		const taskNow = await this.tasks.getTask(taskId);
+		const cancelEvent = taskNow.events.find(event => event.type === 'cancel');
+		const cancelActor = cancelEvent?.actor ?? 'human';
+		const facts = {
+			workflowId: fragment.id,
+			taskId,
+			reason: 'downstream-stopped',
+			where: info.where,
+			...(info.plannedToolSeq !== undefined ? { plannedToolSeq: info.plannedToolSeq } : {}),
+			cancelActor,
+		};
+		const appended = await this.ledger.append(taskId, {
+			kind: 'note',
+			uri: `flauz-workflow-cancel://${fragment.id}/${info.where.replace(/[^a-z0-9]+/gi, '-')}`,
+			sha256: sha256Hex(JSON.stringify(facts)),
+		});
+		await this.tasks.appendEvent(taskId, {
+			ts: this.clock(),
+			actor: cancelActor,
+			type: 'cancel-attribution',
+			payload: { ...facts, evidenceId: appended.evidenceId, seq: appended.seq },
+		});
+		return { evidenceId: appended.evidenceId, cancelActor };
 	}
 
 	private async recordHistory(fragment: WorkflowFragment, taskId: string, evidenceIds: readonly string[]): Promise<void> {

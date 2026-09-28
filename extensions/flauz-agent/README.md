@@ -118,6 +118,65 @@ the AUTHORITATIVE wire spec):
   replay) - proposals only; nothing is implemented behind the registry's
   back.
 
+## Durable-orchestration cancellation + concurrent-append semantics (FLAUZ-TL2-F1)
+
+The two Agent OS battery contracts this lane implemented (INV-3
+cancellation-propagation, INV-6 concurrent-append integrity; see
+`test/orchestration.cancellationConcurrency.test.ts` and the workflow-side
+implementations in flauz-workspace/flauz-workflow):
+
+**INV-3 — cancellation propagation (three levels, `core/runtime.mjs` +
+`core/orchStore.mjs` + `core/orchestration.mjs`):**
+
+1. *Downstream gate* — the drive loop re-reads the graph state from the store
+   BEFORE dispatching each next step; a terminal `cancelled` graph never
+   starts a subsequent step. When the gate trips, the drive appends ONE
+   `cancel-observed` journal row (a new OBSERVATIONAL event type: payload
+   `{reason: 'downstream-stopped', note?}`, `evidenceId?` when minted) whose
+   actor is THE RECORDED CANCEL'S ACTOR (the `cancel-requested` row's actor —
+   attribution propagation), mints its ledger evidence row through the DL-60
+   evidence-bearing path, and returns the typed cancellation outcome
+   (`DriveReport.cancelled === true` + `DriveReport.cancelObservation`).
+2. *In-flight abort* — after the effect sink resolves and before the step
+   transition is recorded, the drive re-reads the state; a step (or graph)
+   cancelled mid-flight is NEVER completed (no fake `step-succeeded`): the
+   abort is recorded the same attributed way (reason `'in-flight-abort'`) and
+   the drive unwinds with the typed outcome.
+3. *Typed propagation record* — a runner already past its last checkpoint that
+   appends a TRANSITION into a terminal-cancelled graph/step gets the TYPED
+   stale-run/cancelled-observed outcome from the store
+   (`OrchestrationError` code `'stale-run-cancelled'`, message retaining the
+   state-machine detail) instead of the generic illegal-transition crash —
+   `orchStore.assertNotStaleRun` gates both `previewRow` and
+   `appendCandidate`; every OTHER illegal transition keeps the generic error.
+   At the seam the closed `flauz.orch.err.*` taxonomy is unchanged (the code
+   maps onto `illegal-transition`); promoting it to a first-class
+   `flauz.orch.err.stale-run-cancelled` is a versioned additive proposal.
+
+**INV-6 — the serialized-append discipline (DL-75, every ledger append under
+`flauz-agent/core`):**
+
+- The orchestration journal's EVERY append now rides the store transition
+  lock: the previously-unlocked call sites (`submitGraph`'s
+  `graph-submitted`, the runtime's `step-retry-scheduled` /
+  dependency-failure `step-cancelled`, and all six recovery-pass rows) route
+  through `appendRowLocked` (lock -> append). The in-lock call sites use the
+  guard-free `appendRowInternal` half, while the PUBLIC `appendRow` REFUSES
+  any direct write while a serialized operation is in flight or queued
+  (code `'lock-violation'`) — a lock-free direct write is impossible through
+  the public API under contention, and a bypassed candidate still fails the
+  journal-head assertion fail-closed.
+- The evidence ledger (`WorkspaceSeam.appendEvidence`) and the A2A journal
+  (`A2ABus.post`) are synchronous single-owner stores (the stdio service
+  loop) with no mint->append interleaving window by construction — audited,
+  documented, unchanged.
+- The workflow-side product surface carries the same laws (the battery's
+  measured contracts): the flauz-workspace `EvidenceLedger.append` settles
+  every append (re-read + own-line repair of the deterministic lost-update
+  rendezvous), and the flauz-workflow `WorkflowService.run` gates each tool
+  dispatch on the task state with the typed
+  `WorkflowRunCancelledError`/`StaleRunCancelledError` outcomes.
+
 ## Golden path
 
 request → createTask → submit-plan → **/approve** (human) → terminal tool

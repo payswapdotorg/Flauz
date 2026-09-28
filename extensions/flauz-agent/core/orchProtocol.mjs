@@ -242,6 +242,13 @@ export const ORCHESTRATION_ERROR_CODE_MAP = {
 	'unknown-graph': ORCH_FAILURE_CODES.UNKNOWN_GRAPH,
 	'unknown-step': ORCH_FAILURE_CODES.UNKNOWN_STEP,
 	'illegal-transition': ORCH_FAILURE_CODES.ILLEGAL_TRANSITION,
+	// FLAUZ-TL2-F1 (INV-3 level 3): the store's typed cancelled-observed
+	// outcome. Maps onto the existing wire failure (the closed flauz.orch.err.*
+	// taxonomy is unchanged at the seam); the store-level code + message carry
+	// the stale-run distinction for runners. Promoting it to a first-class
+	// flauz.orch.err.stale-run-cancelled code is a versioned additive protocol
+	// proposal (see the lane REPORT).
+	'stale-run-cancelled': ORCH_FAILURE_CODES.ILLEGAL_TRANSITION,
 	'corrupt-graphs': ORCH_FAILURE_CODES.INTERNAL,
 	'corrupt-journal': ORCH_FAILURE_CODES.INTERNAL,
 	'internal': ORCH_FAILURE_CODES.INTERNAL,
