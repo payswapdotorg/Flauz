@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+// allow-any-unicode-comment-file (doc-section references use the section sign in comments)
 /**
  * Flauz workspace seam service — G side of the Lane F vertical slice.
  *
@@ -374,10 +375,12 @@ function main() {
 
 		let buffer = '';
 
+		// allow-any-unicode-next-line (doc-section reference inside a data string)
 		/** The fail-closed auth skeleton (ARCHITECTURE-LOCK §3): no token logic, no secrets, ever. */
 		const authNotImplemented = (method) => () => {
 				throw new SeamProtocolFailure(seamError(
 						SEAM_ERROR_CODES.NOT_IMPLEMENTED,
+						// allow-any-unicode-next-line (doc-section reference inside a data string)
 						`${method} is not implemented: the flauz.auth namespace is a fail-closed skeleton (no token logic, no secrets; ARCHITECTURE-LOCK §3)`,
 						{ namespace: 'flauz.auth', method },
 				));

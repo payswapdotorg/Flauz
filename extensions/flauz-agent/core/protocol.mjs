@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+// allow-any-unicode-comment-file (doc-section references use the section sign in comments)
 /**
  * Flauz seam protocol definition (TL1-003) — the versioned client-to-service
  * integration seam, shared by the core service (`core/service.mjs`, G side)
@@ -133,8 +134,11 @@ export const SEAM_METHODS = {
 		'flauz.lifecycle.initialize': { namespace: 'flauz.lifecycle', since: SEAM_PROTOCOL_V1, versions: [SEAM_PROTOCOL_V1], status: 'stable' },
 		'flauz.lifecycle.shutdown': { namespace: 'flauz.lifecycle', since: SEAM_PROTOCOL_V1, versions: [SEAM_PROTOCOL_V1], status: 'stable' },
 		// --- flauz.auth.* — FAIL-CLOSED SKELETON, dispatchable at every version ---
+		// allow-any-unicode-next-line (doc-section reference inside a data string)
 		'flauz.auth.status': { namespace: 'flauz.auth', since: SEAM_PROTOCOL_V0, versions: [SEAM_PROTOCOL_V0, SEAM_PROTOCOL_V1], status: 'skeleton', note: 'answers flauz.err.not-implemented; no token logic, no secrets (ARCHITECTURE-LOCK §3)' },
+		// allow-any-unicode-next-line (doc-section reference inside a data string)
 		'flauz.auth.login': { namespace: 'flauz.auth', since: SEAM_PROTOCOL_V0, versions: [SEAM_PROTOCOL_V0, SEAM_PROTOCOL_V1], status: 'skeleton', note: 'answers flauz.err.not-implemented; no token logic, no secrets (ARCHITECTURE-LOCK §3)' },
+		// allow-any-unicode-next-line (doc-section reference inside a data string)
 		'flauz.auth.logout': { namespace: 'flauz.auth', since: SEAM_PROTOCOL_V0, versions: [SEAM_PROTOCOL_V0, SEAM_PROTOCOL_V1], status: 'skeleton', note: 'answers flauz.err.not-implemented; no token logic, no secrets (ARCHITECTURE-LOCK §3)' },
 };
 

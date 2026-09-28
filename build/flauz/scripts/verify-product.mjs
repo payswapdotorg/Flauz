@@ -2,6 +2,7 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
+// allow-any-unicode-comment-file (doc-section references use the section sign in comments)
 // ---------------------------------------------------------------------------------------------
 // Flauz — TL1-002 (product build/release shell). verify-product.mjs — the merged
 // product posture gate. Runbook: build/flauz/RELEASE-SHELL.md.
