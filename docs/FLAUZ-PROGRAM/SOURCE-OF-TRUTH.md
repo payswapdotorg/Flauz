@@ -2,74 +2,99 @@
 
 Repository: payswapdotorg/Flauz
 Product branch: main
-Current product head at verification: 0fb23ff106e9807bc6dbf9e0bdb3974e8655d102
+Verified integrated head: 8ddeaae20004f87da5756ab79a07fab577e8827f
+Verification date: 2026-09-28
 
-This repository and the product branch are sufficient to operate the Flauz engineering program without prior chat history.
+This repository is the sole operational source of truth for the Flauz engineering program. Chat history, prior model outputs, external lab notes, and stale status snapshots are not authoritative.
 
-## Branch policy
-
-- main is the canonical integrated Flauz product line.
-- upstream/main is the upstream Code OSS reference line and must not receive ordinary Flauz feature work.
-- Product work starts from main.
-- Every product PR targets main.
-- Upstream synchronization is owned by TL1 and must be recorded in the work registry.
-- Never infer product state from upstream/main.
-- Never create another Code OSS fork for Flauz.
-
-## Authority order
+## Canonical authority
 
 When sources disagree, use this order:
 
-1. Integrated code on main.
-2. docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md.
-3. docs/FLAUZ-PROGRAM/WORK-REGISTRY.md.
-4. docs/FLAUZ-PROGRAM/CURRENT-STATE.md.
-5. TL handoff documents in this directory.
+1. The actual integrated code and configuration on `main`.
+2. `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`.
+3. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`.
+4. `docs/FLAUZ-PROGRAM/CURRENT-STATE.md`.
+5. `docs/FLAUZ-PROGRAM/TL1-HANDOFF.md` through `TL4-HANDOFF.md`.
 6. Historical lab artifacts and reports.
 
-The companion payswapdotorg/flauz-code-lab repository is historical research/evidence. It is not required to operate this program.
+A document is subordinate to the integrated tree. It must never override code, tests, CI evidence, or a newer registry entry.
 
-## Current control-plane reconciliation — 2026-09-27
+## Branch policy
 
-- Verified integrated product head on `main`: `0fb23ff106e9807bc6dbf9e0bdb3974e8655d102` (documentation-only Agent OS surge setup merge).
-- No open pull requests were present at verification time.
-- Recent integrated work includes TL3 browser/security/environment waves plus TL4 security/release, session-battery and hygiene work; the exact current `main` tree is authoritative over stale control-plane annotations.
-- This reconciliation is documentation-only and does not change ownership, branch strategy or the active work lanes of TL1, TL2, TL3 or TL4.
-- The external-agent interoperability decision is intentionally downstream of TL1-003: no CopilotKit/OpenMuse runtime dependency is introduced.
+- `main` is the canonical integrated Flauz product line.
+- `upstream/main` is the preserved Code OSS reference line and must not receive ordinary Flauz feature work.
+- Every Flauz product PR targets `main`.
+- Product state is never inferred from `upstream/main`.
+- Never create a second Code OSS fork for Flauz.
+- Any temporary TL worker branch must either merge to `main`, be explicitly superseded, or be deleted; an unmerged branch is not product state.
+
+## Control-plane invariants
+
+Every material change to Flauz must leave the repository internally self-describing:
+
+- the implementation is on `main`;
+- the responsible TL and work-item status are recorded in `WORK-REGISTRY.md`;
+- architecture changes are recorded in `ARCHITECTURE-LOCK.md` or an explicitly linked decision record;
+- current integrated state is reflected in `CURRENT-STATE.md`;
+- the owning TL handoff records what is complete, what remains, and the exact verification evidence;
+- no document may claim a newer state than the integrated `main` tree.
+
+The control plane is updated in the same merge wave as the work it describes.
+
+## Current reconciliation — 2026-09-28
+
+- Verified latest integrated `main` head: `8ddeaae20004f87da5756ab79a07fab577e8827f`.
+- The latest head is the TL2-S3 CI-evidence addendum.
+- The TL2 Agent OS surge is closed and all three seconded workers are released to their home TLs.
+- All registered TL1/TL2/TL3/TL4 work items are marked DONE at their recorded rungs.
+- Completion of a work item does not mean every runtime hardening opportunity is closed. Concrete remaining findings are registered below in `WORK-REGISTRY.md` and summarized in `CURRENT-STATE.md`.
+- There is no CopilotKit or OpenMuse runtime dependency. Any future AG-UI integration remains an additive client/projection behind the native Flauz service boundary.
 
 ## Completion law
 
-A work item is complete only when:
-- implementation is on main;
-- targeted tests pass;
-- relevant CI passes;
-- the exact commit/PR is recorded;
-- the work item is marked DONE in the registry;
-- any architecture decision is recorded;
-- prototype-only behavior is explicitly distinguished from production behavior.
+A work item is DONE only when:
 
-## No-chat rule
+- implementation is integrated on `main`;
+- targeted tests and required CI evidence are present;
+- the exact PR/commit is recorded;
+- the work item is marked DONE in `WORK-REGISTRY.md`;
+- architecture decisions are recorded where applicable;
+- prototype, fixture, simulated, and runtime evidence are explicitly distinguished.
 
-Do not ask the user what to do next merely because the previous chat session ended.
+A documented FAIL, SKIP, or runtime residual is not silently promoted to PASS.
 
-On startup:
-1. read this file;
-2. read CURRENT-STATE.md;
-3. read ARCHITECTURE-LOCK.md;
-4. read WORK-REGISTRY.md;
-5. read your TL handoff;
-6. pick the highest-priority unblocked work item in your lane;
-7. execute it;
-8. update the registry before handing off.
+## No-chat bootstrap
+
+A new TL, worker, or architect must be able to recover the program without prior conversation:
+
+1. Read this file.
+2. Read `ARCHITECTURE-LOCK.md`.
+3. Read `WORK-REGISTRY.md`.
+4. Read `CURRENT-STATE.md`.
+5. Read the assigned TL handoff.
+6. Inspect the actual `main` tree and current CI evidence before making claims.
+7. Take only the next unblocked registry item or explicitly authorized hardening item.
+
+## Final handoff map
+
+- TL1: `TL1-HANDOFF.md` — Code OSS substrate, upstream compatibility, build and service seam.
+- TL2: `TL2-HANDOFF.md` — Agent OS, orchestration, providers, memory, approvals, workflows and A2A.
+- TL3: `TL3-HANDOFF.md` — Browser, environment, resource graph and continuity.
+- TL4: `TL4-HANDOFF.md` — Product UX, compatibility, runtime verification, performance and release quality.
 
 ## Program structure
 
-extensions/flauz-agent — agent bridge and Flauz runtime seam
-extensions/flauz-browser — browser policy/security seam
-extensions/flauz-environments — environment registry/provider seam
-extensions/flauz-models — multi-model provider seam
-extensions/flauz-workflow — reusable workflow envelope seam
-extensions/flauz-workspace — workspace task/evidence seam
-build/flauz — product packaging, canaries, guards and performance tooling
-test/fixtures — contract and conformance fixtures
-docs/FLAUZ-PROGRAM — authoritative program control plane
+- `extensions/flauz-agent` — agent bridge and Flauz runtime seam
+- `extensions/flauz-browser` — browser policy/security/runtime seam
+- `extensions/flauz-environments` — environment lifecycle/provider seam
+- `extensions/flauz-models` — multi-model provider seam
+- `extensions/flauz-workflow` — reusable workflow envelope seam
+- `extensions/flauz-workspace` — workspace/task/evidence seam
+- `extensions/flauz-resources` — logical resource graph and continuity bridge
+- `extensions/flauz-execution` — Agent OS execution-resource integration
+- `build/flauz` — packaging, canaries, guards and performance/release tooling
+- `test/fixtures` — contract and conformance fixtures
+- `docs/FLAUZ-PROGRAM` — authoritative engineering control plane
+
+The companion `payswapdotorg/flauz-code-lab` repository is historical research/evidence only. It is not required to reconstruct, operate, or hand off the Flauz program.
