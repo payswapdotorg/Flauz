@@ -13,10 +13,12 @@ Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 ## TL1 — Substrate, upstream compatibility and product integration
 
 ### TL1-001 — Upstream synchronization lane
-Status: ACTIVE
+Status: DONE (PR #10, merge a72eb663, 2026-09-27)
 Maintain a deterministic upstream-sync process from the Code OSS reference line into the product line. Preserve Flauz additions and record merge conflicts/decisions.
 
 Acceptance: repeatable sync procedure, current diff report, no accidental upstream-only regressions.
+
+Merge record (2026-09-27, TL1 lead): PR #10 merged to main at `a72eb663` (branch `feat/tl1-001-upstream-sync`, 6 commits incl. two integration merges during gating — the drift-integration flow). Delivered: deterministic upstream-sync report/plan tool, delta report vs upstream/main, CI wiring. Status DONE.
 
 ### TL1-002 — Product build/release shell
 Status: TODO
@@ -31,10 +33,12 @@ Establish the smallest stable client-to-Flauz-service IPC/API seam for commands,
 Acceptance: versioned protocol usable by every feature TL without direct implementation coupling.
 
 ### TL1-004 — Core-change budget
-Status: ACTIVE
+Status: DONE (PR #16, merge aff162d9, 2026-09-28)
 Audit all Flauz core patches, retire unnecessary ones, and keep the fork-critical guard at zero unless explicitly approved.
 
 Progress note (2026-09-27, Worker A, second dispatch, branch `feat/tl1-004-core-budget`, base `bfeb5e2df91`): the core-change budget landed at `docs/FLAUZ-PROGRAM/CORE-CHANGE-BUDGET.md`. Census at the pinned base (`git diff --name-status upstream/main...HEAD` + `sync-upstream.mjs --report`): 888 paths — 886 ADDITIVE / 2 SHARED-FILE CHANGE (`.eslint-allowed-javascript-files` +32/−0, `AGENTS.md` +39/−3, both allowlisted), 0 unallowlisted divergences, src/vs pristine (guard PASS exit 0; escape hatch `src/vs/workbench/contrib/flauz` unused/absent). Ledger: records CB-1/CB-2 with the four ARCHITECTURE-LOCK §4 fields, census summary table, ZERO-FORK-CRITICAL assertion with guard evidence, per-family template (F1–F5) for future core patches. Retirement verdicts: KEEP ×2 — nothing behavioral to retire, verified honestly (both shared-file changes are non-runtime; allowlist audit 23/23 lines live, 0 stale; no retirement proposed for execution). Guard integrity fix (surgical, `flauz-hygiene.yml` only): (a) push triggers now `[flauz/main, main]` — pushes to main previously bypassed the hygiene gate entirely post-reset; (b) the guard's "pristine base" now fetches `origin upstream/main` (the upstream-sync job's own fetch pattern) and runs `--base origin/upstream/main` — the old `--base origin/main` compared product-vs-product (PR delta only, never the accumulated upstream divergence). Gates: census verbatim, guard exit 0, YAML OK (python3 + pyyaml 6.0.3 parse + structural checks), verify-fixtures ALL 105 CASES AS EXPECTED (0 deviations), TL1-001 gates cited (sync census CLEAN exit 0; `node --test sync-upstream.test.mjs` 12/12). Follow-ups recorded in the ledger §9 (sibling push triggers F-1, machine-checkable ledger validator F-2, UPSTREAM-DELTA.md refresh F-3, path-filter residual gap F-4). Status stays ACTIVE pending merge to main + green CI (SOURCE-OF-TRUTH completion law — DONE is the Lead's flip).
+
+Merge record (2026-09-28, TL1 lead): branch `feat/tl1-004-core-budget` merged to main at `aff162d9` (PR #16; core-change budget ledger: 888-path census, 886 additive / 2 allowlisted shared-file / 0 fork-critical; fork-critical guard PASS — src/vs pristine outside contrib/flauz). Gate judgment: all completed check failures identical to merged PR #15's platform-wide pre-existing set (hygiene/perf/macOS/Linux-Remote); Packaging reproducibility green; PR #10/#14/#15 merge precedents applied. Status DONE.
 
 ### TL1-005 — Web/desktop packaging parity
 Status: TODO
