@@ -225,3 +225,13 @@ test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/notebook/browser/n
 test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/preferences/browser/preferences.contribution.js
 test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/quickaccess/browser/quickAccess.contribution.js
 test/fixtures/compat-l3/fake-out-missing/vs/workbench/contrib/scm/browser/scm.contribution.js
+
+
+# Flauz TL2-A durable orchestration runtime (zero-dep .mjs core, G side)
+extensions/flauz-agent/core/orchestration.mjs
+extensions/flauz-agent/core/orchStore.mjs
+extensions/flauz-agent/core/policy.mjs
+extensions/flauz-agent/core/recovery.mjs
+
+# Flauz TL2-A orchestration executor (zero-dep .mjs, G side)
+extensions/flauz-agent/core/runtime.mjs

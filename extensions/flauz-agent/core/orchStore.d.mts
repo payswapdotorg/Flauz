@@ -1,0 +1,106 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+/**
+ * Type declarations for `core/orchStore.mjs` (the orchestration store).
+ * Hand-written per the zero-dependency discipline (contracts.d.mts pattern).
+ */
+
+import type { GraphRecord, JournalRow, OrchestrationError } from './orchestration.d.mts';
+
+export declare class OrchestrationStoreError extends OrchestrationError {}
+
+/** The workspace-seam port the store links through (WorkspaceSeam in service wiring; fakes in tests). */
+export interface TaskPort {
+	createTask(args: { title: string }): Promise<{ taskId: string }>;
+	appendEvent(args: { taskId: string; event: Record<string, unknown> }): Promise<{ task: unknown }>;
+	appendEvidence(args: { taskId: string; row: { kind: string; uri: string; sha256: string; note?: string } }): Promise<{ evidenceId: string; seq: number }>;
+}
+
+export interface StoreOptions {
+	taskPort?: TaskPort | null;
+	clock?: () => number;
+}
+
+export interface EvidenceItemInput {
+	kind: string;
+	uri: string;
+	sha256: string;
+}
+
+export declare class OrchestrationStore {
+	constructor(root: string, options?: StoreOptions);
+
+	root: string;
+	graphs: GraphRecord[];
+	journalRows: JournalRow[];
+	tornTail: { line: string; reason: string } | null;
+	taskPort: TaskPort | null;
+
+	load(): void;
+	saveGraphs(): void;
+	requireGraph(graphId: string): GraphRecord;
+	rowsFor(graphId: string): JournalRow[];
+	stateOf(graphId: string): import('./orchestration.d.mts').DerivedGraphState;
+	verifyJournal(): { ok: boolean; rows: number; firstBadSeq?: number };
+	getGraphState(graphId: string): Record<string, unknown>;
+	listGraphs(): Array<{ graphId: string; taskId: string | null; title: string; graphStatus: string; execution: unknown }>;
+
+	submitGraph(input: {
+		title: string;
+		steps: Array<Record<string, unknown>>;
+		policy?: Record<string, unknown>;
+		taskId?: string;
+		actor?: string;
+		origin?: string;
+	}): Promise<{ graphId: string; taskId: string | null; stepIds: string[]; rowId: string }>;
+
+	approveGraph(input: { graphId: string; actor: string; origin: string; note?: string }): JournalRow;
+	rejectGraph(input: { graphId: string; actor: string; origin: string; note?: string }): JournalRow;
+	completeGraph(input: { graphId: string; actor: string; origin: string }): JournalRow;
+	failGraph(input: { graphId: string; failedStepId: string; actor: string; origin: string }): JournalRow;
+
+	startStep(input: { graphId: string; stepId: string; runnerId: string; actor?: string; origin: string }): { attempt: number; idempotencyKey: string; rowId: string };
+	finishStep(input: {
+		graphId: string;
+		stepId: string;
+		attempt?: number;
+		outcome: 'succeeded' | 'failed';
+		output?: string;
+		message?: string;
+		error?: unknown;
+		failureClass?: string;
+		retryPlanned?: boolean;
+		evidence?: EvidenceItemInput[];
+		actor?: string;
+		origin: string;
+	}): Promise<JournalRow>;
+	retryStep(input: { graphId: string; stepId: string; actor?: string; origin: string }): JournalRow;
+	cancelGraph(input: { graphId: string; reason?: string; actor: string; origin: string }): Promise<{ cancelledSteps: string[] }>;
+
+	approvalRequest(input: { graphId: string; stepId: string; reason: string; actor?: string; origin: string }): JournalRow;
+	approvalDecide(input: { graphId: string; stepId: string; decision: 'granted' | 'denied'; note?: string; actor: string; origin: string }): JournalRow;
+	takeoverRequest(input: { graphId: string; stepId: string; reason?: string; actor: string; origin: string }): JournalRow;
+	takeoverAccept(input: { graphId: string; stepId: string; note?: string; actor: string; origin: string }): JournalRow;
+	takeoverComplete(input: { graphId: string; stepId: string; summary?: string; evidence?: EvidenceItemInput[]; actor: string; origin: string }): Promise<JournalRow>;
+
+	acquireClaim(input: { graphId: string; stepId: string; holder: string; actor?: string; origin: string }): JournalRow;
+	releaseClaim(input: { graphId: string; stepId: string; actor?: string; origin: string }): JournalRow;
+	acquireLease(input: { graphId: string; stepId: string; holder: string; ttlMs: number; actor?: string; origin: string }): JournalRow;
+	renewLease(input: { graphId: string; stepId: string; ttlMs: number; actor?: string; origin: string }): JournalRow;
+	releaseLease(input: { graphId: string; stepId: string; actor?: string; origin: string }): JournalRow;
+	noticeConflict(input: { graphId: string; stepId: string; violation: string; expectedHolder: string; actualRunner: string; note?: string; actor?: string; origin: string }): JournalRow;
+
+	routeDecide(input: { graphId: string; stepId?: string | null; targetAgent: string; reason: string; details?: Record<string, unknown>; actor?: string; origin: string }): JournalRow;
+	delegationSent(input: { graphId: string; stepId?: string | null; decisionRowId: string; messageId: string; actor?: string; origin: string }): JournalRow;
+	receiveResult(input: { graphId: string; stepId: string; messageId: string; outcome: string; summary: string; evidenceIds?: string[]; actor?: string; origin: string }): Promise<JournalRow>;
+
+	policyFor(graph: GraphRecord, step: { retryPolicy?: RetryPolicyShape | null }): RetryPolicyShape;
+}
+
+export interface RetryPolicyShape {
+	maxAttempts: number;
+	backoff: { kind: string; baseMs: number; maxMs?: number };
+	retryOn: string[];
+}
