@@ -186,8 +186,8 @@ test('negotiation table: absent/null/non-array -> v0; array -> highest mutual; n
 		ok(!verdict.ok, `offering ${JSON.stringify(mismatch)} must be rejected`);
 		if (!verdict.ok) {
 			strictEqual(verdict.error.code, 'flauz.err.unsupported-version');
-			deepStrictEqual(verdict.error.details?.['supported'], [SEAM_PROTOCOL_V0, SEAM_PROTOCOL_V1]);
-			deepStrictEqual(verdict.error.details?.['requested'], mismatch.filter((entry) => typeof entry === 'string'));
+			deepStrictEqual(verdict.error.details?.supported, [SEAM_PROTOCOL_V0, SEAM_PROTOCOL_V1]);
+			deepStrictEqual(verdict.error.details?.requested, mismatch.filter((entry) => typeof entry === 'string'));
 		}
 	}
 });
@@ -260,7 +260,7 @@ test('v1 negotiation (client direction): ready carries protocolVersion + capabil
 		if (caught instanceof SeamProtocolError) {
 			strictEqual(caught.code, 'flauz.err.unknown-method');
 			strictEqual(caught.message, 'unknown command: flauz.nope');
-			strictEqual(caught.details?.['method'], 'flauz.nope');
+			strictEqual(caught.details?.method, 'flauz.nope');
 		}
 	} finally {
 		await client.dispose();
@@ -353,7 +353,7 @@ test('unknown-method under v1 is structured with the method detail; v1 methods a
 		const error = structuredErrorOf(unknown);
 		strictEqual(error.code, 'flauz.err.unknown-method');
 		strictEqual(error.message, 'unknown command: flauz.definitely.not.real');
-		strictEqual(error.details?.['method'], 'flauz.definitely.not.real');
+		strictEqual(error.details?.method, 'flauz.definitely.not.real');
 
 		const rawError = unknown.raw;
 		ok(rawError.includes('"error":{"code":"flauz.err.unknown-method"'), 'the v1 error object serializes inside the response envelope');

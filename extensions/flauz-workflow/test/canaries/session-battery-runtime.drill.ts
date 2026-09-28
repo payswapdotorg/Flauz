@@ -216,8 +216,8 @@ class RecordingWebSocketCdpTransport extends WebSocketCdpTransport {
 
 	protected postMessage(payload: Record<string, unknown>): void {
 		this.sentFrames.push({
-			method: typeof payload['method'] === 'string' ? payload['method'] : '',
-			sessionId: typeof payload['sessionId'] === 'string' ? payload['sessionId'] : undefined,
+			method: typeof payload.method === 'string' ? payload.method : '',
+			sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
 		});
 		super.postMessage(payload);
 	}
@@ -498,7 +498,7 @@ async function bootRuntimeWorkspace(): Promise<RuntimeWorkspace> {
 		connection: { authorityPrefix: 'flauz-local' },
 		trust: { posture: 'unknown', inheritsWorkspaceTrust: false },
 		capabilities: { agentHost: true, browser: true, exec: true, terminal: true },
-	} as never);
+	});
 	const envExecutor = new LocalProcessExecutor({
 		root,
 		fs,
@@ -1001,46 +1001,46 @@ function checkTranscriptInvariants(doc: unknown, label: string): string[] {
 		return violations;
 	}
 	const transcript = doc as Record<string, unknown>;
-	if (transcript['schema'] !== RUNTIME_SCHEMA_ID) {
-		fail(`${label}.schema: expected ${RUNTIME_SCHEMA_ID}, got ${JSON.stringify(transcript['schema'])}`);
+	if (transcript.schema !== RUNTIME_SCHEMA_ID) {
+		fail(`${label}.schema: expected ${RUNTIME_SCHEMA_ID}, got ${JSON.stringify(transcript.schema)}`);
 	}
 	for (const section of ['golden', 'recovery', 'failClosed', 'continuity']) {
 		if (typeof transcript[section] !== 'object' || transcript[section] === null) {
 			fail(`${label}.${section}: missing`);
 		}
 	}
-	const golden = transcript['golden'] as Record<string, unknown> | undefined;
+	const golden = transcript.golden as Record<string, unknown> | undefined;
 	if (golden !== undefined) {
-		const task = golden['task'] as Record<string, unknown> | undefined;
-		if (Array.isArray(task?.['events']) && (task!['events'] as string[]).join(',') !== 'agent:submit-plan,human:approve,tool:evidence,agent:report,tool:verify-pass,human:sign-off,tool:workflow-saved') {
+		const task = golden.task as Record<string, unknown> | undefined;
+		if (Array.isArray(task?.events) && (task!.events as string[]).join(',') !== 'agent:submit-plan,human:approve,tool:evidence,agent:report,tool:verify-pass,human:sign-off,tool:workflow-saved') {
 			fail(`${label}.golden.task.events: the golden event spine is not the catalogue sequence`);
 		}
-		const browser = golden['browser'] as Record<string, unknown> | undefined;
+		const browser = golden.browser as Record<string, unknown> | undefined;
 		if (browser !== undefined) {
-			if (JSON.stringify(browser['journalEvents']) !== JSON.stringify(['open', 'close'])) {
+			if (JSON.stringify(browser.journalEvents) !== JSON.stringify(['open', 'close'])) {
 				fail(`${label}.golden.browser.journalEvents: expected ["open","close"]`);
 			}
-			if (browser['driveCommandCount'] !== 1) {
-				fail(`${label}.golden.browser.driveCommandCount: expected 1 (the one allowed navigation), got ${JSON.stringify(browser['driveCommandCount'])}`);
+			if (browser.driveCommandCount !== 1) {
+				fail(`${label}.golden.browser.driveCommandCount: expected 1 (the one allowed navigation), got ${JSON.stringify(browser.driveCommandCount)}`);
 			}
-			const verdicts = browser['navigationVerdicts'];
-			if (!Array.isArray(verdicts) || verdicts.length !== 1 || typeof (verdicts[0] as Record<string, unknown>)['committedUrl'] !== 'string') {
+			const verdicts = browser.navigationVerdicts;
+			if (!Array.isArray(verdicts) || verdicts.length !== 1 || typeof (verdicts[0] as Record<string, unknown>).committedUrl !== 'string') {
 				fail(`${label}.golden.browser.navigationVerdicts: the runtime evidence row (url + decision + sent + committedUrl) is missing or malformed`);
 			}
 		}
 	}
-	const failClosed = transcript['failClosed'] as Record<string, unknown> | undefined;
+	const failClosed = transcript.failClosed as Record<string, unknown> | undefined;
 	if (failClosed !== undefined) {
-		if (failClosed['driveCommandCountAfterDeny'] !== 0) {
-			fail(`${label}.failClosed.driveCommandCountAfterDeny: the hard row must be 0 (ZERO drive commands on the deny path), got ${JSON.stringify(failClosed['driveCommandCountAfterDeny'])}`);
+		if (failClosed.driveCommandCountAfterDeny !== 0) {
+			fail(`${label}.failClosed.driveCommandCountAfterDeny: the hard row must be 0 (ZERO drive commands on the deny path), got ${JSON.stringify(failClosed.driveCommandCountAfterDeny)}`);
 		}
-		if (failClosed['navigationSent'] !== false) {
+		if (failClosed.navigationSent !== false) {
 			fail(`${label}.failClosed.navigationSent: must be false`);
 		}
 	}
-	const continuity = transcript['continuity'] as Record<string, unknown> | undefined;
-	if (continuity !== undefined && continuity['envState'] !== 'running') {
-		fail(`${label}.continuity.envState: expected running (recovered from disk), got ${JSON.stringify(continuity['envState'])}`);
+	const continuity = transcript.continuity as Record<string, unknown> | undefined;
+	if (continuity !== undefined && continuity.envState !== 'running') {
+		fail(`${label}.continuity.envState: expected running (recovered from disk), got ${JSON.stringify(continuity.envState)}`);
 	}
 	// the normalization discipline: NO raw volatile values anywhere in the
 	// pinned artifact (raw ephemeral ports, partition hex, session ids)
