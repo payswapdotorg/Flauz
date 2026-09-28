@@ -85,7 +85,7 @@ import * as nodeFsSync from 'node:fs';
 import * as os from 'node:os';
 import * as nodePath from 'node:path';
 
-import { sha256Hex, type FileSystemPort, type LedgerRow } from '../../flauz-workspace/src/api.ts';
+import { sha256Hex, type EvidenceKind, type FileSystemPort, type LedgerRow, type TaskEvent } from '../../flauz-workspace/src/api.ts';
 import { TaskService } from '../../flauz-workspace/src/taskService.ts';
 import { EvidenceLedger, rowLine } from '../../flauz-workspace/src/ledger.ts';
 import { WorkflowService, type ApprovalPort, type ToolExecutorPort } from '../src/envelope.ts';
@@ -98,6 +98,9 @@ import { FakeBrowserState, FakeCdpTransport } from '../../flauz-browser/src/cdp/
 import { FileSystemSessionJournal, type SessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';
 import { EnvironmentRegistry } from '../../flauz-environments/src/registry.ts';
 import { CloudHttpExecutor, EnvironmentLifecycleManager, SimulatedRemoteExecutor, type EnvironmentOpOutcome, type HttpPort, type LocalEnvFsPort } from '../../flauz-environments/src/lifecycle/index.ts';
+import { A2ABus } from '../../flauz-agent/core/a2a.mjs';
+import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../flauz-agent/core/leaseConflict.mjs';
+import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';
 
 // ---------------------------------------------------------------------------
 // The catalogue (permanent ids + names -- shared verbatim with the gate, the
@@ -125,8 +128,6 @@ const CATALOGUE: readonly CatalogueEntry[] = [
 
 const INVARIANT_IDS: readonly string[] = CATALOGUE.map(entry => entry.id);
 
-/** The one contract-skip of the catalogue at the pinned base (TL2-004). */
-const INV5_SKIP_REASON = 'no lease conflict contract on main (the flauz.a2a/v0 resource-claim surface is informational-only by design - AGENT-INTEGRATION section 5 records enforcement as a follow-up; concurrent claimants cannot receive a conflict error); TL2-004 pending';
 
 // ---------------------------------------------------------------------------
 // Runner capability guard (SKIP-aware on older nodes: the compiled CI unit
@@ -857,24 +858,99 @@ describe('INV-4 approval-interruption', () => {
 });
 
 // ===========================================================================
-// INV-5 -- lease-conflict (the contract-skip: no lease contract on main)
+// INV-5 -- lease-conflict (the TL2-F3 conflict contract: the journey)
 // ===========================================================================
 
+/**
+ * The evidence-minting TaskPort adapter: links the OrchestrationStore's
+ * DL-60 discipline into the battery trio's flauz.tasks/v0 services (the
+ * TaskService timeline + the EvidenceLedger hash chain - THE chain this
+ * journey verifies end-to-end).
+ */
+function batteryTaskPort(ws: BatteryWorkspace): { createTask(args: { title: string }): Promise<{ taskId: string }>; appendEvidence(args: { taskId: string; row: { kind: string; uri: string; sha256: string } }): Promise<{ evidenceId: string; seq: number }>; appendEvent(args: { taskId: string; event: Record<string, unknown> }): Promise<{ task: unknown }> } {
+	return {
+		createTask: async args => ({ taskId: (await ws.tasks.createTask(args.title)).id }),
+		appendEvidence: async args => {
+			const appended = await ws.ledger.append(args.taskId, { kind: args.row.kind as EvidenceKind, uri: args.row.uri, sha256: args.row.sha256 });
+			return { evidenceId: appended.evidenceId, seq: appended.seq };
+		},
+		appendEvent: async args => ({ task: await ws.tasks.appendEvent(args.taskId, args.event as TaskEvent) }),
+	};
+}
+
 describe('INV-5 lease-conflict', () => {
-	test('the catalogue row is an honest SKIP: the lease contract does not exist on main', { skip: RUNNER_OK ? false : RUNNER_SKIP_REASON }, () => {
-		// The hard boundary (work order): where an invariant needs a contract
-		// that does not exist yet, the row is SKIP with the exact missing
-		// contract named -- never a semantic invented by the verifier. The
-		// flauz.a2a/v0 resource-claim surface carries Claim+Lease NOTICES
-		// (informational only by design); there is no lease conflict contract
-		// to drive, and the battery does not invent one.
-		registerRow({
-			invariant: 'INV-5',
-			verdict: 'SKIP',
-			reason: INV5_SKIP_REASON,
-			assertions: { pass: 0, fail: 0 },
-			evidence: 'no journey ran: the lease conflict contract is absent on main (the A2A resource-claim notice discipline is validated by the flauz-workflow messaging tests; enforcement is a recorded follow-up)',
-		});
+	test('two concurrent claimants race one resource lease through the flauz.a2a claim path: exactly one winner; the loser receives the typed conflict; both attempts are journaled with attribution; the chains verify', { skip: RUNNER_OK ? false : RUNNER_SKIP_REASON }, async () => {
+		const recorder = new JourneyRecorder('INV-5', 'lease-conflict');
+		const ws = await bootBatteryWorkspace();
+		try {
+			// The enforcing claim path over the battery trio: an OrchestrationStore
+			// wired to the workspace services through the evidence-minting TaskPort
+			// adapter, plus the on-disk A2ABus (the flauz.a2a claim surface - the
+			// TL2-F3 conflict contract, extensions/flauz-agent/core/leaseConflict.mjs).
+			const store = new OrchestrationStore(ws.root, { taskPort: batteryTaskPort(ws), clock: steppingClock(500_000) });
+			const bus = new A2ABus(ws.root);
+			const submitted = await store.submitGraph({
+				title: 'inv5 lease-conflict graph',
+				steps: [{ stepId: 'S-01', title: 'contended shared work', instruction: 'two agents race for the lease' }],
+				actor: 'agent',
+				origin: 'battery:inv5',
+			});
+			await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'battery:inv5' });
+			const resource = stepResourceId(submitted.graphId, 'S-01');
+
+			// ---- (a) the race: two concurrent claimants, one resource, through the claim path ----
+			const race = await Promise.allSettled([
+				claimStepLease(store, bus, { graphId: submitted.graphId, stepId: 'S-01', claimant: 'flauz.agent.worker-1', ttlMs: 60_000, origin: 'a2a:flauz.agent.worker-1' }),
+				claimStepLease(store, bus, { graphId: submitted.graphId, stepId: 'S-01', claimant: 'flauz.agent.worker-2', ttlMs: 60_000, origin: 'a2a:flauz.agent.worker-2' }),
+			]);
+			const acquiredRows = store.journalRows.filter(row => row.type === 'lease-acquired');
+			const winner = race.find((result): result is PromiseFulfilledResult<{ status: string; leaseId: string; holder: string; deadline: number; rowId: string; noticeId: string }> => result.status === 'fulfilled');
+			const loser = race.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+			recorder.check('inv5.exactly-one-winner', race.filter(result => result.status === 'fulfilled').length === 1 && loser !== undefined && acquiredRows.length === 1, `exactly one claimant acquired the lease (${race.map(result => result.status).join(' + ')}; lease-acquired rows: ${String(acquiredRows.length)})`);
+
+			// ---- (b) the typed conflict error: the shape asserted (holder, lease id, deadline) ----
+			const reason = loser?.reason;
+			const facts = reason === undefined ? null : leaseConflictFacts(reason);
+			const winnerClaim = winner?.value;
+			recorder.check('inv5.typed-conflict-shape', isLeaseConflictError(reason) && facts !== null && facts.code === LEASE_CONFLICT_CODE && facts.violation === 'lease' && facts.holder === 'flauz.agent.worker-1' && facts.leaseId === winnerClaim?.leaseId && facts.deadline === winnerClaim?.deadline && facts.claimant === 'flauz.agent.worker-2', `the loser's typed conflict ${String(facts?.code)} carries the current holder (${String(facts?.holder)}), the lease id (${String(facts?.leaseId)}) and the lease deadline (${String(facts?.deadline)})`);
+
+			// ---- (c) both attempts journaled with attribution: the winner's acquisition + the loser's refusal ----
+			const conflicts = store.journalRows.filter(row => row.type === 'conflict-noticed');
+			const conflictPayload = conflicts[0]?.payload as { violation: string; expectedHolder: string; actualRunner: string; evidenceId?: string } | undefined;
+			const acquiredPayload = acquiredRows[0]?.payload as { holder: string; leaseId: string; expiresAt: number; evidenceId?: string } | undefined;
+			recorder.check('inv5.both-attempts-journaled', conflicts.length === 1 && conflictPayload?.violation === 'lease' && conflictPayload?.expectedHolder === 'flauz.agent.worker-1' && conflictPayload?.actualRunner === 'flauz.agent.worker-2' && acquiredPayload?.holder === 'flauz.agent.worker-1' && /^E-\d{6,}$/.test(conflictPayload?.evidenceId ?? '') && /^E-\d{6,}$/.test(acquiredPayload?.evidenceId ?? ''), `the winner's acquisition and the loser's refusal are both journaled with attribution (conflict: expectedHolder=${String(conflictPayload?.expectedHolder)} actualRunner=${String(conflictPayload?.actualRunner)}; both rows carry minted evidence ids)`);
+
+			// ---- (d) the evidence linkage: each minted row references its journal row ----
+			const conflictEvidenceRow = conflictPayload?.evidenceId === undefined ? undefined : await ws.ledger.rowByEvidenceId(conflictPayload.evidenceId);
+			const acquiredEvidenceRow = acquiredPayload?.evidenceId === undefined ? undefined : await ws.ledger.rowByEvidenceId(acquiredPayload.evidenceId);
+			recorder.check('inv5.evidence-linkage', conflictEvidenceRow !== undefined && acquiredEvidenceRow !== undefined && conflictEvidenceRow.uri === `flauz-orch-transition://${String(conflicts[0]?.rowId)}` && acquiredEvidenceRow.uri === `flauz-orch-transition://${String(acquiredRows[0]?.rowId)}` && conflictEvidenceRow.taskId === acquiredEvidenceRow.taskId, 'both attempts minted ledger evidence rows referencing their own journal rows (the conflict is recorded history, never a dropped message)');
+
+			// ---- (e) the hash chains verify end-to-end (the evidence ledger + the orchestration journal) ----
+			const ledgerVerify = await ws.ledger.verify();
+			const journalVerify = store.verifyJournal();
+			recorder.check('inv5.chain-verifies-end-to-end', ledgerVerify.ok && journalVerify.ok, `the evidence ledger chain verifies ok=${String(ledgerVerify.ok)} (${String(ledgerVerify.rows)} rows) and the orchestration journal chain verifies ok=${String(journalVerify.ok)} (${String(journalVerify.rows)} rows)`);
+
+			// ---- (f) the flauz.a2a surface: the winner's notice landed; the enforcement point refuses a raw third claimant ----
+			const active = bus.activeClaimOf(resource);
+			let rawConflict: unknown = null;
+			try {
+				bus.post({ message: { kind: 'resource-claim', from: 'flauz.agent.worker-3', to: 'flauz.watchers', ts: (winnerClaim?.deadline ?? 1) - 1, payload: { action: 'acquire', resource, leaseUntil: (winnerClaim?.deadline ?? 1) + 60_000 } } });
+			} catch (error) {
+				rawConflict = error;
+			}
+			const rawFacts = leaseConflictFacts(rawConflict);
+			const busJournal = (await nodeFs.readFile(nodePath.join(ws.root, '.flauz', 'a2a', 'messages.jsonl'), { encoding: 'utf-8' })).split('\n').filter(line => line.length > 0);
+			recorder.check('inv5.bus-claim-path-enforces', active !== undefined && active.holder === 'flauz.agent.worker-1' && active.leaseId === winnerClaim?.noticeId && active.deadline === winnerClaim?.deadline && busJournal.length === 1 && isLeaseConflictError(rawConflict) && rawFacts?.holder === 'flauz.agent.worker-1' && rawFacts?.leaseId === winnerClaim?.noticeId, `the winner's acquire notice is the journal-projected lease (holder=${String(active?.holder)} leaseId=${String(active?.leaseId)}) and a raw acquire through the bus claim path receives the typed conflict (holder=${String(rawFacts?.holder)}, leaseId=${String(rawFacts?.leaseId)})`);
+
+			// ---- (g) never a silent double-execution: one lease, one notice ----
+			recorder.check('inv5.no-silent-double-execution', acquiredRows.length === 1 && busJournal.length === 1 && conflicts.length === 1, `exactly one lease-acquired row, one acquire notice (${String(busJournal.length)} journal line(s)) and one recorded refusal - never a silent double-execution`);
+
+			registerRow(recorder.buildRow(
+				`two claimants raced ${resource} through the flauz.a2a claim path: worker-1 acquired ${String(winnerClaim?.leaseId)} (notice ${String(winnerClaim?.noticeId)}, deadline ${String(winnerClaim?.deadline)}); worker-2 received the typed ${LEASE_CONFLICT_CODE} {holder, leaseId, deadline}; both attempts journaled with attribution (lease-acquired + conflict-noticed, both evidence-bearing); ledger verify ok=${String(ledgerVerify.ok)}, journal verify ok=${String(journalVerify.ok)}`,
+			));
+		} finally {
+			await ws.cleanup();
+		}
 	});
 });
 
