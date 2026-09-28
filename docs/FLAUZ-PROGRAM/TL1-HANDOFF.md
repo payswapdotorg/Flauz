@@ -19,7 +19,7 @@ TL1-003 established the native Flauz service boundary for commands, events, heal
 TL1 owns upstream synchronization, Code OSS substrate integrity, product build/release, service-boundary compatibility, fork-critical accounting, and web/desktop parity. The TL2-S1 secondment is closed and the helper is released back to TL1.
 
 ## Final risks / follow-ups
-- PLATFORM-H1 covers pre-existing SBOM/packaging/fixture baseline cleanup identified by TL2-S3.
+- PLATFORM-H1 (baseline CI debt) is DONE (PR #36, merge ad01c49a, 2026-09-28): the SBOM/packaging-parity/bundle-manifest pins regenerated, the fixture-matrix deviations fixed, the Lane-K typecheck and the hygiene format error repaired — see the completion record in WORK-REGISTRY.md. Its two documented residuals are registered: PLATFORM-H2 (flauz-namespace eslint warning debt, owner TL1) and the perf startup-pair R6 reproduction appended to TL4-H1 (owner TL4).
 - Upstream synchronization remains ongoing maintenance.
 - No CopilotKit/OpenMuse runtime dependency may be introduced.
 - Any core patch requires architecture-lock rationale and fork-critical accounting.

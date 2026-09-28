@@ -498,7 +498,7 @@ Acceptance: each residual is either implemented through the architecture-allowed
 ### TL4-H1 — Runtime performance promotion
 Status: TODO
 Owner: TL4
-Evidence: TL4-005 has 9 pending-runtime budget rows.
+Evidence: TL4-005 has 9 pending-runtime budget rows. PLATFORM-H1 reproduction addendum (2026-09-28): the flauz-perf startup-pair lane fails the R6 mark-pair integrity check — willConnectCore/didConnectCore, willRegisterParticipants/didRegisterParticipants and willWarmModels/didWarmModels absent from all 10 flauz runs (mark emit sites exist in extensions/flauz-agent/src/extension.ts and the activation events include onStartupFinished; the startup deltas themselves PASS, flauz faster than upstream on the measured rows); pre-existing since 2026-09-27 across 25+ runs on every lane's heads — the mark-emission path in the CI boot shape is the runtime-promotion investigation, owned here.
 Acceptance: real runtime measurements are collected, reproducible, budgeted, and promoted without converting SKIP into PASS by assumption.
 
 ### TL4-H2 — Product discovery/runtime polish promotion
@@ -508,10 +508,29 @@ Evidence: TL4-002 follow-ups include reveal-runtime smoke and live file events.
 Acceptance: runtime discovery/reveal and live-update behavior are verified on the product surface with honest coverage.
 
 ### PLATFORM-H1 — Baseline CI debt
-Status: TODO
+Status: DONE (PR #36, squash merge ad01c49a067340ee9691e1c55bbd36be5db68a76, 2026-09-28)
 Owner: TL1 + TL4
 Evidence: TL2-S3 station/CI addendum records pre-existing SBOM rows, packaging-parity rows and fixture-matrix deviations at the platform baseline.
 Acceptance: each deviation has an owner, reproduction, and either a fixed green result or an explicit documented exception.
+
+Completion record (2026-09-28, TL1): every deviation the TL2-S3 CI addendum traced to the platform pre-existing set, closed with a reproduction and a fixed green result (one commit, branch feat/platform-h1-baseline):
+1. SBOM row (flauz-security jobs 2/3, the verify-fixtures repo-mode case, the compat L1+L2 matrix): flauz-execution + flauz-memory landed with the TL2 surge without SBOM regeneration. FIXED: build/flauz/security/flauz-sbom.json regenerated (9 components; drift check byte-identical).
+2. Packaging-parity rows (the real-tree case failing the session/budgets/compat/agentos/security fixture jobs): PP2 coverage — flauz-execution + flauz-memory had no rows (3 rows added each, the flauz-workspace citation discipline: packaging posture web-blocked / port-injected core web-full / node-bound journal+wiring web-blocked); PP3 drift — the flauz-models seam row's whole-tree node-free citation was broken by the TL2-002 fabric landing (adapters/common.ts node:buffer; extension.ts node:fs/node:crypto) — citation narrowed to the genuinely host-agnostic modules and the node-bound capabilities declared as their own web-blocked rows per the registry's own TL2-002 recoveryPath law. 28 -> 36 rows, 7 -> 9 extensions; the real-repo test pin updated.
+3. Bundle-manifest PIN DRIFT (flauz-security jobs 2/3; 4 problems): flauz-agent + flauz-models drifted (TL2-surge source changes after the 47887683-era pin) and flauz-execution + flauz-memory were never pinned. FIXED: regenerated from a fresh double-bundle run at the 5845f81f baseline (verify mode 9 extensions / 9 artifacts).
+4. Lane-K per-extension typecheck (seamClient.ts:209 '.pid' on the unextended ShimChildProcess): flauz-workflow's shim is a stale port of the agent shim; its compilation pulls ../flauz-agent/src/seamClient.ts via messaging/envelope. FIXED: the pid declaration added mirroring the agent shim (the documented typing owner). All four Lane-K typechecks exit 0.
+5. Hygiene/compat-L3 compile+hygiene line (the failure AT the enumerated heads): openAiCompat.ts was not formatter-clean (trailing space — TL2-002 landing debt). FIXED: one-character fix via build/lib/formatter.ts --replace; the hygiene gulp task passes (extensions/**/*.test.ts are excluded from the hygiene formatting filter by design — only this one file was flagged across the 12656-file CI check).
+
+CI evidence at the merge head (all seven affected lanes dispatched + push-triggered at the PR head): Lane-K, Session (both rungs), Budgets, Compat L1+L2, Agent OS (both rungs), Security (all 3 jobs), Canaries (4/4 — the single C-20 failure was the documented api.github.com 403 rate-limit flake, green on re-run at the same head and on plain main), Browser — ALL GREEN. Station battery: verify-fixtures ALL CASES 0 deviations (200 pre-install / 194 post-install — the 6 repo-mode skip-shape cases are context-gated); packaging-parity CLEAN (9 extensions, 36 rows); its test suite 21/21; security-gate --require GREEN (packaging row live); security-runtime-gate --require GREEN (audit 0 in-delta / sbom 9/9 / manifest 9/9); session-battery --require PASS + doctored control exit 1; agentos-battery PASS + doctored verdicts exit 1; compat-battery --require 1887/1887; budget-gate fixture run 0 / violations 1; Lane-K suites 112/69/223/106 + determinism receipt identical; verify-product/merge-product/sync-upstream/compat-l3-smoke 61/61.
+
+Explicit documented exceptions (owner + reproduction, NOT silently promoted):
+- The flauz-namespace eslint-warning debt (472 findings, all in the flauz additive namespace: flauz-agent 332, flauz-execution 57, flauz-workflow 42, build/flauz 27, flauz-models 11, flauz-memory 3; composition 350 unexternalized-strings / 99 bracket-notation / 15 duplicate-imports / 6 in-operator / 1 prefer-const / 1 eqeqeq, zero errors) — the standing platform red the TL1 build lane merged through (characterized as 'hygiene 473 pre-existing' during PRs #16-#20) — was MASKED at the enumerated heads by the format error above and is UNMASKED by this fix (the hygiene pipeline now reaches the eslint task). Registered as PLATFORM-H2 below; not fixed here to keep this PR focused (no unrelated refactors).
+- The flauz-perf startup-pair R6 drift (willConnectCore/didConnectCore, willRegisterParticipants/didRegisterParticipants, willWarmModels/didWarmModels absent from all 10 runs; startup deltas themselves PASS — flauz faster than upstream on the measured rows) — pre-existing since 2026-09-27 across all waves, outside the TL2-S3 enumerated set (the perf memory-snapshot job is green). Reproduction appended to TL4-H1 (the owning lane); no perf instrumentation changed.
+
+### PLATFORM-H2 — Flauz-namespace eslint warning debt
+Status: TODO
+Owner: TL1
+Evidence: PLATFORM-H1 closure record (above): 472 eslint warnings, all in the flauz additive namespace, zero errors, zero upstream findings — the eslint layer of the Compile & Hygiene pipeline line, unmasked once PLATFORM-H1 fixed the format blocker. Composition: 350 code-no-unexternalized-strings, 99 code-no-bracket-notation-for-identifiers, 15 no-duplicate-imports, 6 code-no-in-operator, 1 prefer-const, 1 eqeqeq.
+Acceptance: each warning class has a named posture (fixed, or an inline-documented exemption with the reason recorded here); the eslint step of the Compile & Hygiene pipeline line is green (or carries an explicit reviewed allowlist posture in the eslint configuration with the count pinned); no upstream file is touched.
 
 ### TL2-H1 — Live-provider verification
 Status: TODO
