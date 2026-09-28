@@ -61,3 +61,27 @@ Do not wait for the full runtime to exist. Build the harness with fixtures and p
 ## Done means
 
 A fresh user can discover, use, recover from and continue using Flauz major capabilities without losing the mature editor, terminal, SCM and debugging experience.
+
+## Temporary TL2 secondment — Worker B
+
+TL4 remains the independent quality arm and owner of product verification. Until the Agent OS surge exits, one TL4 worker is temporarily seconded to TL2 as **TL2-S3 — Agent OS Runtime Verification**.
+
+Scope:
+- build an independent Agent OS runtime acceptance battery;
+- exercise restart, provider failure, cancellation, approval interruption, lease conflict, multi-agent coordination and evidence/provenance recovery;
+- promote fixture contracts to runtime CI as TL2 capabilities land;
+- keep verdicts machine-checkable and separate implementation claims from observed behavior.
+
+Boundaries:
+- no ownership of orchestration semantics;
+- no weakening of fail-closed behavior to make a test pass;
+- tests must consume public/stable Flauz contracts;
+- runtime verification may block a TL2 completion claim but may not silently redefine its architecture.
+
+Acceptance:
+- fault/recovery journeys have deterministic expected outcomes;
+- restart and provider failure preserve logical task state/provenance;
+- approval and lease boundaries are verified independently;
+- the battery can be promoted from fixture mode to real runtime mode without rewriting the contract.
+
+When TL2-S3 completes its bounded work-order, Worker B returns to TL4 product-wide verification/quality maintenance.
