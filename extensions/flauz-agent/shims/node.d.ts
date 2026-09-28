@@ -81,8 +81,13 @@ declare module 'node:url' {
 }
 
 declare module 'node:test' {
-	export function test(name: string, fn: () => void | Promise<void>): void;
-	export function test(name: string, options: { only?: boolean; skip?: boolean | string; timeout?: number }, fn: () => void | Promise<void>): void;
+	/** Subtest driver (additive, TL2-S1: the matrix suites report per-class). */
+	export interface TestContext {
+		test(name: string, fn: (t: TestContext) => void | Promise<void>): Promise<void>;
+		diagnostic(message: string): void;
+	}
+	export function test(name: string, fn: (t: TestContext) => void | Promise<void>): void;
+	export function test(name: string, options: { only?: boolean; skip?: boolean | string; timeout?: number }, fn: (t: TestContext) => void | Promise<void>): void;
 }
 
 declare module 'node:assert' {
