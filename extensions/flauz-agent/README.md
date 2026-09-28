@@ -42,6 +42,15 @@ core/
                     deterministic executor, multi-agent A2A routing;
                     approval/takeover/lease/claim ops are first-class
                     transitions with minted evidence rows
+  leaseConflict.mjs / leaseConflict.d.mts
+                    the lease-conflict contract (TL2-F3, the TL2-004
+                    follow-up): the ONE law both enforcement surfaces speak -
+                    the typed LeaseConflictError
+                    (flauz.a2a.lease-conflict: holder, leaseId, deadline,
+                    claimant), the lease-liveness/evaluation table (DL-61
+                    expiry composition, DL-66 deadline-less holds, DL-72
+                    lease reuse) and the composed claimStepLease op (the
+                    flauz.a2a claim path over a durable step)
   orchProtocol.mjs / orch-protocol.schema.json / orchMediator.mjs
                     the orchestration service protocol contract (TL2-001
                     M4): flauz.orch/v1 method registry + event catalog +
@@ -117,6 +126,49 @@ the AUTHORITATIVE wire spec):
   (orch journal rows, lease ops, recovery scan, journal verify, event
   replay) - proposals only; nothing is implemented behind the registry's
   back.
+
+## The lease-conflict contract (TL2-F3)
+
+The flauz.a2a/v0 resource-claim path ENFORCES (the informational-only notice
+posture is retired for acquires): concurrent claimants on one lease get
+exactly ONE winner; every loser receives an explicit, TYPED conflict error —
+never a silent double-execution, never a dropped message. The one law lives
+in `core/leaseConflict.mjs` and is spoken by two surfaces:
+
+- **The bus claim path** (`core/a2a.mjs`): `A2ABus.post` of a
+  `resource-claim` acquire is evaluated against the journal-projected active
+  lease of the resource (`activeClaimOf`). A live foreign lease throws
+  `LeaseConflictError` carrying the current holder's identity, the lease id
+  (the acquire notice's message id) and the lease deadline (`leaseUntil`).
+  A same-claimant re-acquire lands (DL-72 reuse posture); an expired lease
+  does not conflict (the new acquire supersedes the projection); a
+  release/expire notice from a non-holder of a LIVE lease is refused
+  fail-closed — a foreign release would be a silent takeover.
+- **The store lease transitions** (`core/orchStore.mjs`):
+  `acquireLease`/`acquireClaim` evaluate the same law against the
+  replay-derived graph state (the STORE posture: the journal's recorded
+  state is the truth). A foreign hold mints the evidence-bearing
+  `conflict-noticed` row FIRST (DL-60: the refusal is recorded history) and
+  THEN throws the typed error. The graph-level CLAIM is deadline-less — it
+  holds until an explicit release (a human decides, the DL-66 posture) and
+  conflicts with every other claimant while it does. An EXPIRED lease (its
+  `lease-expired` row recorded — expiry from op + drive loop + recovery
+  pass, DL-61) does not conflict: the takeover goes through the recovery
+  hygiene and the acquisition lands with the next ordinal lease id. A
+  same-holder re-acquire REUSES the active lease (DL-72: a retry of the
+  same durable step never conflicts with itself).
+
+The typed error subclasses `OrchestrationError` (domain code
+`illegal-transition`), so the closed-set `flauz.orch.err.*` taxonomy keeps
+mapping it fail-closed with provenance preserved (DL-59); the
+conflict-specific identity rides `conflictCode`
+(`flauz.a2a.lease-conflict`, the a2a surface's own namespace) plus the
+typed fields. The composed surface — `claimStepLease(store, bus, input)` —
+is the flauz.a2a claim path over a durable step: refusal evidence first,
+then the typed error; or the evidence-bearing `lease-acquired` row plus the
+bus acquire notice. The Agent OS battery's INV-5 row drives exactly this
+contract at both rungs (fixture suite + runtime drill; census 5/3/0 with
+INV-5 PASS — see `build/flauz/agentos-battery-baseline.md`).
 
 ## Golden path
 
