@@ -1,0 +1,38 @@
+{
+	"nameShort": "Visual Studio Code",
+	"nameLong": "Visual Studio Code",
+	"applicationName": "code-oss",
+	"dataFolderName": ".vscode-oss",
+	"win32MutexName": "vscodeoss",
+	"win32DirName": "Microsoft Code OSS",
+	"win32AppUserModelId": "Microsoft.CodeOSS",
+	"darwinBundleIdentifier": "com.visualstudio.code.oss",
+	"urlProtocol": "code-oss",
+	"reportIssueUrl": "https://github.com/microsoft/vscode/issues/new",
+	"licenseUrl": "https://github.com/microsoft/vscode/blob/main/LICENSE.txt",
+	"defaultChatAgent": {
+		"extensionId": "GitHub.copilot",
+		"chatExtensionId": "GitHub.copilot-chat"
+	},
+	"builtInExtensions": [
+		{
+			"name": "ms-vscode.js-debug",
+			"version": "1.140.0",
+			"repo": "https://github.com/microsoft/vscode-js-debug"
+		}
+	],
+	"builtInExtensionsEnabledWithAutoUpdates": [
+		"GitHub.copilot-chat"
+	],
+	"trustedExtensionAuthAccess": {
+		"github": [
+			"GitHub.copilot-chat"
+		],
+		"github-enterprise": [
+			"GitHub.copilot-chat"
+		],
+		"microsoft": [
+			"vscode.github-authentication"
+		]
+	}
+}

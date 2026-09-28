@@ -67,8 +67,7 @@
  * local executor. `start` reports pid 0 — a cloud sandbox has no local
  * process id (documented; the sandbox id is the identity).
  */
-import { isSecretRef, joinPath, serializeEnvelope, type Clock } from '../api.ts';
-import type { EnvironmentDescriptor, EnvironmentKind } from '../api.ts';
+import { isSecretRef, joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 import { excerpt } from './cliPort.ts';
@@ -303,7 +302,7 @@ export class CloudHttpExecutor implements EnvironmentExecutor {
 		if (!response.ok) {
 			return { ok: false, error: response.error };
 		}
-		const sandboxId = response.payload['sandboxId'];
+		const sandboxId = response.payload.sandboxId;
 		if (typeof sandboxId !== 'string' || sandboxId.length === 0) {
 			return effectError('CLOUD_PROTOCOL_ERROR', `cloud-sandbox create for '${descriptor.id}' returned no sandboxId: ${JSON.stringify(response.payload)}`);
 		}
@@ -404,7 +403,7 @@ export class CloudHttpExecutor implements EnvironmentExecutor {
 		if (!response.ok) {
 			return { ok: false, error: response.error };
 		}
-		const snapshotId = response.payload['snapshotId'];
+		const snapshotId = response.payload.snapshotId;
 		if (typeof snapshotId !== 'string' || snapshotId.length === 0) {
 			return effectError('CLOUD_PROTOCOL_ERROR', `cloud-sandbox snapshot for '${descriptor.id}' returned no snapshotId: ${JSON.stringify(response.payload)}`);
 		}
@@ -488,7 +487,7 @@ export class CloudHttpExecutor implements EnvironmentExecutor {
 				: response.error.message;
 			return { health: 'stale', state: 'stopped', pid: null, message, ...(lease === undefined ? {} : { lease }) };
 		}
-		const status = response.payload['status'];
+		const status = response.payload.status;
 		if (status === 'running') {
 			return {
 				health: 'healthy',

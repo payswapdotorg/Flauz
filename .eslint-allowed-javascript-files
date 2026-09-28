@@ -180,6 +180,7 @@ build/flauz/scripts/startup-pair.mjs
 build/flauz/stage-delivery.mjs
 extensions/flauz-agent/core/a2a.mjs
 extensions/flauz-agent/core/contracts.mjs
+extensions/flauz-agent/core/protocol.mjs
 extensions/flauz-agent/core/service.mjs
 
 # Flauz Wave 4 Lane J (environments): canary runner + transit staging (zero-dep .mjs)
@@ -201,6 +202,10 @@ build/flauz/scripts/packaging-parity.mjs
 build/flauz/packaging-parity.test.mjs
 build/flauz/scripts/session-battery.mjs
 build/flauz/scripts/security-gate.mjs
+
+# Flauz TL1-002 product build/release shell (zero-dep .mjs gate + node:test suite)
+build/flauz/scripts/verify-product.mjs
+build/flauz/verify-product.test.mjs
 build/flauz/scripts/security-runtime-gate.mjs
 # Flauz TL4-008 compat L3 runtime boot smoke (zero-dep driver + black-box test; build/flauz/README.md conventions)
 build/flauz/scripts/compat-l3-smoke.mjs

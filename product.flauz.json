@@ -2,6 +2,25 @@
 	"nameShort": "Flauz",
 	"nameLong": "Flauz",
 	"version": "0.1.0",
+	"applicationName": "flauz",
+	"dataFolderName": ".flauz",
+	"sharedDataFolderName": ".flauz-shared",
+	"win32MutexName": "flauz",
+	"win32DirName": "Flauz",
+	"win32NameVersion": "Flauz",
+	"win32RegValueName": "Flauz",
+	"win32AppUserModelId": "Flauz.Flauz",
+	"win32ShellNameShort": "Flauz",
+	"win32TunnelServiceMutex": "flauz-tunnelservice",
+	"win32TunnelMutex": "flauz-tunnel",
+	"serverApplicationName": "flauz-server",
+	"serverDataFolderName": ".flauz-server",
+	"tunnelApplicationName": "flauz-tunnel",
+	"darwinBundleIdentifier": "flauz.flauz",
+	"linuxDesktopName": "flauz.flauz",
+	"linuxIconName": "flauz",
+	"urlProtocol": "flauz",
+	"reportIssueUrl": "https://github.com/payswapdotorg/Flauz/issues/new",
 	"extensionEnabledApiProposals": {
 		"flauz.flauz-agent": [
 			"defaultChatParticipant",
@@ -14,5 +33,10 @@
 			"browser"
 		]
 	},
-	"defaultChatAgent": null
+	"defaultChatAgent": null,
+	"builtInExtensionsEnabledWithAutoUpdates": [],
+	"trustedExtensionAuthAccess": {
+		"github": null,
+		"github-enterprise": null
+	}
 }

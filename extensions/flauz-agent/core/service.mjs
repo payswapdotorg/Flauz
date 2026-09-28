@@ -25,6 +25,19 @@
  * Every task event and evidence row is also relayed (append-only JSONL) to
  * the extension globalStorage path supplied in the handshake, v0 event-relay.
  *
+ * Protocol versions (TL1-003, core/protocol.mjs — the shared definition):
+ *  - a plain v0 hello (no `protocolVersions` field) negotiates v0 and the
+ *    wire stays byte-identical to the frozen v0 contract above;
+ *  - a hello carrying `protocolVersions: string[]` negotiates the highest
+ *    mutually supported version — v1 adds `protocolVersion` + `capabilities`
+ *    to ready, structured `{code, message, details?}` errors
+ *    (`flauz.err.*`), server-initiated `{type:'event', ...}` envelopes on
+ *    stdout, and the `flauz.health.*` / `flauz.lifecycle.*` namespaces; the
+ *    `flauz.auth.*` skeleton answers fail-closed not-implemented at every
+ *    version;
+ *  - a hello offering NO supported version is rejected with the structured
+ *    `flauz.err.unsupported-version` error and exits 4.
+ *
  * Disposal note: stdin EOF (or SIGTERM) exits 0 exactly once (single exit
  * path guarded by `exited`; the eager exit-promise race found in the first
  * iteration is fixed by that guard plus the setImmediate flush deferral).
@@ -47,6 +60,18 @@ import {
 		validateLedgerRows,
 } from './contracts.mjs';
 import { A2ABus } from './a2a.mjs';
+import {
+		SEAM_ERROR_CODES,
+		SEAM_EXIT_PROTOCOL_MISMATCH,
+		SEAM_PROTOCOL_V0,
+		SEAM_PROTOCOL_V1,
+		capabilitiesForVersion,
+		negotiateProtocolVersion,
+		seamError,
+		seamErrorToString,
+		seamEvent,
+		seamMethodVersions,
+} from './protocol.mjs';
 
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -54,6 +79,20 @@ class SeamError extends Error {
 		constructor(message) {
 				super(message);
 				this.name = 'SeamError';
+		}
+}
+
+/**
+ * A handler failure that already carries its STRUCTURED v1 envelope
+ * ({code, message, details?} from core/protocol.mjs). Dispatch serializes
+ * it as-is under v1 and as the `"<code>: <message>"` string projection
+ * under v0 (the auth skeleton is the current issuer).
+ */
+class SeamProtocolFailure extends Error {
+		constructor(structured) {
+				super(structured.message);
+				this.name = 'SeamProtocolFailure';
+				this.seamError = structured;
 		}
 }
 
@@ -70,6 +109,8 @@ export class WorkspaceSeam {
 				this.ledgerDir = join(this.flauzDir, 'evidence');
 				this.ledgerPath = join(this.ledgerDir, 'ledger.jsonl');
 				this.relayPath = undefined;
+				/** v1 wire-event sink, set by main() after negotiation ({type:'event',...} on stdout). */
+				this.wireEventSink = undefined;
 				this.tasks = [];
 				this.ledgerLines = [];
 				this.a2a = null;
@@ -111,10 +152,18 @@ export class WorkspaceSeam {
 		}
 
 		relay(topic, payload) {
-				if (!this.relayPath) {
+				if (!this.relayPath && !this.wireEventSink) {
 						return;
 				}
-				appendFileSync(this.relayPath, JSON.stringify({ ts: Date.now(), topic, ...payload }) + '\n');
+				const ts = Date.now();
+				if (this.relayPath) {
+						appendFileSync(this.relayPath, JSON.stringify({ ts, topic, ...payload }) + '\n');
+				}
+				if (this.wireEventSink) {
+						// v1 event envelope (flauz.seam/v1; the FlauzEventEnvelope
+						// contract family, ARCHITECTURE-LOCK §5). v0 stays file-relay only.
+						this.wireEventSink(seamEvent(topic, payload, ts));
+				}
 		}
 
 		findTask(taskId) {
@@ -273,6 +322,11 @@ function main() {
 
 		let seam = null;
 		let exited = false;
+		/** Negotiated seam protocol version (core/protocol.mjs); a plain v0 hello keeps v0. */
+		let negotiatedVersion = SEAM_PROTOCOL_V0;
+		const sessionStartedAt = Date.now();
+		/** flauz.lifecycle.initialize idempotence: true once initialize has run (reset by a re-hello). */
+		let lifecycleInitialized = false;
 		const exitOnce = (code) => {
 				if (exited) {
 						return;
@@ -286,7 +340,48 @@ function main() {
 				process.stdout.write(JSON.stringify(message) + '\n');
 		};
 
+		/** Send an error response for request `id`, shaped by the negotiated version. */
+		const sendError = (id, structured, v0String) => {
+				if (negotiatedVersion === SEAM_PROTOCOL_V1) {
+						send({ id, ok: false, error: structured });
+				} else {
+						// v0 byte compatibility: the exact legacy string shape.
+						send({ id, ok: false, error: v0String });
+				}
+		};
+
+		/** Classify a thrown handler failure into the structured v1 envelope. */
+		const structuredOf = (error) => {
+				if (error instanceof SeamProtocolFailure) {
+						return error.seamError;
+				}
+				if (error instanceof SeamError) {
+						// Workspace-contract validation: the caller's arguments.
+						return seamError(SEAM_ERROR_CODES.INVALID_PARAMS, error.message);
+				}
+				// Everything else (a2a bus rejections included until the bus grows
+				// typed errors — TL2 follow-up, SERVICE-SEAM.md) is internal.
+				return seamError(SEAM_ERROR_CODES.INTERNAL, error instanceof Error ? error.message : String(error));
+		};
+
+		/** The v0 string projection: legacy messages keep their exact bytes; protocol-level failures carry the code. */
+		const v0StringOf = (error, structured) => {
+				if (error instanceof SeamProtocolFailure) {
+						return seamErrorToString(structured);
+				}
+				return error instanceof Error ? error.message : String(error);
+		};
+
 		let buffer = '';
+
+		/** The fail-closed auth skeleton (ARCHITECTURE-LOCK §3): no token logic, no secrets, ever. */
+		const authNotImplemented = (method) => () => {
+				throw new SeamProtocolFailure(seamError(
+						SEAM_ERROR_CODES.NOT_IMPLEMENTED,
+						`${method} is not implemented: the flauz.auth namespace is a fail-closed skeleton (no token logic, no secrets; ARCHITECTURE-LOCK §3)`,
+						{ namespace: 'flauz.auth', method },
+				));
+		};
 
 		const commands = {
 				'flauz.workspace.createTask': (args) => seam.createTask(args),
@@ -301,6 +396,27 @@ function main() {
 				'flauz.a2a.list': () => seam.getA2a().list(),
 				ping: () => ({ pong: true, ts: Date.now() }),
 				shutdown: () => ({ ok: true }),
+				// --- flauz.seam/v1 namespaces (gated by the registry below) ---
+				'flauz.health.ping': () => ({ pong: true, ts: Date.now(), protocolVersion: negotiatedVersion, uptimeMs: Date.now() - sessionStartedAt }),
+				'flauz.health.status': () => ({
+						status: 'ok',
+						service: SERVICE_NAME,
+						serviceVersion: SERVICE_VERSION,
+						protocolVersion: negotiatedVersion,
+						uptimeMs: Date.now() - sessionStartedAt,
+						tasks: seam.tasks.length,
+						ledgerRows: seam.ledgerLines.length,
+						relay: seam.relayPath !== undefined,
+				}),
+				'flauz.lifecycle.initialize': () => {
+						const result = { initialized: true, workspaceRoot: root, tasks: seam.tasks.length, ledgerRows: seam.ledgerLines.length, replay: lifecycleInitialized };
+						lifecycleInitialized = true;
+						return result;
+				},
+				'flauz.lifecycle.shutdown': () => ({ ok: true, shuttingDown: true }),
+				'flauz.auth.status': authNotImplemented('flauz.auth.status'),
+				'flauz.auth.login': authNotImplemented('flauz.auth.login'),
+				'flauz.auth.logout': authNotImplemented('flauz.auth.logout'),
 		};
 
 		const handleLine = (line) => {
@@ -311,10 +427,21 @@ function main() {
 				try {
 						message = JSON.parse(line);
 				} catch {
-						send({ type: 'error', message: 'unparseable line' });
+						if (negotiatedVersion === SEAM_PROTOCOL_V1) {
+								send({ type: 'error', ...seamError(SEAM_ERROR_CODES.INVALID_PARAMS, 'unparseable line') });
+						} else {
+								send({ type: 'error', message: 'unparseable line' });
+						}
 						return;
 				}
 				if (message.type === 'hello') {
+						const negotiation = negotiateProtocolVersion(message.protocolVersions);
+						if (!negotiation.ok) {
+								send({ type: 'error', ...negotiation.error });
+								exitOnce(SEAM_EXIT_PROTOCOL_MISMATCH);
+								return;
+						}
+						negotiatedVersion = negotiation.version;
 						try {
 								seam = new WorkspaceSeam(root);
 								if (typeof message.globalStoragePath === 'string' && message.globalStoragePath.length > 0) {
@@ -326,31 +453,47 @@ function main() {
 								exitOnce(3);
 								return;
 						}
-						send({ type: 'ready', service: SERVICE_NAME, version: SERVICE_VERSION, schema: TASKS_SCHEMA });
+						seam.wireEventSink = negotiatedVersion === SEAM_PROTOCOL_V1 ? (event) => send(event) : undefined;
+						lifecycleInitialized = false;
+						if (negotiatedVersion === SEAM_PROTOCOL_V1) {
+								send({ type: 'ready', service: SERVICE_NAME, version: SERVICE_VERSION, schema: TASKS_SCHEMA, protocolVersion: negotiatedVersion, capabilities: capabilitiesForVersion(negotiatedVersion) });
+						} else {
+								// v0 byte compatibility: exactly the four legacy keys, same order.
+								send({ type: 'ready', service: SERVICE_NAME, version: SERVICE_VERSION, schema: TASKS_SCHEMA });
+						}
 						return;
 				}
 				if (typeof message.id === 'number' && typeof message.cmd === 'string') {
 						if (!seam && message.cmd !== 'ping' && message.cmd !== 'shutdown') {
-								send({ id: message.id, ok: false, error: 'service not ready: send hello first' });
+								sendError(message.id, seamError(SEAM_ERROR_CODES.INVALID_PARAMS, 'service not ready: send hello first', { reason: 'handshake-required' }), 'service not ready: send hello first');
 								return;
 						}
 						const handler = commands[message.cmd];
-						if (!handler) {
-								send({ id: message.id, ok: false, error: `unknown command: ${message.cmd}` });
+						const versions = seamMethodVersions(message.cmd);
+						if (!handler || (versions !== null && !versions.includes(negotiatedVersion))) {
+								// Unknown name, or a registry method outside its versions (e.g. a
+								// v1 method under v0): both answer unknown-method.
+								const unknown = seamError(SEAM_ERROR_CODES.UNKNOWN_METHOD, `unknown command: ${message.cmd}`, { method: message.cmd });
+								sendError(message.id, unknown, `unknown command: ${message.cmd}`);
 								return;
 						}
 						try {
 								const result = handler(message.args ?? {});
 								send({ id: message.id, ok: true, result });
-								if (message.cmd === 'shutdown') {
+								if (message.cmd === 'shutdown' || message.cmd === 'flauz.lifecycle.shutdown') {
 										exitOnce(0);
 								}
 						} catch (error) {
-								send({ id: message.id, ok: false, error: error instanceof Error ? error.message : String(error) });
+								const structured = structuredOf(error);
+								sendError(message.id, structured, v0StringOf(error, structured));
 						}
 						return;
 				}
-				send({ type: 'error', message: 'unrecognized message' });
+				if (negotiatedVersion === SEAM_PROTOCOL_V1) {
+						send({ type: 'error', ...seamError(SEAM_ERROR_CODES.INVALID_PARAMS, 'unrecognized message') });
+				} else {
+						send({ type: 'error', message: 'unrecognized message' });
+				}
 		};
 
 		process.stdin.setEncoding('utf-8');

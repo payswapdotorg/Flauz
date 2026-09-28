@@ -21,16 +21,20 @@ Acceptance: repeatable sync procedure, current diff report, no accidental upstre
 Merge record (2026-09-27, TL1 lead): PR #10 merged to main at `a72eb663` (branch `feat/tl1-001-upstream-sync`, 6 commits incl. two integration merges during gating — the drift-integration flow). Delivered: deterministic upstream-sync report/plan tool, delta report vs upstream/main, CI wiring. Status DONE.
 
 ### TL1-002 — Product build/release shell
-Status: TODO
+Status: DONE (PR #18, merge 0a600296, 2026-09-28)
 Own product.flauz.json, packaging identity, default profile, extension inclusion and release artifacts.
 
 Acceptance: clean Flauz build output with all six bundled Flauz extensions and no accidental Microsoft product branding.
 
+Merge record (2026-09-28, TL1 lead): branch `feat/tl1-002-product-shell` merged to main at `0a600296` (PR #18; product.flauz.json identity overlay + schema + verify-product gate + 25-case fixture matrix; 213 of 225 paths are test fixtures). Gate judgment: completed failures all within the platform pre-existing set; compat battery (L1+L2 --require) + Memory snapshot + Packaging reproducibility GREEN; drift conflicts union-resolved (README addendums, count suite-verified 167/167); manifest regenerated. Precedents #10/#14/#15/#16/#17 applied. Status DONE.
+
 ### TL1-003 — Core integration seam
-Status: TODO
+Status: DONE (PR #17, merge 39ff3ab1, 2026-09-28)
 Establish the smallest stable client-to-Flauz-service IPC/API seam for commands, events, health, auth and lifecycle.
 
 Acceptance: versioned protocol usable by every feature TL without direct implementation coupling.
+
+Merge record (2026-09-28, TL1 lead): branch `feat/tl1-003-seam-protocol` merged to main at `39ff3ab1` (PR #17; versioned IPC/API protocol for commands, events, health, auth, lifecycle in flauz-agent; 12-path additive diff, zero src/vs outside contrib/flauz). Gate judgment: completed-failure set identical to merged PR #16's platform set (zero new); Linux/Electron + Upstream-sync + Packaging green; starved-suite precedents #14/#15/#16 applied. Second drift (PR #16 wave) resolved by manifest regeneration on the merged tree. Status DONE.
 
 ### TL1-004 — Core-change budget
 Status: DONE (PR #16, merge aff162d9, 2026-09-28)

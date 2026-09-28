@@ -753,10 +753,10 @@ function validateSbomDocument(doc, expectedExtensionNames) {
 		return ['not a JSON object'];
 	}
 	if (doc.bomFormat !== 'CycloneDX') {
-		problems.push("bomFormat must be the string 'CycloneDX'");
+		problems.push('bomFormat must be the string \'CycloneDX\'');
 	}
 	if (doc.specVersion !== '1.5') {
-		problems.push("specVersion must be the string '1.5'");
+		problems.push('specVersion must be the string \'1.5\'');
 	}
 	if (!Number.isInteger(doc.version) || doc.version < 1) {
 		problems.push('version must be an integer >= 1');

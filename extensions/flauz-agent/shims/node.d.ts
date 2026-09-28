@@ -16,6 +16,7 @@ declare module 'node:child_process' {
 	export interface ShimStream {
 		write(chunk: string | Uint8Array): boolean;
 		end(callback?: () => void): void;
+		setEncoding(encoding: 'utf-8'): void;
 		on(event: 'data', listener: (chunk: { toString(encoding?: string): string }) => void): void;
 		on(event: 'close', listener: (code: number | null) => void): void;
 		on(event: 'error', listener: (error: Error) => void): void;
@@ -85,6 +86,7 @@ declare module 'node:assert' {
 	export function notStrictEqual(actual: unknown, expected: unknown, message?: string): void;
 	export function deepStrictEqual(actual: unknown, expected: unknown, message?: string): void;
 	export function throws(fn: () => unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): void;
+	export function rejects(promiseOrFn: Promise<unknown> | (() => Promise<unknown>), matcher?: RegExp | ((error: unknown) => boolean) | { code?: string; message?: string }, message?: string): Promise<void>;
 	export function match(value: string, regexp: RegExp, message?: string): void;
 	export function fail(message?: string): never;
 }
@@ -101,12 +103,22 @@ declare const process: {
 	env: Record<string, string | undefined>;
 	exit(code?: number): never;
 	on(event: string, listener: (...args: unknown[]) => void): void;
+	/** Streams used by the standalone service scripts spawned as child processes (test/harness). */
+	stdout: { write(chunk: string): boolean };
+	stderr: { write(chunk: string): boolean };
+	stdin: {
+		setEncoding(encoding: 'utf-8'): void;
+		on(event: 'data', listener: (chunk: string) => void): void;
+		on(event: 'end' | 'close', listener: () => void): void;
+		resume(): void;
+	};
 };
 
 /** Timer globals (kept alive by the event loop unless unref'd). */
 declare function setTimeout(handler: () => void, ms: number): { unref(): void };
 declare function clearTimeout(timer: { unref(): void } | undefined): void;
 declare function queueMicrotask(task: () => void): void;
+declare function setImmediate(handler: () => void): void;
 
 declare const console: {
 	log(...args: unknown[]): void;

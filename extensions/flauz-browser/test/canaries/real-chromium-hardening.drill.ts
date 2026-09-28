@@ -169,8 +169,8 @@ class RecordingWebSocketCdpTransport extends WebSocketCdpTransport {
 
 	protected postMessage(payload: Record<string, unknown>): void {
 		this.sentFrames.push({
-			method: typeof payload['method'] === 'string' ? payload['method'] : '',
-			sessionId: typeof payload['sessionId'] === 'string' ? payload['sessionId'] : undefined,
+			method: typeof payload.method === 'string' ? payload.method : '',
+			sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
 		});
 		super.postMessage(payload);
 	}
@@ -232,15 +232,15 @@ interface AttachRecorder {
 function recordAttachEvents(): AttachRecorder {
 	const events: AttachEventParams[] = [];
 	const subscription = observer.on('Target.attachedToTarget', params => {
-		const targetInfo = params['targetInfo'] as { targetId?: unknown; url?: unknown; type?: unknown } | undefined;
-		const sessionId = typeof params['sessionId'] === 'string' ? params['sessionId'] : '';
+		const targetInfo = params.targetInfo as { targetId?: unknown; url?: unknown; type?: unknown } | undefined;
+		const sessionId = typeof params.sessionId === 'string' ? params.sessionId : '';
 		if (targetInfo === undefined || typeof targetInfo.targetId !== 'string') {
 			return;
 		}
 		events.push({
 			sessionId,
 			targetInfo: { targetId: targetInfo.targetId, url: typeof targetInfo.url === 'string' ? targetInfo.url : '', type: typeof targetInfo.type === 'string' ? targetInfo.type : undefined },
-			waitingForDebugger: params['waitingForDebugger'] === true,
+			waitingForDebugger: params.waitingForDebugger === true,
 		});
 	});
 	return { events, dispose: () => subscription.dispose() };
@@ -309,13 +309,13 @@ function startDownloadCollector(): void {
 	stopDownloadCollector();
 	downloadSubscriptions = [
 		observer.on('Browser.downloadWillBegin', params => {
-			downloadEvents.push({ method: 'Browser.downloadWillBegin', guid: typeof params['guid'] === 'string' ? params['guid'] : undefined, state: undefined });
+			downloadEvents.push({ method: 'Browser.downloadWillBegin', guid: typeof params.guid === 'string' ? params.guid : undefined, state: undefined });
 		}),
 		observer.on('Browser.downloadProgress', params => {
 			downloadEvents.push({
 				method: 'Browser.downloadProgress',
-				guid: typeof params['guid'] === 'string' ? params['guid'] : undefined,
-				state: typeof params['state'] === 'string' ? params['state'] : undefined,
+				guid: typeof params.guid === 'string' ? params.guid : undefined,
+				state: typeof params.state === 'string' ? params.state : undefined,
 			});
 		}),
 	];
@@ -511,7 +511,7 @@ async function main(): Promise<void> {
 	await observer.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }, dlASession);
 	await observer.send('Page.navigate', { url: `${origin}/download-deny` }, dlASession).catch(() => undefined);
 	const denyCanceled = await awaitDownloadTerminalState('canceled', 6000);
-	drillAssert(downloadWillBeginCount() >= 1 && denyCanceled, "3.1c-2: deny is EFFECTIVE on real Chromium — the denied download reaches downloadWillBegin then downloadProgress state 'canceled'", `willBegin=${downloadWillBeginCount()} canceled=${denyCanceled}`);
+	drillAssert(downloadWillBeginCount() >= 1 && denyCanceled, '3.1c-2: deny is EFFECTIVE on real Chromium — the denied download reaches downloadWillBegin then downloadProgress state \'canceled\'', `willBegin=${downloadWillBeginCount()} canceled=${denyCanceled}`);
 	downloadEvents.length = 0;
 
 	const dlB = await observer.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
@@ -576,7 +576,7 @@ async function main(): Promise<void> {
 	const allowedWaiter = waitForCdpEvent<AttachEventParams>(observer, 'Target.attachedToTarget', {
 		timeoutMs: 5000,
 		predicate: params => {
-			const targetInfo = params['targetInfo'] as { targetId?: unknown } | undefined;
+			const targetInfo = params.targetInfo as { targetId?: unknown } | undefined;
 			return targetInfo !== undefined && typeof targetInfo.targetId === 'string' && !knownBeforeAllowed.has(targetInfo.targetId);
 		},
 	});
@@ -590,7 +590,7 @@ async function main(): Promise<void> {
 		() => '',
 		error => error instanceof Error ? error.message : String(error),
 	);
-	drillAssert(releaseRejected.includes("wasn't found"), "3.1d-6d FINDING F-RELEASE-CMD (pinned): 'Runtime.run' is NOT a real CDP method (rejected with wasn't found) — the runtime's release command diverges from real Chromium (correct: Runtime.runIfWaitingForDebugger)", JSON.stringify(releaseRejected));
+	drillAssert(releaseRejected.includes('wasn\'t found'), '3.1d-6d FINDING F-RELEASE-CMD (pinned): \'Runtime.run\' is NOT a real CDP method (rejected with wasn\'t found) — the runtime\'s release command diverges from real Chromium (correct: Runtime.runIfWaitingForDebugger)', JSON.stringify(releaseRejected));
 	await observer.send('Runtime.runIfWaitingForDebugger', {}, allowedAttach.sessionId);
 	const allowedOutcome = await Promise.race([allowedCall.promise, sleep(2500).then(() => ({ value: undefined as string | undefined, error: 'TIMEOUT: window.open never returned after release' }))]);
 	drillAssert(allowedOutcome.value === 'opened', '3.1d-7 (primitive): the allow-path release works — Runtime.runIfWaitingForDebugger releases the held popup and the window.open call returns', JSON.stringify(allowedOutcome));
@@ -610,7 +610,7 @@ async function main(): Promise<void> {
 	const deniedWaiter = waitForCdpEvent<AttachEventParams>(observer, 'Target.attachedToTarget', {
 		timeoutMs: 5000,
 		predicate: params => {
-			const targetInfo = params['targetInfo'] as { targetId?: unknown } | undefined;
+			const targetInfo = params.targetInfo as { targetId?: unknown } | undefined;
 			return targetInfo !== undefined && typeof targetInfo.targetId === 'string' && !knownBeforeDenied.has(targetInfo.targetId);
 		},
 	});

@@ -1,0 +1,9 @@
+{
+	"name": "flauz-models",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"main": "./out/extension.js",
+	"engines": {
+		"vscode": "^1.140.0"
+	}
+}

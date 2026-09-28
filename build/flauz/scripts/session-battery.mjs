@@ -287,6 +287,17 @@ function main() {
                                 verdictLine = `session-battery: FAIL (SKIP promoted by --require) -- ${result.reason}`;
                         }
                         console.log(verdictLine);
+                        // relay the drill's own evidence lines so the CI log
+                        // carries the drill's GREEN line verbatim (the lane's
+                        // assert greps the log for it; the gate checked it
+                        // internally but the raw line must also be visible)
+                        if (result.verdict === 'PASS' && typeof result.output === 'string') {
+                                for (const line of result.output.split('\n')) {
+                                        if (line === RUNTIME_GREEN_LINE || /^session-battery runtime drill: \d+ assertions, \d+ failures$/.test(line)) {
+                                                console.log(line);
+                                        }
+                                }
+                        }
                 }
 
                 if (options.noFail) {
