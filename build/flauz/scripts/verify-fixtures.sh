@@ -290,6 +290,19 @@ NODE_MINOR_SB="$(node -p 'process.versions.node.split(".")[1]')"
 if [ "$NODE_MAJOR_SB" -gt 22 ] || { [ "$NODE_MAJOR_SB" -eq 22 ] && [ "$NODE_MINOR_SB" -ge 6 ]; }; then
     expect "session-battery golden PASS"                0 node "$S/session-battery.mjs" --root "$ROOT"
     expect "session-battery doctored fixture FAIL"      1 node "$S/session-battery.mjs" --root "$ROOT" --fixtures "$F/session-battery-doctored"
+    # ---- TL4-007: the runtime-rung zero-dep cases (NO Chromium needed).
+    # The FULL runtime rung (J1-J4 over real CDP + LocalProcessExecutor)
+    # needs a real headless Chromium via FLAUZ_CDP_ENDPOINT -- that lane
+    # lives in the flauz-session CI job `session-runtime`, never here. What
+    # IS runnable zero-dep: the drill's normalization/compare machinery
+    # selftest, the pinned-artifact normalization-discipline check (both
+    # directions), and the gate's --runtime SKIP semantics (both modes). ----
+    RUNTIME_DRILL="$ROOT/extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts"
+    expect "session-battery runtime selftest PASS"      0 node --experimental-strip-types "$RUNTIME_DRILL" --selftest
+    expect "session-battery runtime transcript clean PASS"  0 node --experimental-strip-types "$RUNTIME_DRILL" --check-transcript "$F/session-battery-runtime/golden-runtime.json"
+    expect "session-battery runtime transcript doctored FAIL"  1 node --experimental-strip-types "$RUNTIME_DRILL" --check-transcript "$F/session-battery-runtime-doctored/golden-runtime.json"
+    expect "session-battery --runtime no-endpoint SKIP"  0 env FLAUZ_CDP_ENDPOINT= node "$S/session-battery.mjs" --runtime
+    expect "session-battery --runtime --require no-endpoint FAIL"  1 env FLAUZ_CDP_ENDPOINT= node "$S/session-battery.mjs" --runtime --require
 else
     echo "  note  session-battery run cases need node >= 22.6 (runner has $(node --version)) -- covered by the flauz-session CI lane"
 fi

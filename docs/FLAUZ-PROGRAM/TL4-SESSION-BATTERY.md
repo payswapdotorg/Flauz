@@ -1,7 +1,9 @@
 # TL4-004 — Whole-Session Acceptance Battery
 
-Status: fixture rung delivered (this document is the binding spec).
-Owner: TL4 (product-quality lane). Gate: `build/flauz/scripts/session-battery.mjs`.
+Status: fixture rung + runtime rung delivered (this document is the binding
+spec). Owner: TL4 (product-quality lane). Gate:
+`build/flauz/scripts/session-battery.mjs` (add `--runtime` for the
+runtime rung).
 Suite: `extensions/flauz-workflow/test/session-battery.test.ts`.
 CI: `.github/workflows/flauz-session.yml` (zero-dep job) + the compiled
 unit-test subset in `flauz-hygiene.yml` (the same suite as compiled `.js`).
@@ -72,20 +74,67 @@ sources:
 - **compiled rung (already wired, free)**: the OSS build compiles the
   suite into `out/` and the flauz-hygiene unit-test subset step runs it
   as `.js` — two runners, one battery.
-- **runtime rung (follow-up, honest)**: real CDP against a booted
-  Chromium (the `flauz-browser` CDP transport), the LocalProcessExecutor
-  for the environment leg, and a booted workbench for the UI seams. This
-  rung activates when the product runtime exposes a CI-driveable seam
-  (TL3's runtime work + TL2's workbench integration); the journey
-  catalogue and transcript contract stay IDENTICAL — only the ports
-  change. The promotion decision lives in the TL4 work-registry entry.
+- **runtime rung (SHIPPED, TL4-007)**: real CDP against a real headless
+  Chromium, and the real `LocalProcessExecutor` for the environment leg.
+  Drill: `extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts`
+  (the TL3-003 real-Chromium seam pattern: `FLAUZ_CDP_ENDPOINT` +
+  `--remote-debugging-port`, a recording `WebSocketCdpTransport` subclass
+  so sent-command assertions hold on the REAL wire, skip-vs-fail policy).
+  Gate: `session-battery.mjs --runtime` (enforces the drill's exit code
+  AND its GREEN line; `--runtime --require` = CI evidence mode; without
+  `--runtime` the gate is byte-compatible with the fixture rung). CI:
+  `flauz-session.yml` job `session-runtime` (workflow_dispatch input
+  `runtime` default true + push path-filter on the drill/fixtures/gate;
+  Chrome-for-Testing pinned 153.0.8010.12). Verified for real: GREEN,
+  38 assertions, 0 failures, against Chrome for Testing 153.0.8010.12
+  (headless=new) + the real `LocalProcessExecutor` (real child
+  processes, real on-disk state).
+  - **The normalization table** (the ONLY volatile classes normalized;
+    everything else deep-compared — a difference outside this table is a
+    FINDING, never a silent pass; full table + regeneration command in
+    `test/fixtures/session-battery-runtime/README.md`):
+    1. the local-origin ephemeral port in the allowed-navigation url +
+       committedUrl -> `http://127.0.0.1:<PORT>/...` (the runtime rung
+       navigates a REAL node:http origin on 127.0.0.1 — the fixture
+       rung's `welcome.example.com` is a fake-transport fiction, not
+       real-network reachable);
+    2. browser session ids / tab target ids / partition hex / harness
+       pids / CDP session ids — distilled to kinds and counts (the
+       fixture contract already does; `--check-transcript` re-proves no
+       raw value leaks, zero-dep, in verify-fixtures.sh);
+    3. timestamps — deterministic by the battery's injected clocks (the
+       same clock ports the fixture rung injects; only the transport and
+       executor ports changed rungs).
+  - **Reviewed contract deltas vs the fixture golden transcript**
+    (documented, not silent): the schema id
+    (`flauz.session-battery-runtime/v1`), the normalized navigation URL,
+    and ONE additive row — `navigationVerdicts[0].committedUrl`, the
+    REAL committed URL observed over the wire (a strengthening). Every
+    other row is identical, including the J3 hard row (ZERO drive
+    commands after a denial — verified by grepping the recorded REAL
+    wire frames) and J4's recovered-on-disk rows.
+  - **The honest residue (what stays fixture-only and why)**: the UI
+    seams — nothing in J1-J4 observes rendered pixels, the workbench
+    browser pane, or the extension-contributed views; those assertions
+    remain at the fixture rung (and the flauz-browser canaries) because
+    the booted-workbench seam (a CI-driveable workbench boot exposing
+    `window.openBrowserTab` / the views) is still future work (TL2
+    workbench integration; see INTEGRATION-GAP.md). The runtime rung
+    proves the SERVICE spine over real ports, not the shell around it.
 
 ## 5. CI wiring
 
-`flauz-session.yml` (this PR): zero-dep job, node 22, three steps —
+`flauz-session.yml`: job 1 (`session-battery`, zero-dep, node 22) —
 `session-battery.mjs --require`, the doctored-fixture fires-the-gate
 probe, and the full `verify-fixtures.sh` matrix. Gated on Flauz paths +
-`test/fixtures/session-battery*/**` + workflow_dispatch.
+`test/fixtures/session-battery*/**` + workflow_dispatch. Job 2
+(`session-runtime`, TL4-007): the runtime rung — downloads pinned
+Chrome-for-Testing 153.0.8010.12, launches it headless with
+`--remote-debugging-port`, exports `FLAUZ_CDP_ENDPOINT`, runs
+`session-battery.mjs --runtime --require` and asserts the GREEN line;
+triggered by workflow_dispatch (input `runtime` default true) and by
+pushes that change the drill / runtime-transcript fixtures / the gate
+(opt-in for cost, honest in the trigger list; PRs run job 1 only).
 
 ## 6. Coverage matrix (fixture rung)
 

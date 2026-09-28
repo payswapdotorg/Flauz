@@ -213,8 +213,8 @@ test('cdp nothing listens: readiness times out with the attempt count (exit 1)',
 
 test('child mode: natural exit 0 + activation markers on stderr -> exit-clean and ext rows PASS (exit 0)', async () => {
 	const script = [
-		"console.error('[exthost] [info] ExtensionService#_doActivateExtension flauz.flauz-agent, startup: false, activationEvent: onStartupFinished');",
-		"console.error('[exthost] [info] Eager extensions activated');",
+		'console.error(\'[exthost] [info] ExtensionService#_doActivateExtension flauz.flauz-agent, startup: false, activationEvent: onStartupFinished\');',
+		'console.error(\'[exthost] [info] Eager extensions activated\');',
 		'process.exit(0);',
 	].join(' ');
 	const { status, meta } = await runDriverJson(['--cmd', process.execPath, '--arg=-e', `--arg=${script}`, '--boot-timeout', '5000', ...FAST]);

@@ -141,11 +141,11 @@ const SCRIPT_REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..', '..'); // .../buil
 // the same commit (sync-drift tripwire, the canary A3 semantics).
 const PILLAR_COMPILE_ROWS = [
 	{ row: 'pillar.terminal.compiled', rel: 'vs/workbench/contrib/terminal/browser/terminal.contribution.js', marker: 'TerminalMainContribution' },
-	{ row: 'pillar.scm.compiled', rel: 'vs/workbench/contrib/scm/browser/scm.contribution.js', marker: "id: 'scm'" },
+	{ row: 'pillar.scm.compiled', rel: 'vs/workbench/contrib/scm/browser/scm.contribution.js', marker: 'id: \'scm\'' },
 	{ row: 'pillar.palette.compiled', rel: 'vs/workbench/contrib/quickaccess/browser/quickAccess.contribution.js', marker: 'CommandsQuickAccess' },
 	{ row: 'pillar.settings.compiled', rel: 'vs/workbench/contrib/preferences/browser/preferences.contribution.js', marker: 'workbench.action.openSettings' },
-	{ row: 'pillar.notebook.compiled', rel: 'vs/workbench/contrib/notebook/browser/notebook.contribution.js', marker: "id: 'notebook'" },
-	{ row: 'pillar.debug.compiled', rel: 'vs/workbench/contrib/debug/browser/debug.contribution.js', marker: "id: 'debug'" },
+	{ row: 'pillar.notebook.compiled', rel: 'vs/workbench/contrib/notebook/browser/notebook.contribution.js', marker: 'id: \'notebook\'' },
+	{ row: 'pillar.debug.compiled', rel: 'vs/workbench/contrib/debug/browser/debug.contribution.js', marker: 'id: \'debug\'' },
 	{ row: 'pillar.remote.compiled', rel: 'vs/platform/remote/common/remoteHosts.js', marker: 'parseAuthority' },
 ];
 
@@ -531,7 +531,7 @@ async function run(parsed) {
 		if (childCapture !== null) { files.push(childCapture.stdout, childCapture.stderr); }
 		return { files, dirs };
 	};
-	let settled = { host: false, activation: false };
+	const settled = { host: false, activation: false };
 	{
 		const { files, dirs } = corpusFiles();
 		const wired = files.length + dirs.length;

@@ -10,16 +10,14 @@
  * ubuntu runners have docker — the drill exercises there; dev boxes without
  * a daemon skip cleanly). Neither test ever fabricates a pass.
  */
-import { test } from 'node:test';
-import type { TestContext } from 'node:test';
+import { test, type TestContext } from 'node:test';
 import { ok, strictEqual } from 'node:assert';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { DockerCliExecutor, NodeCliPort, SshCliExecutor } from '../src/lifecycle/index.ts';
-import type { LocalEnvFsPort } from '../src/lifecycle/index.ts';
+import { DockerCliExecutor, NodeCliPort, SshCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import { containerRegistrationInput, sshRegistrationInput } from './helpers.ts';
 
 const HARNESS_PATH = path.resolve(import.meta.dirname, '..', 'fixtures', 'env-agent.ts');

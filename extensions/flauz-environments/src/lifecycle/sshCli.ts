@@ -61,8 +61,7 @@
  * every invocation — no local knowledge of the remote home). The
  * descriptor's `remotePath` (workspace path) is NOT used as a command path.
  */
-import { joinPath, serializeEnvelope, type Clock } from '../api.ts';
-import type { EnvironmentDescriptor, EnvironmentKind } from '../api.ts';
+import { joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 import { excerpt, parseHarnessStdio, type CliPort } from './cliPort.ts';
@@ -504,7 +503,7 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	/** Polls kill -0 until the pid is gone (or the grace window expires on the injectable clock). */
 	private async awaitGone(connection: { readonly host: string; readonly port?: number; readonly user?: string }, pid: number, windowMs: number): Promise<boolean> {
 		const deadline = this.clock() + windowMs; // the injected clock + latency cue bound every wait
-		for (;;) {
+		for (; ;) {
 			if (!(await this.remotePidAlive(connection, pid))) {
 				return true;
 			}
@@ -521,7 +520,7 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	 */
 	private async awaitReady(envId: string, connection: { readonly host: string; readonly port?: number; readonly user?: string }): Promise<{ ok: true; pid: number } | { ok: false; error: { code: string; message: string } }> {
 		const deadline = this.clock() + this.startTimeoutMs; // the injected clock + latency cue bound every wait
-		for (;;) {
+		for (; ;) {
 			const log = await this.cli.spawnCli([...this.baseArgv(connection), 'cat', this.remoteLogFileOf(envId)], { timeoutMs: this.commandTimeoutMs + this.connectTimeoutMs });
 			const parsed = parseHarnessStdio(log.stdout);
 			if (parsed.readyPid !== undefined) {

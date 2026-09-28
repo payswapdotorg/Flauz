@@ -2,51 +2,51 @@
 	"$schema": "flauz.bundle-manifest/v1",
 	"manifestVersion": 1,
 	"status": "PINNED",
-	"baseCommit": "0e9d8e225fbde90b53a1e206390f80a85eeea3aa",
-	"generatedAt": "2026-09-28T00:08:25.037Z",
+	"baseCommit": "66e7f87b0821f412ae72f6c0588780582f8ef8aa",
+	"generatedAt": "2026-09-28T01:07:37.444Z",
 	"generationCommand": "node build/flauz/scripts/security-runtime-gate.mjs --root . --generate",
 	"notes": "Pinned by --generate from a fresh double-bundle run (byte-identical passes). VERIFY mode re-bundles on every CI run and exits 1 on ANY drift (supply-chain tamper signal). Regeneration is PR-reviewed diff-by-diff; any PR that changes bundle bytes regenerates this manifest in the same PR.",
 	"bundles": {
 		"flauz-agent": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "a91aa198a07f25f51bfe684aea8768ed23301b67ccdcba7a76097b6427c57a03"
+				"dist/extension.js": "2ba2f4efc457e4ceb9fc9a688870333d07607e8c342daf7d279ecd80cd62180a"
 			}
 		},
 		"flauz-browser": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "bd07391e681c251a674a7474ce523167cbb8c495f450db2d2bf3803e82a1b38f"
+				"dist/extension.js": "5a9d970d11b9790caaac8283e516de2d7fdddb0645c27d1eac94b9d2f7cc9ca0"
 			}
 		},
 		"flauz-environments": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "b37d803345fdca7a4034d19a32063ba33294958e886c7b31071dda3d59631906"
+				"dist/extension.js": "88bfaddcca073c92e7d8780738d8ded347d5b7d9adfc7f62aef70df9cd0b4268"
 			}
 		},
 		"flauz-models": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "c936fe923b6c95d8a633c34ab944c1f17bd34ebf66f901121d671c66393684de"
+				"dist/extension.js": "1abf75dc7d36ba650765d6888c244a25ca6e0194f65fddd2dc72dc98165a635d"
 			}
 		},
 		"flauz-resources": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "65a192c392ed0acb7692341463fc56316c3b34866e94ed8d6c8a9243dc0d8c52"
+				"dist/extension.js": "4b8f2866be4b3a84421a545cdd52e8867e16241fe7811bde0d221f30fcb0e078"
 			}
 		},
 		"flauz-workflow": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "4892959c8348513fad0deaaa39c6071478ea6df81fbdc63a0bff58ae9e45ac31"
+				"dist/extension.js": "60b7b67e1c2508a30dbc28dec48a0b628550e5682080796be1547892cc8e2122"
 			}
 		},
 		"flauz-workspace": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "eed076e14fe92e2ec4819229563945d1136b7e0569c04d26cb6e6f36185401b9"
+				"dist/extension.js": "0842b9351b3952a8e2a3290198d8c46af8d5360e0d1d1547982bc8e43650e557"
 			}
 		}
 	}
