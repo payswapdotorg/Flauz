@@ -2,7 +2,7 @@
 
 Program reset: 2026-09-27
 Integrated product branch: main
-Integrated head at verification: 68ea3e7e43bc484d17b2034fef27a2759d30a913 (2026-09-28; current main verification point after TL1 completion, TL3 provider/continuity completion, and TL4 runtime-rung completion)
+Integrated head at verification: 0fb23ff106e9807bc6dbf9e0bdb3974e8655d102 (2026-09-28; current main verification point after TL1 completion, TL3 provider/continuity completion, and TL4 runtime-rung completion)
 
 ## Branch state
 

@@ -4,7 +4,7 @@ Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 
 ## Architect control-plane note — 2026-09-27
 
-- Verified integrated `main`: `2dd52fc6fe39b3ff8cada7a0e4ead33477e7ff8f`.
+- Verified integrated `main`: `0fb23ff106e9807bc6dbf9e0bdb3974e8655d102`.
 - No open PRs were present at verification time.
 - The detailed TL work sections below are preserved to avoid stealing or reassigning active TL work.
 - Any progress paragraph carrying a date later than 2026-09-27 is stale metadata; determine present status from the exact commit/PR/CI evidence on `main`.
