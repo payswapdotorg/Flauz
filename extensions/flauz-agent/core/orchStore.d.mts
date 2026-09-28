@@ -55,6 +55,10 @@ export declare class OrchestrationStore {
 	appendCandidate(candidate: JournalRow): JournalRow;
 	/** Serialize the preview -> mint -> append window (the rowId-evidence linkage guarantee). */
 	withTransitionLock<T>(fn: () => T | Promise<T>): Promise<T>;
+	/** FLAUZ-TL2-F1 (DL-75): the serialized append for async call sites - transition lock -> appendRowInternal. Refuses lock-free writes under contention. */
+	appendRowLocked(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): Promise<JournalRow>;
+	/** FLAUZ-TL2-F1 (DL-75): the guard-free append half for callers that already hold the transition lock. Never call directly - the public appendRow enforces the lock-discipline guard. */
+	appendRowInternal(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): JournalRow;
 	/** Mint the ledger evidence row of one transition (null without taskPort/taskId). */
 	mintTransitionEvidence(candidate: JournalRow): Promise<string | null>;
 	/** The evidence-bearing transition append (preview -> mint -> append). */

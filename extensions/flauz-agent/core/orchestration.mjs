@@ -713,6 +713,21 @@ export function validateJournalPayload(type, payload) {
 		}
 		return undefined;
 	}
+	if (type === 'cancel-observed') {
+		if (!hasExactKeys(payload, ['reason'], ['evidenceId', 'note'])) {
+			return `${label} payload must have exactly the keys [evidenceId?, note?, reason]`;
+		}
+		if (!isNonEmptyString(payload.reason)) {
+			return `${label} payload reason must be a non-empty string (e.g. 'downstream-stopped', 'in-flight-abort')`;
+		}
+		if (payload.note !== undefined && !isNonEmptyString(payload.note)) {
+			return `${label} payload note must be a non-empty string when present`;
+		}
+		if (payload.evidenceId !== undefined && !EVIDENCE_ID_PATTERN.test(payload.evidenceId)) {
+			return `${label} payload evidenceId must match /^E-\\d{6,}$/ (the minted ledger row of this observation)`;
+		}
+		return undefined;
+	}
 	if (type === 'step-interrupted') {
 		if (!hasExactKeys(payload, ['cause'], ['note'])) {
 			return `${label} payload must have exactly the keys [cause, note?]`;
@@ -789,6 +804,15 @@ export const STEP_TRANSITION_TYPES = STEP_TRANSITIONS.map((rule) => rule.type);
 /** Event types that change GRAPH status. */
 export const GRAPH_TRANSITION_TYPES = GRAPH_TRANSITIONS.map((rule) => rule.type);
 
+/**
+ * True when the event type is a state-changing transition (step- or
+ * graph-level) - the stale-run detector's gate (only transitions can be
+ * "illegal because cancelled"; observational records are always legal).
+ */
+export function isTransitionType(type) {
+	return STEP_TRANSITION_TYPES.includes(type) || GRAPH_TRANSITION_TYPES.includes(type);
+}
+
 /** Every journal event type (transition verbs + observational/coordination records). */
 export const JOURNAL_EVENT_TYPES = [
 	...GRAPH_TRANSITION_TYPES,
@@ -804,6 +828,7 @@ export const JOURNAL_EVENT_TYPES = [
 	'delegation-sent',
 	'result-received',
 	'cancel-requested',
+	'cancel-observed',
 	'recovery-scan',
 ];
 
@@ -816,6 +841,7 @@ const EVENT_LEVELS = {
 	'graph-completed': 'graph',
 	'graph-failed': 'graph',
 	'cancel-requested': 'graph',
+	'cancel-observed': 'either',
 	'recovery-scan': 'graph',
 	'route-decided': 'either',
 	'delegation-sent': 'either',
@@ -982,6 +1008,8 @@ export function deriveGraphState(graph, rows) {
 		takeover: null,
 		cancelRequested: false,
 		cancelReason: null,
+		cancelActor: null,
+		cancelObserved: null,
 		routing: {},
 		delegations: {},
 		interrupted: [],
@@ -1131,6 +1159,11 @@ function applyRowToState(state, row) {
 	if (type === 'cancel-requested') {
 		state.cancelRequested = true;
 		state.cancelReason = row.payload.reason;
+		state.cancelActor = row.actor;
+		return undefined;
+	}
+	if (type === 'cancel-observed') {
+		state.cancelObserved = { rowId: row.rowId, reason: row.payload.reason, actor: row.actor, stepId: row.stepId, at: row.ts, ...(row.payload.evidenceId !== undefined ? { evidenceId: row.payload.evidenceId } : {}) };
 		return undefined;
 	}
 	if (type === 'claim-acquired') {
@@ -1281,6 +1314,8 @@ export function summarizeState(state) {
 		takeover: state.takeover,
 		cancelRequested: state.cancelRequested,
 		cancelReason: state.cancelReason,
+		cancelActor: state.cancelActor,
+		cancelObserved: state.cancelObserved,
 		routing: state.routing,
 		delegations: state.delegations,
 		interrupted: state.interrupted,

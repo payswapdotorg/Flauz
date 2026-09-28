@@ -224,7 +224,7 @@ export class TaskService {
 		const task = requireTask(envelope, taskId);
 		const rule = transitionRule(event.type);
 		if (rule !== undefined) {
-			assertTransitionLegal(rule, task.status, event.actor);
+			assertTransitionLegal(rule, task.status, event.actor, taskId);
 			task.status = rule.to;
 		}
 		task.events.push(event);
@@ -308,8 +308,37 @@ function requireTask(envelope: MutableEnvelope, taskId: string): MutableTask {
 	return task;
 }
 
-function assertTransitionLegal(rule: TransitionRule, status: TaskStatus, actor: Actor): void {
+/**
+ * The typed stale-run/cancelled-observed outcome (INV-3 level 3): a run that
+ * is already past its last checkpoint appends a transition for a task that
+ * has become terminal 'cancelled' mid-flight. The store does NOT surface the
+ * generic state-machine rejection for this observation class - it surfaces
+ * THIS typed outcome so the runner can unwind cleanly and record the
+ * propagated cancellation. Every other illegal transition keeps the generic
+ * state-machine error (the fail-closed posture is unchanged: the event is
+ * still refused, the task still stays terminal 'cancelled').
+ */
+export class StaleRunCancelledError extends Error {
+	readonly code = 'flauz.tasks/v0:stale-run-cancelled';
+	readonly taskId: string;
+	readonly observedStatus: 'cancelled';
+
+	constructor(taskId: string, detail: string) {
+		super(`flauz.tasks/v0: stale run observed terminal 'cancelled' on task '${taskId}': ${detail} - the in-flight run is stale; the recorded cancellation is the propagated terminal outcome`);
+		this.name = 'StaleRunCancelledError';
+		this.taskId = taskId;
+		this.observedStatus = 'cancelled';
+	}
+}
+
+function assertTransitionLegal(rule: TransitionRule, status: TaskStatus, actor: Actor, taskId: string): void {
 	if (!rule.from.includes(status)) {
+		if (status === 'cancelled') {
+			throw new StaleRunCancelledError(
+				taskId,
+				`transition '${rule.type}' is not legal from status 'cancelled' (allowed source statuses: ${rule.from.join(', ')})`,
+			);
+		}
 		throw new Error(`flauz.tasks/v0: transition '${rule.type}' is not legal from status '${status}' (allowed source statuses: ${rule.from.join(', ')})`);
 	}
 	if (!rule.actors.includes(actor)) {

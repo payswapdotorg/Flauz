@@ -76,6 +76,7 @@ import {
 	isStepId,
 	isGraphId,
 	isAgentId,
+	isTransitionType,
 	OrchestrationError,
 	eventLevel,
 } from './orchestration.mjs';
@@ -162,6 +163,10 @@ export class OrchestrationStore {
 			this.tornTail = null;
 			/** The transition-lock tail (serializes the async public ops). */
 		this.lockTail = Promise.resolve();
+			/** Ops INSIDE the lock body (re-entrancy signal for the appendRow guard). */
+		this.lockDepth = 0;
+			/** Ops WAITING to enter the lock body (contention signal for the appendRow guard). */
+		this.lockWaiters = 0;
 			this.load();
 	}
 
@@ -341,8 +346,30 @@ export class OrchestrationStore {
 	 * completion all throw BEFORE any byte is written.
 	 */
 	appendRow(type, fields) {
+		if (this.lockDepth > 0 || this.lockWaiters > 0) {
+			throw new OrchestrationError(`${type} refused: the transition lock is held (${String(this.lockDepth)} in-flight, ${String(this.lockWaiters)} waiting) - a lock-free direct journal write is impossible while a serialized operation is in flight; route the append through the serialized store API (appendRowLocked / the locked public ops)`, 'lock-violation');
+		}
+		return this.appendRowInternal(type, fields);
+	}
+
+	/**
+	 * The guard-free append half for callers that ALREADY hold the transition
+	 * lock (the locked public ops and appendRowLocked). External code must
+	 * never call this directly - the public appendRow enforces the DL-75
+	 * lock-discipline guard.
+	 */
+	appendRowInternal(type, fields) {
 		const row = this.candidateRow(type, fields);
 		return this.appendCandidate(row);
+	}
+
+	/**
+	 * The serialized append for async call sites (the recovery pass, the
+	 * runtime drive, composed services): transition lock -> appendRow. The
+	 * DL-75 discipline - no append call site writes around the lock.
+	 */
+	async appendRowLocked(type, fields) {
+		return this.withTransitionLock(() => this.appendRowInternal(type, fields));
 	}
 
 	/**
@@ -354,6 +381,7 @@ export class OrchestrationStore {
 	previewRow(type, fields) {
 		const row = this.candidateRow(type, fields);
 		const graph = this.requireGraph(row.graphId);
+		this.assertNotStaleRun(graph, row, this.rowsFor(row.graphId));
 		const verdict = deriveGraphState(graph, [...this.rowsFor(row.graphId), row]);
 		if (!verdict.ok) {
 			throw new OrchestrationError(`${type} rejected: ${verdict.error}`, 'illegal-transition');
@@ -370,6 +398,7 @@ export class OrchestrationStore {
 	 */
 	appendCandidate(candidate) {
 		const graph = this.requireGraph(candidate.graphId);
+		this.assertNotStaleRun(graph, candidate, this.rowsFor(candidate.graphId));
 		const verdict = deriveGraphState(graph, [...this.rowsFor(candidate.graphId), candidate]);
 		if (!verdict.ok) {
 			throw new OrchestrationError(`${candidate.type} rejected: ${verdict.error}`, 'illegal-transition');
@@ -384,10 +413,40 @@ export class OrchestrationStore {
 	}
 
 	/**
+	 * The typed stale-run detector (INV-3 level 3): throws the TYPED
+	 * cancelled-observed outcome when `candidate` is a state-changing
+	 * transition whose target graph (or step) is already terminal
+	 * 'cancelled'. The replay error of the WITH-candidate derivation is
+	 * embedded (the state-machine detail stays visible for diagnosis and
+	 * for the pinned regression surfaces); every other illegal class is
+	 * left to the caller's generic illegal-transition path.
+	 */
+	assertNotStaleRun(graph, candidate, rowsForGraph) {
+		if (!isTransitionType(candidate.type)) {
+			return;
+		}
+		const current = deriveGraphState(graph, rowsForGraph);
+		if (!current.ok) {
+			return;
+		}
+		const state = current.state;
+		const stepCancelled = candidate.stepId !== null && state.steps[candidate.stepId] !== undefined && state.steps[candidate.stepId].status === 'cancelled';
+		if (state.graphStatus !== 'cancelled' && !stepCancelled) {
+			return;
+		}
+		const withCandidate = deriveGraphState(graph, [...rowsForGraph, candidate]);
+		const detail = withCandidate.ok ? 'the transition is not applicable on a terminal cancelled target' : withCandidate.error;
+		const where = stepCancelled ? `graph ${candidate.graphId} step ${String(candidate.stepId)}` : `graph ${candidate.graphId}`;
+		throw new OrchestrationError(`${candidate.type} rejected: stale run observed terminal cancelled (${where}) - ${detail}; the in-flight run is stale, the recorded cancellation is the propagated terminal outcome`, 'stale-run-cancelled');
+	}
+
+	/**
 	 * The transition lock: serializes the async public ops so the
 	 * preview -> mint -> appendCandidate window of an evidence-bearing op
 	 * can never interleave with another append (the rowId the evidence uri
-	 * references is the rowId the append lands at).
+	 * references is the rowId the append lands at). DL-75: waiters/depth
+	 * are accounted so a lock-free direct write under contention is
+	 * refused (see appendRow).
 	 */
 	async withTransitionLock(fn) {
 		const previous = this.lockTail;
@@ -395,10 +454,14 @@ export class OrchestrationStore {
 		this.lockTail = new Promise((resolve) => {
 			release = resolve;
 		});
+		this.lockWaiters += 1;
 		await previous;
+		this.lockWaiters -= 1;
+		this.lockDepth += 1;
 		try {
 			return await fn();
 		} finally {
+			this.lockDepth -= 1;
 			release();
 		}
 	}
@@ -553,12 +616,15 @@ export class OrchestrationStore {
 			throw new OrchestrationError(`graph envelope write failed: ${error.message}`, 'internal');
 		}
 		try {
-			const row = this.appendRow('graph-submitted', {
+			// DL-75: submitGraph's journal append rides the transition lock like
+			// every other append (the createTask await above opened an interleaving
+			// window; the locked append closes it).
+			const row = await this.withTransitionLock(() => this.appendRowInternal('graph-submitted', {
 				graphId,
 				actor: input.actor ?? 'agent',
 				origin: input.origin ?? 'extension:flauz-agent',
 				payload: { title: input.title, stepCount: steps.length, taskId },
-			});
+			}));
 			await this.mirrorTaskEvent(taskId, { ts: this.clock(), actor: input.actor ?? 'agent', type: 'graph-submitted', payload: { graphId, rowId: row.rowId } });
 			return { graphId, taskId, stepIds: steps.map((step) => step.stepId), rowId: row.rowId };
 		} catch (error) {
@@ -578,7 +644,7 @@ export class OrchestrationStore {
 	}
 
 	async approveGraph(input) {
-		return this.withTransitionLock(() => this.appendRow('graph-approved', {
+		return this.withTransitionLock(() => this.appendRowInternal('graph-approved', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
@@ -587,7 +653,7 @@ export class OrchestrationStore {
 	}
 
 	async rejectGraph(input) {
-		return this.withTransitionLock(() => this.appendRow('graph-rejected', {
+		return this.withTransitionLock(() => this.appendRowInternal('graph-rejected', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
@@ -596,7 +662,7 @@ export class OrchestrationStore {
 	}
 
 	async completeGraph(input) {
-		return this.withTransitionLock(() => this.appendRow('graph-completed', {
+		return this.withTransitionLock(() => this.appendRowInternal('graph-completed', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
@@ -605,7 +671,7 @@ export class OrchestrationStore {
 	}
 
 	async failGraph(input) {
-		return this.withTransitionLock(() => this.appendRow('graph-failed', {
+		return this.withTransitionLock(() => this.appendRowInternal('graph-failed', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
@@ -658,7 +724,7 @@ export class OrchestrationStore {
 			const stepState = state.steps[input.stepId];
 			const attempt = stepState.retrySameAttempt ?? (stepState.lastStartedAttempt + 1);
 			const key = idempotencyKeyOf(input.graphId, input.stepId, attempt);
-			const row = this.appendRow('step-started', {
+			const row = this.appendRowInternal('step-started', {
 				graphId: input.graphId,
 				stepId: input.stepId,
 				actor: input.actor ?? 'agent',
@@ -692,7 +758,7 @@ export class OrchestrationStore {
 		const attempt = input.attempt ?? stepState.lastStartedAttempt;
 		if (input.outcome === 'succeeded') {
 			const evidence = await this.mintEvidence(graph.taskId, input.evidence ?? []);
-			return this.appendRow('step-succeeded', {
+			return this.appendRowInternal('step-succeeded', {
 				graphId: input.graphId,
 				stepId: input.stepId,
 				actor: input.actor ?? 'agent',
@@ -705,7 +771,7 @@ export class OrchestrationStore {
 			const failureClass = input.failureClass ?? classifyFailure(input.error);
 			const policy = this.policyFor(graph, step);
 			const planned = input.retryPlanned ?? planRetry({ policy, attempt, failureClass, now: this.clock() }).retry;
-			return this.appendRow('step-failed', {
+			return this.appendRowInternal('step-failed', {
 				graphId: input.graphId,
 				stepId: input.stepId,
 				actor: input.actor ?? 'agent',
@@ -740,7 +806,7 @@ export class OrchestrationStore {
 		if (!plan.retry) {
 			throw new OrchestrationError(`retryStep: the retry policy refuses a retry (${plan.reason})`, 'illegal-transition');
 		}
-		return this.appendRow('step-retry-scheduled', {
+		return this.appendRowInternal('step-retry-scheduled', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'service',
@@ -758,7 +824,7 @@ export class OrchestrationStore {
 	async cancelGraph(input) {
 		return this.withTransitionLock(async () => {
 			const state = this.stateOf(input.graphId);
-		this.appendRow('cancel-requested', {
+		this.appendRowInternal('cancel-requested', {
 			graphId: input.graphId,
 			actor: input.actor,
 			origin: input.origin,
@@ -768,7 +834,7 @@ export class OrchestrationStore {
 			for (const stepId of Object.keys(state.steps).sort()) {
 				const step = state.steps[stepId];
 				if (step.status !== 'succeeded' && step.status !== 'cancelled') {
-					this.appendRow('step-cancelled', {
+					this.appendRowInternal('step-cancelled', {
 						graphId: input.graphId,
 						stepId,
 						actor: 'service',
@@ -778,7 +844,7 @@ export class OrchestrationStore {
 					cancelled.push(stepId);
 				}
 			}
-			this.appendRow('graph-cancelled', {
+			this.appendRowInternal('graph-cancelled', {
 				graphId: input.graphId,
 				actor: 'service',
 				origin: 'runtime:cancel-propagation',
@@ -994,7 +1060,7 @@ export class OrchestrationStore {
 		if (!isAgentId(input.targetAgent)) {
 			throw new OrchestrationError(`routeDecide targetAgent must be an agent id (got ${JSON.stringify(input.targetAgent)})`, 'invalid-params');
 		}
-		return this.withTransitionLock(() => this.appendRow('route-decided', {
+		return this.withTransitionLock(() => this.appendRowInternal('route-decided', {
 			graphId: input.graphId,
 			stepId: input.stepId ?? null,
 			actor: input.actor ?? 'agent',
@@ -1009,7 +1075,7 @@ export class OrchestrationStore {
 
 	/** The delegation receipt linking the routing decision to the a2a message id - locked. */
 	async delegationSent(input) {
-		return this.withTransitionLock(() => this.appendRow('delegation-sent', {
+		return this.withTransitionLock(() => this.appendRowInternal('delegation-sent', {
 			graphId: input.graphId,
 			stepId: input.stepId ?? null,
 			actor: input.actor ?? 'service',
@@ -1021,7 +1087,7 @@ export class OrchestrationStore {
 	/** Ingest an a2a result-report for a delegated step: the receipt row, then the step transition. */
 	async receiveResult(input) {
 		return this.withTransitionLock(async () => {
-		const receipt = this.appendRow('result-received', {
+		const receipt = this.appendRowInternal('result-received', {
 			graphId: input.graphId,
 			stepId: input.stepId,
 			actor: input.actor ?? 'agent',

@@ -50,6 +50,8 @@ export declare function isRowId(value: unknown): boolean;
 export declare function isClaimId(value: unknown): boolean;
 export declare function isLeaseId(value: unknown): boolean;
 export declare function isAgentId(value: unknown): boolean;
+/** FLAUZ-TL2-F1: true when the event type is a state-changing transition (step- or graph-level). */
+export declare function isTransitionType(type: string): boolean;
 export declare function idempotencyKeyOf(graphId: string, stepId: string, attempt: number): string;
 export declare function claimIdOf(graphId: string, stepId: string): string;
 export declare function leaseIdOf(graphId: string, stepId: string, ordinal: number): string;
@@ -139,6 +141,10 @@ export interface DerivedGraphState {
 	takeover: { stepId: string; state: string } | null;
 	cancelRequested: boolean;
 	cancelReason: string | null;
+	/** FLAUZ-TL2-F1: the actor of the recorded cancel-requested row (the attribution source for cancel-observed rows). */
+	cancelActor: string | null;
+	/** FLAUZ-TL2-F1: the latest cancel-observed record (the drive loop's attributed cancellation observation). */
+	cancelObserved: { rowId: string; reason: string; actor: string; stepId: string | null; at: number; evidenceId?: string } | null;
 	routing: Record<string, unknown>;
 	delegations: Record<string, unknown>;
 	interrupted: string[];

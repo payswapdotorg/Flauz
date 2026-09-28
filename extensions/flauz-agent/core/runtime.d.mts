@@ -40,12 +40,22 @@ export interface DriveStartRecord {
 	replayed: boolean;
 }
 
+export interface DriveCancelObservation {
+	rowId: string;
+	evidenceId: string | null;
+	reason: string;
+	stepId?: string;
+}
+
 export interface DriveReport {
 	graphId: string;
 	graphStatus: string;
 	started: DriveStartRecord[];
 	completed: boolean;
 	rounds: number;
+	/** FLAUZ-TL2-F1 (INV-3): the typed cancellation outcome - true when the drive observed the recorded cancellation. */
+	cancelled: boolean;
+	cancelObservation: DriveCancelObservation | null;
 	summary: Record<string, unknown>;
 }
 

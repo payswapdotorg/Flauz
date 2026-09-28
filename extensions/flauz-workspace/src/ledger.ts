@@ -219,6 +219,19 @@ export class EvidenceLedger {
 		}
 	}
 
+	/**
+	 * Append one evidence row (the serialized-append discipline, INV-6).
+	 *
+	 * The append is a read-tail -> mint -> appendFile -> SETTLE sequence:
+	 * after the line lands, the ledger is re-read and OUR row is verified as a
+	 * valid chain continuation at its position. When a concurrent appender
+	 * read the same pre-state (the deterministic lost-update rendezvous: both
+	 * readers observe the same tail), the SECOND lander's line carries a
+	 * duplicate seq and is repaired in place as the correct continuation of
+	 * the valid prefix - only the appender's OWN just-written line is ever
+	 * rewritten, never committed history. Exactly one additional read per
+	 * append (deadlock-safe under the battery's paired-reader rendezvous).
+	 */
 	async append(taskId: string, input: LedgerRowInput): Promise<AppendResult> {
 		if (typeof taskId !== 'string' || taskId.length === 0) {
 			throw new Error('flauz: ledger append requires a non-empty taskId');
@@ -240,15 +253,93 @@ export class EvidenceLedger {
 			prev,
 		};
 		await this.fs.appendFile(this.ledgerPath(), `${rowLine(row)}\n`);
-		const result: AppendResult = { evidenceId: evidenceIdOf(seq), seq, row };
+		const settled = await this.settleAppendedRow(row);
+		const result: AppendResult = { evidenceId: evidenceIdOf(settled.seq), seq: settled.seq, row: settled };
 		if (this.signer !== undefined) {
-			if (this.checkpointInterval > 0 && seq % this.checkpointInterval === 0) {
+			if (this.checkpointInterval > 0 && settled.seq % this.checkpointInterval === 0) {
 				await this.appendCheckpoint();
 			} else {
 				await this.writeWatermark();
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * The settlement half of the serialized append: re-read the ledger, locate
+	 * OUR line (byte-identical canonical form, searched from the tail), and
+	 * verify it landed as a valid continuation (seq === position, prev chains).
+	 *
+	 * - Fast path (the line is valid at its position): return the row as-is.
+	 *   A concurrent appender that landed BEFORE us sits in the valid prefix;
+	 *   one that lands AFTER us settles its own line.
+	 * - Repair path (our line carries a duplicate seq - we were the second
+	 *   lander of a shared pre-state, and our line is the FINAL line): re-mint
+	 *   the row as the continuation of the valid prefix (identity fields ts /
+	 *   taskId / kind / uri / sha256 are preserved; only seq and prev are
+	 *   corrected) and rewrite the file atomically-ish (.tmp + rename).
+	 * - Fail-closed path (our line is broken but NOT final, or vanished): a
+	 *   3+-way clobber is beyond the v0 cross-instance concurrency contract -
+	 *   refuse loudly instead of guessing (in-process appenders serialize on
+	 *   the caller's single-writer discipline; the two-appender rendezvous is
+	 *   the proven envelope).
+	 */
+	private async settleAppendedRow(row: LedgerRow): Promise<LedgerRow> {
+		const mine = rowLine(row);
+		const text = await this.fs.readFileUtf8(this.ledgerPath());
+		if (text === undefined || text === '') {
+			throw new Error('flauz: ledger append settlement failed: the ledger file is empty after the append (concurrent repair? retry the append)');
+		}
+		const lines = text.split('\n');
+		if (lines[lines.length - 1] === '') {
+			lines.pop();
+		}
+		let index = -1;
+		for (let position = lines.length - 1; position >= 0; position -= 1) {
+			if (lines[position] === mine) {
+				index = position;
+				break;
+			}
+		}
+		if (index === -1) {
+			throw new Error('flauz: ledger append settlement failed: the appended row is not in the ledger (a concurrent repair removed it; retry the append)');
+		}
+		const prefix: LedgerRow[] = [];
+		for (const [position, line] of lines.slice(0, index).entries()) {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(line as string);
+			} catch (err) {
+				throw new Error(`flauz: ledger append settlement failed: line ${String(position + 1)} is not valid JSON: ${(err as Error).message}`);
+			}
+			const outcome = parseLedgerRow(parsed);
+			if (!outcome.ok || outcome.row.seq !== position + 1) {
+				throw new Error(`flauz: ledger append settlement failed: line ${String(position + 1)} is not a valid chain prefix (concurrent repair raced this append; retry the append)`);
+			}
+			prefix.push(outcome.row);
+		}
+		const expectedSeq = index + 1;
+		const expectedPrev = prefix.length === 0 ? null : rowHash(prefix[prefix.length - 1] as LedgerRow);
+		if (row.seq === expectedSeq && row.prev === expectedPrev) {
+			return row;
+		}
+		if (index !== lines.length - 1) {
+			throw new Error(`flauz: ledger append settlement failed: row ${String(row.seq)} landed broken at line ${String(expectedSeq)} with later lines present (a 3+-way concurrent clobber is beyond the v0 cross-instance append contract; in-process appenders must serialize on the single-writer discipline)`);
+		}
+		const repaired: LedgerRow = {
+			seq: expectedSeq,
+			ts: row.ts,
+			taskId: row.taskId,
+			kind: row.kind,
+			uri: row.uri,
+			sha256: row.sha256,
+			prev: expectedPrev,
+		};
+		const target = this.ledgerPath();
+		const kept = lines.slice(0, index);
+		await this.fs.writeFile(`${target}.tmp`, `${[...kept, rowLine(repaired)].join('\n')}\n`);
+		await this.fs.rename(`${target}.tmp`, target);
+		return repaired;
 	}
 
 	/**
