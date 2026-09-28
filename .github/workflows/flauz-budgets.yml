@@ -13,11 +13,20 @@
 #      harness script against every fixture, expected outcomes asserted in both
 #      directions: a gate that cannot fail is not a gate).
 #
-# Honesty note (binding MIGRATION-PLAN section 5): no full build happens in this
-# job — the mapped artifacts are the repo's perf FIXTURES. The plumbing is
-# production-shaped: once the flauz-perf.yml jobs produce real artifacts, this
-# same gate step points at those instead (promotion ladder, doctrine section 4;
-# build/flauz/budgets/BASELINE.md records which rows are fixture-backed today).
+#   TL4-H1 job 3 (flauz-budgets-runtime): the RUNTIME measurement lane below.
+#
+# Honesty note (binding MIGRATION-PLAN section 5): no full build happens in the
+# budget-gate job — the mapped artifacts are the repo's perf FIXTURES. The
+# plumbing is production-shaped: once the flauz-perf.yml jobs produce real
+# artifacts, this same gate step points at those instead (promotion ladder,
+# doctrine section 4; build/flauz/budgets/BASELINE.md records which rows are
+# fixture-backed today). TL4-H1: the mapping additionally converts the mark TAP
+# fixture (flauz-main.marks.tap) through --parse-tap into the markers emit
+# shape — the promoted bridge row (activation.bridge.activate-resolved.p95)
+# is measured by the mapped input exactly like its sibling marker rows. The
+# runtime lane does NOT need a repo build either: the drills run the
+# extensions' TypeScript sources directly (node type stripping, the Lane-K /
+# TL4-H2 drill precedent).
 #
 # Constraints honored (same conventions as flauz-perf.yml / flauz-rota.yml):
 # no secrets, read-only perms, zero-dep steps, gated on Flauz paths +
@@ -42,6 +51,12 @@ on:
       - 'product.flauz.json'
       - '.github/workflows/flauz-*'
   workflow_dispatch:
+    inputs:
+      drills:
+        description: 'Run the TL4-H1 runtime drills lane (model-switch + multi-agent + browser over pinned Chrome for Testing)'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -86,6 +101,8 @@ jobs:
             test/fixtures/perf-timers/flauz-main.markers.tsv    > artifacts/budget-inputs/flauz.markers.json
           node build/flauz/scripts/perf-log-parse.mjs --parse-markers \
             test/fixtures/perf-timers/upstream-main.markers.tsv > artifacts/budget-inputs/upstream.markers.json
+          node build/flauz/scripts/perf-log-parse.mjs --parse-tap \
+            test/fixtures/perf-timers/flauz-main.marks.tap > artifacts/budget-inputs/flauz.marks-tap.json
           node build/flauz/scripts/perf-log-parse.mjs --parse-process-json \
             test/fixtures/process-shape/eventually.json    > artifacts/budget-inputs/eventually.process.json
           node build/flauz/scripts/perf-log-parse.mjs --parse-process-json \
@@ -134,6 +151,162 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
         with:
           name: flauz-budget-gate-report
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------
+  # TL4-H1 -- the RUNTIME measurement lane: the three runtime drills (model
+  # switch over the real flauz-models fabric seam, multi-agent workload over
+  # real core/service.mjs subprocesses, browser launch over a REAL pinned
+  # Chrome for Testing) emit measurement records that the unified gate
+  # requires with --require runtime-measured. Every promoted runtime row must
+  # be measured and green here on every run of the lane, or the job fails.
+  # Browser-row absence (a SKIPped browser drill) FAILS the gate: on this lane
+  # the browser is the job's OWN infrastructure (pinned CfT provisioned
+  # below), not an external dependency -- the skip-vs-fail inversion is the
+  # CI contract for runtime rows (the drills themselves keep exit-0 SKIP
+  # semantics for local/sandbox runs without FLAUZ_CDP_ENDPOINT).
+  # Runner class pinned ubuntu-24.04 (the perf lane's stable class, DL-16
+  # candidate): absolute budgets are only comparable on a pinned class.
+  # Opt-in for cost like the flauz-session live-events lane: workflow_dispatch
+  # (input drills, default true) or pushes that change the surfaces under
+  # test (flauz-models / flauz-agent / flauz-browser sources, the harness
+  # tree, or this workflow). PRs run the budget-gate job only.
+  # ---------------------------------------------------------------------------
+  flauz-budgets-runtime:
+    name: 'Runtime budget drills (TL4-H1: model-switch + multi-agent + browser, --require runtime-measured)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # fetch-depth 2: the in-job path filter diffs HEAD^..HEAD
+          fetch-depth: 2
+
+      - name: Decide whether the runtime lane runs
+        id: plan
+        run: |
+          set -e
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.drills }}" = "false" ]; then
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (workflow_dispatch input drills=false)"
+              exit 0
+            fi
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "runtime lane dispatched (input drills=true)"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            CHANGED=$(git diff --name-only HEAD^ HEAD || true)
+            if printf '%s\n' "$CHANGED" | grep -Eq '^(extensions/flauz-(models|agent|browser)/|build/flauz/|\.github/workflows/flauz-budgets\.yml)'; then
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "runtime lane runs (drill surface changed):"
+              printf '%s\n' "$CHANGED" | grep -E '^(extensions/flauz-(models|agent|browser)/|build/flauz/|\.github/workflows/flauz-budgets\.yml)' || true
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (no drill-surface change in this push)"
+            fi
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "runtime lane skipped (event $GITHUB_EVENT_NAME runs the budget-gate job only)"
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        if: steps.plan.outputs.run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- the pinned real browser (the TL3-003 drill's verified version;
+      # direct storage.googleapis.com pin, no registry indirection) ----
+      - name: Install pinned Chrome for Testing (153.0.8010.12)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          curl -fsSL -o /tmp/cft.zip \
+            "https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux64/chrome-linux64.zip"
+          mkdir -p "$RUNNER_TEMP/cft"
+          unzip -q /tmp/cft.zip -d "$RUNNER_TEMP/cft"
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" --version
+
+      - name: Launch Chrome for Testing (CDP endpoint)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          # The real-chromium-hardening drill's documented launch pattern
+          # (--disable-popup-blocking: Runtime.evaluate runs without a user
+          # gesture; the popup gate shapes must be observable).
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" \
+            --headless=new --no-sandbox --disable-gpu \
+            --disable-popup-blocking --remote-debugging-port=9222 \
+            --user-data-dir="$RUNNER_TEMP/flauz-cft-profile" about:blank \
+            > "$RUNNER_TEMP/cft.log" 2>&1 &
+          for i in $(seq 1 30); do
+            sleep 1
+            if curl -sf -m 2 http://127.0.0.1:9222/json/version > "$RUNNER_TEMP/cft-version.json"; then
+              break
+            fi
+          done
+          EP=$(node -p "JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/cft-version.json','utf8')).webSocketDebuggerUrl")
+          if [ -z "$EP" ]; then
+            echo "::error::Chrome for Testing did not expose a CDP endpoint in 30s"; cat "$RUNNER_TEMP/cft.log" || true; exit 1
+          fi
+          echo "FLAUZ_CDP_ENDPOINT=$EP" >> "$GITHUB_ENV"
+          echo "endpoint: $EP"
+
+      # ---- the three runtime drills; each writes the budget-gate measurement
+      # envelope and exits 1 ONLY on a real divergence (SKIP is exit 0: the
+      # gate below is what enforces record presence on this lane) ----
+      - name: Run the model-switch runtime drill (real fabric seam, local mock vendor)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node --experimental-strip-types \
+            extensions/flauz-models/test/canaries/model-switch-runtime.drill.ts \
+            --out "$RUNNER_TEMP/budget-runtime-records/model-switch.json" \
+            2>&1 | tee "$RUNNER_TEMP/model-switch-runtime.log"
+
+      - name: Run the multi-agent runtime drill (real seam subprocesses)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node --experimental-strip-types \
+            extensions/flauz-agent/test/canaries/multi-agent-runtime.drill.ts \
+            --out "$RUNNER_TEMP/budget-runtime-records/multi-agent.json" \
+            2>&1 | tee "$RUNNER_TEMP/multi-agent-runtime.log"
+
+      - name: Run the browser-launch runtime drill (real Chrome for Testing)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node --experimental-strip-types \
+            extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts \
+            --out "$RUNNER_TEMP/budget-runtime-records/browser.json" \
+            2>&1 | tee "$RUNNER_TEMP/browser-launch-runtime.log"
+
+      - name: Gate the runtime records (--require runtime-measured)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          mkdir -p artifacts
+          cp -v "$RUNNER_TEMP"/budget-runtime-records/*.json artifacts/ 2>/dev/null || true
+          cp -v "$RUNNER_TEMP"/*-runtime.log artifacts/ 2>/dev/null || true
+          node build/flauz/scripts/budget-gate.mjs \
+            --measurements "$RUNNER_TEMP/budget-runtime-records" \
+            --require runtime-measured \
+            --json | tee artifacts/budget-gate-runtime-run.json
+
+      - name: Upload runtime budget artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-budget-runtime-report
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 90

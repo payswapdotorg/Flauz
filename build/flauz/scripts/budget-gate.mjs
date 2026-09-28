@@ -88,7 +88,10 @@
 //                             self-check: every row SKIPs, exit 0)
 //   --require [scope]         SKIP -> FAIL for rows in scope. Scopes: all (default
 //                             when the flag is bare), enforced (enforced-ci OR
-//                             enforced-in-repo), enforced-ci, enforced-in-repo.
+//                             enforced-in-repo), enforced-ci, enforced-in-repo,
+//                             runtime-measured (the TL4-H1 runtime-drill rows —
+//                             the flauz-budgets.yml flauz-budgets-runtime job
+//                             uses this scope over the drill records).
 //                             Rows with budget null (catalogue-only) are exempt.
 //   --json                    additionally emit a machine-readable verdict block
 //   --root <dir>              base for resolving relative paths + the default
@@ -109,7 +112,12 @@
 //   - "severity": "fail" (over budget => exit 1) | "warn" (over budget => WARN row,
 //     exit unchanged — the memory-snapshot [E]/R6 posture).
 //   - "status": "enforced-ci" | "enforced-in-repo" | "fixture" | "pending-runtime"
-//     (the promotion ladder, docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md section 4).
+//     | "runtime-measured" (the promotion ladder,
+//     docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md section 4). runtime-measured
+//     (TL4-H1): the measuring RUNTIME DRIVER exists (the runtime drills + the
+//     flauz-budgets.yml flauz-budgets-runtime job) — the row is compared
+//     whenever the driver's measurement records are provided, and the CI
+//     runtime job requires them with --require runtime-measured.
 //
 // Exit codes:
 //   0 = all rows pass/SKIP (warns allowed — a warn row is never an exit failure)
@@ -131,8 +139,8 @@ const EXIT_OK = 0, EXIT_FAIL = 1, EXIT_USAGE = 2;
 const DEFAULT_BUDGETS_REL = 'build/flauz/budgets/flauz-budgets.json';
 const COMPARISONS = new Set(['<=', '>=', 'delta<=']);
 const SEVERITIES = new Set(['fail', 'warn']);
-const STATUSES = new Set(['enforced-ci', 'enforced-in-repo', 'fixture', 'pending-runtime']);
-const REQUIRE_SCOPES = new Set(['all', 'enforced', 'enforced-ci', 'enforced-in-repo']);
+const STATUSES = new Set(['enforced-ci', 'enforced-in-repo', 'fixture', 'pending-runtime', 'runtime-measured']);
+const REQUIRE_SCOPES = new Set(['all', 'enforced', 'enforced-ci', 'enforced-in-repo', 'runtime-measured']);
 const BUDGET_STRING_FORM = /^(>=|<=|>|<)\s*(\d+(?:\.\d+)?)$/;
 
 // Process classification — the same name/cmd regex classes as memory-snapshot.mjs
@@ -155,7 +163,7 @@ function usage() {
 
 Usage:
 	node budget-gate.mjs [--budgets <file>] [--measurements <file-or-dir>]
-			[--require [all|enforced|enforced-ci|enforced-in-repo]]
+			[--require [all|enforced|enforced-ci|enforced-in-repo|runtime-measured]]
 			[--json] [--root <dir>]
 	node budget-gate.mjs --help
 
@@ -182,7 +190,7 @@ Measurement inputs (see file header for the FULL mapping):
 
 Budget row: {"id","metric","budget","unit","comparison"("<="|">="|"delta<="),
 "severity"("fail"|"warn"),"status"("enforced-ci"|"enforced-in-repo"|"fixture"|
-"pending-runtime"),"source","notes"} — budget may be a number, null (catalogue-only,
+"pending-runtime"|"runtime-measured"),"source","notes"} — budget may be a number, null (catalogue-only,
 never gated) or a string form like ">=100"/"<=250" (absolute rows only).
 
 Exit codes: 0 pass/SKIP · 1 violation (fail row over budget, or required SKIP) ·
@@ -578,6 +586,7 @@ function skipReason(row) {
 		case 'enforced-in-repo': return `no measurement in this input — enforced in-repo by ${row.source || 'activation-lint.mjs'} (see docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md section 5)`;
 		case 'fixture': return 'fixture-status row: no measurement provided (sampling driver pending — see doctrine section 4, promotion ladder)';
 		case 'pending-runtime': return 'pending-runtime: the measuring runtime does not exist yet (contract defined, not measured — see doctrine section 6)';
+		case 'runtime-measured': return 'runtime-measured: the runtime driver exists but this input carried no measurement for the metric — run the runtime drill (see the row source; CI: the flauz-budgets-runtime job runs them and requires its rows)';
 		default: return 'measurement absent';
 	}
 }
@@ -585,7 +594,7 @@ function skipReason(row) {
 function inRequireScope(scope, rowStatus) {
 	if (scope === 'all') { return true; }
 	if (scope === 'enforced') { return rowStatus === 'enforced-ci' || rowStatus === 'enforced-in-repo'; }
-	return rowStatus === scope; // enforced-ci | enforced-in-repo
+	return rowStatus === scope; // enforced-ci | enforced-in-repo | runtime-measured
 }
 
 // ---- main --------------------------------------------------------------------------------------

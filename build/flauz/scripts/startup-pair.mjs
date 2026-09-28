@@ -33,7 +33,8 @@
 //  B) Duration-marker pair budgets (section 1.3 rows 2-3, section 6.2 flauz marks):
 //     node startup-pair.mjs \
 //       --markers-flauz   <flauz-main duration-markers TSV> \
-//       --markers-upstream <upstream-main duration-markers TSV>
+//       --markers-upstream <upstream-main duration-markers TSV> \
+//       [--tap-flauz <tap-file-or-dir> ...]
 //
 //     Asserts, per marker pair (nearest-rank percentiles across runs):
 //       - `code/didStartRenderer-code/didStartWorkbench`  p95 delta <= +100 ms  (row 2 exact)
@@ -45,6 +46,20 @@
 //     A budgeted pair that is ABSENT from every flauz run is a FAIL (marks never
 //     closed) — protects the drift class where timerService computes timers from
 //     marks nobody emits (PERF section 6.3, evidence 01 claim 4: ellapsedWindowMaximize).
+//
+//  B') TL4-H1 tap consumption: --tap-flauz adds FLAUZ_PERF_MARKS_FILE tap runs
+//     (one run per tap file; pair duration = did.now - will.now on the ext-host
+//     clock, perf-log-parse.mjs --parse-tap semantics) to the flauz run pool —
+//     this is how the flauz mark pairs reach the gate on real boots (the
+//     renderer relay snapshots BEFORE onStartupFinished activation; see the
+//     marks.ts header). Each --tap-flauz value may be a FILE or a DIRECTORY
+//     (all files in it, sorted — one run each); the flag is repeatable.
+//     When tap runs are present, the TAP_PAIR_BUDGETS (the three flauz pairs
+//     PLUS the bridge activation pair, all absolute — upstream legitimately
+//     emits no code/flauz/* marks, so no delta form exists) are asserted over
+//     the union pool. Requesting tap files that yield ZERO runs is a FAIL (the
+//     mark tap never fired — the R6 drift class). A markers-only invocation
+//     (no --tap-flauz) keeps its previous semantics exactly.
 //
 //  C) Mark-pair integrity / source grep (R6):
 //     node startup-pair.mjs --check-marks --src-root <repo-or-src-dir>
@@ -77,7 +92,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import {
-		parseAppendTimersTsv, parseDurationMarkersTsv, stats, fmtMs, readTextFile,
+		parseAppendTimersTsv, parseDurationMarkersTsv, parseMarksTapTsv, tapMarksToDurationRuns, stats, fmtMs, readTextFile,
 } from './perf-log-parse.mjs';
 
 // ---- PERF section 1.3 / section 6.2 budget table ------------------------------------------------------------
@@ -103,6 +118,20 @@ export const BRIDGE_ACTIVATION_MARKS = [
 		'code/flauz/willActivateBridge-code/flauz/didActivateBridge', // <= 300ms activate-resolved (section 1.3 row 5)
 ];
 
+// TL4-H1 tap pair budgets: the flauz mark pairs measured from
+// FLAUZ_PERF_MARKS_FILE tap files (the ext-host observational tap — see the
+// marks.ts header for the relay-snapshot diagnosis). These are ABSOLUTE
+// budgets: the pairs are flauz-only (the upstream side legitimately has no
+// code/flauz/* marks, so no delta form exists). Numbers are the same rows as
+// STARTUP_BUDGETS (drift trip-wire: registry rows + these constants change in
+// the same PR) plus the bridge pair whose 300ms is the registry row
+// activation.bridge.activate-resolved.p95.
+export const BRIDGE_ACTIVATION_BUDGET = { absMax: 300, note: 'section 1.3 row 5: bridge activate-resolved <= 300ms (registry activation.bridge.activate-resolved.p95)' };
+export const TAP_PAIR_BUDGETS = {
+		...Object.fromEntries(Object.entries(STARTUP_BUDGETS).filter(([pairName]) => pairName.includes('code/flauz/'))),
+		[BRIDGE_ACTIVATION_MARKS[0]]: BRIDGE_ACTIVATION_BUDGET,
+};
+
 const FLAUZ_SOURCE_GLOBS_DEFAULT = [
 		'extensions/flauz-*/**/*.ts',
 		'extensions/flauz-*/**/*.js',
@@ -123,8 +152,10 @@ Modes:
 	--timers-flauz <tsv> --timers-upstream <tsv>
 		Assert section 1.3 row 1 (<= +${FIRST_PAINT_P50_MAX}ms p50 / +${FIRST_PAINT_P95_MAX}ms p95) and row 2
 		(<= +${DIDSTARTWORKBENCH_P95_MAX}ms p95) on the ellapsed column of --prof-append-timers TSVs.
-	--markers-flauz <tsv> [--markers-upstream <tsv>]
+	--markers-flauz <tsv> [--markers-upstream <tsv>] [--tap-flauz <file-or-dir>]
 		Assert duration-marker pair budgets (see table in this file / --pairs-file).
+		--tap-flauz adds FLAUZ_PERF_MARKS_FILE tap runs to the flauz pool
+		(repeatable; a directory means every file in it, one run each).
 	--check-marks --src-root <dir>
 		Mark-pair integrity: every budgeted code/flauz/* mark greppable in flauz sources (R6).
 	--phase-gate --src-root <dir>
@@ -237,25 +268,95 @@ function runTimersPair(args, report) {
 		return exit;
 }
 
-// ---- mode B: duration markers ------------------------------------------------------------------
+// ---- mode B: duration markers (+ TL4-H1 tap runs) ---------------------------------------------
+
+/** Resolves one --tap-flauz value (file or directory) into tap file paths. */
+function collectTapFiles(tapArg, report) {
+		const resolved = path.resolve(tapArg);
+		let stat;
+		try { stat = fs.statSync(resolved); } catch (e) {
+				report.push(`ERROR: --tap-flauz path '${tapArg}' not readable: ${e.message}`);
+				return [];
+		}
+		if (stat.isFile()) { return [resolved]; }
+		if (stat.isDirectory()) {
+				let entries;
+				try { entries = fs.readdirSync(resolved).sort(); } catch (e) {
+						report.push(`ERROR: --tap-flauz dir '${tapArg}' not readable: ${e.message}`);
+						return [];
+				}
+				return entries.filter(n => n !== '' && !n.startsWith('.')).map(n => path.join(resolved, n)).filter(file => { try { return fs.statSync(file).isFile(); } catch { return false; } });
+		}
+		report.push(`ERROR: --tap-flauz path '${tapArg}' is neither a file nor a directory.`);
+		return [];
+}
+
 function runMarkersPair(args, budgets, report) {
 		const flauzPath = args['markers-flauz'];
-		if (!flauzPath) {
-				report.push('ERROR: --markers-flauz is required for the markers mode.');
+		const tapArgs = args['tap-flauz'] ?? [];
+		if (!flauzPath && tapArgs.length === 0) {
+				report.push('ERROR: --markers-flauz or --tap-flauz is required for the markers mode.');
 				return EXIT_USAGE;
 		}
-		const f = parseDurationMarkersTsv(readTextFile(flauzPath));
+		const f = flauzPath ? parseDurationMarkersTsv(readTextFile(flauzPath)) : { runs: [], errors: [] };
 		const u = args['markers-upstream'] ? parseDurationMarkersTsv(readTextFile(args['markers-upstream'])) : { runs: [], errors: [] };
 		let exit = EXIT_OK;
-		if (f.errors.length > 0) { for (const e of f.errors) { report.push(`PARSE-ERROR (flauz markers): ${e}`); } exit = EXIT_FAIL; }
+		if (flauzPath) {
+				if (f.errors.length > 0) { for (const e of f.errors) { report.push(`PARSE-ERROR (flauz markers): ${e}`); } exit = EXIT_FAIL; }
+		}
 		if (u.errors.length > 0) { for (const e of u.errors) { report.push(`PARSE-ERROR (upstream markers): ${e}`); } exit = EXIT_FAIL; }
-		if (f.runs.length === 0) { report.push('FAIL: no duration-marker runs parsed on the flauz side.'); return EXIT_FAIL; }
-		report.push(`marker runs: flauz n=${f.runs.length}${u.runs.length ? `, upstream n=${u.runs.length}` : ' (no upstream side — absolute budgets only)'}`);
 
-		for (const [pairName, budget] of Object.entries(budgets)) {
-				const fVals = f.runs.map(r => r.pairs[pairName]).filter(v => typeof v === 'number');
+		// TL4-H1: tap runs join the flauz pool (one run per tap file).
+		const tapRuns = [];
+		let tapFilesRequested = 0;
+		for (const tapArg of tapArgs) {
+				const files = collectTapFiles(tapArg, report);
+				tapFilesRequested += files.length;
+				for (const file of files) {
+						const parsed = parseMarksTapTsv(readTextFile(file));
+						for (const e of parsed.errors) { report.push(`PARSE-ERROR (tap ${path.basename(file)}): ${e}`); exit = EXIT_FAIL; }
+						const derived = tapMarksToDurationRuns(parsed.marks);
+						for (const e of derived.errors) { report.push(`PARSE-ERROR (tap ${path.basename(file)}): ${e}`); exit = EXIT_FAIL; }
+						if (derived.runs.length > 0) { tapRuns.push(derived.runs[0]); }
+				}
+		}
+		if (tapArgs.length > 0 && tapFilesRequested === 0) {
+				report.push(`FAIL: --tap-flauz requested but ZERO tap files found (${tapArgs.join(', ')}) — the FLAUZ_PERF_MARKS_FILE tap never fired (R6 drift class).`);
+				exit = EXIT_FAIL;
+		}
+		if (tapRuns.length === 0 && tapArgs.length > 0 && tapFilesRequested > 0) {
+				report.push(`FAIL: ${tapFilesRequested} tap file(s) parsed but ZERO closed will/did pairs — the budgeted marks were never emitted (R6 drift class).`);
+				exit = EXIT_FAIL;
+		}
+
+		const flauzRuns = [...f.runs, ...tapRuns];
+		if (flauzRuns.length === 0) { report.push('FAIL: no duration-marker runs parsed on the flauz side.'); return EXIT_FAIL; }
+		report.push(`marker runs: flauz n=${flauzRuns.length}${flauzPath ? ` (tsv=${f.runs.length}, tap=${tapRuns.length})` : ` (tap=${tapRuns.length}, no markers TSV)`}${u.runs.length ? `, upstream n=${u.runs.length} (tsv only)` : ' (no upstream side — absolute budgets only)'}`);
+
+		// Budget table: the classic markers budgets +, when tap runs
+		// contribute, the tap pair budgets (the flauz pairs measured on the
+		// ext-host clock + the bridge activation pair; all absolute — see
+		// TAP_PAIR_BUDGETS). --pairs-file overrides land LAST (the caller
+		// may retune any of them).
+		const assertBudgets = { ...budgets };
+		if (tapRuns.length > 0) {
+				for (const [pairName, budget] of Object.entries(TAP_PAIR_BUDGETS)) {
+						if (!(pairName in assertBudgets)) { assertBudgets[pairName] = budget; }
+				}
+		}
+
+		for (const [pairName, budget] of Object.entries(assertBudgets)) {
+				const fVals = flauzRuns.map(r => r.pairs[pairName]).filter(v => typeof v === 'number');
 				if (fVals.length === 0) {
-						report.push(`FAIL  ${pairName}: absent from ALL ${f.runs.length} flauz run(s) — mark pair never closed or not emitted (R6 drift class). Budget: ${budget.note}`);
+						// Tap-only invocation: renderer-side pairs (delta-budgeted, no
+						// absMax) legitimately have NO source without a markers TSV — the
+						// tap mechanism only carries ext-host flauz marks. WARN, do not
+						// FAIL (the TSV-carrying invocations still assert them strictly).
+						if (flauzPath === undefined && budget.absMax === undefined && budget.deltaMaxP95 !== undefined) {
+								report.push(`WARN  ${pairName}: not in scope — renderer-side pair, but no --markers-flauz TSV supplied (tap-only invocation asserts the ext-host flauz pairs).`);
+								continue;
+						}
+						report.push(`FAIL  ${pairName}: absent from ALL ${flauzRuns.length} flauz run(s) — mark pair never closed or not emitted (R6 drift class). Budget: ${budget.note}`);
 						exit = EXIT_FAIL;
 						continue;
 				}
@@ -361,6 +462,7 @@ function main() {
 								'timers-upstream': { type: 'string' },
 								'markers-flauz': { type: 'string' },
 								'markers-upstream': { type: 'string' },
+								'tap-flauz': { type: 'string', multiple: true },
 								'check-marks': { type: 'boolean' },
 								'phase-gate': { type: 'boolean' },
 								'src-root': { type: 'string' },
@@ -392,7 +494,7 @@ function main() {
 		let exit = EXIT_OK;
 		const modes = [];
 		if (args['timers-flauz'] || args['timers-upstream']) { modes.push('timers-pair'); }
-		if (args['markers-flauz']) { modes.push('markers-pair'); }
+		if (args['markers-flauz'] || (args['tap-flauz'] && args['tap-flauz'].length > 0)) { modes.push('markers-pair'); }
 		if (args['check-marks']) { modes.push('check-marks'); }
 		if (args['phase-gate']) { modes.push('phase-gate'); }
 		if (modes.length === 0) { usage(); process.exit(EXIT_USAGE); }

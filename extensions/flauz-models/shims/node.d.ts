@@ -23,6 +23,16 @@ declare module 'node:os' {
 	export function tmpdir(): string;
 }
 
+/** TL4-H1 (model-switch runtime drill): per-run temp workspace + cleanup. */
+declare module 'node:fs/promises' {
+	export function mkdir(path: string, options?: { recursive?: boolean }): Promise<string | undefined>;
+	export function writeFile(path: string, data: string | Uint8Array): Promise<void>;
+	export function readFile(path: string, encoding: 'utf-8'): Promise<string>;
+	export function rename(from: string, to: string): Promise<void>;
+	export function mkdtemp(prefix: string): Promise<string>;
+	export function rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+}
+
 declare module 'node:path' {
 	export function join(...segments: string[]): string;
 	export function dirname(path: string): string;
@@ -162,7 +172,12 @@ declare function fetch(url: string, init?: { method?: string; headers?: Record<s
 	readonly body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }> } } | null;
 }>;
 
-/** The process subset the credential resolver reads. */
+/** The process subset the credential resolver reads; TL4-H1 adds the drill-driver surface. */
 declare const process: {
 	readonly env: Record<string, string | undefined>;
+	argv: string[];
+	exit(code?: number): never;
 };
+
+/** TL4-H1: the sub-millisecond monotonic clock (model-switch drill timings). */
+declare const performance: { now(): number; mark?(name: string): void; };

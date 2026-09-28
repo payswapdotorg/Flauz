@@ -64,7 +64,30 @@ expect "startup-pair markers PASS"                     0 node "$S/startup-pair.m
 expect "startup-pair regressed FAIL"                   1 node "$S/startup-pair.mjs" --timers-flauz "$F/perf-timers/flauz-main.regressed.timers.tsv" --timers-upstream "$F/perf-timers/upstream-main.timers.tsv" --markers-flauz "$F/perf-timers/flauz-main.markers.regressed.tsv" --markers-upstream "$F/perf-timers/upstream-main.markers.tsv"
 expect "startup-pair too-few-runs FAIL"                1 node "$S/startup-pair.mjs" --timers-flauz "$F/perf-timers/flauz-main.too-few.timers.tsv" --timers-upstream "$F/perf-timers/upstream-main.timers.tsv"
 
+# ---- TL4-H1: FLAUZ_PERF_MARKS_FILE mark-tap parsing + tap consumption ----
+expect "perf-log-parse tap PASS"                        0 node "$S/perf-log-parse.mjs" --parse-tap "$F/perf-timers/flauz-main.marks.tap"
+expect "startup-pair tap+markers PASS"                 0 node "$S/startup-pair.mjs" --markers-flauz "$F/perf-timers/flauz-main.markers.tsv" --markers-upstream "$F/perf-timers/upstream-main.markers.tsv" --tap-flauz "$F/perf-timers/flauz-main.marks.tap"
+expect "startup-pair tap-only PASS"                    0 node "$S/startup-pair.mjs" --tap-flauz "$F/perf-timers/flauz-main.marks.tap"
+expect "startup-pair tap doctored FAIL (bridge>300)"   1 node "$S/startup-pair.mjs" --tap-flauz "$F/perf-timers/flauz-main.marks.doctored.tap"
+expect "startup-pair tap usage (missing flag value)"   2 node "$S/startup-pair.mjs" --tap-flauz
+
 # ---- startup-pair: R6 mark integrity + section 1.3 row 4 phase gate ----
+# empty tap dir: the tap was requested but never fired (R6 drift class)
+TAP_EMPTY="$(mktemp -d 2>/dev/null || echo "/tmp/flauz-tap-empty-$$")"
+mkdir -p "$TAP_EMPTY"
+expect "startup-pair empty-tap-dir FAIL (R6)"           1 node "$S/startup-pair.mjs" --tap-flauz "$TAP_EMPTY"
+rm -rf "$TAP_EMPTY"
+
+# ---- TL4-H1 runtime drills: machinery selftests + SKIP law (plain-script
+# drills live under extensions/*/test/canaries/ and are NOT part of npm test;
+# the matrix pins their selftests and the exit-0 SKIP contract) ----
+expect "drill model-switch selftest"                    0 node --experimental-strip-types extensions/flauz-models/test/canaries/model-switch-runtime.drill.ts --selftest
+expect "drill multi-agent selftest"                     0 node --experimental-strip-types extensions/flauz-agent/test/canaries/multi-agent-runtime.drill.ts --selftest
+expect "drill browser selftest"                         0 node --experimental-strip-types extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts --selftest
+expect "drill browser SKIP (no endpoint)"              0 node --experimental-strip-types extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts
+expect "drill model-switch SKIP (forced)"              0 env FLAUZ_MODEL_SWITCH_RUNTIME_SKIP=1 node --experimental-strip-types extensions/flauz-models/test/canaries/model-switch-runtime.drill.ts
+expect "drill multi-agent SKIP (forced)"               0 env FLAUZ_MULTIAGENT_RUNTIME_SKIP=1 node --experimental-strip-types extensions/flauz-agent/test/canaries/multi-agent-runtime.drill.ts
+
 expect "check-marks src-ok PASS"                       0 node "$S/startup-pair.mjs" --check-marks --src-root "$F/marks/src-ok"
 expect "check-marks src-missing FAIL"                  1 node "$S/startup-pair.mjs" --check-marks --src-root "$F/marks/src-missing"
 expect "check-marks no-sources SKIP"                   0 node "$S/startup-pair.mjs" --check-marks --src-root "$F/perf-timers"
@@ -133,6 +156,11 @@ expect "budget-gate usage error (unknown flag)"         2 node "$BG" --bogus
 expect "budget-gate --help"                            0 node "$BG" --help
 expect "budget-gate registry self-check (no input)"    0 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json"
 
+# ---- TL4-H1: runtime-measured rows over drill-shaped record fixtures ----
+expect "budget-gate runtime records PASS"              0 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGF/runtime-records.jsonl" --require runtime-measured
+expect "budget-gate runtime records doctored FAIL"     1 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGF/runtime-records-doctored.jsonl"
+expect "budget-gate runtime rows require flip FAIL"    1 node "$BG" --budgets "$ROOT/build/flauz/budgets/flauz-budgets.json" --measurements "$BGF/measurements-missing.jsonl" --require runtime-measured
+
 # real-data input plumbing: map the perf fixtures through perf-log-parse (the
 # single source of truth for perf-log parsing) into a CURATED temp dir, then run
 # the unified gate over it with --require enforced-ci — proves every enforced-ci
@@ -146,12 +174,13 @@ if (
     node "$S/perf-log-parse.mjs" --parse-timers     "$F/perf-timers/upstream-main.timers.tsv" > "$BGIN/upstream.timers.json"
     node "$S/perf-log-parse.mjs" --parse-markers    "$F/perf-timers/flauz-main.markers.tsv"   > "$BGIN/flauz.markers.json"
     node "$S/perf-log-parse.mjs" --parse-markers    "$F/perf-timers/upstream-main.markers.tsv" > "$BGIN/upstream.markers.json"
+    node "$S/perf-log-parse.mjs" --parse-tap       "$F/perf-timers/flauz-main.marks.tap"       > "$BGIN/flauz.marks-tap.json"
     node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/eventually.json"      > "$BGIN/eventually.process.json"
     node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/after-session.json"   > "$BGIN/after-session.process.json"
     node "$S/perf-log-parse.mjs" --parse-process-json "$F/process-shape/after-session.violations.json" > "$BGINV/after-session.process.json"
 ); then
     PASS=$((PASS + 1))
-    [ "$QUIET" -eq 0 ] && printf '  ok    %-52s mapped 7 inputs\n' "budget-gate input mapping (perf-log-parse)"
+    [ "$QUIET" -eq 0 ] && printf '  ok    %-52s mapped 8 inputs\n' "budget-gate input mapping (perf-log-parse)"
 else
     FAIL=$((FAIL + 1))
     printf '  DEVIATED  %-52s mapping failed\n' "budget-gate input mapping (perf-log-parse)" >&2
