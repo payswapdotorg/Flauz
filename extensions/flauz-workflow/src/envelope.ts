@@ -815,7 +815,7 @@ export class WorkflowService {
 		try {
 			await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'agent', type: 'report', payload: { workflowId: fragment.id, tools: fragment.tools.length } });
 
-				const verdict = await this.ledger.verify();
+			const verdict = await this.ledger.verify();
 			if (verdict.ok) {
 				await this.tasks.appendEvent(taskId, { ts: this.clock(), actor: 'tool', type: 'verify-pass', payload: { rows: verdict.rows, workflowId: fragment.id } });
 			} else {

@@ -283,7 +283,7 @@ export function createMockVscode(options: MockVscodeOptions = {}): MockVscode {
 			} catch (err) {
 				// Base missing or recursive watching unsupported here: the watcher
 				// stays synthetic-only (the runtime drill reports the honest SKIP
-					// on the backend flag; synthetic fire() keeps working).
+				// on the backend flag; synthetic fire() keeps working).
 				lastError = err instanceof Error ? err.message : String(err);
 			}
 		}

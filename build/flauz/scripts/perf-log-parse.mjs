@@ -415,9 +415,9 @@ Usage:
 	node perf-log-parse.mjs --parse-timers  <file>   parse a --prof-append-timers TSV
 	node perf-log-parse.mjs --parse-markers <file>   parse a --prof-duration-markers TSV
 	node perf-log-parse.mjs --parse-tap <file> [<file> ...]
-	                                             parse FLAUZ_PERF_MARKS_FILE tap file(s); emits the
-	                                             --parse-markers shape (one run per tap file,
-	                                             pairs = did.now - will.now, ext-host clock)
+		parse FLAUZ_PERF_MARKS_FILE tap file(s); emits the
+		--parse-markers shape (one run per tap file,
+		pairs = did.now - will.now, ext-host clock)
 	node perf-log-parse.mjs --parse-process-json <file>  parse a resolveProcesses() JSON
 	node perf-log-parse.mjs --parse-status   <file>  parse the process list of --status output
 	node perf-log-parse.mjs --selftest               run built-in unit selftest
