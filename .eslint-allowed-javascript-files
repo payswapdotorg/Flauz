@@ -195,6 +195,8 @@ build/flauz/scripts/packaging-parity.mjs
 build/flauz/packaging-parity.test.mjs
 build/flauz/scripts/session-battery.mjs
 build/flauz/scripts/security-gate.mjs
+# Flauz TL2-S3 Agent OS runtime verification battery (zero-dep .mjs gate)
+build/flauz/scripts/agentos-battery.mjs
 # Flauz TL1-002 product build/release shell (zero-dep .mjs gate + node:test suite)
 build/flauz/scripts/verify-product.mjs
 build/flauz/verify-product.test.mjs

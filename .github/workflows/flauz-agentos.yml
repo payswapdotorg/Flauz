@@ -1,0 +1,246 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL2 (Agent OS surge) - task TL2-S3 (TL4 runtime-verification secondment).
+#
+# The Agent OS runtime verification battery: eight durability invariants
+# (INV-1..INV-8, spec docs/FLAUZ-PROGRAM/TL2-AGENTOS-BATTERY.md) with
+# deterministic machine-checkable verdicts (schema flauz.agentos-battery/v1).
+#
+# Job agentos-fixture (the default rung):
+#   1. the dedicated cross-extension typecheck (tsconfig.agentos-battery.json -
+#      the session-battery precedent: the battery spans flauz-workspace /
+#      flauz-browser / flauz-environments / flauz-agent sources, excluded from
+#      flauz-workflow's main typecheck).
+#   2. agentos-battery.mjs (default mode) - runs the fixture-rung suite under
+#      node:test + type stripping, validates the emitted verdict document
+#      (coverage law, row shapes, summary consistency) AND the committed
+#      doctored controls (INSTRUMENT BLINDNESS: a doctored control passing
+#      fails the gate). Current-tree findings (FAIL rows) are honest DATA -
+#      they are findings for TL2, not CI failures; --surge-rung is the
+#      completion-claim mode.
+#   3. the doctored-control assertions (expected exit 1 each) - a gate that
+#      cannot fail is not a gate.
+#   4. the fixture matrix - sh build/flauz/scripts/verify-fixtures.sh.
+#
+# Job agentos-runtime (the RUNTIME rung - the promotion): the SAME eight
+# journeys over the REAL ports (real child processes for the restart /
+# cancellation / concurrency legs, the real LocalProcessExecutor, a real CDP
+# endpoint against a real headless Chrome-for-Testing, a stub provider
+# server over a real socket, the on-disk A2A bus) via the drill
+# extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts, driven
+# by `agentos-battery.mjs --runtime --require` (evidence mode: an
+# environmental SKIP fails; contract distance rows stay honest SKIPs).
+# Trigger law (the compat-l3/session-runtime precedent - compile cost):
+# workflow_dispatch (input `runtime`, default true) + ONE weekly schedule
+# canary, NEVER per-push. No secrets; Chrome comes from the official
+# Chrome-for-Testing distribution (pinned 153.0.8010.12 - the version the
+# TL3-003/TL4-007 drills were verified against).
+#
+# Constraints honored (same conventions as the sibling flauz-* lanes): no
+# secrets, read-only perms, actions pinned to the SHAs upstream's own
+# workflows use, auto-token install env per DL-20/DL-28.
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Agent OS Battery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/agentos-battery*/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'extensions/flauz-*/**'
+      - 'build/flauz/**'
+      - 'test/fixtures/agentos-battery*/**'
+      - 'product.flauz.json'
+      - '.github/workflows/flauz-*'
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Run the agentos-runtime job (the real-ports runtime lane)'
+        type: boolean
+        default: true
+  schedule:
+    # the weekly canary (the compat-l3 trigger law: never per-push). 04:23 UTC
+    # avoids scheduler contention (the css-order-scan convention).
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-agentos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agentos-fixture:
+    name: Agent OS runtime verification battery (TL2-S3, fixture rung)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- the battery typecheck: spans four extensions (the pulled-in
+      # flauz-workspace/flauz-browser/flauz-environments sources run under
+      # their own laxer noUnused* flags; flauz-agent's a2a type mirror is
+      # included for the on-disk bus) - its own tsconfig, excluded from
+      # flauz-workflow's main typecheck (the session-battery precedent). ----
+      - name: Typecheck the battery (tsconfig.agentos-battery.json)
+        run: |
+          set -e
+          cd extensions/flauz-workflow
+          npm install --no-audit --no-fund
+          npm run typecheck-agentos-battery
+
+      # ---- the battery: eight journeys, real contracts, verdict document
+      # (default mode: findings are DATA; the doctored controls MUST fire;
+      # the coverage law MUST hold). ----
+      - name: Run the Agent OS battery (fixture rung)
+        run: node build/flauz/scripts/agentos-battery.mjs --root .
+
+      # ---- a gate that cannot fail is not a gate: the committed doctored
+      # controls (a catalogue row removed; a symptom-only FAIL row) MUST
+      # each flip the verdict to FAIL (exit 1). ----
+      - name: Prove the gate fires (doctored controls must exit 1)
+        run: |
+          set -e
+          for doctored in doctored-verdict-missing-row doctored-verdict-blind-fail; do
+            set +e
+            node build/flauz/scripts/agentos-battery.mjs \
+              --verdict "test/fixtures/agentos-battery/${doctored}.json" \
+              > "/tmp/agentos-${doctored}.log" 2>&1
+            code=$?
+            set -e
+            cat "/tmp/agentos-${doctored}.log"
+            if [ "$code" -ne 1 ]; then
+              echo "::error::agentos battery unexpectedly exited $code on ${doctored} (expected 1 - the gate must fire)"
+              exit 1
+            fi
+            echo "expected: the doctored control ${doctored} fired the gate (exit 1)"
+          done
+
+      # ---- the fixture matrix: every harness script against every fixture ----
+      - name: Fixture matrix (verify-fixtures.sh)
+        run: sh build/flauz/scripts/verify-fixtures.sh
+
+  # ---------------------------------------------------------------------------
+  # The RUNTIME rung: the same INV-1..INV-8 journeys over REAL ports (real
+  # child processes, a real CDP endpoint against a real headless
+  # Chrome-for-Testing, the real LocalProcessExecutor, a stub provider server
+  # over a real socket, the on-disk A2A bus). Opt-in for cost; never modifies
+  # job 1. Trigger law: workflow_dispatch + the weekly schedule canary only.
+  # ---------------------------------------------------------------------------
+  agentos-runtime:
+    name: 'Agent OS runtime verification battery (TL2-S3, runtime rung: real processes + real CDP + real sockets)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- opt-in for cost, honest in the trigger list: the lane runs on
+      # workflow_dispatch (input `runtime`, default true) or the weekly
+      # schedule canary. PRs and pushes run job 1 only. ----
+      - name: Decide whether the runtime lane runs
+        id: plan
+        run: |
+          set -e
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.runtime }}" = "false" ]; then
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (workflow_dispatch input runtime=false)"
+              exit 0
+            fi
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "runtime lane dispatched (input runtime=true)"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "runtime lane runs (weekly schedule canary)"
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "runtime lane skipped (event $GITHUB_EVENT_NAME runs job 1 only)"
+
+      # ---- download Chrome-for-Testing: the exact version the TL3-003 and
+      # TL4-007 drills were developed and verified against (153.0.8010.12).
+      # The official CfT JSON endpoints
+      # (https://googlechromelabs.github.io/chrome-for-testing/) index every
+      # published build; the pinned artifact lives at the well-known official
+      # storage path. A 404 fails the job loudly (honest: the version was
+      # unpublished, re-pin deliberately). No secrets. ----
+      - name: Download Chrome-for-Testing (pinned 153.0.8010.12)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          CFT_VERSION="153.0.8010.12"
+          # drift visibility (non-fatal): what the official JSON index says
+          # for milestone 153 today
+          LATEST_153=$(curl -fsSL --retry 2 \
+            "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone.json" \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const m=JSON.parse(d).milestones['153'];console.log(m?m.version:'unknown')})" \
+            || echo unknown)
+          echo "Chrome-for-Testing: pinned $CFT_VERSION (milestone 153 latest today: $LATEST_153)"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" \
+            "https://storage.googleapis.com/chrome-for-testing-public/$CFT_VERSION/linux64/chrome-linux64.zip"
+          unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP"
+          "$RUNNER_TEMP/chrome-linux64/chrome" --version
+
+      # ---- launch the real browser + export the CDP endpoint (the
+      # TL3-003/session drill documents this exact launch pattern) ----
+      - name: Launch headless Chromium with --remote-debugging-port
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          "$RUNNER_TEMP/chrome-linux64/chrome" --headless=new --no-sandbox --disable-gpu \
+            --disable-popup-blocking --remote-debugging-port=9222 \
+            --user-data-dir="$RUNNER_TEMP/flauz-chrome-profile" about:blank &
+          sleep 6
+          EP=$(curl -fsS --max-time 10 http://127.0.0.1:9222/json/version \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).webSocketDebuggerUrl))")
+          if [ -z "$EP" ]; then
+            echo "::error::no webSocketDebuggerUrl from http://127.0.0.1:9222/json/version"
+            exit 1
+          fi
+          echo "FLAUZ_CDP_ENDPOINT=$EP" >> "$GITHUB_ENV"
+          echo "CDP endpoint: $EP"
+
+      # ---- the runtime rung: INV-1..INV-8 over real ports, evidence mode
+      # (an environmental SKIP is a FAIL; contract distance rows stay
+      # honest SKIPs; the gate enforces the drill's exit code AND relays its
+      # GREEN line + ROW census verbatim). ----
+      - name: Run the runtime drill (agentos-battery.mjs --runtime --require)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node build/flauz/scripts/agentos-battery.mjs --runtime --require 2>&1 | tee "$RUNNER_TEMP/agentos-runtime.log"
+
+      - name: Assert the GREEN line
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          grep -q 'agentos-battery: PASS -- runtime drill green' "$RUNNER_TEMP/agentos-runtime.log"
+          grep -q 'agentos runtime drill: GREEN (INV-1..INV-8 over real ports' "$RUNNER_TEMP/agentos-runtime.log"
+          echo "agentos-runtime: GREEN line verified (INV-1..INV-8 over real ports)"

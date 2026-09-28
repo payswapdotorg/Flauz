@@ -30,6 +30,7 @@ Authoritative inputs: `docs/PERFORMANCE-PLAN.md` + `docs/MIGRATION-PLAN.md`
 | **6. Checkpoints** | `flauz-rota.yml` (checkpoint-reminder step; tag by sync runbook) | `rota` | DECISION-LOG diff reminder at every `flauz/sync/<date>` tag; rota `--snapshot` baseline committed at the tag | — |
 | TL4-005 unified budgets | `flauz-budgets.yml` | `budget-gate` | registry budgets (build/flauz/budgets/) across startup/activation/memory/CPU/browser/model/multi-agent; skip-vs-fail + `--require enforced-ci` over mapped perf inputs | — (recalibration landing spot for all of the above) |
 | TL4-008 compat L3 runtime boot smoke | `flauz-compat.yml` | `compat-l3` | the battery's layer 3 (TL4-COMPAT-BATTERY section 11): compile on the runner + xvfb boot with flauz built-ins active + `compat-l3-smoke.mjs --require`; trigger = workflow_dispatch + weekly schedule only (compile cost, never per-push) | - |
+| TL2-S3 Agent OS runtime verification battery | `flauz-agentos.yml` | `agentos-fixture`, `agentos-runtime` | the 8-invariant Agent OS durability battery (spec `docs/FLAUZ-PROGRAM/TL2-AGENTOS-BATTERY.md`): job 1 = the dedicated cross-extension typecheck + the gate's default rung (findings are data; the committed doctored controls MUST fire) + the verify-fixtures matrix, on push paths + workflow_dispatch; job 2 = `--runtime --require` over REAL ports (real child processes, pinned Chrome-for-Testing 153.0.8010.12 via FLAUZ_CDP_ENDPOINT, a stub provider server over a real socket), GREEN-line assert, trigger = workflow_dispatch input `runtime` (default true) + one weekly schedule canary (never per-push) | - |
 
 All four workflows: `ubuntu-latest` class (perf pair pins `ubuntu-24.04` —
 DL-16 candidate), **no secrets** (public repo, read-only perms), gated on
@@ -59,6 +60,7 @@ with exit codes documented in its header. Never `npm install` to run them.
 | `budget-gate.mjs` | TL4-005 unified budget gate (registry `budgets/flauz-budgets.json` vs measurements) | `--budgets`, `--measurements <file-or-dir>` (records + perf-log-parse emit shapes + raw TSVs), `--require [all\|enforced\|enforced-ci\|enforced-in-repo]`, `--json`, `--root` | 0 pass/SKIP · 1 violation · 2 usage/malformed registry |
 | `security-runtime-gate.mjs` | TL4-009 RUNTIME rung of the security gate (sibling of the frozen security-gate.mjs): audit-delta (npm audit filtered to the flauz-added dependency delta vs `upstream/main`), sbom (CycloneDX 1.5 emission + drift verify vs the committed pin), bundle-manifest (pinned sha256 of the reproducible bundles; verify re-bundles, `--generate` pins) | `--row audit\|sbom\|manifest`, `--generate`, `--sbom-out`, `--verify-sbom`, `--audit-json`, `--manifest`, fixture overrides (require `--row`), `--json`, `--out`, `--require`, `--no-fail` | 0 clean/SKIP · 1 FAIL/divergence · 2 usage |
 | `verify-fixtures.sh` | the in-sandbox verification matrix (§5) | (no flags) / `--quiet` | 0 all cases as expected · 1 deviation · 2 env error |
+| `agentos-battery.mjs` | TL2-S3 the Agent OS runtime verification battery (8-invariant catalogue INV-1..INV-8, deterministic verdict document `flauz.agentos-battery/v1`, one contract two rungs; spec `docs/FLAUZ-PROGRAM/TL2-AGENTOS-BATTERY.md`, baseline `build/flauz/agentos-battery-baseline.md`) | `--root/--fixtures`, `--json`, `--list`, `--require`, `--surge-rung` (completion-claim: every row PASS), `--no-fail`, `--runtime` (real ports; SKIP without FLAUZ_CDP_ENDPOINT), `--verdict <file>` | 0 green/SKIP · 1 failure promoted/coverage/blindness/harness · 2 usage |
 | `verify-product.mjs` | TL1-002 merged product posture gate (merges product.json + product.flauz.json via the mergeProduct API, then asserts identity/branding sweep, Copilot wiring, exact proposal grants + registry existence, and the REAL extension-inclusion mechanisms; runbook `build/flauz/RELEASE-SHELL.md`) | `--root`, `--require`, `--no-fail`, `--json` | 0 clean/SKIP · 1 violation · 2 usage |
 
 **Skip-vs-fail policy** (important): while lanes F/G are in flight, the
@@ -205,6 +207,23 @@ delta-computation json-content assertions, sbom verify postures
 manifest fixture verify (match/drift/unpinned), usage contracts, and the
 repo-mode skip-vs-fail shapes (pre-install contexts; post-install
 contexts run the real rows in flauz-security job 2).)
+
+(TL2-S3 addendum, 2026-09-28: the agentos-battery section adds 11 cases
+(190 → 201 total) — the Agent OS runtime verification gate: default rung
+PASS (instrument green with honest findings as data), `--json` exit 0,
+the committed golden verdict control PASS, the two doctored verdict
+controls FAIL (a catalogue row removed — the coverage law; a symptom-only
+FAIL row — the verdict contract), `--surge-rung` fires on the current
+findings (exit 1 — the completion-claim bar is real), the runtime drill
+selftest PASS, and the gate's `--runtime` SKIP semantics in both modes (no
+endpoint → SKIP exit 0; `--runtime --require` no endpoint → FAIL exit 1).
+The FULL runtime rung (real child processes + real CDP + the stub provider
+server over a real socket) needs FLAUZ_CDP_ENDPOINT — that lane lives in
+the flauz-agentos CI job `agentos-runtime` (workflow_dispatch + weekly
+schedule canary, the compat-l3 trigger law), never the in-sandbox matrix.
+It was run ONCE at delivery time against Chrome-for-Testing 153.0.8010.12
+and produced the IDENTICAL census as the fixture rung — the
+one-contract-two-rungs law held live.)
 
 Summary (command class → exit code):
 

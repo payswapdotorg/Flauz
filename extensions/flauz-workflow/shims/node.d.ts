@@ -107,6 +107,8 @@ declare module 'node:path' {
 
 declare module 'node:test' {
 	export function test(name: string, fn: (t: unknown) => void | Promise<void>): void;
+	export function test(name: string, options: { skip?: boolean | string }, fn: (t: unknown) => void | Promise<void>): void;
+	export function describe(name: string, fn: () => void): void;
 }
 
 declare module 'node:assert' {
