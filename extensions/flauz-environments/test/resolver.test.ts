@@ -30,7 +30,6 @@ import { EnvironmentRegistry } from '../src/registry.ts';
 import { EnvironmentLifecycleManager, SimulatedRemoteExecutor, type SimFsPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor, EnvironmentKind } from '../src/api.ts';
 import type { ConnectionPlan } from '../src/providers/types.ts';
-import type { EnvironmentRegistry as RegistryPort } from '../src/registry.ts';
 import { AGENT_HOST_BRIDGE_TOKEN_ENV_VAR, FLAUZ_ENV_AUTHORITY_PREFIX, FlauzEnvResolver, RESOLVER_ERROR_CODES, formatFlauzEnvAuthority, type FlauzEnvResolverOptions, type ResolverOutcome } from '../src/resolver/index.ts';
 import type { HttpPort, SecretResolverPort } from '../src/lifecycle/cloudHttp.ts';
 import { FakeCli } from './fakeCli.ts';
@@ -273,7 +272,7 @@ test('policy gate: created-but-not-running is POSTURE_REFUSED (resolution is con
 	const outcome = await rig.resolver.resolve(sshAuthority('env-created-only'));
 	ok(!outcome.ok);
 	strictEqual(outcome.failure.code, 'POSTURE_REFUSED');
-	ok(outcome.failure.message.includes("'created'"));
+	ok(outcome.failure.message.includes(`'created'`));
 });
 
 test('policy gate: stopped is POSTURE_REFUSED', async () => {
@@ -284,7 +283,7 @@ test('policy gate: stopped is POSTURE_REFUSED', async () => {
 	const outcome = await rig.resolver.resolve(sshAuthority(id));
 	ok(!outcome.ok);
 	strictEqual(outcome.failure.code, 'POSTURE_REFUSED');
-	ok(outcome.failure.message.includes("'stopped'"));
+	ok(outcome.failure.message.includes(`'stopped'`));
 });
 
 // ---------------------------------------------------------------------------
@@ -360,7 +359,7 @@ test('lookup: PLAN_ABSENT — the defense-in-depth drill over a duck-typed regis
 		planFor: () => {
 			throw new Error('flauz.connectionPlan/v0: provider drift');
 		},
-	} as unknown as RegistryPort;
+	} as unknown as EnvironmentRegistry;
 	const resolver = new FlauzEnvResolver({
 		registry: duckRegistry,
 		lifecycle: rig.manager,
@@ -489,7 +488,7 @@ test('bridge: bridged + embedded (--agent-host-port) is BRIDGE_MISCONFIGURED —
 	const duckRegistry = {
 		get: (envId: string) => (envId === id ? descriptor : undefined),
 		planFor: () => doctoredPlan,
-	} as unknown as RegistryPort;
+	} as unknown as EnvironmentRegistry;
 	const resolver = new FlauzEnvResolver({
 		registry: duckRegistry,
 		lifecycle: rig.manager,
@@ -516,7 +515,7 @@ test('bridge: a bridged plan without a bridge block is BRIDGE_MISCONFIGURED (inc
 	const duckRegistry = {
 		get: (envId: string) => (envId === id ? descriptor : undefined),
 		planFor: () => doctoredPlan,
-	} as unknown as RegistryPort;
+	} as unknown as EnvironmentRegistry;
 	const resolver = new FlauzEnvResolver({ registry: duckRegistry, lifecycle: rig.manager, cli: rig.cli, http: rig.http, secrets: rig.secrets, root: ROOT, fs: rigFs(rig.files), cloudBaseUrl: 'https://cloud.example.test' });
 	rig.cli.queueResult({ exitCode: 0 });
 	const outcome = await resolver.resolve(sshAuthority(id));

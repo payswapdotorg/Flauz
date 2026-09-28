@@ -67,10 +67,9 @@
  * EVERY step re-reads the CURRENT registry + PIN-2 state — a trust or state
  * flip between resolves flips the verdict; nothing is cached.
  */
-import { isSecretRef, joinPath, type EnvironmentDescriptor, type FileSystemPort } from '../api.ts';
+import { isSecretRef, joinPath, type CloudSandboxConnection, type ContainerConnection, type EnvironmentDescriptor, type FileSystemPort, type SshConnection } from '../api.ts';
 import type { EnvironmentRegistry } from '../registry.ts';
 import type { ConnectionPlan } from '../providers/types.ts';
-import type { SshConnection, ContainerConnection, CloudSandboxConnection } from '../api.ts';
 import { EnvironmentLifecycleManager, isRunningState } from '../lifecycle/index.ts';
 import { excerpt, type CliPort } from '../lifecycle/cliPort.ts';
 import type { HttpPort, SecretResolverPort } from '../lifecycle/cloudHttp.ts';

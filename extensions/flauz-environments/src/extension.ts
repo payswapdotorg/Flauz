@@ -59,8 +59,7 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import type { FileSystemPort } from './api.ts';
-import { ENVIRONMENT_KINDS } from './api.ts';
+import { ENVIRONMENT_KINDS, type FileSystemPort } from './api.ts';
 import { EnvironmentRegistry } from './registry.ts';
 import { planSwitch } from './continuity.ts';
 import { registerEnvironmentsView, type EnvironmentsViewApi } from './views.ts';
@@ -616,7 +615,7 @@ function createAuthorityResolverAdapter(): vscode.RemoteAuthorityResolver {
 function registerAuthorityResolver(context: vscode.ExtensionContext): void {
 	const workspaceCandidate = vscode.workspace as unknown as Partial<Record<'registerRemoteAuthorityResolver', unknown>>;
 	if (typeof workspaceCandidate.registerRemoteAuthorityResolver !== 'function') {
-		state.resolver = { registered: false, reason: "the proposed API 'resolvers' is not available in this host (grant not live) — the flauz-env authority resolver stays unregistered (fail-closed; product.flauz.json extensionEnabledApiProposals owns the grant)" };
+		state.resolver = { registered: false, reason: `the proposed API 'resolvers' is not available in this host (grant not live) — the flauz-env authority resolver stays unregistered (fail-closed; product.flauz.json extensionEnabledApiProposals owns the grant)` };
 		return;
 	}
 	const register = workspaceCandidate.registerRemoteAuthorityResolver as (prefix: string, resolver: vscode.RemoteAuthorityResolver) => vscode.Disposable;
