@@ -144,8 +144,11 @@ append-only continuity ops ledger.
   **sshCli / dockerCli / cloudHttp** + the skip-gated `liveRemote` LIVE drills
   + `fakeCli.ts` the scriptable `CliPort` double / **continuityExec /
   fixtures-continuity** / views / **resolver (TL3-H1): resolverAuthority +
-  resolver + the skip-gated resolverLive LIVE drills** + `boot/
-  registrationDrill.ts` the CI boot drill runner). Zero dependencies;
+  resolver + the skip-gated resolverLive LIVE drills** + the CI boot drill
+  lives OUTSIDE the suite: the test-driver fixture at the repo root's
+  `test/fixtures/resolver-driver/` + the evaluator
+  `build/flauz/scripts/cenv-resolver-boot-drill.mjs`, the
+  b-policy-boot-drill pattern). Zero dependencies;
   Node >= 23.6 (type stripping). The repo fixture matrices live at
   `test/fixtures/environments/`, `test/fixtures/environments-lifecycle/` and
   `test/fixtures/continuity/` (repo root).

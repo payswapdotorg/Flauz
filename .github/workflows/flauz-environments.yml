@@ -23,9 +23,10 @@
 #
 #   job 2 (cenv-resolver-rung2, TL3-H1): the provider resolver rung 2 —
 #     the resolver unit suites + the grant/vendored-surface assertions
-#     (zero-dep) + the boot-level registration drill (command-driven
-#     activation through --extensionTestsPath; the A3-class DOES-NOT-EXIST
-#     tripwire; skip-vs-fail documented in the job header).
+#     (zero-dep) + the boot-level registration drill (the test-driver
+#     extension + evaluator pattern, the b-policy-boot-drill precedent;
+#     the A3-class DOES-NOT-EXIST tripwire; skip-vs-fail documented in
+#     the job header).
 #
 # Gated on Flauz paths + workflow_dispatch (DL-25 gating set).
 # ---------------------------------------------------------------------------------------------
@@ -191,10 +192,13 @@ jobs:
     #       (the merged-product posture gate, DL-19 REPLACE semantics)
     #   phase 2 (boot-level, gated on the lane presence probe — C-ENV shape):
     #     - compile + bundle + xvfb boot with a workspace folder
-    #     - the registration drill: the compiled runner drives
-    #       flauz.env.resolver / flauz.env.resolve through
-    #       --extensionTestsPath (command-driven ACTIVATION; the resolver
-    #       registration path executes; the trust gate at the command level)
+    #     - the registration drill: the test-driver extension fixture
+    #       (test/fixtures/resolver-driver) drives flauz.env.resolver /
+    #       flauz.env.resolve through the REAL onCommand activation machinery
+    #       in the booted workbench; the zero-dep evaluator
+    #       (build/flauz/scripts/cenv-resolver-boot-drill.mjs) asserts the
+    #       driver rows + the activation record + the trust gate at the
+    #       command level
     #     - the A3-class tripwire: the boot log must NOT contain the
     #       DOES-NOT-EXIST proposal warning (the grant live AND matching)
     # ---------------------------------------------------------------------------------------------
@@ -259,7 +263,7 @@ jobs:
           node build/npm/preinstall.ts && npm install && npm run compile \
             && node build/flauz/scripts/bundle-extensions.mjs
 
-      - name: Assert the bundle carries the registration surface + compile the drill
+      - name: Assert the bundle carries the registration surface
         if: steps.lanes.outputs.present == 'true'
         run: |
           set -e
@@ -267,51 +271,67 @@ jobs:
             || { echo 'TL3-H1: the registration call is missing from the bundled extension'; exit 1; }
           grep -q 'flauz-env' extensions/flauz-environments/dist/extension.js \
             || { echo 'TL3-H1: the flauz-env authority prefix is missing from the bundled extension'; exit 1; }
-          mkdir -p "$RUNNER_TEMP/resolver-drill"
-          build/node_modules/esbuild/bin/esbuild extensions/flauz-environments/test/boot/registrationDrill.ts \
-            --bundle --format=cjs --platform=node --target=es2022 --external:vscode \
-            --outfile="$RUNNER_TEMP/resolver-drill/registrationDrill.js"
+          # the drill driver ships PREBUILT (plain CJS, zero deps -- the
+          # b-policy-boot-drill fixture pattern; --extensionTestsPath boots
+          # hang on public runners, run 36492061309 waited 52min at the
+          # job timeout)
+          test -f test/fixtures/resolver-driver/main.js \
+            || { echo 'TL3-H1: the resolver boot-drill driver fixture is missing'; exit 1; }
           echo 'TL3-H1 registration surface rides the bundle: OK'
-
-      - name: Boot + drive the registration drill (command-driven activation; A3 tripwire)
+      - name: Boot with the test-driver extension and run the resolver boot drill
         if: steps.lanes.outputs.present == 'true'
         run: |
           set -e
+          # X server + boot the way this repo's own boot lanes do
+          # (b-policy-boot-drill / b-policy-canary / compat-l3): xvfb as a
+          # service, DISPLAY=:10, the workbench booted in the BACKGROUND,
+          # the drill driven by the test-driver EXTENSION (installed into
+          # the profile --extensions-dir), the zero-dep evaluator polling
+          # the driver report with a hard budget, and the process tree
+          # killed ALWAYS.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           sudo cp build/azure-pipelines/linux/xvfb.init /etc/init.d/xvfb && sudo chmod +x /etc/init.d/xvfb
           sudo update-rc.d xvfb defaults && sudo service xvfb start
-          mkdir -p artifacts "$RUNNER_TEMP/resolver-ws"
-          # --extensionTestsPath drives the compiled drill inside the booted
-          # workbench (a workspace folder is open so the registry boots);
-          # the app exits with the drill's exit code.
-          set +e
+          mkdir -p artifacts
+          # The fixture workspace (a workspace folder open so the registry
+          # boots; the driver report lands under .flauz/resolver-drill/).
+          WS="$RUNNER_TEMP/resolver-drill-ws"
+          mkdir -p "$WS"
+          # The TEST-DRIVER EXTENSION (CI test infrastructure, NOT a product
+          # extension): installed into the canary profile's --extensions-dir,
+          # no flauz- prefix, lives under test/fixtures/ (the fixture-workspace
+          # hygiene class), activates onStartupFinished (outside the
+          # activation-lint's extensions/flauz-* glob). It invokes the
+          # flauz.env.* command surface through the REAL lazy onCommand
+          # activation machinery.
+          EXTS="$RUNNER_TEMP/resolver-drill-exts"
+          mkdir -p "$EXTS"
+          cp -r test/fixtures/resolver-driver "$EXTS/flauztest.cenv-resolver-driver"
+          UD="$RUNNER_TEMP/resolver-drill-userdata"
+          # Boot the compiled + bundled workbench (flauz built-ins activate
+          # from the in-repo extensions scan).
           DISPLAY=:10 ./scripts/code.sh \
-            --verbose --user-data-dir "$RUNNER_TEMP/cenv-resolver-userdata" \
-            --extensions-dir "$RUNNER_TEMP/cenv-resolver-exts" \
-            --disable-telemetry --skip-welcome --skip-release-notes \
+            --verbose --user-data-dir "$UD" \
+            --extensions-dir "$EXTS" \
+            --disable-gpu --disable-telemetry --skip-welcome --skip-release-notes \
             --disable-updates --disable-experiments --disable-workspace-trust \
-            "$RUNNER_TEMP/resolver-ws" \
-            --extensionTestsPath="$RUNNER_TEMP/resolver-drill/registrationDrill.js" \
-            > artifacts/cenv-resolver-boot.log 2>&1
-          DRILL_EXIT=$?
-          set -e
-          echo "registration drill exit: $DRILL_EXIT"
-          # A3-class tripwire: the grant must be live AND matching (no proposal
-          # warning class in the boot log — extensionsProposedApi.ts:47-50).
-          if grep -q 'DOES NOT EXIST' artifacts/cenv-resolver-boot.log; then
-            echo 'TL3-H1 FAILED: a proposed API does not exist at this HEAD (DL-4 drift class)'
-            exit 1
-          fi
-          if grep -qE 'Unresponsive|Fatal error' artifacts/cenv-resolver-boot.log; then
-            echo 'TL3-H1 FAILED: the boot crashed or hung'
-            exit 1
-          fi
-          if [ "$DRILL_EXIT" -ne 0 ]; then
-            echo 'TL3-H1 FAILED: the registration drill failed (see artifacts/cenv-resolver-boot.log)'
-            exit 1
-          fi
-          echo 'C-ENV resolver rung 2 boot drill: GREEN'
-
+            "$WS" > artifacts/cenv-resolver-boot.log 2>&1 &
+          BOOT_PID=$!
+          # The zero-dep evaluator: polls the driver report, asserts the
+          # activation record + the proposal trip-wires + the driver rows
+          # (registration surface, typed resolution failures, the
+          # both-directions trust gate). The process tree is killed ALWAYS.
+          status=0
+          node build/flauz/scripts/cenv-resolver-boot-drill.mjs \
+            --report "$WS/.flauz/resolver-drill/driver-report.json" \
+            --report-timeout 180000 \
+            --log artifacts/cenv-resolver-boot.log \
+            --log-dir "$UD/logs" \
+            --json --out artifacts/cenv-resolver-drill-report.json || status=$?
+          kill "$BOOT_PID" 2>/dev/null || true
+          sleep 2
+          pkill -f "resolver-drill-userdata" 2>/dev/null || true
+          exit $status
       - name: Upload canary artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview

@@ -12,6 +12,7 @@ build/azure-pipelines/common/installPlaywright.js
 build/azure-pipelines/github-check-run.js
 build/builtin/browser-main.js
 build/builtin/main.js
+build/flauz/scripts/cenv-resolver-boot-drill.mjs
 build/npm/stubs/sharp/index.js
 build/codex/generate-protocol.mjs
 build/next/devTunnelsWebEntry.js
@@ -145,6 +146,7 @@ src/vs/workbench/services/search/test/node/fixtures/examples/employee.js
 src/vs/workbench/services/search/test/node/fixtures/examples/small.js
 test/automation/tools/copy-driver-definition.js
 test/automation/tools/copy-package-version.js
+test/fixtures/resolver-driver/main.js
 test/integration/electron/testrunner.js
 test/monaco/core.js
 test/monaco/esm-check/esm-check.js

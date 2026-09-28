@@ -1,0 +1,19 @@
+{
+	"name": "resolver-boot-driver",
+	"publisher": "flauztest",
+	"displayName": "C-ENV Resolver Workbench Boot Drill Driver",
+	"description": "CI TEST INFRASTRUCTURE (not a Flauz product extension): activates in the booted canary workbench, invokes the flauz.env.* command surface (the lazy onCommand activation discipline), and asserts the TL3-H1 authority-resolver registration + trust-gated resolution rows. Source of truth: the cenv-resolver-rung2 job in .github/workflows/flauz-environments.yml.",
+	"version": "0.1.0",
+	"license": "MIT",
+	"private": true,
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"main": "./main.js",
+	"categories": [
+		"Other"
+	]
+}
