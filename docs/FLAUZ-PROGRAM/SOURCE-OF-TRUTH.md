@@ -2,7 +2,7 @@
 
 Repository: payswapdotorg/Flauz
 Product branch: main
-Verified integrated head: 6fcf329afc5ee1d6cbc10150a66e31363cd098f8
+Integrated head: `main` (resolve the live SHA with `git rev-parse main`)
 Verification date: 2026-09-28
 
 This repository is the sole operational source of truth for the Flauz engineering program. Chat history, prior model outputs, external lab notes, and stale status snapshots are not authoritative.
