@@ -1126,8 +1126,11 @@ function applyRowToState(state, row) {
 	}
 	if (type === 'delegation-sent') {
 		const key = row.stepId ?? '*';
-		state.delegations[key] = { decisionRowId: row.payload.decisionRowId, messageId: row.payload.messageId, at: row.ts };
+		state.delegations[key] = { decisionRowId: row.payload.decisionRowId, messageId: row.payload.messageId, at: row.ts, resolved: false };
 		return undefined;
+	}
+	if (type === 'result-received' && row.stepId !== null && state.delegations[row.stepId] !== undefined) {
+		state.delegations[row.stepId].resolved = true;
 	}
 	// conflict-noticed, result-received, recovery-scan: audit records only.
 	return undefined;
@@ -1144,6 +1147,11 @@ function finalizeState(state) {
 	state.interrupted = [];
 	for (const step of Object.values(state.steps)) {
 		if (step.status === 'running') {
+			const delegation = state.delegations[step.stepId];
+			if (delegation !== undefined && delegation.resolved !== true) {
+				// a remote attempt still in flight - running, not interrupted
+				continue;
+			}
 			state.interrupted.push(step.stepId);
 		}
 	}

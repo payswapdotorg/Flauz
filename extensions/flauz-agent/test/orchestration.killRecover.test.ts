@@ -165,6 +165,12 @@ interface StepLike {
 	approval: { state: string } | null;
 }
 
+interface GoldenSnapshot {
+	graphStatus: string;
+	steps: Record<string, StepLike>;
+	delegations: Record<string, { resolved: boolean }>;
+}
+
 interface SinkOutcome {
 	ok: boolean;
 	failureClass?: string;
@@ -188,10 +194,7 @@ interface PolicyShape {
  *    gate HOLDS); blocked steps unblock as dependencies succeed;
  *  - human-gated states (awaiting-approval, takeover-*) never move.
  */
-function simulateReDrive(goldenState: {
-	graphStatus: string;
-	steps: Record<string, StepLike & { attempt: number }>;
-}, graphSpec: {
+function simulateReDrive(goldenState: GoldenSnapshot, graphSpec: {
 	policy: { onStepFailure?: string; defaultRetryPolicy?: PolicyShape | null };
 	steps: Array<{ stepId: string; gate?: string; dependsOn?: string[]; retryPolicy?: PolicyShape | null }>;
 }, sinkOutcomes: Map<string, SinkOutcome>): { graphStatus: string; steps: Record<string, string> } {
@@ -223,6 +226,12 @@ function simulateReDrive(goldenState: {
 		for (const step of graphSpec.steps) {
 			const status = statuses[step.stepId];
 			const gateOpen = step.gate !== 'human-approval' || (goldenState.steps[step.stepId]?.approval?.state === 'granted');
+			const delegationInFlight = goldenState.delegations?.[step.stepId]?.resolved === false;
+			if (status === 'running' && delegationInFlight) {
+				// a remote attempt: the parent's crash did not interrupt it; it
+				// stays running until the worker's report (or lease/cancel)
+				continue;
+			}
 			if (status === 'running') {
 				const outcome = runOutcome(step.stepId, attempts[step.stepId]);
 				if (outcome.ok) {
@@ -431,8 +440,8 @@ async function killAt(ops: ScenarioOp[], killOpIndex: number, phase: 'before' | 
 	}
 }
 
-function goldenStateAt(golden: GoldenRun, opIndex: number): { graphStatus: string; steps: Record<string, StepLike> } {
-	const parsed = JSON.parse(golden.snapshots[opIndex]) as { graphStatus: string; steps: Record<string, StepLike> };
+function goldenStateAt(golden: GoldenRun, opIndex: number): GoldenSnapshot {
+	const parsed = JSON.parse(golden.snapshots[opIndex]) as GoldenSnapshot;
 	return parsed;
 }
 

@@ -59,6 +59,15 @@ export async function recoveryScan(store, options = {}) {
 		const state = store.stateOf(graph.graphId);
 		for (const stepId of state.interrupted) {
 			const step = state.steps[stepId];
+			const delegation = state.delegations[stepId];
+			if (delegation !== undefined && delegation.resolved !== true) {
+				// A DELEGATED attempt lives in the worker process, not here:
+				// the parent's crash did not interrupt it. It stays 'running'
+				// until the worker's result-report arrives (or its lease
+				// expires / the graph is cancelled). Never fabricate an
+				// interruption of work that is still legitimately in flight.
+				continue;
+			}
 			if (record) {
 				store.appendRow('step-interrupted', {
 					graphId: graph.graphId,
