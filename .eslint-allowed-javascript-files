@@ -235,3 +235,6 @@ extensions/flauz-agent/core/recovery.mjs
 
 # Flauz TL2-A orchestration executor (zero-dep .mjs, G side)
 extensions/flauz-agent/core/runtime.mjs
+
+# Flauz TL2-S1 Agent OS service boundary adapter (zero-dep .mjs composing the seam client)
+extensions/flauz-agent/core/serviceBoundary.mjs
