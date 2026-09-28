@@ -65,3 +65,28 @@ Every completed item must include:
 ## Done means
 
 A fresh engineer can clone this repo, checkout main, read the program docs, build the product, and understand exactly how Flauz relates to upstream Code OSS.
+
+## Temporary TL2 secondment — Worker C
+
+TL1 remains the owner of the Code OSS substrate and completed TL1 work-orders. Until TL2 exits its Agent OS surge, one TL1 worker is temporarily seconded to TL2 as **TL2-S1 — Service Integration**.
+
+Scope:
+- harden the TL2-facing use of the versioned Flauz service protocol;
+- keep commands, events, health, lifecycle and authorization at the native service boundary;
+- build additive service/orchestrator adapter contracts and conformance fixtures;
+- prevent TL2 runtime code from bypassing the service seam or reaching into Code OSS internals unnecessarily.
+
+Boundaries:
+- TL2 owns Agent OS semantics and final architecture decisions;
+- do not rewrite the already-landed TL1-003 protocol for convenience;
+- prefer additive files/tests under extension/service land;
+- coordinate before touching a file currently being changed by TL2 Worker A;
+- no new `src/vs` changes are implied.
+
+Acceptance:
+- TL2 orchestration can consume the native seam without duplicating transport/versioning logic;
+- protocol compatibility tests remain green;
+- no fork-critical regression;
+- exact integration point is documented in the TL2 surge record.
+
+When TL2-S1 completes its bounded work-order, Worker C returns to TL1 maintenance/on-call capacity.
