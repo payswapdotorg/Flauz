@@ -112,7 +112,7 @@ Later workflow capabilities must be re-established from current code and tests b
 
 The registered work-items are complete, but the integrated verification has explicit residuals. These are not hidden behind DONE statuses:
 
-1. TL2 Agent OS runtime findings: INV-2 bounded provider retry, INV-3 cancellation propagation, and INV-6 concurrent ledger serialization failed the runtime battery; INV-5 lease-conflict remains SKIP because A2A v0 resource claims are informational.
+1. TL2 Agent OS runtime findings: INV-3 cancellation propagation and INV-6 concurrent ledger serialization CLOSED by the FLAUZ-TL2-F1 hardening lane (PR #39, merge e7aab856, 2026-09-28; census now 6 PASS / 1 FAIL / 1 SKIP at main, DL-77 serialized-append discipline ratified). Remaining: INV-2 bounded provider retry (wave-3 lane F2 in flight) and the INV-5 lease-conflict SKIP (wave-3 lane F3 in flight; A2A v0 resource claims stay informational until the conflict contract lands).
 2. TL3 provider rung 2: live workbench resolver code and the associated `resolvers` grant remain outstanding.
 3. TL3 browser product residuals: CLOSED (TL3-H2 merged 2026-09-28, 5786446b633). The workbench `window.openBrowserTab` boot verification is LANDED as the CI-executable B-POLICY boot drill (job `b-policy-boot-drill`, workflow_dispatch + weekly Tuesday 04:41 UTC; the ERR_BLOCKED_BY_CLIENT honest-SKIP boundary recorded); G5 partition minting and the G3 networkFilter default posture are PERMANENTLY RECORDED as verified extension-platform limitations (INTEGRATION-GAP G5/G3; DL-75/DL-76).
 4. TL4 performance promotion: 9 pending-runtime budget rows remain to be measured on real runtime surfaces.
