@@ -4,7 +4,7 @@ Statuses: TODO | ACTIVE | BLOCKED | VERIFY | DONE | PARKED
 
 ## Architect control-plane note — 2026-09-28
 
-- Verified integrated `main`: `8ddeaae20004f87da5756ab79a07fab577e8827f`.
+- Verified integrated `main`: `6fcf329afc5ee1d6cbc10150a66e31363cd098f8`.
 - Repository control-plane documents are operationally authoritative after the integrated tree; chat history and stale progress snapshots are not.
 - No open pull requests are present at this reconciliation.
 - All four TL portfolios are complete at their registered rungs. Post-completion runtime findings are tracked explicitly below rather than changing completed work-item status.
@@ -531,7 +531,3 @@ A TL may depend on another TL for final integration, but never for starting work
 ## Current program state
 
 The original four-TL build program is complete at its registered rungs. The active registry is now the post-completion hardening register above. New work must enter this register (or a superseding architecture-approved registry entry) before it is treated as program state.
-
-All four TLs are ACTIVE from this registry reset.
-
-The first objective for every TL is contract-first progress, not planning-only output.
