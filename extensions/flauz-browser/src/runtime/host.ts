@@ -23,10 +23,10 @@
  */
 
 import {
-	CdpTransportBase,
-	type CdpTransport,
-	scopeToSession,
-	WebSocketCdpTransport,
+        CdpTransportBase,
+        type CdpTransport,
+        scopeToSession,
+        WebSocketCdpTransport,
 } from '../cdp/transport.ts';
 
 // #region The BrowserHost port
@@ -35,21 +35,21 @@ export type BrowserHostKind = 'workbench' | 'cdp-endpoint';
 
 /** A tab the host minted: the CDP target id plus its session-scoped transport. */
 export interface HostTabHandle {
-	readonly targetId: string;
-	readonly transport: CdpTransport;
+        readonly targetId: string;
+        readonly transport: CdpTransport;
 }
 
 export interface HostTabInfo {
-	readonly targetId: string;
-	readonly url: string;
+        readonly targetId: string;
+        readonly url: string;
 }
 
 /** Raised when the host is disconnected and a tab operation was attempted. */
 export class BrowserHostError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'BrowserHostError';
-	}
+        constructor(message: string) {
+                super(message);
+                this.name = 'BrowserHostError';
+        }
 }
 
 /**
@@ -59,20 +59,20 @@ export class BrowserHostError extends Error {
  * on intentional `close()`.
  */
 export interface BrowserHost {
-	readonly kind: BrowserHostKind;
-	open(): Promise<void>;
-	/** Creates a page target and attaches a flat-protocol session to it. */
-	createTab(url: string): Promise<HostTabHandle>;
-	/** (Re-)attaches a session to an existing target (recovery reconcile). */
-	attachTab(targetId: string): Promise<HostTabHandle>;
-	closeTab(targetId: string): Promise<void>;
-	listTabs(): Promise<HostTabInfo[]>;
-	/** Focuses a tab; resolves false when the host kind has no focus surface. */
-	focusTab(targetId: string): Promise<boolean>;
-	close(): Promise<void>;
-	onDrop(handler: (reason: string) => void): void;
-	/** True when the host currently holds a live transport connection. */
-	readonly connected: boolean;
+        readonly kind: BrowserHostKind;
+        open(): Promise<void>;
+        /** Creates a page target and attaches a flat-protocol session to it. */
+        createTab(url: string): Promise<HostTabHandle>;
+        /** (Re-)attaches a session to an existing target (recovery reconcile). */
+        attachTab(targetId: string): Promise<HostTabHandle>;
+        closeTab(targetId: string): Promise<void>;
+        listTabs(): Promise<HostTabInfo[]>;
+        /** Focuses a tab; resolves false when the host kind has no focus surface. */
+        focusTab(targetId: string): Promise<boolean>;
+        close(): Promise<void>;
+        onDrop(handler: (reason: string) => void): void;
+        /** True when the host currently holds a live transport connection. */
+        readonly connected: boolean;
 }
 
 // #endregion
@@ -80,115 +80,115 @@ export interface BrowserHost {
 // #region CdpEndpointHost
 
 export interface CdpEndpointHostOptions {
-	/** Injectable transport factory (tests: FakeCdpTransport over shared state). */
-	transportFactory?: (endpointUrl: string) => CdpTransport;
-	commandTimeoutMs?: number;
+        /** Injectable transport factory (tests: FakeCdpTransport over shared state). */
+        transportFactory?: (endpointUrl: string) => CdpTransport;
+        commandTimeoutMs?: number;
 }
 
 /** Host over an external Chromium CDP WebSocket endpoint (`FLAUZ_CDP_ENDPOINT`). */
 export class CdpEndpointHost implements BrowserHost {
-	readonly kind: 'cdp-endpoint' = 'cdp-endpoint';
-	private readonly endpointUrl: string;
-	private readonly transportFactory: (endpointUrl: string) => CdpTransport;
-	private transport: CdpTransport | undefined;
-	private dropHandlers: Array<(reason: string) => void> = [];
-	private intentionalClose = false;
+        readonly kind: 'cdp-endpoint' = 'cdp-endpoint';
+        private readonly endpointUrl: string;
+        private readonly transportFactory: (endpointUrl: string) => CdpTransport;
+        private transport: CdpTransport | undefined;
+        private dropHandlers: Array<(reason: string) => void> = [];
+        private intentionalClose = false;
 
-	constructor(endpointUrl: string, options: CdpEndpointHostOptions = {}) {
-		this.endpointUrl = endpointUrl;
-		this.transportFactory = options.transportFactory ?? ((url: string) => new WebSocketCdpTransport(url, { commandTimeoutMs: options.commandTimeoutMs }));
-	}
+        constructor(endpointUrl: string, options: CdpEndpointHostOptions = {}) {
+                this.endpointUrl = endpointUrl;
+                this.transportFactory = options.transportFactory ?? ((url: string) => new WebSocketCdpTransport(url, { commandTimeoutMs: options.commandTimeoutMs }));
+        }
 
-	get connected(): boolean {
-		return this.transport !== undefined && !this.transport.closed;
-	}
+        get connected(): boolean {
+                return this.transport !== undefined && !this.transport.closed;
+        }
 
-	/** The endpoint URL this host dials. */
-	get endpoint(): string {
-		return this.endpointUrl;
-	}
+        /** The endpoint URL this host dials. */
+        get endpoint(): string {
+                return this.endpointUrl;
+        }
 
-	async open(): Promise<void> {
-		if (this.connected) {
-			return;
-		}
-		this.intentionalClose = false;
-		const transport = this.transportFactory(this.endpointUrl);
-		this.transport = transport;
-		transport.onClose(reason => {
-			if (this.transport !== transport) {
-				return; // a stale connection from before a reconnect
-			}
-			this.transport = undefined;
-			if (!this.intentionalClose) {
-				for (const handler of [...this.dropHandlers]) {
-					try {
-						handler(reason);
-					} catch {
-						// Listener errors never break the drop fan-out.
-					}
-				}
-			}
-		});
-		try {
-			await transport.ready();
-		} catch (err) {
-			this.transport = undefined;
-			throw new BrowserHostError(`CDP endpoint unreachable (${this.endpointUrl}): ${err instanceof Error ? err.message : String(err)}`);
-		}
-	}
+        async open(): Promise<void> {
+                if (this.connected) {
+                        return;
+                }
+                this.intentionalClose = false;
+                const transport = this.transportFactory(this.endpointUrl);
+                this.transport = transport;
+                transport.onClose(reason => {
+                        if (this.transport !== transport) {
+                                return; // a stale connection from before a reconnect
+                        }
+                        this.transport = undefined;
+                        if (!this.intentionalClose) {
+                                for (const handler of [...this.dropHandlers]) {
+                                        try {
+                                                handler(reason);
+                                        } catch {
+                                                // Listener errors never break the drop fan-out.
+                                        }
+                                }
+                        }
+                });
+                try {
+                        await transport.ready();
+                } catch (err) {
+                        this.transport = undefined;
+                        throw new BrowserHostError(`CDP endpoint unreachable (${this.endpointUrl}): ${err instanceof Error ? err.message : String(err)}`);
+                }
+        }
 
-	private requireTransport(): CdpTransport {
-		if (this.transport === undefined || this.transport.closed) {
-			throw new BrowserHostError(`CDP endpoint host is not connected (${this.endpointUrl})`);
-		}
-		return this.transport;
-	}
+        private requireTransport(): CdpTransport {
+                if (this.transport === undefined || this.transport.closed) {
+                        throw new BrowserHostError(`CDP endpoint host is not connected (${this.endpointUrl})`);
+                }
+                return this.transport;
+        }
 
-	async createTab(url: string): Promise<HostTabHandle> {
-		const transport = this.requireTransport();
-		const created = await transport.send<{ targetId: string }>('Target.createTarget', { url });
-		return this.attachToTarget(transport, created.targetId);
-	}
+        async createTab(url: string): Promise<HostTabHandle> {
+                const transport = this.requireTransport();
+                const created = await transport.send<{ targetId: string }>('Target.createTarget', { url });
+                return this.attachToTarget(transport, created.targetId);
+        }
 
-	async attachTab(targetId: string): Promise<HostTabHandle> {
-		return this.attachToTarget(this.requireTransport(), targetId);
-	}
+        async attachTab(targetId: string): Promise<HostTabHandle> {
+                return this.attachToTarget(this.requireTransport(), targetId);
+        }
 
-	private async attachToTarget(transport: CdpTransport, targetId: string): Promise<HostTabHandle> {
-		const attached = await transport.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
-		return { targetId, transport: scopeToSession(transport, attached.sessionId) };
-	}
+        private async attachToTarget(transport: CdpTransport, targetId: string): Promise<HostTabHandle> {
+                const attached = await transport.send<{ sessionId: string }>('Target.attachToTarget', { targetId, flatten: true });
+                return { targetId, transport: scopeToSession(transport, attached.sessionId) };
+        }
 
-	async closeTab(targetId: string): Promise<void> {
-		const transport = this.requireTransport();
-		await transport.send('Target.closeTarget', { targetId });
-	}
+        async closeTab(targetId: string): Promise<void> {
+                const transport = this.requireTransport();
+                await transport.send('Target.closeTarget', { targetId });
+        }
 
-	async listTabs(): Promise<HostTabInfo[]> {
-		const transport = this.requireTransport();
-		const result = await transport.send<{ targetInfos: Array<{ targetId: string; url: string; type: string }> }>('Target.getTargets');
-		return result.targetInfos
-			.filter(info => info.type === 'page')
-			.map(info => ({ targetId: info.targetId, url: info.url }));
-	}
+        async listTabs(): Promise<HostTabInfo[]> {
+                const transport = this.requireTransport();
+                const result = await transport.send<{ targetInfos: Array<{ targetId: string; url: string; type: string }> }>('Target.getTargets');
+                return result.targetInfos
+                        .filter(info => info.type === 'page')
+                        .map(info => ({ targetId: info.targetId, url: info.url }));
+        }
 
-	async focusTab(targetId: string): Promise<boolean> {
-		const transport = this.requireTransport();
-		await transport.send('Target.activateTarget', { targetId });
-		return true;
-	}
+        async focusTab(targetId: string): Promise<boolean> {
+                const transport = this.requireTransport();
+                await transport.send('Target.activateTarget', { targetId });
+                return true;
+        }
 
-	async close(): Promise<void> {
-		this.intentionalClose = true;
-		const transport = this.transport;
-		this.transport = undefined;
-		transport?.close();
-	}
+        async close(): Promise<void> {
+                this.intentionalClose = true;
+                const transport = this.transport;
+                this.transport = undefined;
+                transport?.close();
+        }
 
-	onDrop(handler: (reason: string) => void): void {
-		this.dropHandlers.push(handler);
-	}
+        onDrop(handler: (reason: string) => void): void {
+                this.dropHandlers.push(handler);
+        }
 }
 
 // #endregion
@@ -203,51 +203,51 @@ export class CdpEndpointHost implements BrowserHost {
  * WebSocket path).
  */
 export interface WorkbenchCdpSessionLike {
-	sendMessage(message: unknown): PromiseLike<void>;
-	onDidReceiveMessage(listener: (message: unknown) => void): { dispose(): void };
-	onDidClose(listener: () => void): { dispose(): void };
-	close(): PromiseLike<void>;
+        sendMessage(message: unknown): PromiseLike<void>;
+        onDidReceiveMessage(listener: (message: unknown) => void): { dispose(): void };
+        onDidClose(listener: () => void): { dispose(): void };
+        close(): PromiseLike<void>;
 }
 
 /** Structural transcription of the proposed `BrowserTab`. */
 export interface WorkbenchBrowserTabLike {
-	readonly url: string;
-	startCDPSession(): PromiseLike<WorkbenchCdpSessionLike>;
-	close(): PromiseLike<void>;
+        readonly url: string;
+        startCDPSession(): PromiseLike<WorkbenchCdpSessionLike>;
+        close(): PromiseLike<void>;
 }
 
 /** Structural transcription of `window.openBrowserTab` (+ optional surfaces). */
 export interface WorkbenchBrowserWindowLike {
-	openBrowserTab(url: string, options?: { viewColumn?: number; preserveFocus?: boolean; background?: boolean }): PromiseLike<WorkbenchBrowserTabLike>;
+        openBrowserTab(url: string, options?: { viewColumn?: number; preserveFocus?: boolean; background?: boolean }): PromiseLike<WorkbenchBrowserTabLike>;
 }
 
 /** Adapts a workbench BrowserCDPSession onto the CdpTransport port. */
 export class WorkbenchCdpSessionTransport extends CdpTransportBase {
-	private readonly session: WorkbenchCdpSessionLike;
+        private readonly session: WorkbenchCdpSessionLike;
 
-	constructor(session: WorkbenchCdpSessionLike, options: { commandTimeoutMs?: number } = {}) {
-		super({ commandTimeoutMs: options.commandTimeoutMs });
-		this.session = session;
-		session.onDidReceiveMessage(message => {
-			this.handleIncomingMessage(message);
-		});
-		session.onDidClose(() => {
-			this.markClosed('workbench-cdp-session-closed');
-		});
-		this.markReady();
-	}
+        constructor(session: WorkbenchCdpSessionLike, options: { commandTimeoutMs?: number } = {}) {
+                super({ commandTimeoutMs: options.commandTimeoutMs });
+                this.session = session;
+                session.onDidReceiveMessage(message => {
+                        this.handleIncomingMessage(message);
+                });
+                session.onDidClose(() => {
+                        this.markClosed('workbench-cdp-session-closed');
+                });
+                this.markReady();
+        }
 
-	protected postMessage(payload: Record<string, unknown>): void {
-		void Promise.resolve(this.session.sendMessage(payload)).catch(() => {
-			// The workbench session rejects the SEND (detaching/...); the command
-			// will surface via the session-close path instead. Swallowing here
-			// keeps the correlation state consistent.
-		});
-	}
+        protected postMessage(payload: Record<string, unknown>): void {
+                void Promise.resolve(this.session.sendMessage(payload)).catch(() => {
+                        // The workbench session rejects the SEND (detaching/...); the command
+                        // will surface via the session-close path instead. Swallowing here
+                        // keeps the correlation state consistent.
+                });
+        }
 
-	protected onTransportClosed(_reason: string): void {
-		void Promise.resolve(this.session.close()).catch(() => undefined);
-	}
+        protected onTransportClosed(_reason: string): void {
+                void Promise.resolve(this.session.close()).catch(() => undefined);
+        }
 }
 
 /**
@@ -260,94 +260,116 @@ export class WorkbenchCdpSessionTransport extends CdpTransportBase {
  * the per-tab transports).
  */
 export class WorkbenchBrowserHost implements BrowserHost {
-	readonly kind: 'workbench' = 'workbench';
-	private readonly windowApi: WorkbenchBrowserWindowLike;
-	private readonly commandTimeoutMs: number | undefined;
-	private readonly tabs = new Map<string, WorkbenchBrowserTabLike>();
-	private counter = 0;
-	private closed = false;
+        readonly kind: 'workbench' = 'workbench';
+        private readonly windowApi: WorkbenchBrowserWindowLike;
+        private readonly commandTimeoutMs: number | undefined;
+        private readonly tabs = new Map<string, WorkbenchBrowserTabLike>();
+        private counter = 0;
+        private closed = false;
 
-	constructor(windowApi: WorkbenchBrowserWindowLike, options: { commandTimeoutMs?: number } = {}) {
-		this.windowApi = windowApi;
-		this.commandTimeoutMs = options.commandTimeoutMs;
-	}
+        constructor(windowApi: WorkbenchBrowserWindowLike, options: { commandTimeoutMs?: number } = {}) {
+                this.windowApi = windowApi;
+                this.commandTimeoutMs = options.commandTimeoutMs;
+        }
 
-	get connected(): boolean {
-		return !this.closed;
-	}
+        get connected(): boolean {
+                return !this.closed;
+        }
 
-	async open(): Promise<void> {
-		// The workbench is always "connected"; open() validates we are not closed.
-		if (this.closed) {
-			throw new BrowserHostError('workbench browser host is closed');
-		}
-	}
+        async open(): Promise<void> {
+                // The workbench is always "connected"; open() validates we are not closed.
+                if (this.closed) {
+                        throw new BrowserHostError('workbench browser host is closed');
+                }
+        }
 
-	private requireOpen(): void {
-		if (this.closed) {
-			throw new BrowserHostError('workbench browser host is closed');
-		}
-	}
+        private requireOpen(): void {
+                if (this.closed) {
+                        throw new BrowserHostError('workbench browser host is closed');
+                }
+        }
 
-	async createTab(url: string): Promise<HostTabHandle> {
-		this.requireOpen();
-		const tab = await this.windowApi.openBrowserTab(url);
-		this.counter += 1;
-		const targetId = `wb-${this.counter}`;
-		this.tabs.set(targetId, tab);
-		return this.attach(targetId, tab);
-	}
+        async createTab(url: string): Promise<HostTabHandle> {
+                this.requireOpen();
+                const tab = await this.windowApi.openBrowserTab(url);
+                this.counter += 1;
+                const targetId = `wb-${this.counter}`;
+                this.tabs.set(targetId, tab);
+                return this.attach(targetId, tab);
+        }
 
-	async attachTab(targetId: string): Promise<HostTabHandle> {
-		this.requireOpen();
-		const tab = this.tabs.get(targetId);
-		if (tab === undefined) {
-			throw new BrowserHostError(`no workbench tab for targetId ${targetId}`);
-		}
-		return this.attach(targetId, tab);
-	}
+        async attachTab(targetId: string): Promise<HostTabHandle> {
+                this.requireOpen();
+                const tab = this.tabs.get(targetId);
+                if (tab === undefined) {
+                        throw new BrowserHostError(`no workbench tab for targetId ${targetId}`);
+                }
+                return this.attach(targetId, tab);
+        }
 
-	private async attach(targetId: string, tab: WorkbenchBrowserTabLike): Promise<HostTabHandle> {
-		const cdpSession = await tab.startCDPSession();
-		return { targetId, transport: new WorkbenchCdpSessionTransport(cdpSession, { commandTimeoutMs: this.commandTimeoutMs }) };
-	}
+        private async attach(targetId: string, tab: WorkbenchBrowserTabLike): Promise<HostTabHandle> {
+                const cdpSession = await tab.startCDPSession();
+                const base = new WorkbenchCdpSessionTransport(cdpSession, { commandTimeoutMs: this.commandTimeoutMs });
+                // The BrowserCDPSession is a BROWSER-LEVEL endpoint, not a pre-attached
+                // tab session: the workbench routes by message sessionId, and the ROOT
+                // session serves only Browser.*/Target.* (the CDPBrowserProxy handler
+                // map — upstream vscode#331085 lineage; createSessionGroup activates
+                // and registers the window's browser-view targets BEFORE resolving).
+                // The dts contract ("Send a CDP request message to an ATTACHED target")
+                // therefore requires the client-side attach dance this method performs:
+                // find this tab's page target by URL, attach flat, then scope every
+                // send to the returned session. PROVEN NECESSARY by the first
+                // b-policy-boot-drill CI run (2026-09-28, run 36423586593): a root-level
+                // `Page.enable` answered -32601 method-not-found and fail-closed the
+                // session (code flauz.browser.tab.create). Matching: page-type targets
+                // whose URL equals the tab's requested URL, LAST match wins (the
+                // newest registration — this tab); a redirect before getTargets makes
+                // the match fail typed (fail-closed), never a wrong-target attach.
+                const listed = await base.send<{ targetInfos: Array<{ targetId: string; url: string; type: string }> }>('Target.getTargets');
+                const ours = listed.targetInfos.filter(info => info.type === 'page' && info.url === tab.url).pop();
+                if (ours === undefined) {
+                        throw new BrowserHostError(`workbench CDP session has no page target for ${tab.url} (redirected away before attach?)`);
+                }
+                const attached = await base.send<{ sessionId: string }>('Target.attachToTarget', { targetId: ours.targetId, flatten: true });
+                return { targetId, transport: scopeToSession(base, attached.sessionId) };
+        }
 
-	async closeTab(targetId: string): Promise<void> {
-		this.requireOpen();
-		const tab = this.tabs.get(targetId);
-		if (tab === undefined) {
-			return; // already gone
-		}
-		this.tabs.delete(targetId);
-		await tab.close();
-	}
+        async closeTab(targetId: string): Promise<void> {
+                this.requireOpen();
+                const tab = this.tabs.get(targetId);
+                if (tab === undefined) {
+                        return; // already gone
+                }
+                this.tabs.delete(targetId);
+                await tab.close();
+        }
 
-	async listTabs(): Promise<HostTabInfo[]> {
-		return [...this.tabs.entries()].map(([targetId, tab]) => ({ targetId, url: tab.url }));
-	}
+        async listTabs(): Promise<HostTabInfo[]> {
+                return [...this.tabs.entries()].map(([targetId, tab]) => ({ targetId, url: tab.url }));
+        }
 
-	async focusTab(_targetId: string): Promise<boolean> {
-		// The proposed surface has no tab activation method (only
-		// activeBrowserTab change events); documented limitation.
-		return false;
-	}
+        async focusTab(_targetId: string): Promise<boolean> {
+                // The proposed surface has no tab activation method (only
+                // activeBrowserTab change events); documented limitation.
+                return false;
+        }
 
-	async close(): Promise<void> {
-		this.closed = true;
-		for (const tab of [...this.tabs.values()]) {
-			try {
-				await tab.close();
-			} catch {
-				// Best-effort close of every minted tab.
-			}
-		}
-		this.tabs.clear();
-	}
+        async close(): Promise<void> {
+                this.closed = true;
+                for (const tab of [...this.tabs.values()]) {
+                        try {
+                                await tab.close();
+                        } catch {
+                                // Best-effort close of every minted tab.
+                        }
+                }
+                this.tabs.clear();
+        }
 
-	onDrop(_handler: (reason: string) => void): void {
-		// No host-level drop surface on the workbench proposal: per-tab CDP
-		// sessions close individually (surfaced on the tab transports).
-	}
+        onDrop(_handler: (reason: string) => void): void {
+                // No host-level drop surface on the workbench proposal: per-tab CDP
+                // sessions close individually (surfaced on the tab transports).
+        }
 }
 
 // #endregion

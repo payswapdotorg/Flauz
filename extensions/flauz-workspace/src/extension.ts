@@ -12,6 +12,7 @@ import { CheckpointInterop } from './checkpoint.ts';
 import { FlauzArtifactProvider } from './scmArtifactProvider.ts';
 import { registerWorkspaceCommands, type WorkspaceServices } from './commands.ts';
 import { registerWorkspaceViews } from './views.ts';
+import { registerLiveEvents } from './liveEvents.ts';
 
 const nodeFs: FileSystemPort = {
 	readFileUtf8: async path => {
@@ -34,6 +35,12 @@ export function activate(context: vscode.ExtensionContext): void {
 	setVscodeApi(vscode);
 
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+	// TL4-H2: the activation log channel (the flauz-agent posture) -- records
+	// the live-events wiring decisions (watcher active / guarded off).
+	const channel = vscode.window.createOutputChannel('Flauz Workspace');
+	const log = (message: string): void => {
+		channel.appendLine(message);
+	};
 
 	// TL4-001: the activity-bar shell (container `flauz`, views flauz.home +
 	// flauz.tasks) registers BEFORE any early return so the views — and their
@@ -49,9 +56,20 @@ export function activate(context: vscode.ExtensionContext): void {
 		},
 	});
 
+	// TL4-H2 -- live file events: a real watcher over the `.flauz/` state tree
+	// debounces disk changes into the EXISTING views.refresh() path (never a
+	// parallel loading path; last-known-good rows survive failed re-reads).
+	// Inside the guard (no workspace folder) the watcher is not created and
+	// the skip is logged -- the flauz-agent connect-guard posture.
+	const liveEvents = registerLiveEvents({
+		getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+		refresh: () => views.refresh(),
+		log,
+	});
+
 	if (workspaceRoot === undefined) {
 		vscode.window.showWarningMessage('flauz-workspace: no workspace folder open — .flauz/ state stays inactive.');
-		for (const disposable of [...views.disposables, ...registerGuideCommand(context)]) {
+		for (const disposable of [channel, ...views.disposables, ...liveEvents.disposables, ...registerGuideCommand(context)]) {
 			context.subscriptions.push(disposable);
 		}
 		return;
@@ -68,7 +86,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	const services: WorkspaceServices = { tasks, ledger, checkpoints, artifacts };
 	servicesRef.current = services;
-	for (const disposable of [...views.disposables, ...registerGuideCommand(context), sourceControl, artifacts, ...registerWorkspaceCommands(services)]) {
+	for (const disposable of [channel, ...views.disposables, ...liveEvents.disposables, ...registerGuideCommand(context), sourceControl, artifacts, ...registerWorkspaceCommands(services)]) {
 		context.subscriptions.push(disposable);
 	}
 

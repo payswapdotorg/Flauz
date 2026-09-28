@@ -13,3 +13,7 @@ declare module 'node:fs/promises' {
 declare class TextEncoder {
 	encode(input?: string): Uint8Array;
 }
+
+/** Timer globals (TL4-H2 live file events: the debounce window; flauz-agent shims/node.d.ts pattern). */
+declare function setTimeout(handler: () => void, ms: number): { unref(): void };
+declare function clearTimeout(timer: { unref(): void } | undefined): void;
