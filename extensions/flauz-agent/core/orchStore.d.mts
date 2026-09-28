@@ -41,6 +41,7 @@ export declare class OrchestrationStore {
 	load(): void;
 	saveGraphs(): void;
 	requireGraph(graphId: string): GraphRecord;
+	appendRow(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): JournalRow;
 	rowsFor(graphId: string): JournalRow[];
 	stateOf(graphId: string): import('./orchestration.d.mts').DerivedGraphState;
 	verifyJournal(): { ok: boolean; rows: number; firstBadSeq?: number };
