@@ -28,7 +28,7 @@ import {
 	type StepBinding,
 } from '../src/acquisition.ts';
 import { ExecJournalStore } from '../src/journal.ts';
-import { type ExecFailure, type ExecutionRequest, type SurfaceSnapshot, toOrchFailureClass, ORCH_TERMINAL_FAILURE_CLASSES } from '../src/contracts.ts';
+import { type ExecFailure, type ExecutionRequest, type ExecutionResourceRef, type SurfaceSnapshot, toOrchFailureClass, ORCH_TERMINAL_FAILURE_CLASSES } from '../src/contracts.ts';
 import { BROWSER_REF, ENVIRONMENT_REF, FILE_REF, pinnedMinter, steppingClock, tempRoot } from './helpers.ts';
 
 const BROWSER_SURFACE = {
@@ -58,14 +58,15 @@ class MockOpener implements ResourceOpenerPort {
 	failNext: { gate: ExecFailure['gate']; message: string; verdictDigest?: string } | undefined;
 	surface: Record<string, unknown> = { ...BROWSER_SURFACE };
 
-	async open(request: ExecutionRequest, binding: StepBinding): Promise<{ ok: true; surface: SurfaceSnapshot } | { ok: false; failure: ExecFailure }> {
+	async open(request: ExecutionRequest, binding: StepBinding): Promise<{ ok: true; resource: ExecutionResourceRef; surface: SurfaceSnapshot } | { ok: false; failure: ExecFailure }> {
 		this.calls.push({ request, binding });
 		if (this.failNext !== undefined) {
 			const failure: ExecFailure = { failureClass: 'acquire-denied', gate: this.failNext.gate, message: this.failNext.message, ...(this.failNext.verdictDigest !== undefined ? { verdictDigest: this.failNext.verdictDigest } : {}) };
 			this.failNext = undefined;
 			return { ok: false, failure };
 		}
-		return { ok: true, surface: this.surface as unknown as SurfaceSnapshot };
+		const resource = request.resource ?? BROWSER_REF;
+		return { ok: true, resource: { ...resource }, surface: this.surface as unknown as SurfaceSnapshot };
 	}
 }
 
@@ -171,7 +172,7 @@ test('acquire: an invalid request is a typed invalid-request denial (no fabricat
 	assert.equal(toOrchFailureClass('invalid-request'), 'invalid-input');
 	const rows = r.journal.rowsAll().filter((row) => row.type === 'acquire-denied');
 	assert.equal(rows.length, 1);
-	assert.equal((rows[0]?.payload as Record<string, unknown>)['resource'], undefined, 'an unparseable request records no fabricated resource');
+	assert.deepEqual((rows[0]?.payload as Record<string, unknown>)['resource'], { ...BROWSER_REF }, 'the attempted resource is recorded when the request carries a parseable one');
 	r.cleanup();
 });
 

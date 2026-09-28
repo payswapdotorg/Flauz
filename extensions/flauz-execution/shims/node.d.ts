@@ -63,9 +63,11 @@ declare module 'node:fs' {
 
 declare module 'node:fs/promises' {
 	export function appendFile(path: string, data: string, options?: { encoding?: string; flag?: string }): Promise<void>;
+	export function appendFile(path: string, data: string, encoding: 'utf-8'): Promise<void>;
+	export function writeFile(path: string, data: string, options?: { encoding?: string; flag?: string }): Promise<void>;
+	export function writeFile(path: string, data: Uint8Array): Promise<void>;
 	export function copyFile(src: string, dest: string): Promise<void>;
 	export function readFile(path: string, options: { encoding: 'utf-8' }): Promise<string>;
-	export function writeFile(path: string, data: string, options?: { encoding?: string; flag?: string }): Promise<void>;
 	export function rename(oldPath: string, newPath: string): Promise<void>;
 	export function mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 	export function mkdtemp(prefix: string): Promise<string>;
@@ -108,8 +110,24 @@ declare const console: {
 	error(...args: unknown[]): void;
 };
 
-declare function setTimeout(handler: () => void, ms: number): { unref(): void };
+declare function setTimeout(handler: () => void, ms: number, ...args: unknown[]): { unref(): void };
+declare function clearTimeout(handle: unknown): void;
 declare function queueMicrotask(task: () => void): void;
+
+/** Web-platform globals Node provides (lib ES2022 has no DOM). */
+declare function btoa(input: string): string;
+declare function atob(input: string): string;
+declare function structuredClone<T>(value: T): T;
+
+/** Minimal WHATWG URL surface (used by the flauz-browser CDP layer). */
+declare class URL {
+	constructor(input: string, base?: string);
+	static parse(input: string, base?: string): URL | null;
+	readonly href: string;
+	readonly protocol: string;
+	readonly hostname: string;
+	readonly pathname: string;
+}
 
 /** Import meta surface used for module-path resolution (value and type). */
 interface ImportMeta {

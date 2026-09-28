@@ -569,6 +569,7 @@ export function execRowIdOf(seq: number): string {
 /** Typed execution-resource failure classes (task-level, closed v0 list). */
 export const EXEC_FAILURE_CLASSES = [
 	'acquire-denied',
+	'use-denied',
 	'resource-lost',
 	'executor-death',
 	'acquire-timeout',
@@ -594,6 +595,7 @@ export const ORCH_TERMINAL_FAILURE_CLASSES = ['invalid-input', 'approval-denied'
  */
 export const EXEC_TO_ORCH_FAILURE_CLASS: Readonly<Record<ExecFailureClass, OrchFailureClass>> = {
 	'acquire-denied': 'policy-violation',
+	'use-denied': 'policy-violation',
 	'resource-lost': 'unavailable',
 	'executor-death': 'dependency-failure',
 	'acquire-timeout': 'timeout',
@@ -745,10 +747,10 @@ export function validateExecPayload(type: ExecEventType, payload: unknown): stri
 			if (!hasOnlyKeys(payload, ['gate', 'failureClass', 'message'], ['resource', 'verdictDigest'])) {
 				return `${label} payload must have only the keys [failureClass, gate, message, resource, verdictDigest?]`;
 			}
-			if (payload.gate !== 'invalid-request') {
+			if (payload.resource !== undefined) {
 				const denialRefVerdict = validateExecutionResourceRef(payload.resource);
 				if (!denialRefVerdict.ok) {
-					return `${label} payload resource: ${denialRefVerdict.error} (required unless the gate is 'invalid-request')`;
+					return `${label} payload resource: ${denialRefVerdict.error}`;
 				}
 			}
 			if (payload.failureClass !== 'acquire-denied') {
@@ -1013,7 +1015,14 @@ export type LogicalAction = (typeof LOGICAL_ACTIONS)[number];
  * (secret values are rejected; vault refs pass through the resource graph).
  */
 export interface ExecutionRequest {
-	readonly resource: ExecutionResourceRef;
+	/**
+	 * The targeted ResourceRef. REQUIRED for every action except the
+	 * browser 'open' action, which may mint a FRESH session (the adapter
+	 * registers the minted ref in the resource graph and the acquisition
+	 * row records it). IDENTITY IS NOT ACCESS: the surface is resolved at
+	 * execution time.
+	 */
+	readonly resource?: ExecutionResourceRef;
 	readonly action: string;
 	readonly url?: string;
 	readonly tabId?: string;
@@ -1028,17 +1037,27 @@ export function validateExecutionRequest(value: unknown): { ok: true; request: E
 	if (!isPlainObject(value)) {
 		return { ok: false, error: 'execution request must be a JSON object (the step toolInput)' };
 	}
-	if (!hasOnlyKeys(value, ['resource', 'action'], ['url', 'tabId', 'environmentOp', 'mutation', 'leaseTtlMs', 'purpose'])) {
-		return { ok: false, error: 'execution request must have only the keys [action, environmentOp?, leaseTtlMs?, mutation?, purpose?, resource, tabId?, url?]' };
-	}
-	const refVerdict = validateExecutionResourceRef(value.resource);
-	if (!refVerdict.ok) {
-		return { ok: false, error: `execution request resource: ${refVerdict.error}` };
+	if (!hasOnlyKeys(value, ['action'], ['resource', 'url', 'tabId', 'environmentOp', 'mutation', 'leaseTtlMs', 'purpose'])) {
+		return { ok: false, error: 'execution request must have only the keys [action, environmentOp?, leaseTtlMs?, mutation?, purpose?, resource?, tabId?, url?]' };
 	}
 	if (!isNonEmptyString(value.action)) {
 		return { ok: false, error: 'execution request action must be a non-empty string' };
 	}
-	const { resourceClass } = refVerdict.ref;
+	const hasResource = value.resource !== undefined;
+	let resourceClass: ExecutionResourceClass;
+	if (hasResource) {
+		const refVerdict = validateExecutionResourceRef(value.resource);
+		if (!refVerdict.ok) {
+			return { ok: false, error: `execution request resource: ${refVerdict.error}` };
+		}
+		resourceClass = refVerdict.ref.resourceClass;
+	} else {
+		// A resource-less request is ONLY the browser 'open' action (a fresh session mint).
+		if (value.action !== 'open') {
+			return { ok: false, error: 'execution request resource is required unless the action is the browser open (fresh session mint)' };
+		}
+		resourceClass = 'browser-session';
+	}
 	if (resourceClass === 'browser-session') {
 		if (!BROWSER_ACTIONS.includes(value.action as BrowserAction)) {
 			return { ok: false, error: `browser-session action must be one of ${BROWSER_ACTIONS.join(' | ')} (got ${JSON.stringify(value.action)})` };

@@ -39,6 +39,7 @@ import {
 	ExecError,
 	type ExecFailure,
 	type ExecutionRequest,
+	type ExecutionResourceRef,
 	type SurfaceSnapshot,
 	canonicalJson,
 	execSha256Hex,
@@ -61,7 +62,12 @@ export interface GraphStatePort {
 
 /** The resource-specific opener (M3 adapters; mock drivers in tests). */
 export interface ResourceOpenerPort {
-	open(request: ExecutionRequest, binding: StepBinding): Promise<{ ok: true; surface: SurfaceSnapshot } | { ok: false; failure: ExecFailure }>;
+	/**
+	 * Opens the resource: resolves/creates the access surface. On success it
+	 * returns the FINAL ExecutionResourceRef (the given one, or the one minted
+	 * for a fresh open) plus the surface snapshot recorded at hand-off.
+	 */
+	open(request: ExecutionRequest, binding: StepBinding): Promise<{ ok: true; resource: ExecutionResourceRef; surface: SurfaceSnapshot } | { ok: false; failure: ExecFailure }>;
 }
 
 /** The step binding every acquisition carries (the durable-task linkage). */
@@ -150,7 +156,7 @@ export class ExecutionResourceManager {
 					gate: failure.gate ?? 'invalid-request',
 					failureClass: 'acquire-denied',
 					message: failure.message,
-					...(failure.gate !== 'invalid-request' && (request as { resource?: unknown } | null)?.resource !== undefined ? { resource: (request as { resource: unknown }).resource } : {}),
+					...((request as { resource?: unknown } | null)?.resource !== undefined ? { resource: (request as { resource: unknown }).resource } : {}),
 					...(failure.verdictDigest !== undefined ? { verdictDigest: failure.verdictDigest } : {}),
 				},
 			});
@@ -171,7 +177,7 @@ export class ExecutionResourceManager {
 
 		// 3. idempotent acquire: the journal is the substrate (a completed
 		//    acquire for this key + resource replays as the same acquisition).
-		const existing = this.journal.acquisitionRowsForKey(binding.idempotencyKey).find((row) => row.type === 'resource-acquired');
+		const existing = this.journal.acquisitionRowsForKey(binding.idempotencyKey).find((row) => row.type === 'resource-acquired' && (verdict.request.resource === undefined || (row.payload as Record<string, unknown>)['resource'] !== undefined));
 		if (existing !== undefined && existing.acquisitionId !== null) {
 			const projection = this.journal.acquisitionOf(existing.acquisitionId);
 			if (projection.state === 'acquired') {
@@ -205,7 +211,7 @@ export class ExecutionResourceManager {
 			origin: binding.origin,
 			payload: {
 				purpose: verdict.request.purpose ?? binding.idempotencyKey,
-				resource: verdict.request.resource,
+				resource: opened.resource,
 				...(lease !== undefined ? { lease } : {}),
 			},
 		});
