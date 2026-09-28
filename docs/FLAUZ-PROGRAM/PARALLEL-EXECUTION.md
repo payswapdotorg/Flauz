@@ -1,66 +1,26 @@
 # Flauz Parallel Execution Plan
 
-## Rule
+## Current mode — post-completion hardening
 
-Use a TL only when that TL can begin substantive work immediately and continue independently using contracts, fixtures or existing platform APIs.
+The original four-TL parallel build program is complete at its registered work-order rungs. The current engineering mode is independent hardening and promotion against the canonical `main` tree.
 
-At this program reset, four TLs are justified simultaneously.
+Verified integrated head: `8ddeaae20004f87da5756ab79a07fab577e8827f`.
 
-## Why all four can work now
+No TL is a permanent dependency of another. New work enters `WORK-REGISTRY.md` before implementation is treated as program state.
 
-### TL1
-
-Can work immediately against current Code OSS source:
-- upstream synchronization;
-- product metadata/build;
-- IPC/service seam;
-- fork-critical audit;
-- desktop/web packaging.
-
-### TL2
-
-Can work immediately against current Flauz agent/workspace code:
-- orchestration;
-- real provider adapters;
-- memory/context;
-- workflows;
-- approvals and leases.
-
-Where service contracts are not final, TL2 defines fixtures and protocol contracts.
-
-### TL3
-
-Can work immediately against current browser/environment seams:
-- browser runtime prototype;
-- browser security;
-- environment lifecycle/provider adapters;
-- resource graph.
-
-It does not need TL2 to begin; it can operate on stable descriptors and fake agent callers.
-
-### TL4
-
-Can work immediately against the current Code OSS UI plus fixture-backed Flauz surfaces:
-- product information architecture;
-- premium UX;
-- compatibility harness;
-- whole-session test harness;
-- accessibility/performance/release gates.
-
-TL4 never needs to wait for the actual runtime to build its harness.
-
-## TL boundaries
+## Stable TL boundaries
 
 | TL | Owns | Must not own |
 |---|---|---|
-| TL1 | Code OSS substrate, upstream sync, product build, client-service integration seam | Agent semantics, browser provider internals, final UX judgement |
-| TL2 | Agent OS, models, orchestration, memory, approvals, workflows | Browser engine, environment provider implementation, visual design |
+| TL1 | Code OSS substrate, upstream sync, product build, native service seam | Agent semantics, browser provider internals, final UX judgement |
+| TL2 | Agent OS, models, orchestration, memory, approvals, workflows, A2A | Browser engine, environment provider implementation, visual design |
 | TL3 | Browser runtime/security, environment lifecycle/providers, resource continuity | Agent planner semantics, upstream merge policy, product visual system |
 | TL4 | UX, E2E verification, compatibility, performance, accessibility, release quality | Core orchestration semantics or provider implementation |
 
-## Contract surfaces
+## Cross-TL contract law
 
-Cross-TL changes flow through:
+Cross-TL changes flow through stable contracts including:
+
 - FlauzEventEnvelope
 - AgentSessionDescriptor
 - AgentTaskState
@@ -75,102 +35,37 @@ Cross-TL changes flow through:
 - OperationLease
 - WorkflowEnvelope
 
-## Dependency strategy
+Use additive extension-owned code first. Extract contracts rather than broad-refactoring shared files. A TL may request integration from another TL, but it must keep its own lane independently testable.
 
-Use fan-out then converge:
+## Surge closure
 
-current main
-  -> TL1 substrate/build
-  -> TL2 agent OS
-  -> TL3 browser/environment
-  -> TL4 UX/verification
-  -> integrated product
+The TL2 surge is closed.
 
-No TL is serialized behind another at the start.
+- TL2-S1 (TL1 service integration) — DONE; helper released to TL1.
+- TL2-S2 (TL3 resource/execution integration) — DONE; helper released to TL3.
+- TL2-S3 (TL4 Agent OS runtime verification) — DONE; helper released to TL4.
+- TL2 remains the sole semantic owner of Agent OS.
+- No surge work creates new ownership in TL1/TL3/TL4.
 
-## Merge policy
-
-There is no permanent TL merge order.
-
-Merge the PR that:
-- is contract-complete;
-- is independently testable;
-- has no unresolved architecture violation;
-- passes current integration gates.
-
-When two branches touch the same files, prefer:
-1. narrow extension-owned directories;
-2. additive changes;
-3. contract extraction;
-4. small conflict-resolution PRs.
-
-TL1 arbitrates only conflicts involving Code OSS substrate/upstream compatibility.
-
-## Healthy parallelism
-
-At any point there should be:
-- at least one active work item per active TL;
-- no TL with a lane that is purely waiting for another TL;
-- fixtures for unavailable upstream dependencies;
-- CI exercising cross-TL contracts;
-- current state updated as part of each merge wave.
-
-
-## External interoperability rule
+## External interoperability
 
 External agent UI frameworks are downstream clients, not alternate Flauz runtimes.
 
-- TL1 must establish the versioned native Flauz service protocol before any AG-UI adapter is implemented.
-- AG-UI may later be exposed as an additive adapter/projection; CopilotKit remains optional client technology.
-- OpenMuse is a reference/interoperability target only and must not become a runtime dependency or architectural fork.
-- No TL is blocked by this decision, and no current TL work should be rebased or reprioritized solely because of it.
+- Native Flauz service protocol remains the boundary.
+- CopilotKit is optional client technology, not a runtime dependency.
+- OpenMuse is a reference/interoperability target only.
+- Any AG-UI support must be an additive projection after the native protocol and must not become a second control plane.
 
-## Agent OS surge execution
+## Hardening execution pattern
 
-TL2 is currently the program bottleneck. To increase parallel throughput without creating architecture drift, three workers are temporarily seconded into TL2:
+For every new hardening item:
 
-```
-                 TL2 — Agent OS owner
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-     TL2-A            TL2-B            TL2-C
- orchestration      providers        memory/workflows/A2A
-        ▲                ▲                ▲
-        │                │                │
-     TL2-S1           TL2-S2           TL2-S3
-     from TL1         from TL3         from TL4
-     service          resources/      runtime
-     integration      execution       verification
-        │                │                │
-        └────────────────┼────────────────┘
-                         ▼
-                   durable Agent OS
-```
+1. Start from the actual integrated `main`.
+2. Read the registry item and owning TL handoff.
+3. Write/confirm the contract and failure model before implementation.
+4. Add fixture coverage for failure modes where runtime infrastructure is unavailable.
+5. Promote the same contract to runtime coverage where possible.
+6. Record exact PR/commit and CI evidence.
+7. Update the registry and `CURRENT-STATE.md` in the same merge wave.
 
-Secondment rules:
-- ownership stays with the home TL and Agent OS semantics stay with TL2;
-- seconded workers get bounded, named work-orders in WORK-REGISTRY.md;
-- helpers may work independently using fixtures/contracts and must not wait on the owner for every implementation detail;
-- shared-file overlap is minimized; prefer additive adapters, protocol contracts and test harnesses;
-- TL2 arbitrates semantic conflicts inside Agent OS; TL1 arbitrates Code OSS substrate conflicts; TL3 arbitrates browser/environment contract conflicts; TL4 owns independent quality verdicts;
-- release the helper back to its home TL when its bounded work-order is satisfied.
-
-### Preferred fan-out
-
-```
-main
- │
- ├── TL2-A durable orchestration
- ├── TL2-B provider routing/execution
- ├── TL2-C memory/workflows/A2A
- ├── TL2-S1 service integration (TL1)
- ├── TL2-S2 resource/execution integration (TL3)
- └── TL2-S3 runtime verification (TL4)
-            │
-            ▼
-      durable Agent OS
-            │
-            ▼
-     integrated product
-```
+Do not convert fixture evidence into runtime claims, or SKIP into PASS by assumption.

@@ -1,87 +1,30 @@
-# TL4 Handoff — Product UX, Verification and Release Quality
+# TL4 Final Handoff — Product UX, Verification and Release Quality
 
 ## Mission
+Make Flauz discoverable and coherent while independently proving that Agent OS, browser, environment and workspace additions preserve the mature Code OSS experience.
 
-Make Flauz feel like one coherent premium product while proving continuously that additions preserve the existing Code OSS experience.
+## Final status
+**Registered portfolio: 9/9 DONE at the recorded rungs.**
 
-TL4 is the independent quality arm. It is not a final-stage cleanup team.
+- TL4-001 — Product information architecture: six-view Flauz activity-bar shell and machine-checkable IA gate.
+- TL4-002 — Premium UX: error/recovery grammar, guide surface, reveal navigation, timestamps and accessibility rules.
+- TL4-003 — Code OSS compatibility battery: 1887/1887 baseline rows PASS at the registered fixture/L1-L2 rung.
+- TL4-004 — Whole-session acceptance battery: durable scripted user journeys with fixture and runtime promotion.
+- TL4-005 — Performance/resource budget: registry and gate with 9 explicitly pending-runtime measurements.
+- TL4-006 — Security/release gates: supply-chain, proposed-API, secret and reproducibility controls.
+- TL4-007 — Session-battery runtime: 38 assertions over real CDP + LocalProcessExecutor, J1-J4 PASS.
+- TL4-008 — Compatibility L3 runtime boot smoke: workbench booted with Flauz active; verdict PASS 12/0/6 with honest functional SKIPs.
+- TL4-009 — Security runtime rung: npm-audit delta, CycloneDX SBOM and pinned bundle-signature manifest.
 
-## First reads
+TL2-S3 is closed and the helper is released back to TL4.
 
-- SOURCE-OF-TRUTH.md
-- ARCHITECTURE-LOCK.md
-- CURRENT-STATE.md
-- WORK-REGISTRY.md
-- PARALLEL-EXECUTION.md
-- .github/copilot-instructions.md
+## Immediate hardening ownership
+- TL4-H1 — Promote the 9 pending-runtime performance rows using real runtime measurements.
+- TL4-H2 — Promote reveal-runtime/live-file-event behavior where runtime confirmation is required.
+- PLATFORM-H1 — jointly close the platform baseline CI deviations recorded by TL2-S3.
 
-## Three workers
+## Quality laws
+A green fixture suite is not a green runtime claim. Never hide missing functionality behind optimistic UI. Preserve mature Code OSS UX. Keep security/release gates independent from implementation-owner claims. SKIP means unobserved; it never means PASS.
 
-### Worker A — Product UX
-Own:
-- information architecture;
-- navigation;
-- task/agent/browser/environment surfaces;
-- empty/loading/error/recovery states;
-- keyboard/focus/accessibility;
-- visual hierarchy and premium polish.
-
-### Worker B — Compatibility and end-to-end verification
-Own:
-- Code OSS regression battery;
-- full Flauz user journeys;
-- fixture-backed contract tests;
-- current-main verification;
-- Linux/Windows/web/desktop coverage where applicable.
-
-### Worker C — Performance/security/release quality
-Own:
-- startup/activation budgets;
-- memory/CPU budgets;
-- extension activation discipline;
-- security regression tests;
-- secret scanning;
-- packaging/release gates;
-- reproducibility.
-
-## First sprint
-
-Start TL4-001 through TL4-006 immediately.
-
-Do not wait for the full runtime to exist. Build the harness with fixtures and promote fixtures to real integration coverage as implementations land.
-
-## Hard rules
-
-- A green unit-test suite is not a green product.
-- Do not hide missing functionality behind optimistic UI.
-- Do not let the command palette be the sole discovery path.
-- Preserve mature Code OSS UX where it is already strong.
-- Treat premium as measured interaction, visual and recovery quality.
-
-## Done means
-
-A fresh user can discover, use, recover from and continue using Flauz major capabilities without losing the mature editor, terminal, SCM and debugging experience.
-
-## Temporary TL2 secondment — Worker B
-
-TL4 remains the independent quality arm and owner of product verification. Until the Agent OS surge exits, one TL4 worker is temporarily seconded to TL2 as **TL2-S3 — Agent OS Runtime Verification**.
-
-Scope:
-- build an independent Agent OS runtime acceptance battery;
-- exercise restart, provider failure, cancellation, approval interruption, lease conflict, multi-agent coordination and evidence/provenance recovery;
-- promote fixture contracts to runtime CI as TL2 capabilities land;
-- keep verdicts machine-checkable and separate implementation claims from observed behavior.
-
-Boundaries:
-- no ownership of orchestration semantics;
-- no weakening of fail-closed behavior to make a test pass;
-- tests must consume public/stable Flauz contracts;
-- runtime verification may block a TL2 completion claim but may not silently redefine its architecture.
-
-Acceptance:
-- fault/recovery journeys have deterministic expected outcomes;
-- restart and provider failure preserve logical task state/provenance;
-- approval and lease boundaries are verified independently;
-- the battery can be promoted from fixture mode to real runtime mode without rewriting the contract.
-
-When TL2-S3 completes its bounded work-order, Worker B returns to TL4 product-wide verification/quality maintenance.
+## Handoff rule
+TL4 remains the independent verification and quality authority. It can report runtime failure without redefining underlying architecture; semantic fixes remain with the owning TL.

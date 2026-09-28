@@ -1,123 +1,39 @@
-# TL2 Handoff — Agent OS
+# TL2 Final Handoff — Agent OS
 
 ## Mission
+Own durable Agent OS semantics: orchestration, providers, memory/context, approvals/takeover/leases, reusable workflows and A2A collaboration.
 
-Turn the current Flauz agent/workspace vertical slices into a durable multi-agent system while preserving Code OSS native agent, chat, model and tool capabilities.
+## Final status
+**Registered core portfolio: 6/6 DONE. Surge: S1/S2/S3 DONE.**
 
-TL2 is the **sole architectural owner** of Agent OS. A temporary three-worker cross-TL surge team is attached to TL2 to increase throughput without transferring ownership to TL1, TL3 or TL4.
+- TL2-001 — Durable orchestration: PR #23 M1-M3 + PR #26 M4/M5; merged-state receipts 478/478.
+- TL2-002 — Model/provider adapters: vendor-neutral adapters, routing/provenance/tool policy; 106/106 tests.
+- TL2-003 — Context and memory: durable tiered memory, compilation, retrieval and provenance; 48/48 tests.
+- TL2-004 — Approval/takeover/lease semantics: durable graph transitions, evidence, expiry and gate-terminal rules.
+- TL2-005 — Reusable workflows: validation, versioning, recovery, checkpoints/watermarks/claims; 101/101 tests.
+- TL2-006 — A2A collaboration: typed coordination with private-context/shared-task-state separation.
+- TL2-S1 — Service integration from TL1: DONE; 169/169 agent tests.
+- TL2-S2 — Resource/execution integration from TL3: DONE; 99/99 execution tests and 577/577 all-extension tests.
+- TL2-S3 — Independent runtime verification from TL4: DONE; helper released to TL4.
 
-## First reads
+## Runtime verification verdict
+TL2-S3 uses one behavioral contract across fixture and runtime promotion.
 
-- SOURCE-OF-TRUTH.md
-- ARCHITECTURE-LOCK.md
-- CURRENT-STATE.md
-- WORK-REGISTRY.md
-- PARALLEL-EXECUTION.md
-- TL2-AGENT-OS-SURGE.md
-- extensions/flauz-agent/README.md
-- extensions/flauz-models/README.md
-- extensions/flauz-workspace/README.md
-- extensions/flauz-workflow/README.md
+- **4 PASS:** restart recovery, approval interruption, evidence/provenance integrity, partial environment/browser failure.
+- **3 FAIL findings:** INV-2 bounded provider retry, INV-3 cancellation propagation, INV-6 concurrent ledger serialization.
+- **1 SKIP:** INV-5 lease-conflict because A2A v0 resource claims are informational rather than conflict-enforcing.
 
-## Core TL2 workers
+Latest repository head is `8ddeaae20004f87da5756ab79a07fab577e8827f`. AgentOS runtime/session-core jobs are green there; remaining red lanes were traced to the pre-existing platform baseline set.
 
-### Worker A — Runtime/orchestration
-Own:
-- durable task graph;
-- retry/cancel/recovery;
-- multi-agent execution;
-- human approval/takeover;
-- leases/conflicts.
+## Immediate hardening ownership
+- AO-H1 — bounded provider retry.
+- AO-H2 — cancellation propagation.
+- AO-H3 — concurrent ledger serialization.
+- AO-H4 — lease-conflict contract.
+- TL2-H1 — live-provider verification; fixture evidence must not be described as live-provider evidence.
 
-### Worker B — Models/providers/tools
-Own:
-- real provider adapters;
-- local model adapters;
-- provider capability discovery;
-- routing policy;
-- MCP/tool integration;
-- model-aware context budgets.
+## Architectural laws
+TL2 is the sole semantic owner of Agent OS. Preserve human authorization, vendor neutrality, fail-closed tool/approval behavior, and reuse TL1/TL3 contracts. Do not introduce CopilotKit/OpenMuse as runtime dependencies. No `src/vs` work is justified by the current Agent OS design.
 
-### Worker C — State/memory/workflows/evidence
-Own:
-- durable memory;
-- context compilation/retrieval;
-- workflow execution;
-- checkpoint/watermark/signature evolution;
-- claims/evidence/decision records;
-- A2A semantics.
-
-## Temporary cross-TL surge workers
-
-### TL2-S1 — TL1 secondment: service integration
-Use the completed TL1-003 seam as the authoritative transport/control boundary for Agent OS.
-
-### TL2-S2 — TL3 secondment: resource/execution integration
-Connect the durable Agent OS graph to the already-landed BrowserSession, EnvironmentExecutor/provider, ResourceRef and Continuity contracts.
-
-### TL2-S3 — TL4 secondment: Agent OS runtime verification
-Build and maintain the Agent OS runtime acceptance/fault-injection battery independently from the implementation workers.
-
-These secondments are bounded work-orders, not permanent changes to TL ownership. TL2 accepts the work, resolves semantic conflicts, and owns the merge decision.
-
-## Surge execution order
-
-Run the following in parallel where contracts permit:
-
-1. **TL2-001 / Worker A:** durable orchestration state machine, recovery, cancellation and multi-agent graph.
-2. **TL2-002 / Worker B:** provider registry, capability discovery, routing and real-provider execution.
-3. **TL2-003/005/006 / Worker C:** memory/context, executable workflows and collaborative A2A semantics.
-4. **TL2-S1 / TL1:** service boundary integration and conformance.
-5. **TL2-S2 / TL3:** resource/browser/environment execution adapters and continuity hand-off.
-6. **TL2-S3 / TL4:** runtime acceptance, restart/failure/provider/approval/lease test battery.
-
-Where an implementation dependency is absent, define the contract and fixture rather than waiting.
-
-## Integration architecture
-
-```
-Native Flauz Service
-        │
-        ▼
- Durable Agent OS
-   ┌────┼────┐
-   ▼    ▼    ▼
-Tasks  Memory  Providers
-   │     │       │
-   ├─────┼───────┤
-   ▼     ▼       ▼
-Approval Workflow A2A
-   │     │       │
-   └─────┼───────┘
-         ▼
- Resource / Execution Ports
-    ┌────┼───────────┐
-    ▼    ▼           ▼
- Browser Environment Resource
-         │
-         ▼
-      Continuity
-         │
-         ▼
-   Evidence / Decisions
-         │
-         ▼
-   TL4 runtime battery
-```
-
-## Hard rules
-
-- Never turn mock providers into fake production claims.
-- Keep agent state durable and recoverable.
-- Preserve human authorization boundaries.
-- Do not couple the runtime to one model vendor.
-- Never fabricate checkpoints or evidence.
-- TL2 owns Agent OS semantics; borrowed workers must not create competing semantics.
-- Reuse TL1/TL3 contracts instead of copying their implementations.
-- TL4 tests behavior independently; it does not become the runtime owner.
-- Do not add CopilotKit/OpenMuse runtime dependencies; any AG-UI adapter is downstream of the native service protocol.
-- No `src/vs` changes are permitted for the surge unless the Architecture Lock explicitly changes.
-
-## Done means
-
-A task survives restart, provider failure, environment changes and human intervention without losing logical state or provenance, and the same execution model works across multiple agents/providers/resources.
+## Handoff rule
+Start from the actual `main` tree and the repository control plane. Never infer runtime behavior from fixture-only evidence.

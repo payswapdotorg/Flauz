@@ -1,12 +1,12 @@
 # Flauz Current State
 
-Program reset: 2026-09-27
+Program control-plane refresh: 2026-09-28
 Integrated product branch: main
-Integrated head at verification: 6a2bc3a24bb5bf85c36a74e8551ab630a5316950 (2026-09-28; current main verification point after TL1 completion, TL3 provider/continuity completion, TL4 runtime-rung completion, the TL2 Agent OS surge landing (TL2-001..006 + secondments S1/S2), and the TL2-S3 Agent OS runtime verification battery landing)
+Integrated head at verification: 8ddeaae20004f87da5756ab79a07fab577e8827f (2026-09-28; latest verified main head)
 
 ## Branch state
 
-- main is the canonical Flauz product line at 6a2bc3a24bb5bf85c36a74e8551ab630a5316950. TL1-001..005 are complete; TL3-001..006 are complete at their current registered rungs; TL4-001..009 are complete at their current registered rungs; the TL2 Agent OS core (TL2-001..006) and secondments S1/S2/S3 are complete (TL2-S3 = the runtime verification battery, PR #30, with the 4 PASS / 3 FAIL / 1 SKIP census recorded as findings for TL2). Existing TL ownership remains unchanged.
+- main is the canonical Flauz product line at `8ddeaae20004f87da5756ab79a07fab577e8827f`. All registered TL1/TL2/TL3/TL4 work-items are DONE at their recorded rungs; the TL2-S3 evidence addendum is the latest integrated control-plane commit.
 - upstream/main is the preserved Code OSS reference line at 9bf9ae764da438b1234a8243dc9e47173ef58ee7.
 - flauz/main is a compatibility alias for the former product branch at 76b7e1a789a0dfa7b900be1fa801016deca7bd99.
 - main is 221 commits ahead of upstream/main and 0 behind at the reset point.
@@ -14,13 +14,13 @@ Integrated head at verification: 6a2bc3a24bb5bf85c36a74e8551ab630a5316950 (2026-
 
 ## Control-plane reconciliation
 
-The program documents previously recorded older integrated heads and several future-dated status annotations. Those annotations are historical metadata, not additional code state. The current `main` tree and exact merge/CI evidence are authoritative.
+The integrated tree on `main` is authoritative. Older head annotations and any future-dated historical progress paragraphs are subordinate records only.
 
-There is intentionally no CopilotKit or OpenMuse runtime dependency. An AG-UI adapter remains a future, additive interoperability option after TL1-003's native Flauz service protocol is stable.
+There is no CopilotKit or OpenMuse runtime dependency. AG-UI remains a possible additive projection after the native Flauz service protocol; it is not a current runtime dependency.
 
 ## Agent OS surge
 
-TL2 is the active architectural bottleneck. Three bounded cross-TL secondments are now attached to TL2: TL1 service integration, TL3 resource/execution integration, and TL4 runtime verification. This is a capacity increase only; ownership remains with the home TLs and Agent OS semantics remain owned by TL2.
+The TL2 Agent OS surge is closed. The three bounded secondments (TL2-S1/S2/S3) are complete and their helpers are released to TL1/TL3/TL4. Ownership never moved from the home TLs.
 
 The Agent OS runtime verification battery (TL2-S3, PR #30) is landed: the 8-invariant durability catalogue (flauz.agentos-battery/v1) with one behavioral contract across two promotion rungs (fixture -> runtime), the zero-dep agentos-battery gate (default / --require / --surge-rung / --runtime), doctored controls, the flauz-agentos CI lane, and the honest baseline. Its census (identical at both rungs): 4 PASS, 3 FAIL findings mapped to TL2-001/002 follow-ups (bounded retry, cancellation propagation, concurrent ledger appends), 1 SKIP for the pending lease-conflict contract (TL2-004). The surge completion claim bar is `agentos-battery.mjs --surge-rung`.
 
@@ -108,20 +108,23 @@ The current workflow extension provides a workflow envelope and the integrated M
 
 Later workflow capabilities must be re-established from current code and tests before being called complete.
 
-## Known gaps
+## Remaining hardening and promotion work
 
-1. Real model/provider execution and provider routing.
-2. Durable multi-agent orchestration, retry/cancel/recovery and collaborative execution.
-3. Durable context/memory compilation, retrieval and provenance.
-4. Complete human approval/takeover/lease semantics integrated with the durable execution graph.
-5. Production-grade reusable workflow execution/versioning/recovery.
-6. Real environment providers beyond the fixed local harness and explicitly simulated remote executors.
-7. Cross-surface continuity/restoration across agent task, browser, environment and resource state.
-8. Browser runtime promotion from fixture/driver coverage to real-workbench E2E and remaining partition/default-policy work.
-9. Whole-session acceptance promotion from fixture-backed simulation to real product/runtime coverage (DONE by TL4-007: J1-J4 over real CDP + LocalProcessExecutor, station-green, PR #19).
-10. Runtime performance/security/release promotion for currently fixture-backed or pending-runtime gates (advanced by TL4-009: audit delta + SBOM + pinned bundle manifest landed; runtime CI confirmation in flight).
-11. TL1-003's versioned native Flauz service protocol and packaging/release parity.
-12. Upstream synchronization as an ongoing maintenance lane plus web/desktop verification.
+The registered work-items are complete, but the integrated verification has explicit residuals. These are not hidden behind DONE statuses:
+
+1. TL2 Agent OS runtime findings: INV-2 bounded provider retry, INV-3 cancellation propagation, and INV-6 concurrent ledger serialization failed the runtime battery; INV-5 lease-conflict remains SKIP because A2A v0 resource claims are informational.
+2. TL3 provider rung 2: live workbench resolver code and the associated `resolvers` grant remain outstanding.
+3. TL3 browser product residuals: real-workbench `window.openBrowserTab` boot verification, product-side partition minting, and the application-scoped network-filter default posture finding remain documented.
+4. TL4 performance promotion: 9 pending-runtime budget rows remain to be measured on real runtime surfaces.
+5. Platform baseline debt observed by TL2-S3: the merged-state station still reported pre-existing SBOM/packaging-parity/fixture deviations; they are tracked as platform hardening rather than being attributed to the Agent OS battery.
+6. Live-provider drills remain follow-up evidence for TL2-002; fixture evidence must not be described as live-provider verification.
+
+These items are tracked in `WORK-REGISTRY.md` under the post-completion hardening register.
 
 Previous TL2 lab reports are evidence of work performed, not a substitute for current integrated verification.
 The code on main plus these program documents is now the authoritative starting point.
+
+
+## Source-of-truth rule
+
+This file is a derived state summary. For any conflict, obey `SOURCE-OF-TRUTH.md` and inspect the actual `main` tree/CI evidence.
