@@ -484,11 +484,26 @@ async function run(parsed) {
 			cdpFailure = `no response from ${base}/json/version within ${bootTimeout} ms (${attempts} attempt(s))`;
 		}
 		if (cdpVersion !== null) {
-			try {
-				const r = await fetchJson(`${base}/json/list`, Math.max(2000, pollInterval * 2));
-				cdpTargets = Array.isArray(r.body) ? r.body : [];
-			} catch (e) {
-				cdpTargets = { error: e.message };
+			// The workbench page target can register a moment AFTER /json/version
+			// answers (window load races the CDP target registration). Poll the
+			// list within the settle budget until a page target appears; a stable
+			// empty list only counts as empty after the budget is spent.
+			const listDeadline = Date.now() + settleTimeout;
+			let lastListError = null;
+			while (Date.now() < listDeadline) {
+				try {
+					const r = await fetchJson(`${base}/json/list`, Math.max(2000, pollInterval * 2));
+					const body = Array.isArray(r.body) ? r.body : [];
+					const hasPage = body.some((t) => t && t.type === 'page');
+					cdpTargets = body;
+					if (hasPage) { break; }
+				} catch (e) {
+					lastListError = e.message;
+				}
+				await sleep(pollInterval);
+			}
+			if (cdpTargets === null) {
+				cdpTargets = lastListError !== null ? { error: lastListError } : [];
 			}
 		}
 	}
