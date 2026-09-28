@@ -20,6 +20,11 @@
 		"core/contracts.d.mts",
 		"core/a2a.d.mts",
 		"core/protocol.d.mts",
+		"core/orchestration.d.mts",
+		"core/policy.d.mts",
+		"core/orchStore.d.mts",
+		"core/recovery.d.mts",
+		"core/runtime.d.mts",
 		"vscode-dts/vscode.d.ts"
 	]
 }
