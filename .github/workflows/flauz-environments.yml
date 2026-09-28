@@ -268,7 +268,7 @@ jobs:
           grep -q 'flauz-env' extensions/flauz-environments/dist/extension.js \
             || { echo 'TL3-H1: the flauz-env authority prefix is missing from the bundled extension'; exit 1; }
           mkdir -p "$RUNNER_TEMP/resolver-drill"
-          node_modules/.bin/esbuild extensions/flauz-environments/test/boot/registrationDrill.ts \
+          node_modules/esbuild/bin/esbuild extensions/flauz-environments/test/boot/registrationDrill.ts \
             --bundle --format=cjs --platform=node --target=es2022 --external:vscode \
             --outfile="$RUNNER_TEMP/resolver-drill/registrationDrill.js"
           echo 'TL3-H1 registration surface rides the bundle: OK'

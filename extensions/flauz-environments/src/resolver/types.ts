@@ -144,8 +144,8 @@ export interface FlauzResolvedData {
 	/** Echo of the resolver context (re-resolution attempt number). */
 	readonly resolveAttempt: number;
 	readonly transport:
-		| { readonly kind: 'endpoint'; readonly endpoint: ResolvedTransportEndpoint }
-		| { readonly kind: 'pending-live-rung'; readonly pendingReason: string };
+	| { readonly kind: 'endpoint'; readonly endpoint: ResolvedTransportEndpoint }
+	| { readonly kind: 'pending-live-rung'; readonly pendingReason: string };
 	/** The AHP bridge handshake when the plan is bridged (ssh-local). */
 	readonly agentHostBridge?: AgentHostBridgeHandshake;
 	/** Env the remote extension host receives (the bridge token rides here). */

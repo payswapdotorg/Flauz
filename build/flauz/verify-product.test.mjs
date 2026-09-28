@@ -73,7 +73,7 @@ test('real tree content-level: analyzeProductShell reports the audited posture',
 		assert.equal(result.merged.hasDefaultChatAgent, false);
 		assert.deepEqual(
 				[...result.merged.proposalEntries].sort(),
-				['flauz.flauz-agent', 'flauz.flauz-browser', 'flauz.flauz-workspace']
+				['flauz.flauz-agent', 'flauz.flauz-browser', 'flauz.flauz-environments', 'flauz.flauz-workspace']
 		);
 		// the documented DL-4 grant table pins the flauz-agent default-participant pattern
 		assert.deepEqual([...DOCUMENTED_EMPTY_MANIFEST_GRANTS.keys()], ['flauz.flauz-agent']);
