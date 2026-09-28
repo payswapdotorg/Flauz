@@ -742,12 +742,14 @@ export function validateExecPayload(type: ExecEventType, payload: unknown): stri
 			return undefined;
 		}
 		case 'acquire-denied': {
-			if (!hasOnlyKeys(payload, ['gate', 'failureClass', 'message', 'resource'], ['verdictDigest'])) {
+			if (!hasOnlyKeys(payload, ['gate', 'failureClass', 'message'], ['resource', 'verdictDigest'])) {
 				return `${label} payload must have only the keys [failureClass, gate, message, resource, verdictDigest?]`;
 			}
-			const denialRefVerdict = validateExecutionResourceRef(payload.resource);
-			if (!denialRefVerdict.ok) {
-				return `${label} payload resource: ${denialRefVerdict.error}`;
+			if (payload.gate !== 'invalid-request') {
+				const denialRefVerdict = validateExecutionResourceRef(payload.resource);
+				if (!denialRefVerdict.ok) {
+					return `${label} payload resource: ${denialRefVerdict.error} (required unless the gate is 'invalid-request')`;
+				}
 			}
 			if (payload.failureClass !== 'acquire-denied') {
 				return `${label} payload failureClass must be 'acquire-denied' (the denial row is the typed fail-closed record)`;
