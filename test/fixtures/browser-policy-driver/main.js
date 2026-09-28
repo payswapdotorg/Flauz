@@ -285,13 +285,21 @@ async function runDrill(vscode) {
 		: 'session ' + sessionId + ' missing from the sessions audit list (' + sessionList.length + ' entries)');
 
 	// driver.session-close: closeSession seals the session cleanly.
+	// The command returns the SEALED DESCRIPTOR directly (extension.ts header
+	// contract: "flauz.browser.closeSession { sessionId } -> sealed descriptor");
+	// the descriptor-wrapper arm stays for forward-compat. 2026-09-28 drill
+	// run 2 forensics: the prior `closedDescriptor !== undefined && (...)`
+	// conjunct defeated the direct-shape tolerance arm (the second half of
+	// the disjunct was dead code), so the row failed on the CORRECT result
+	// shape — run 1's error-field masked the shape bug.
 	const closed = asRecord(await vscode.commands.executeCommand('flauz.browser.closeSession', {
 		sessionId: sessionId
 	}));
 	const closedDescriptor = asRecord(closed !== undefined ? closed.descriptor : undefined);
 	const closeOk = closed !== undefined
 		&& closed.error === undefined
-		&& closedDescriptor !== undefined && (closedDescriptor.state === 'closed' || (typeof closed === 'object' && closed.state === 'closed'));
+		&& ((closedDescriptor !== undefined && closedDescriptor.state === 'closed')
+			|| (typeof closed === 'object' && closed.state === 'closed'));
 	row('driver.session-close', closeOk, closeOk
 		? 'session ' + sessionId + ' closed (tabs closed, audit list keeps it)'
 		: 'unexpected closeSession result: ' + JSON.stringify(closed).slice(0, 400));
