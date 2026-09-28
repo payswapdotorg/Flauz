@@ -47,6 +47,7 @@
 // CLI self-test:      node perf-log-parse.mjs --selftest
 //                     node perf-log-parse.mjs --parse-timers <file>
 //                     node perf-log-parse.mjs --parse-markers <file>
+//                     node perf-log-parse.mjs --parse-tap <file> [<file> ...]
 //                     node perf-log-parse.mjs --parse-process-json <file>
 //                     node perf-log-parse.mjs --parse-status <file>
 //
@@ -294,6 +295,87 @@ export function parseStatusProcessList(text) {
 		return { rows, errors };
 }
 
+// ---------- 5. FLAUZ_PERF_MARKS_FILE tap (TL4-H1) ------------------------------------------------
+
+/**
+ * Parse the content of a mark TAP file (extensions/flauz-agent/src/marks.ts,
+ * env FLAUZ_PERF_MARKS_FILE): one `<markName>\t<performance.now()>` line per
+ * emitted mark, on the EXTENSION HOST's own performance.now() clock. The tap
+ * exists because the ext-host -> renderer mark relay is a one-time snapshot
+ * taken BEFORE onStartupFinished extensions activate (extHostExtensionService
+ * _activateAllStartupFinished, :647-663) — flauz-agent marks can never reach
+ * the renderer timer service, so the tap is the observational capture point
+ * (fail-open, env-gated; src/vs stays pristine, DL-12).
+ * @param {string} text raw file content
+ * @returns {{ marks: Array<{ line: number, name: string, t: number }>, errors: Array<string> }}
+ */
+export function parseMarksTapTsv(text) {
+		const marks = [];
+		const errors = [];
+		const seen = new Set();
+		const lines = String(text).split(/\r?\n/);
+		for (let i = 0; i < lines.length; i++) {
+				const raw = lines[i];
+				if (raw.trim() === '') { continue; }
+				const fields = raw.split('\t');
+				if (fields.length !== 2) {
+						errors.push(`line ${i + 1}: tap lines are exactly 'markName\t<performance.now()>' (2 tab fields), got ${fields.length}: '${raw.slice(0, 80)}'`);
+						continue;
+				}
+				const name = fields[0];
+				if (name === '') {
+						errors.push(`line ${i + 1}: empty mark name`);
+						continue;
+				}
+				const t = Number(fields[1]);
+				if (!Number.isFinite(t)) {
+						errors.push(`line ${i + 1}: mark '${name}' has a non-numeric performance.now() value: '${fields[1]}'`);
+						continue;
+				}
+				if (seen.has(name)) {
+						errors.push(`line ${i + 1}: duplicate mark '${name}' (first occurrence kept — a boot taps each budgeted mark once)`);
+						continue;
+				}
+				seen.add(name);
+				marks.push({ line: i + 1, name, t });
+		}
+		return { marks, errors };
+}
+
+/**
+ * Derive duration-marker PAIRS from a tap run's marks, in the exact
+ * vocabulary the duration-marker budget table uses: a pair is (W, D) where
+ * D's name is W's name with its FIRST 'will' substring replaced by 'did'
+ * (e.g. code/flauz/willConnectCore -> code/flauz/didConnectCore) and the pair
+ * name is `${W}-${D}` — identical to how startup-pair.mjs STARTUP_BUDGETS
+ * names its pairs. Duration = D.t - W.t on the SAME ext-host clock (no
+ * cross-process skew). A negative duration is a parse error (did before will);
+ * a will-mark without its did twin is NOT an error here — the budget-level
+ * assertion (startup-pair.mjs mode B: "absent from all runs = R6 drift") is
+ * the honest detector for never-closed pairs.
+ * @param {Array<{ line: number, name: string, t: number }>} marks one tap run's marks, in tap order
+ * @returns {{ runs: Array<{ pairs: Record<string, number> }>, errors: Array<string> }}
+ */
+export function tapMarksToDurationRuns(marks) {
+		const byName = new Map();
+		for (const m of marks) { if (!byName.has(m.name)) { byName.set(m.name, m); } }
+		const pairs = {};
+		const errors = [];
+		for (const m of marks) {
+				const didName = m.name.replace('will', 'did');
+				if (didName === m.name) { continue; } // not a will-mark
+				const did = byName.get(didName);
+				if (did === undefined) { continue; } // pair never closed — budget-level concern
+				const duration = did.t - m.t;
+				if (duration < 0) {
+						errors.push(`mark pair '${m.name}-${didName}': did (${did.t}) precedes will (${m.t}) on the tap clock — duration dropped`);
+						continue;
+				}
+				pairs[`${m.name}-${didName}`] = duration;
+		}
+		return { runs: Object.keys(pairs).length > 0 ? [{ pairs }] : [], errors };
+}
+
 // ---------- shared file loading ----------------------------------------------------------------
 
 export function readTextFile(file) {
@@ -332,6 +414,10 @@ function printUsage() {
 Usage:
 	node perf-log-parse.mjs --parse-timers  <file>   parse a --prof-append-timers TSV
 	node perf-log-parse.mjs --parse-markers <file>   parse a --prof-duration-markers TSV
+	node perf-log-parse.mjs --parse-tap <file> [<file> ...]
+	                                             parse FLAUZ_PERF_MARKS_FILE tap file(s); emits the
+	                                             --parse-markers shape (one run per tap file,
+	                                             pairs = did.now - will.now, ext-host clock)
 	node perf-log-parse.mjs --parse-process-json <file>  parse a resolveProcesses() JSON
 	node perf-log-parse.mjs --parse-status   <file>  parse the process list of --status output
 	node perf-log-parse.mjs --selftest               run built-in unit selftest
@@ -339,6 +425,7 @@ Usage:
 Module exports:
 	percentileNearestRank(sorted, p)  stats(values)  fmtMs(v)
 	parseAppendTimersTsv(text)        parseDurationMarkersTsv(text)
+	parseMarksTapTsv(text)            tapMarksToDurationRuns(marks)
 	parseResolveProcessesJson(json)   parseStatusProcessList(text)
 	readTextFile(file)                loadJsonFile(file)
 
@@ -386,6 +473,19 @@ function selftest() {
 		check('status: 2 rows parsed', st1.rows.length === 2);
 		check('status: row values', st1.rows[1].name === 'pty-host' && st1.rows[1].memMB === 42 && st1.rows[1].pid === 200);
 
+		// FLAUZ_PERF_MARKS_FILE tap (TL4-H1)
+		const tap1 = parseMarksTapTsv('code/flauz/willConnectCore\t12.5\ncode/flauz/didConnectCore\t190.25\ncode/flauz/willWarmModels\t200\nnot-a-tap-line-with-3\tfields\textra\ncode/flauz/willConnectCore\t999\n');
+		check('tap: 3 marks parsed', tap1.marks.length === 3);
+		check('tap: 2 errors (malformed + duplicate)', tap1.errors.length === 2);
+		check('tap: mark values', tap1.marks[0].name === 'code/flauz/willConnectCore' && tap1.marks[0].t === 12.5 && tap1.marks[2].name === 'code/flauz/willWarmModels');
+		const run1 = tapMarksToDurationRuns(tap1.marks);
+		check('tap-runs: one run with the closed pair only', run1.runs.length === 1 && Object.keys(run1.runs[0].pairs).length === 1);
+		check('tap-runs: pair name is the STARTUP_BUDGETS vocabulary', run1.runs[0].pairs['code/flauz/willConnectCore-code/flauz/didConnectCore'] === 177.75);
+		const run2 = tapMarksToDurationRuns([{ line: 1, name: 'code/flauz/didConnectCore', t: 5 }, { line: 2, name: 'code/flauz/willConnectCore', t: 12 }]);
+		check('tap-runs: negative duration is an error, pair dropped', run2.runs.length === 0 && run2.errors.length === 1 && /precedes will/.test(run2.errors[0]));
+		const run3 = tapMarksToDurationRuns([{ line: 1, name: 'code/didStartRenderer', t: 1 }]);
+		check('tap-runs: non-will marks form no pairs, no errors', run3.runs.length === 0 && run3.errors.length === 0);
+
 		if (failures > 0) {
 				process.stderr.write(`selftest: ${failures} FAILURE(S)\n`);
 				return 1;
@@ -405,6 +505,7 @@ try {
 				options: {
 						'parse-timers': { type: 'string' },
 						'parse-markers': { type: 'string' },
+						'parse-tap': { type: 'string', multiple: true },
 						'parse-process-json': { type: 'string' },
 						'parse-status': { type: 'string' },
 						selftest: { type: 'boolean' },
@@ -429,6 +530,18 @@ try {
 		}
 		if (args['parse-markers']) {
 				const { runs, errors } = parseDurationMarkersTsv(readTextFile(args['parse-markers']));
+				process.stdout.write(JSON.stringify({ runs, errors }, null, 2) + '\n');
+				if (errors.length > 0) { exit = 1; }
+		}
+		if (args['parse-tap'] && args['parse-tap'].length > 0) {
+				const runs = [];
+				const errors = [];
+				for (const file of args['parse-tap']) {
+								const parsedTap = parseMarksTapTsv(readTextFile(file));
+								const derived = tapMarksToDurationRuns(parsedTap.marks);
+								runs.push(...derived.runs);
+								for (const e of [...parsedTap.errors, ...derived.errors]) { errors.push(`${file}: ${e}`); }
+				}
 				process.stdout.write(JSON.stringify({ runs, errors }, null, 2) + '\n');
 				if (errors.length > 0) { exit = 1; }
 		}

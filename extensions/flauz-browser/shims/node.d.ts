@@ -62,6 +62,9 @@ declare module 'node:fs/promises' {
         export function readFile(path: string, encoding: 'utf-8'): Promise<string>;
         /** TL3-002 (session journal): single O_APPEND write per record (atomic line append). */
         export function appendFile(path: string, data: string, encoding: 'utf-8'): Promise<void>;
+        /** TL4-H1 (browser-launch runtime drill): drill workspace + best-effort cleanup. */
+        export function mkdtemp(prefix: string): Promise<string>;
+        export function rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
 }
 
 declare module 'node:path' {
@@ -96,6 +99,9 @@ declare module 'node:http' {
                 listen(port: number, host: string, callback?: () => void): ShimServer;
                 address(): { port: number } | null;
                 close(): void;
+                /** TL4-H1 (browser-launch runtime drill): awaited shutdown with the error arm. */
+                close(callback: (error: Error | undefined) => void): void;
+                once(event: 'error', listener: (error: Error) => void): void;
         }
         export function createServer(handler: (request: ShimServerRequest, response: ShimServerResponse) => void): ShimServer;
 }
@@ -149,12 +155,16 @@ declare function clearTimeout(timer: { unref(): void } | undefined): void;
 declare function btoa(data: string): string;
 declare function atob(data: string): string;
 
+/** TL4-H1 (browser-launch runtime drill): the sub-millisecond monotonic clock. */
+declare const performance: { now(): number; mark?(name: string): void; };
+
 /** The structured-clone global (Node 17+); used for descriptor snapshots. */
 declare function structuredClone<T>(value: T): T;
 
 /** The `process` global (Node and the extension host); FLAUZ_CDP_ENDPOINT lives here. */
 declare const process: {
         readonly env: Record<string, string | undefined>;
+        argv: string[];
         exit(code?: number): never;
 };
 declare function queueMicrotask(task: () => void): void;

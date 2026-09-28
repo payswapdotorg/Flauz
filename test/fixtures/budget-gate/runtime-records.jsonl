@@ -1,0 +1,8 @@
+{"id": "browser.launch.ttf.cold.p95", "value": 1904.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: browser-launch-runtime drill records (drill-shaped, pinned by review like the perf-timers fixtures)"}
+{"id": "browser.launch.ttf.warm.p95", "value": 312.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: browser-launch-runtime drill records"}
+{"id": "browser.tool-path.overhead.warm.p95", "value": 183.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: browser-launch-runtime drill records (seam share)"}
+{"id": "model.switch.ready.p95", "value": 121.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: model-switch-runtime drill records"}
+{"id": "model.switch.warmup.p95", "value": 948.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: model-switch-runtime drill records"}
+{"id": "multi-agent.rss.per-session", "value": 38.4, "unit": "MB", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: multi-agent-runtime drill records"}
+{"id": "multi-agent.rss.total", "value": 153.6, "unit": "MB", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: multi-agent-runtime drill records"}
+{"id": "multi-agent.eventloop.lag.p95", "value": 12.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: multi-agent-runtime drill records (driver loop)"}

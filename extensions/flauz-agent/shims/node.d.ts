@@ -41,6 +41,20 @@ declare module 'node:child_process' {
 	): ShimChildProcess;
 }
 
+/** TL4-H1 (marks.tap.test): the env-at-module-load tap contract runs in child processes. */
+declare module 'node:child_process' {
+	export interface SpawnSyncResult {
+		status: number | null;
+		stdout: string;
+		stderr: string;
+	}
+	export function spawnSync(
+		command: string,
+		args: readonly string[],
+		options?: { encoding?: 'utf-8'; env?: Record<string, string | undefined>; timeout?: number }
+	): SpawnSyncResult;
+}
+
 declare module 'node:crypto' {
 	export interface ShimHash {
 		update(data: string | Uint8Array, encoding?: string): ShimHash;
@@ -65,6 +79,20 @@ declare module 'node:fs/promises' {
 	export function mkdir(path: string, options?: { recursive?: boolean }): Promise<string | undefined>;
 	export function writeFile(path: string, data: string | Uint8Array): Promise<void>;
 	export function readFile(path: string, encoding: 'utf-8'): Promise<string>;
+	/** TL4-H1 (multi-agent runtime drill): per-session temp workspaces + cleanup. */
+	export function mkdtemp(prefix: string): Promise<string>;
+	/** TL4-H1 (multi-agent runtime drill): best-effort recursive cleanup. */
+	export function rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void>;
+}
+
+/** TL4-H1 (multi-agent runtime drill): the driver's event-loop lag monitor. */
+declare module 'node:perf_hooks' {
+	export interface MonitorEventLoopDelay {
+		enable(): void;
+		disable(): void;
+		percentile(p: number): number;
+	}
+	export function monitorEventLoopDelay(options?: { resolution?: number }): MonitorEventLoopDelay;
 }
 
 declare module 'node:path' {
@@ -163,6 +191,8 @@ declare const process: {
 
 /** Timer globals (kept alive by the event loop unless unref'd). */
 declare function setTimeout(handler: () => void, ms: number): { unref(): void };
+/** TL4-H1: the sub-millisecond monotonic clock (drill timings; the ext-host mark tap). */
+declare const performance: { now(): number; mark?(name: string): void; getMarks?(): { name: string; startTime: number }[] };
 declare function clearTimeout(timer: { unref(): void } | undefined): void;
 declare function queueMicrotask(task: () => void): void;
 declare function setImmediate(handler: () => void): void;

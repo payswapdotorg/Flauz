@@ -45,8 +45,8 @@
 					},
 					"status": {
 						"type": "string",
-						"enum": ["enforced-ci", "enforced-in-repo", "fixture", "pending-runtime"],
-						"description": "The promotion-ladder status (docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md section 4). 'enforced-ci': this gate must have a measurement in the CI budget job (--require enforced-ci flips absence to failure). 'enforced-in-repo': enforced by another in-repo gate (activation-lint.mjs in flauz-hygiene.yml), not by budget-gate measurements. 'fixture': contract + provisional budget exercised by fixtures only (CPU today). 'pending-runtime': the measuring runtime does not exist yet — budget set, gate SKIPs with that reason until a measurement exists."
+						"enum": ["enforced-ci", "enforced-in-repo", "fixture", "pending-runtime", "runtime-measured"],
+						"description": "The promotion-ladder status (docs/FLAUZ-PROGRAM/TL4-PERF-BUDGETS.md section 4). 'enforced-ci': this gate must have a measurement in the CI budget job (--require enforced-ci flips absence to failure). 'enforced-in-repo': enforced by another in-repo gate (activation-lint.mjs in flauz-hygiene.yml), not by budget-gate measurements. 'fixture': contract + provisional budget exercised by fixtures only (CPU today). 'pending-runtime': the measuring runtime does not exist yet — budget set, gate SKIPs with that reason until a measurement exists. 'runtime-measured' (TL4-H1): the measuring runtime driver EXISTS (a runtime drill + the flauz-budgets.yml flauz-budgets-runtime CI job); the row is compared whenever the driver's measurement records are provided and the CI runtime job requires them with --require runtime-measured."
 					},
 					"source": {
 						"type": "string",

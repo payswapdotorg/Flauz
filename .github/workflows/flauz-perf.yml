@@ -198,6 +198,20 @@ jobs:
       # disabled, self-exiting via --prof-append-timers.
       # The duration-markers list asserts the PERF §1.3/§6.2 pairs (budgets live
       # in build/flauz/scripts/startup-pair.mjs — single source of truth).
+      #
+      # TL4-H1 (R6 closure): the flauz code/flauz/* mark pairs NEVER reach the
+      # renderer timer service — the ext-host -> renderer relay is a one-time
+      # $setPerformanceMarks(performance.getMarks()) snapshot taken BEFORE the
+      # onStartupFinished activation loop (extHostExtensionService.ts:647-663;
+      # flauz-agent activates on onStartupFinished and taps every mark after
+      # the snapshot). The flauz boots below therefore set FLAUZ_PERF_MARKS_FILE
+      # per run (extensions/flauz-agent/src/marks.ts env-gated observational
+      # tap, fail-open, zero I/O when unset): startup-pair.mjs --tap-flauz
+      # consumes the tap files as duration-marker runs (did.now - will.now on
+      # the ext-host clock) and asserts the flauz pairs + the bridge pair from
+      # them. The BOOT ARGS ARE UNCHANGED (the tap rides the environment); the
+      # upstream side gets no tap (it legitimately emits no code/flauz/* marks
+      # — the tap pair budgets are absolute, not deltas).
 
       - name: Run perf pair (N x flauz + N x upstream, interleaved)
         run: |
@@ -212,7 +226,8 @@ jobs:
           TIMERS_UP="$GITHUB_WORKSPACE/artifacts/upstream.timers.tsv"
           MK_FLAUZ="$GITHUB_WORKSPACE/artifacts/flauz.markers.tsv"
           MK_UP="$GITHUB_WORKSPACE/artifacts/upstream.markers.tsv"
-          mkdir -p artifacts run/flauz run/upstream
+          TAP_FLAUZ_DIR="$GITHUB_WORKSPACE/artifacts/flauz.marks"
+          mkdir -p artifacts run/flauz run/upstream "$TAP_FLAUZ_DIR"
           # 2026-09-26 first-CI fix (round 11): a STANDARD START needs a workspace
           # FOLDER (Explorer viewlet visible) AND exactly one open text editor —
           # boot with both args: `code.sh <folder> <file-in-folder>` (round-10
@@ -242,6 +257,7 @@ jobs:
           done
           for i in $(seq 1 "$N"); do
             echo "::group::run $i/$N flauz"
+            FLAUZ_PERF_MARKS_FILE="$TAP_FLAUZ_DIR/run-$i.tap" \
             DISPLAY=:10 ./flauz/scripts/code.sh \
               --prof-append-timers "$TIMERS_FLAUZ" \
               --prof-duration-markers "code/didStartRenderer-code/didStartWorkbench" \
@@ -274,14 +290,16 @@ jobs:
           echo "--- upstream timers ---"; cat "$TIMERS_UP" || true
           echo "--- flauz markers ---"; cat "$MK_FLAUZ" || true
           echo "--- upstream markers ---"; cat "$MK_UP" || true
+          echo "--- flauz mark taps (TL4-H1; one per run) ---"; ls -1 "$TAP_FLAUZ_DIR" || true; cat "$TAP_FLAUZ_DIR"/*.tap || true
 
-      - name: Assert PERF §1.3 budgets (TSV diff + duration markers)
+      - name: Assert PERF §1.3 budgets (TSV diff + duration markers + TL4-H1 mark taps)
         run: |
           node flauz/build/flauz/scripts/startup-pair.mjs \
             --timers-flauz artifacts/flauz.timers.tsv \
             --timers-upstream artifacts/upstream.timers.tsv \
             --markers-flauz artifacts/flauz.markers.tsv \
-            --markers-upstream artifacts/upstream.markers.tsv
+            --markers-upstream artifacts/upstream.markers.tsv \
+            --tap-flauz artifacts/flauz.marks
 
       - name: Upload perf-pair artifacts
         if: always()

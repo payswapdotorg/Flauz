@@ -1,0 +1,8 @@
+{"id": "browser.launch.ttf.cold.p95", "value": 2971.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED \u2014 every value over budget (warn rows report WARN; the tool-path fail row must fire exit 1)"}
+{"id": "browser.launch.ttf.warm.p95", "value": 433.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED"}
+{"id": "browser.tool-path.overhead.warm.p95", "value": 312.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED \u2014 fail-severity row over budget -> exit 1"}
+{"id": "model.switch.ready.p95", "value": 590.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED"}
+{"id": "model.switch.warmup.p95", "value": 2411.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED"}
+{"id": "multi-agent.rss.per-session", "value": 162.0, "unit": "MB", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED"}
+{"id": "multi-agent.rss.total", "value": 903.0, "unit": "MB", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED"}
+{"id": "multi-agent.eventloop.lag.p95", "value": 77.0, "unit": "ms", "measuredAt": "2026-09-28T00:00:00Z", "source": "fixture: DOCTORED"}

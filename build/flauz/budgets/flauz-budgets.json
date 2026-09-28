@@ -129,9 +129,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "fail",
-			"status": "pending-runtime",
-			"source": "startup-pair.mjs BRIDGE_ACTIVATION_MARKS (PERF section 1.3 row 5)",
-			"notes": "Agent Bridge activate-resolved <= 300ms; the mark pair is named in BRIDGE_ACTIVATION_MARKS but is not in STARTUP_BUDGETS and is not on the flauz-perf.yml --prof-duration-markers list — measurement becomes possible once the pair is added there and emitted at runtime (check-marks already guards the emit sites)"
+			"status": "enforced-ci",
+			"source": "startup-pair.mjs TAP_PAIR_BUDGETS (bridge absMax 300) via --tap-flauz FLAUZ_PERF_MARKS_FILE tap files (flauz-perf boot lane); budget job input: perf-log-parse --parse-tap emit",
+			"notes": "PERF section 1.3 row 5: Agent Bridge activate-resolved <= 300ms. TL4-H1: the pair is measured from the ext-host mark tap (extensions/flauz-agent/src/marks.ts, env FLAUZ_PERF_MARKS_FILE) — the renderer relay snapshots marks BEFORE onStartupFinished activation (extHostExtensionService.ts:647-663), so the tap is the capture point; startup-pair.mjs asserts it from tap runs on real boots and the budget job maps the tap-converted markers shape (same posture as the sibling marker rows: fixture-backed plumbing today, real numbers from the boot-lane tap files)."
 		},
 		{
 			"id": "memory.eventually.rss.flauz-core",
@@ -415,9 +415,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "TL4-005 contract (doctrine section 6.1) — TL3 real browser runtime does not exist yet (ARCHITECTURE-LOCK section 3 stage 2)",
-			"notes": "time-to-first-frame, COLD: first browser-surface open after fresh boot (includes Chromium spawn + shared-process bring-up); provisional [E] pending the first measured baseline"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.1. TL4-H1: measured by extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts over a real Chromium (CdpEndpointHost + BrowserSessionManager; CI provisions pinned Chrome for Testing). Cold = first open over a fresh endpoint (dial + attach + first target + hardening + first navigation + first screenshot); the pre-listening Chromium spawn cost is the CI launch step, outside t0..t1 (documented in BASELINE.md)."
 		},
 		{
 			"id": "browser.launch.ttf.warm.p95",
@@ -426,9 +426,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "TL4-005 contract (doctrine section 6.1)",
-			"notes": "time-to-first-frame, WARM: repeat open with the runtime hot; provisional [E]"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.1. TL4-H1: warm = immediate repeat of the open path on the same warm host/transport (drill-measured, real Chromium)."
 		},
 		{
 			"id": "browser.tool-path.overhead.warm.p95",
@@ -437,9 +437,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "fail",
-			"status": "pending-runtime",
-			"source": "PERF section 5.2 browser-tool row via canary C-28 A5 (build/flauz/canaries/C-28.md; measure-§8.md q4)",
-			"notes": "WARM tool-path overhead EXCLUDING one-time costs on ext host -> renderer -> shared process ('playwright' channel) -> main (CDP) -> Chromium; driver-dependent (WAITING-ON-LANE F); budget cited from the plan, measurement pending"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "PERF section 5.2 / canary C-28 A5. TL4-H1: the drill measures the SEAM SHARE of the tool path — warm (manager.navigate + manager.screenshot) p95 minus warm raw-CDP equivalents on the same endpoint. The ext-host -> renderer -> shared-process legs of the 4-process path remain WAITING-ON-LANE F (booted workbench driver; the documented residue, same class as the session-battery residue). The seam share is the product-controlled portion of the 250ms; citing it as the full-path number is dishonest."
 		},
 		{
 			"id": "model.switch.ready.p95",
@@ -448,9 +448,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "TL4-005 contract (doctrine section 6.2) — provider switching rides the flauz-models provider seam (extensions/flauz-models)",
-			"notes": "switch command -> new provider connection confirmed ready (auth/handshake), EXCLUDING model inference; provisional [E] pending the first measured baseline"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-models/test/canaries/model-switch-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.2. TL4-H1: measured on the REAL fabric seam (bootstrapFabric + registry + providerFor -> provideLanguageModelChatInformation) with the vendor endpoint a LOCAL mock (the flauz-mock echo vendor and an openai-compat provider against a local OpenAI-shape HTTP server — inference is excluded by contract). ready = switch command -> new provider model list available (the interactive path). Live-vendor recalibration stays with TL2-H1 (live-provider verification)."
 		},
 		{
 			"id": "model.switch.warmup.p95",
@@ -459,9 +459,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "PERF section 5.1 / section 1.3 row 6 warm-up ceiling (the willWarmModels mark anchors the startup-side twin)",
-			"notes": "on-switch vendor warm-up must stay off the interactive path, same 2s ceiling as startup warm-up; provisional until measured"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-models/test/canaries/model-switch-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.2. TL4-H1: the switch-triggered vendor warm-up OFF the interactive path — the auth+handshake health probe (GET /models with the resolved credential, adapter.health() on the registry-resolved config) against the local mock vendor endpoint. 2s ceiling per section 5.1. Live-vendor recalibration stays with TL2-H1."
 		},
 		{
 			"id": "multi-agent.rss.per-session",
@@ -470,9 +470,9 @@
 			"unit": "MB",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "TL4-005 contract (doctrine section 6.4) — N-concurrent-sessions workload (TL2-006 multi-agent coordination)",
-			"notes": "per-session RSS at N=4 concurrent sessions (2 executing + 2 idle), scenario 'after-session' capture path; provisional [E]"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-agent/test/canaries/multi-agent-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.4. TL4-H1: mean RSS of N>=3 concurrent REAL SeamClient.start sessions (real core/service.mjs subprocesses, real handshakes, real .flauz state on disk), VmRSS read from /proc/<pid>/status per session (Linux; non-Linux runs SKIP the RSS rows honestly)."
 		},
 		{
 			"id": "multi-agent.rss.total",
@@ -481,9 +481,9 @@
 			"unit": "MB",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "TL4-005 contract (doctrine section 6.4)",
-			"notes": "total flauz-added RSS at the N=4 workload — the section 3.2 floor-case total (500MB) applies at <=2 sessions; the workload ceiling scales it; provisional [E]"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-agent/test/canaries/multi-agent-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.4. TL4-H1: sum of the per-session VmRSS over the same N>=3 concurrent real sessions (the N=4 scaled-workload ceiling row)."
 		},
 		{
 			"id": "multi-agent.eventloop.lag.p95",
@@ -492,9 +492,9 @@
 			"unit": "ms",
 			"comparison": "<=",
 			"severity": "warn",
-			"status": "pending-runtime",
-			"source": "TL4-005 contract (doctrine section 6.4): event-loop lag monitor during the workload window",
-			"notes": "p95 event-loop delay in the main process across the workload window (monitor_eventLoopDelay histogram via the session driver); provisional [E]"
+			"status": "runtime-measured",
+			"source": "extensions/flauz-agent/test/canaries/multi-agent-runtime.drill.ts (--out records; CI: flauz-budgets.yml flauz-budgets-runtime job)",
+			"notes": "Doctrine section 6.4 (the driver owns the monitor). TL4-H1 honesty note: measured on the DRIVER loop (monitorEventLoopDelay in the drill process while it drives the N concurrent sessions) — NOT the booted ext-host loop; the workbench main-process loop is the documented residue (same class as the session-battery workbench seam). Never conflate the two when citing this row."
 		}
 	]
 }
