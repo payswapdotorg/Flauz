@@ -235,3 +235,10 @@ extensions/flauz-agent/core/recovery.mjs
 
 # Flauz TL2-A orchestration executor (zero-dep .mjs, G side)
 extensions/flauz-agent/core/runtime.mjs
+
+# Flauz TL2-A multi-agent routing (zero-dep .mjs, G side; M3 - allowlist entry missed at landing, added by A2)
+extensions/flauz-agent/core/routing.mjs
+
+# Flauz TL2-A2 orchestration service protocol (zero-dep .mjs, G side; M4)
+extensions/flauz-agent/core/orchProtocol.mjs
+extensions/flauz-agent/core/orchMediator.mjs
