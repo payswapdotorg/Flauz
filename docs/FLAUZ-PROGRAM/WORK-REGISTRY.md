@@ -463,16 +463,21 @@ Evidence: TL2-S3 INV-2 FAIL.
 Acceptance: bounded automatic retry semantics are exercised in runtime mode with explicit retry policy, terminal behavior, provenance, and deterministic kill/recover evidence.
 
 ### AO-H2 — Cancellation propagation
-Status: TODO
+Status: DONE (2026-09-28, PR #39 merge e7aab8564cb0 — the FLAUZ-TL2-F1 wave-3 census-closure lane; station-verified at the merged state: census INV-3 FAIL→PASS, agentos-battery instrument green)
 Owner: TL2
-Evidence: TL2-S3 INV-3 FAIL.
-Acceptance: cancellation reaches all in-flight tool steps, no post-cancel side effect executes, and restart/recovery preserves the cancellation terminal state.
+Evidence: TL2-S3 INV-3 FAIL → PASS at e7aab856 (station re-run of the census at the merged head — never trusting reported numbers).
+Landing record: worker delivery (chat 9c773492, ws ws-8a89f544-4f, harvested in-window from the active pod 16:06 UTC; credential-free bundle protocol; bundle head 3f3965a8, WO pinned base 8ddeaae2, merged onto current main per the pinned-base discipline). The contract at THREE levels: (1) flauz-workflow envelope — pre-dispatch cancellation checkpoint in WorkflowService.run's tool loop (task state re-read before every tool call; a terminal-cancelled task never starts the next step; ONE cancel-attributed ledger note row + observational cancel-attribution event carrying the cancel's actor; typed WorkflowRunCancelledError); (2) flauz-workspace TaskService — typed StaleRunCancelledError from appendEvent for transitions into a terminal-cancelled task (the stale run unwinds cleanly; every other illegal transition keeps the generic state-machine error); (3) flauz-agent/core runtime — driveGraph level-1 downstream gate (pre-dispatch state re-read; cancel-attributed cancel-observed journal row via the DL-60 evidence-bearing path; typed DriveReport.cancelled/cancelObservation outcome) + level-2 in-flight abort (post-effect state re-read; a mid-flight-cancelled step is never completed); orchProtocol maps 'stale-run-cancelled' onto the existing illegal-transition wire failure (closed taxonomy preserved). Key discovery (worker REPORT §5): the battery's fixture rung measures flauz-workspace/flauz-workflow product code, not flauz-agent/core — the contracts were implemented in BOTH places (track A flips the rows; track B carries the packet's durable-graph semantics).
+Acceptance: cancellation reaches all in-flight tool steps, no post-cancel side effect executes, and restart/recovery preserves the cancellation terminal state — MET (battery INV-3 PASS at the merged head; the restart terminal-state preservation row is INV-1, which stayed PASS).
 
 ### AO-H3 — Concurrent Agent OS ledger serialization
-Status: TODO
+Status: DONE (2026-09-28, PR #39 merge e7aab8564cb0 — the same FLAUZ-TL2-F1 delivery; census INV-6 FAIL→PASS, station-verified)
 Owner: TL2
-Evidence: TL2-S3 INV-6 FAIL.
-Acceptance: concurrent appends preserve a single valid chain with unique sequencing and deterministic conflict handling under runtime concurrency.
+Evidence: TL2-S3 INV-6 FAIL → PASS at e7aab856.
+Landing record: (1) flauz-agent/core — withTransitionLock gains lockDepth/lockWaiters accounting; the public appendRow REFUSES direct writes while a serialized op is in flight/queued (typed code 'lock-violation'); in-lock call sites route through appendRowInternal; appendRowLocked is the serialized API for async call sites; previously-unlocked append sites now ride the lock (submitGraph, runtime retry/policy rows, all six recovery-pass rows); the evidence ledger (WorkspaceSeam.appendEvidence) and A2A journal (A2ABus.post) audited — synchronous single-owner stores, no mint→append window by construction. (2) flauz-workspace EvidenceLedger — append is read-tail → mint → appendFile → SETTLE: the ledger is re-read and the row verified as a valid chain continuation at its position; the second lander of a shared pre-state repairs its OWN final line as the correct continuation (identity fields preserved, seq/prev corrected, .tmp+rename); 3+-way clobbers and vanished rows fail closed. Tests: +10 flauz-agent contract tests (orchestration.cancellationConcurrency.test.ts: M3a-e, M2a-c, audit storm, compose) and +6 flauz-workspace tests. Station receipts at the merged head: agent 233/233, workflow 112/112, workspace 75/75, typechecks exit 0, census 6 PASS / 1 FAIL / 1 SKIP, verifier byte-identical to base.
+Acceptance: concurrent appends preserve a single valid chain with unique sequencing and deterministic conflict handling under runtime concurrency — MET at the fixture rung (INV-6 PASS); the runtime rung re-proves at the weekly canary.
+Decision log (station assigns at this merge wave):
+
+- DL-77 ADOPT the serialized-append discipline (worker-proposed as DL-75, renumbered at landing — DL-75/76 were taken by TL3-H2's permanent-limitation records): every journal append rides the transition lock; the public appendRow refuses lock-free writes under contention with typed code 'lock-violation'; all previously-unlocked call sites — submitGraph, runtime retry/policy, the six recovery-pass rows — route through appendRowLocked; the workspace ledger's settle phase self-heals the deterministic lost-update rendezvous by repairing the second lander's own final line, failing closed on 3+-way clobbers and vanished rows.
 
 ### AO-H4 — Lease-conflict contract
 Status: TODO
