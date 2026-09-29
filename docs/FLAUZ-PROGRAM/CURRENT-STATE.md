@@ -4,6 +4,15 @@ Program control-plane refresh: 2026-09-29
 Integrated product branch: `main`
 Integrated head at verification: resolve live with `git rev-parse main`
 
+## P2-001 verification record — 2026-09-29 (TL1)
+
+- Integrated head verified at reconciliation: `c27de198e14576a9e4ef84681ff061b72f452795` (the product-phase control-plane commit; documentation-only).
+- Open pull requests at verification: **0** (verified against the GitHub API, 2026-09-29).
+- Registry audit: every registered work-item row reads DONE — the four TL foundation portfolios (TL1 5/5, TL2 6/6 + S1/S2/S3, TL3 6/6 + H1/H2, TL4 9/9 + H1/H2), the hardening register (AO-H1..H4, PLATFORM-H1/H2), and TL2-H1. No item-level row claims open work. The surge section header itself is reconciled to DONE in the same merge wave (its S1/S2/S3 rows were already DONE).
+- CI at the verified head: Monaco Editor checks, Analyze (javascript-typescript), Analyze (rust) and Screenshots & Tests — **success**. The macOS leg shows a pre-existing runner-startup failure (zero steps executed; the same startup red appears at the prior main heads `26fc488d` and `21c5c545`) — an infrastructure red, not a product regression, and not a new failure of this head. Compile / Linux / Windows / Copilot legs were still queued at verification (runner starvation); they do not gate this documentation-only reconciliation.
+- Handoff discoverability verified: `AGENTS.md`, `FLAUZ-START-HERE.md` and `.agents/PRODUCT-PHASE.md` each carry the active phase and the full four-TL product-handoff map; the older `TL1-HANDOFF.md`..`TL4-HANDOFF.md` are labeled historical in `AGENTS.md` and `SOURCE-OF-TRUTH.md`.
+- Statuses of the active phase items live in `WORK-REGISTRY.md` (authoritative): P2-001 closes in this merge wave; P2-002/P2-003 remain TL4's active lanes.
+
 ## Baseline
 
 - All registered TL1/TL2/TL3/TL4 foundation work is DONE.
