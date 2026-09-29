@@ -115,6 +115,9 @@ export const LIFECYCLE_ERROR_CODES = [
 	'ILLEGAL_TRANSITION',
 	'TRUST_POSTURE_REJECTED',
 	'STORE_CORRUPT',
+	// TL2-F2B (additive): an invalid providerRetry manager-options config
+	// is a typed fail-closed constructor throw — never a silent default.
+	'RETRY_CONFIG_INVALID',
 ] as const;
 export type LifecycleErrorCode = (typeof LIFECYCLE_ERROR_CODES)[number];
 
@@ -136,6 +139,35 @@ export class EnvironmentLifecycleError extends Error {
 export interface EnvironmentOpError {
 	readonly code: string;
 	readonly message: string;
+}
+
+// ---------------------------------------------------------------------------
+// TL2-F2B — the bounded provider-retry hint (ADDITIVE, EPHEMERAL)
+// ---------------------------------------------------------------------------
+
+/**
+ * The structured, EPHEMERAL provider-retry hint an executor MAY attach to a
+ * failed effect error (TL2-F2B): the HTTP status the provider surfaced plus
+ * an optional Retry-After-style wait hint in ms. The hint NEVER reaches the
+ * PIN-2 lines — the manager records exactly the pinned {code, message}
+ * payload; the hint is the executor's typed retryability classification for
+ * the manager's bounded retry window (src/lifecycle/providerRetry.ts).
+ */
+export interface ProviderRetryHint {
+	/** The HTTP status the provider surfaced on the failed call. */
+	readonly status: number;
+	/** The provider's Retry-After-style wait hint, when it surfaced one. */
+	readonly retryAfterMs?: number;
+}
+
+/**
+ * The failed-effect error payload an executor surfaces to the MANAGER: the
+ * pinned {code, message} shape plus the optional ephemeral retry hint. The
+ * manager drops the hint before any persistence (the ledger payload stays
+ * exactly {code, message}).
+ */
+export interface ExecutorEffectError extends EnvironmentOpError {
+	readonly providerRetryHint?: ProviderRetryHint;
 }
 
 /** One ops-ledger line: `flauz.environments-ops/v0` (the exact PIN-2 key set). */
@@ -185,7 +217,7 @@ export type ExecutorOpDetail =
 /** Effect outcome of one executor op. */
 export type ExecutorEffectResult =
 	| { readonly ok: true; readonly detail?: ExecutorOpDetail }
-	| { readonly ok: false; readonly error: EnvironmentOpError };
+	| { readonly ok: false; readonly error: ExecutorEffectError };
 
 // ---------------------------------------------------------------------------
 // Describe (health/state probe) — never silently healthy

@@ -105,7 +105,7 @@ import { WebSocketCdpTransport } from '../../../flauz-browser/src/cdp/transport.
 import { FakeBrowserState } from '../../../flauz-browser/src/cdp/fake.ts';
 import { FileSystemSessionJournal, type SessionJournalRecord } from '../../../flauz-browser/src/runtime/journal.ts';
 import { EnvironmentRegistry } from '../../../flauz-environments/src/registry.ts';
-import { CloudHttpExecutor, EnvironmentLifecycleManager, LocalProcessExecutor, nodeHttpPort, type ChildHandle, type EnvironmentOpOutcome, type HashPort, type HttpPort, type LocalEnvFsPort, type ProcessPort } from '../../../flauz-environments/src/lifecycle/index.ts';
+import { CloudHttpExecutor, EnvironmentLifecycleManager, LocalProcessExecutor, PROVIDER_RETRY_ATTEMPT_PREFIX, nodeHttpPort, parseProviderRetryAttemptMessage, type ChildHandle, type EnvironmentOpOutcome, type HashPort, type HttpPort, type LocalEnvFsPort, type ProcessPort } from '../../../flauz-environments/src/lifecycle/index.ts';
 import { A2ABus } from '../../../flauz-agent/core/a2a.mjs';
 import { OrchestrationStore } from '../../../flauz-agent/core/orchStore.mjs';
 import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../../flauz-agent/core/leaseConflict.mjs';
@@ -439,7 +439,10 @@ interface ProviderServer {
 
 function startProviderServer(): Promise<ProviderServer> {
 	const calls: Array<{ method: string; path: string }> = [];
-	// INV-2's sandbox: the provider fails the first start, then recovers.
+	// INV-2's sandbox (TL2-F2B, the budget-exceeding pattern): the provider fails
+	// the first FIVE starts — beyond the default retry bound 3 — then recovers, so
+	// the automatic bounded retry engages, is recorded, and EXHAUSTS before the
+	// caller-driven second start recovers over a fresh window.
 	let inv2StartCalls = 0;
 	const server = http.createServer((request, response) => {
 		const url = request.url ?? '/';
@@ -472,7 +475,7 @@ function startProviderServer(): Promise<ProviderServer> {
 			}
 			if (method === 'POST' && url === `/v0/sandboxes/sbx-${CLOUD_ENV_ID}/start`) {
 				inv2StartCalls += 1;
-				if (inv2StartCalls === 1) {
+				if (inv2StartCalls <= 5) {
 					respond(500, { error: 'provider exploded' });
 					return;
 				}
@@ -511,7 +514,7 @@ interface EnvOpLine {
 	readonly op?: string;
 	readonly result?: string;
 	readonly actor?: string;
-	readonly error?: { readonly code?: string };
+	readonly error?: { readonly code?: string; readonly message?: string };
 }
 
 async function readJournalRecords(root: string): Promise<SessionJournalRecord[]> {
@@ -1042,27 +1045,33 @@ async function journeyInv2(providerPort: number): Promise<void> {
 			clock: envClock,
 			requestTimeoutMs: 5_000,
 		});
-		const envManager = new EnvironmentLifecycleManager({ registry: envRegistry, root, fs, clock: envClock, executors: [cloud] });
+		const envManager = new EnvironmentLifecycleManager({ registry: envRegistry, root, fs, clock: envClock, executors: [cloud], providerRetryWait: async () => undefined }); // deterministic: the drill path never really sleeps
 		await envManager.bootstrap();
 
 		const actor = 'agent';
 		const createOutcome = await envManager.perform('create', { id: CLOUD_ENV_ID, actor });
 		drillAssert(createOutcome.ok, 'inv2 runtime: cloud create succeeds against the real-socket stub provider', opErrorCode(createOutcome));
 		const failedStart = await envManager.perform('start', { id: CLOUD_ENV_ID, actor });
-		recorder.check('inv2.no-silent-success', failedStart.ok === false && opErrorCode(failedStart) === 'CLOUD_PROVIDER_ERROR', `failing start over the real socket ok=${String(failedStart.ok)} code=${opErrorCode(failedStart)}`);
+		recorder.check('inv2.no-silent-success', failedStart.ok === false && opErrorCode(failedStart) === 'CLOUD_PROVIDER_ERROR', `failing start over the real socket ok=${String(failedStart.ok)} code=${opErrorCode(failedStart)} (the exhausted window never flips to success)`);
 		const stateAfterFailure = await readEnvLifecycleState(root, CLOUD_ENV_ID);
 		recorder.check('inv2.state-reflects-failure', stateAfterFailure === 'failed', `lifecycle state after the provider failure '${stateAfterFailure}'`);
 		const ops = await readEnvOps(root);
-		const failedOp = ops.find(op => op.op === 'start' && op.result === 'error');
-		recorder.check('inv2.failure-recorded', failedOp !== undefined && failedOp.actor === 'agent' && failedOp.error?.code === 'CLOUD_PROVIDER_ERROR', `ops ledger records the failed start over the real socket: ${JSON.stringify(failedOp ?? null)}`);
+		const failedOp = ops.find(op => op.op === 'start' && op.result === 'error' && op.toState === 'failed');
+		recorder.check('inv2.failure-recorded', failedOp !== undefined && failedOp.actor === 'agent' && failedOp.error?.code === 'CLOUD_PROVIDER_ERROR', `ops ledger records the failed start over the real socket (the request-level terminal row): ${JSON.stringify(failedOp ?? null)}`);
 
 		const providerStartCalls = await readProviderStartCalls(providerPort);
-		recorder.check('inv2.bounded-retry', providerStartCalls >= 2, `bounded, recorded retry behavior over the real socket: the Agent OS performed ${String(providerStartCalls)} provider start call(s) against the failing provider before surfacing the typed error (no automatic bounded retry exists on the v0 slice)`);
+		recorder.check('inv2.bounded-retry', providerStartCalls >= 2, `bounded, recorded retry behavior over the real socket: the automatic bounded retry performed ${String(providerStartCalls)} provider start call(s) against the failing provider before surfacing the typed error (the window bound is 3; the stub fails the first 5)`);
+		recorder.check('inv2.bounded-exhaustion', providerStartCalls === 3, `the automatic retry count stops at exactly the window bound (${String(providerStartCalls)} call(s) against a stub failing the first 5 — bounded, not unbounded)`);
+		const attemptRows = ops.filter(op => op.op === 'start' && op.result === 'error' && typeof op.error?.message === 'string' && op.error.message.startsWith(PROVIDER_RETRY_ATTEMPT_PREFIX));
+		const attemptFacts = attemptRows.map(op => parseProviderRetryAttemptMessage(op.error?.message));
+		recorder.check('inv2.retry-attempts-recorded', attemptRows.length === 3 && attemptFacts.every(fact => fact !== undefined && fact.op === 'start' && fact.code === 'CLOUD_PROVIDER_ERROR' && fact.maxAttempts === 3) && attemptFacts.map(fact => fact!.ordinal).join(',') === '1,2,3' && attemptFacts[0]?.nextAttemptOrdinal === 2 && attemptFacts[1]?.nextAttemptOrdinal === 3 && attemptFacts[2]?.nextAttemptOrdinal === undefined, `the ops ledger carries the recorded retry attempt sequence over the real socket (ordinals + typed outcomes + waits applied): ${JSON.stringify(attemptFacts)}`);
 
 		const recoveredStart = await envManager.perform('start', { id: CLOUD_ENV_ID, actor });
-		recorder.check('inv2.retry-recovered-recorded', recoveredStart.ok === true, `the caller-driven retry after provider recovery ok=${String(recoveredStart.ok)}`);
+		recorder.check('inv2.retry-recovered-recorded', recoveredStart.ok === true, `the caller-driven retry after provider recovery ok=${String(recoveredStart.ok)} (a fresh bounded window that recovers within its own bound)`);
 		const opsAfter = await readEnvOps(root);
-		recorder.check('inv2.retry-recorded', opsAfter.filter(op => op.op === 'start').length === 2, `ops ledger carries both start attempts (${String(opsAfter.filter(op => op.op === 'start').length)} lines)`);
+		const startRows = opsAfter.filter(op => op.op === 'start');
+		const requestLevelRows = startRows.filter(op => typeof op.error?.message !== 'string' || !op.error.message.startsWith(PROVIDER_RETRY_ATTEMPT_PREFIX));
+		recorder.check('inv2.retry-recorded', startRows.length === 7 && requestLevelRows.length === 2 && requestLevelRows.filter(op => op.result === 'error').length === 1 && requestLevelRows.filter(op => op.result === 'ok').length === 1, `ops ledger carries the two explicit start requests (2 request-level rows: 1 error + 1 ok) plus the recorded retry attempts (5 attempt rows; ${String(startRows.length)} start lines total)`);
 
 		// the task-level failure path (in-process, same as the fixture rung)
 		const trio = await bootTaskTrio(root, 1000);
@@ -1080,7 +1089,7 @@ async function journeyInv2(providerPort: number): Promise<void> {
 		drillAssert(executorCalls === 1, 'inv2 runtime: the failing tool leg executed exactly once', `calls ${String(executorCalls)}`);
 
 		registerRow(recorder.buildRow(
-			`cloud-sandbox seam over the REAL socket (stub provider server 127.0.0.1:${String(providerPort)}): typed CLOUD_PROVIDER_ERROR recorded, lifecycle failed, caller-driven retry recorded; the flauz-models seam has no failure path on main; TL2-002 pending`,
+			`cloud-sandbox seam over the REAL socket (stub provider server 127.0.0.1:${String(providerPort)}): the automatic bounded retry engaged (3/3 attempts recorded, exhausted at the bound against a stub failing the first 5), typed CLOUD_PROVIDER_ERROR terminal, lifecycle failed; the caller-driven second start opened a FRESH window and recovered (2 request-level rows + 5 attempt rows); the flauz-models seam has no failure path on main; the lifecycle-seam contract landed TL2-F2B`,
 		));
 	} finally {
 		await nodeFs.rm(root, { recursive: true, force: true });

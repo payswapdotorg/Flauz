@@ -43,11 +43,12 @@
  */
 import type { Clock, EnvironmentDescriptor, EnvironmentKind, FileSystemPort } from '../api.ts';
 import { EnvironmentRegistry } from '../registry.ts';
-import { ENVIRONMENT_OPS, EnvironmentLifecycleError, LIFECYCLE_SCHEMA_ID, LIFECYCLE_SCHEMA_VERSION, PROVENANCE_ACTORS, type DescribeReport, type DescribeVerdict, type EnvironmentOpError, type EnvironmentOpName, type EnvironmentOpOutcome, type EnvironmentOpRecord, type ExecutorOpDetail, type LifecycleEnvelope, type LifecycleEntry, type ProvenanceActor, phaseOf } from './types.ts';
+import { ENVIRONMENT_OPS, EnvironmentLifecycleError, LIFECYCLE_SCHEMA_ID, LIFECYCLE_SCHEMA_VERSION, PROVENANCE_ACTORS, type DescribeReport, type DescribeVerdict, type EnvironmentOpError, type EnvironmentOpName, type EnvironmentOpOutcome, type EnvironmentOpRecord, type ExecutorEffectError, type ExecutorEffectResult, type ExecutorOpDetail, type LifecycleEnvelope, type LifecycleEntry, type ProvenanceActor, phaseOf } from './types.ts';
 
 import { LifecycleStore } from './store.ts';
 import { failureState, successState, transientPhase, transitionFor } from './stateMachine.ts';
 
+import { defaultRetryWait, formatProviderRetryAttemptMessage, isRetryableProviderStatus, providerRetryWaitMs, readProviderRetryHint, resolveRetryBound, type ProviderRetryOptions, type RetryWaitPort } from './providerRetry.ts';
 import type { EnvironmentExecutor, ExecutorOpContext } from './executor.ts';
 
 export interface EnvironmentLifecycleManagerOptions {
@@ -63,6 +64,25 @@ export interface EnvironmentLifecycleManagerOptions {
 	 * setting in extension.ts; per-request `simulated` wins). Default false.
 		 */
 	readonly simulatedDefault?: boolean;
+	/**
+	 * TL2-F2B (ADDITIVE) — the bounded provider-retry window config: the
+	 * manager's provider-facing op path retries a RETRYABLE typed provider
+	 * error (the executor's structured providerRetryHint — at this seam the
+	 * cloud executor's CLOUD_PROVIDER_ERROR from a transient HTTP class,
+	 * 5xx/429) up to `maxAttempts` TOTAL attempts (default 3), recording
+	 * every attempt of an engaged window in the ops ledger. Absent -> the
+	 * default bound; `{ maxAttempts: 1 }` is the off-switch (byte-identical
+	 * single-shot — the additivity law); an INVALID config is a typed
+	 * fail-closed constructor throw (RETRY_CONFIG_INVALID), never a silent
+	 * default-masking. See src/lifecycle/providerRetry.ts for the contract.
+	 */
+	readonly providerRetry?: ProviderRetryOptions;
+	/**
+	 * TL2-F2B (ADDITIVE) — the injectable wait port between retry attempts
+	 * (default: the real timer). Tests, the battery and the drills inject a
+	 * deterministic port so the test path never really sleeps.
+	 */
+	readonly providerRetryWait?: RetryWaitPort;
 }
 
 /** A mutating lifecycle request (id + MANDATORY provenance). */
@@ -70,6 +90,13 @@ export interface LifecycleOpRequest {
 	readonly id: string;
 	readonly actor?: unknown;
 	readonly simulated?: boolean;
+}
+
+/** TL2-F2B — the per-request facts an engaged retry window records under. */
+interface RetryWindowContext {
+	readonly base: { readonly schemaVersion: number; readonly schema: string; readonly actor: ProvenanceActor; readonly environmentId: string };
+	readonly inFlightState: string;
+	readonly executorKind: string;
 }
 
 const RECORDED_ERROR_MESSAGE_MAX = 300;
@@ -91,6 +118,10 @@ export class EnvironmentLifecycleManager {
 	private readonly clock: Clock;
 	private readonly executors: readonly EnvironmentExecutor[];
 	private readonly simulatedDefault: boolean;
+	/** TL2-F2B — the resolved provider-retry window bound (total attempts). */
+	private readonly providerRetryMaxAttempts: number;
+	/** TL2-F2B — the injectable wait port between retry attempts. */
+	private readonly providerRetryWait: RetryWaitPort;
 	private envelope: LifecycleEnvelope | undefined;
 	private records: readonly EnvironmentOpRecord[] = [];
 
@@ -100,6 +131,8 @@ export class EnvironmentLifecycleManager {
 		this.clock = options.clock ?? (() => Date.now());
 		this.executors = options.executors;
 		this.simulatedDefault = options.simulatedDefault ?? false;
+		this.providerRetryMaxAttempts = resolveRetryBound(options.providerRetry); // typed fail-closed on invalid config
+		this.providerRetryWait = options.providerRetryWait ?? defaultRetryWait;
 	}
 
 	/** Loads + validates the PIN-2 pair (idempotent). Fails closed on corruption. */
@@ -245,12 +278,21 @@ export class EnvironmentLifecycleManager {
 			await this.patchEntry(request.id, transient, now, executor.executorKind);
 		}
 
-		let effect;
-		try {
-			effect = await this.runExecutorOp(executor, opName, descriptor, ctx);
-		} catch (err) {
-			effect = { ok: false as const, error: { code: 'EXECUTOR_THREW', message: `executor '${executor.executorKind}' threw during ${opName}: ${err instanceof Error ? err.message : String(err)}` } };
-		}
+		// TL2-F2B — the bounded, recorded provider-retry window over the
+		// executor effect: engages ONLY when the executor surfaces a
+		// RETRYABLE typed provider error (a well-formed providerRetryHint
+		// whose status is a transient HTTP class — 5xx/429). Absent,
+		// malformed and non-retryable hints, a thrown executor
+		// (outcome-unknown — never retried blindly) and a bound of 1 keep
+		// the pre-F2B single-shot honest path BYTE-IDENTICALLY (the
+		// additivity law). Every attempt of an engaged window is recorded
+		// in the ops ledger; exhaustion resolves through the unchanged
+		// typed terminal failure path below.
+		const effect = await this.runExecutorOpBounded(executor, opName, descriptor, ctx, {
+			base,
+			inFlightState: transient ?? fromState,
+			executorKind: executor.executorKind,
+		});
 
 		if (!effect.ok) {
 			const toState = failureState(fromState, opName);
@@ -283,6 +325,83 @@ export class EnvironmentLifecycleManager {
 			case 'snapshot': return await executor.snapshot(descriptor, ctx);
 			case 'destroy': return await executor.destroy(descriptor, ctx);
 		}
+	}
+
+	// -- the bounded provider-retry window (TL2-F2B) ---------------------------------
+
+	private async runExecutorOpBounded(executor: EnvironmentExecutor, op: EnvironmentOpName, descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext, window: RetryWindowContext): Promise<ExecutorEffectResult> {
+		const maxAttempts = this.providerRetryMaxAttempts;
+		let ordinal = 1;
+		let waitAppliedMs = 0;
+		for (;;) {
+			let effect: ExecutorEffectResult;
+			try {
+				effect = await this.runExecutorOp(executor, op, descriptor, ctx);
+			} catch (err) {
+				// a thrown executor (lost response) is NEVER retried blindly: the
+				// outcome is unknown, so re-issuing could double-apply the effect
+				// (the precedent's DL-53 posture) — the typed EXECUTOR_THREW
+				// failure rides the existing single-shot honest path.
+				return { ok: false, error: { code: 'EXECUTOR_THREW', message: `executor '${executor.executorKind}' threw during ${op}: ${err instanceof Error ? err.message : String(err)}` } };
+			}
+			if (effect.ok) {
+				// first-attempt success, or a within-window recovery: the
+				// request-level ok row closes the window (the successful
+				// attempt's ordinal is reconstructable from the preceding
+				// attempt row's next-attempt marker — the pinned key set
+				// carries no ordinal field; stated in the lane REPORT).
+				return effect;
+			}
+			const hint = readProviderRetryHint(effect.error);
+			if (hint === null || !isRetryableProviderStatus(hint.status) || maxAttempts <= 1) {
+				// no trigger: absent/malformed/non-retryable hint, or the
+				// off-switch (bound 1) — the single-shot honest path,
+				// byte-identical to the pre-F2B manager (no attempt rows).
+				return effect;
+			}
+			const exhausted = ordinal >= maxAttempts;
+			await this.recordRetryAttempt(window, op, ordinal, maxAttempts, effect.error, waitAppliedMs, exhausted);
+			if (exhausted) {
+				// exhaustion IS the existing typed terminal failure: the effect
+				// flows into the unchanged failure path (the request-level
+				// error row + failureState + the typed outcome) — never a
+				// silent success, never an auto-pass.
+				return effect;
+			}
+			const waitMs = providerRetryWaitMs(hint);
+			await this.providerRetryWait(waitMs);
+			ordinal += 1;
+			waitAppliedMs = waitMs;
+		}
+	}
+
+	/**
+	 * Appends one ops-ledger attempt row of an ENGAGED retry window (the
+	 * pinned key set exactly — the ordinal/bound/wait/next facts ride the
+	 * error.message in the providerRetry grammar, the typed outcome is the
+	 * row's error.code; state-preserving on the in-flight phase).
+	 */
+	private async recordRetryAttempt(window: RetryWindowContext, op: EnvironmentOpName, ordinal: number, maxAttempts: number, error: ExecutorEffectError, waitAppliedMs: number, exhausted: boolean): Promise<void> {
+		const message = formatProviderRetryAttemptMessage(
+			{ ordinal, maxAttempts, op, code: error.code, waitAppliedMs, ...(exhausted ? {} : { nextAttemptOrdinal: ordinal + 1 }) },
+			error.message,
+		);
+		const capped = message.length > RECORDED_ERROR_MESSAGE_MAX
+			? `${message.slice(0, RECORDED_ERROR_MESSAGE_MAX - 1)}…`
+			: message;
+		const record: EnvironmentOpRecord = {
+			schemaVersion: window.base.schemaVersion,
+			schema: window.base.schema,
+			ts: this.clock(),
+			actor: window.base.actor,
+			op,
+			environmentId: window.base.environmentId,
+			result: 'error',
+			fromState: window.inFlightState,
+			toState: window.inFlightState,
+			error: { code: error.code, message: capped },
+		};
+		await this.commit(record, window.inFlightState, window.executorKind);
 	}
 
 	/** Appends the record + persists the entry + caches (the commit path). */

@@ -34,6 +34,22 @@
 export type { EnvironmentExecutor, ExecutorOpContext, ExecutorOpDetail } from './executor.ts';
 export { EnvironmentLifecycleManager, type EnvironmentLifecycleManagerOptions, type LifecycleOpRequest } from './manager.ts';
 export {
+	PROVIDER_RETRY_AFTER_CAP_MS,
+	PROVIDER_RETRY_ATTEMPT_PREFIX,
+	PROVIDER_RETRY_FIXED_DELAY_MS,
+	PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT,
+	defaultRetryWait,
+	formatProviderRetryAttemptMessage,
+	isRetryableProviderStatus,
+	parseProviderRetryAttemptMessage,
+	providerRetryWaitMs,
+	readProviderRetryHint,
+	resolveRetryBound,
+	type ProviderRetryAttemptFacts,
+	type ProviderRetryOptions,
+	type RetryWaitPort,
+} from './providerRetry.ts';
+export {
 	LIFECYCLE_TRANSITIONS,
 	canTransition,
 	legalOpsFrom,
@@ -76,12 +92,14 @@ export {
 	type EnvironmentOpName,
 	type EnvironmentOpOutcome,
 	type EnvironmentOpRecord,
+	type ExecutorEffectError,
 	type ExecutorEffectResult,
 	type HealthVerdict,
 	type LifecycleEntry,
 	type LifecycleEnvelope,
 	type LifecycleErrorCode,
 	type LifecyclePhase,
+	type ProviderRetryHint,
 	type ProvenanceActor,
 } from './types.ts';
 export {
