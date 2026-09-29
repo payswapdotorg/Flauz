@@ -97,7 +97,7 @@ import type { NavigationOutcome } from '../../flauz-browser/src/runtime/tabs.ts'
 import { FakeBrowserState, FakeCdpTransport } from '../../flauz-browser/src/cdp/fake.ts';
 import { FileSystemSessionJournal, type SessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';
 import { EnvironmentRegistry } from '../../flauz-environments/src/registry.ts';
-import { CloudHttpExecutor, EnvironmentLifecycleManager, SimulatedRemoteExecutor, type EnvironmentOpOutcome, type HttpPort, type LocalEnvFsPort } from '../../flauz-environments/src/lifecycle/index.ts';
+import { CloudHttpExecutor, EnvironmentLifecycleManager, PROVIDER_RETRY_ATTEMPT_PREFIX, SimulatedRemoteExecutor, parseProviderRetryAttemptMessage, type EnvironmentOpOutcome, type HttpPort, type LocalEnvFsPort, type RetryWaitPort } from '../../flauz-environments/src/lifecycle/index.ts';
 import { A2ABus } from '../../flauz-agent/core/a2a.mjs';
 import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../flauz-agent/core/leaseConflict.mjs';
 import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';
@@ -411,7 +411,13 @@ interface CloudLeg {
 	cleanup(): Promise<void>;
 }
 
-async function bootCloudLeg(startResponses: ScriptedResponse[]): Promise<CloudLeg> {
+/** TL2-F2B — the additive cloud-leg options (absent = the pre-F2B wiring byte-identically). */
+interface CloudLegOptions {
+	/** The injectable provider-retry wait port (deterministic journeys; default: the real timer). */
+	readonly providerRetryWait?: RetryWaitPort;
+}
+
+async function bootCloudLeg(startResponses: ScriptedResponse[], options: CloudLegOptions = {}): Promise<CloudLeg> {
 	const root = await nodeFs.mkdtemp(nodePath.join(os.tmpdir(), 'flauz-agentos-cloud-'));
 	const fs = batteryFsPort();
 	const envClock = steppingClock(1_740_000_000_000);
@@ -442,7 +448,7 @@ async function bootCloudLeg(startResponses: ScriptedResponse[]): Promise<CloudLe
 		clock: envClock,
 		requestTimeoutMs: 2_000,
 	});
-	const envManager = new EnvironmentLifecycleManager({ registry: envRegistry, root, fs, clock: envClock, executors: [cloud] });
+	const envManager = new EnvironmentLifecycleManager({ registry: envRegistry, root, fs, clock: envClock, executors: [cloud], ...(options.providerRetryWait === undefined ? {} : { providerRetryWait: options.providerRetryWait }) });
 	await envManager.bootstrap();
 	return {
 		root,
@@ -467,7 +473,7 @@ interface EnvOpLine {
 	readonly op?: string;
 	readonly result?: string;
 	readonly actor?: string;
-	readonly error?: { readonly code?: string };
+	readonly error?: { readonly code?: string; readonly message?: string };
 }
 
 async function readJournalRecords(root: string): Promise<SessionJournalRecord[]> {
@@ -655,32 +661,48 @@ describe('INV-1 restart-recovery', () => {
 // ===========================================================================
 
 describe('INV-2 provider-failure-retry', () => {
-	test('a failing cloud provider surfaces typed, recorded errors with no silent success; bounded retry is measured honestly', { skip: RUNNER_OK ? false : RUNNER_SKIP_REASON }, async () => {
+	test('a failing cloud provider surfaces typed, recorded errors with no silent success; the automatic bounded retry engages, is recorded, and exhausts honestly', { skip: RUNNER_OK ? false : RUNNER_SKIP_REASON }, async () => {
 		const recorder = new JourneyRecorder('INV-2', 'provider-failure-retry');
-		const leg = await bootCloudLeg([{ status: 500, bodyText: '{"error":"provider exploded"}' }]);
+		// TL2-F2B (the sanctioned journey extension, the F3/INV-5 precedent): the
+		// stub fails BEYOND the retry budget (5 x HTTP 500 against the default
+		// bound 3) so the AUTOMATIC bounded retry engages, is recorded, and
+		// EXHAUSTS — the call count stops at the bound while failures remain
+		// queued (bounded, not unbounded) and the outcome stays the typed
+		// failure. The recovery leg stays CALLER-DRIVEN: the second explicit
+		// perform('start') opens a FRESH window (composability) and recovers
+		// within its own bound. The wait port is injected — never a real sleep
+		// on the test path.
+		const failingStarts: ScriptedResponse[] = Array.from({ length: 5 }, () => ({ status: 500, bodyText: '{"error":"provider exploded"}' }));
+		const leg = await bootCloudLeg(failingStarts, { providerRetryWait: async () => undefined });
 		try {
 			const actor = 'agent';
 			const createOutcome = await leg.envManager.perform('create', { id: CLOUD_ENV_ID, actor });
 			assert.equal(createOutcome.ok, true, 'cloud create succeeds against the stub provider (setup)');
 
-			// ---- the provider fails mid-lifecycle ----
+			// ---- the provider fails mid-lifecycle, beyond the retry budget ----
 			const failedStart = await leg.envManager.perform('start', { id: CLOUD_ENV_ID, actor });
-			recorder.check('inv2.no-silent-success', failedStart.ok === false && opErrorCode(failedStart) === 'CLOUD_PROVIDER_ERROR', `failing start outcome ok=${String(failedStart.ok)} code=${opErrorCode(failedStart)}`);
+			recorder.check('inv2.no-silent-success', failedStart.ok === false && opErrorCode(failedStart) === 'CLOUD_PROVIDER_ERROR', `failing start outcome ok=${String(failedStart.ok)} code=${opErrorCode(failedStart)} (the exhausted window never flips to success)`);
 			const stateAfterFailure = await readEnvLifecycleState(leg.root, CLOUD_ENV_ID);
 			recorder.check('inv2.state-reflects-failure', stateAfterFailure === 'failed', `lifecycle state after the provider failure '${stateAfterFailure}' (expected failed)`);
 			const ops = await readEnvOps(leg.root);
-			const failedOp = ops.find(op => op.op === 'start' && op.result === 'error');
-			recorder.check('inv2.failure-recorded', failedOp !== undefined && failedOp.actor === 'agent' && failedOp.error?.code === 'CLOUD_PROVIDER_ERROR', `ops ledger records the failed start: ${JSON.stringify(failedOp ?? null)}`);
+			const failedOp = ops.find(op => op.op === 'start' && op.result === 'error' && op.toState === 'failed');
+			recorder.check('inv2.failure-recorded', failedOp !== undefined && failedOp.actor === 'agent' && failedOp.error?.code === 'CLOUD_PROVIDER_ERROR', `ops ledger records the failed start (the request-level terminal row): ${JSON.stringify(failedOp ?? null)}`);
 
-			// ---- the bounded-retry measurement ----
+			// ---- the bounded-retry measurement: the automatic window engaged and exhausted ----
 			const startCalls = leg.http.callsOf('POST', CLOUD_START_PATH);
-			recorder.check('inv2.bounded-retry', startCalls >= 2, `bounded, recorded retry behavior: the Agent OS performed ${String(startCalls)} provider start call(s) against the failing provider before surfacing the typed error (no automatic bounded retry exists on the v0 slice; retries are caller-driven only)`);
+			recorder.check('inv2.bounded-retry', startCalls >= 2, `bounded, recorded retry behavior: the automatic bounded retry performed ${String(startCalls)} provider start call(s) against the failing provider before surfacing the typed error (the window bound is 3; 5 failures were queued)`);
+			recorder.check('inv2.bounded-exhaustion', startCalls === 3, `the automatic retry count stops at exactly the window bound (${String(startCalls)} call(s) against 5 queued failures — bounded, not unbounded)`);
+			const attemptRows = ops.filter(op => op.op === 'start' && op.result === 'error' && typeof op.error?.message === 'string' && op.error.message.startsWith(PROVIDER_RETRY_ATTEMPT_PREFIX));
+			const attemptFacts = attemptRows.map(op => parseProviderRetryAttemptMessage(op.error?.message));
+			recorder.check('inv2.retry-attempts-recorded', attemptRows.length === 3 && attemptFacts.every(fact => fact !== undefined && fact.op === 'start' && fact.code === 'CLOUD_PROVIDER_ERROR' && fact.maxAttempts === 3) && attemptFacts.map(fact => fact!.ordinal).join(',') === '1,2,3' && attemptFacts[0]?.nextAttemptOrdinal === 2 && attemptFacts[1]?.nextAttemptOrdinal === 3 && attemptFacts[2]?.nextAttemptOrdinal === undefined, `the ops ledger carries the recorded retry attempt sequence (ordinals + typed outcomes + waits applied): ${JSON.stringify(attemptFacts)}`);
 
-			// ---- the caller-driven retry after provider recovery: recorded, succeeds ----
+			// ---- the caller-driven retry after provider recovery: a FRESH window, recorded, succeeds ----
 			const recoveredStart = await leg.envManager.perform('start', { id: CLOUD_ENV_ID, actor });
-			recorder.check('inv2.retry-recovered-recorded', recoveredStart.ok === true, `the caller-driven retry after provider recovery ok=${String(recoveredStart.ok)}`);
+			recorder.check('inv2.retry-recovered-recorded', recoveredStart.ok === true, `the caller-driven retry after provider recovery ok=${String(recoveredStart.ok)} (a fresh bounded window that recovers within its own bound)`);
 			const opsAfter = await readEnvOps(leg.root);
-			recorder.check('inv2.retry-recorded', opsAfter.filter(op => op.op === 'start').length === 2, `ops ledger carries both start attempts (${String(opsAfter.filter(op => op.op === 'start').length)} lines)`);
+			const startRows = opsAfter.filter(op => op.op === 'start');
+			const requestLevelRows = startRows.filter(op => typeof op.error?.message !== 'string' || !op.error.message.startsWith(PROVIDER_RETRY_ATTEMPT_PREFIX));
+			recorder.check('inv2.retry-recorded', startRows.length === 7 && requestLevelRows.length === 2 && requestLevelRows.filter(op => op.result === 'error').length === 1 && requestLevelRows.filter(op => op.result === 'ok').length === 1, `ops ledger carries the two explicit start requests (2 request-level rows: 1 error + 1 ok) plus the recorded retry attempts (5 attempt rows; ${String(startRows.length)} start lines total)`);
 
 			// ---- the task-level failure path: a task whose tool leg wraps the provider ----
 			const ws = await bootBatteryWorkspace();
@@ -702,7 +724,7 @@ describe('INV-2 provider-failure-retry', () => {
 			}
 
 			registerRow(recorder.buildRow(
-				'cloud-sandbox seam over the scriptable HttpPort: typed CLOUD_PROVIDER_ERROR recorded (ops ledger + actor), lifecycle failed, caller-driven retry recorded; the flauz-models seam has no failure path on main (deterministic flauz-mock echo + design-only vendor stubs); TL2-002 pending',
+				'cloud-sandbox seam over the scriptable HttpPort: the automatic bounded retry engaged (3/3 attempts recorded with ordinals + waits, exhausted at the bound against 5 queued failures), typed CLOUD_PROVIDER_ERROR terminal (ops ledger + actor), lifecycle failed; the caller-driven second start opened a FRESH window and recovered (2 request-level rows + 5 attempt rows); the flauz-models seam has no failure path on main (deterministic flauz-mock echo + design-only vendor stubs); the lifecycle-seam contract landed TL2-F2B',
 			));
 		} finally {
 			await leg.cleanup();
