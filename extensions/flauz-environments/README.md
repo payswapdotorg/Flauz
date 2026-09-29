@@ -162,6 +162,49 @@ ledger record; `result:'error'` requires the `{code, message}` payload and
 `result:'ok'` forbids it. Both shapes are pinned by the fixtures at
 `test/fixtures/environments-lifecycle/` (valid + invalid samples).
 
+### The bounded provider retry (TL2-F2B)
+
+The manager's provider-facing op path retries a RETRYABLE typed provider
+error automatically, bounded and recorded (`src/lifecycle/providerRetry.ts`
+is the policy; the loop lives in the manager's `runExecutorOpBounded`, the
+semantic mirror of the landed durable-runtime retry — PR #45):
+
+- **Trigger** — only a typed retryable provider error class: the executor
+  surfaces a structured, EPHEMERAL `providerRetryHint: { status,
+  retryAfterMs? }` on the failed effect error (the cloud executor attaches
+  it to `CLOUD_PROVIDER_ERROR`; the hint is never persisted — the ledger
+  payload stays exactly `{code, message}`). Retryable at this seam: 5xx and
+  the network-ish 429. Everything else keeps the single-shot honest path
+  byte-identically: hint-less classes (404 `CLOUD_SANDBOX_UNKNOWN`, auth,
+  unreachable, timeout, vault, the local/simulated/ssh/docker executors),
+  4xx hints, malformed hints (never retried — fail-closed), and a thrown
+  executor (outcome-unknown; `EXECUTOR_THREW` never re-issues).
+- **Bound** — `maxAttempts` TOTAL attempts (default 3), configured through
+  the ADDITIVE manager-options field `providerRetry: { maxAttempts?: n }`.
+  `{ maxAttempts: 1 }` is the off-switch: byte-identical single-shot, no
+  attempt rows (the additivity law). An invalid config is a typed
+  fail-closed constructor throw (`RETRY_CONFIG_INVALID`).
+- **Backoff** — the provider's Retry-After-style hint is honored, capped at
+  30s; otherwise a minimal fixed delay (25ms). The wait is an INJECTABLE
+  port (`providerRetryWait` on the manager options; default: the real
+  timer) — tests, the battery and the drills never really sleep.
+- **Recording** — every attempt of an ENGAGED window appends one ops-ledger
+  row with the pinned key set; the ordinal/bound/wait/next facts ride
+  `error.message` in the parseable grammar
+  `provider retry attempt <n>/<max> on <op>: <CODE> (wait <ms>ms, next
+  attempt <n+1> | window exhausted) - <original message>` (the typed
+  outcome is the row's `error.code`; the row is state-preserving on the
+  in-flight phase, e.g. `starting`). Windows that never engage mint no
+  rows; a within-window recovery mints no extra row — the request-level ok
+  row closes the window and the recovered ordinal is reconstructable from
+  the preceding row's next-attempt marker.
+- **Exhaustion** — after `maxAttempts` retryable failures the op resolves
+  to the EXISTING typed terminal failure outcome through the unchanged
+  failure path (request-level error row, `failed` transition, typed
+  `{ok:false, error}`): never a silent success, never an auto-pass.
+- **Composability** — a caller-driven retry after exhaustion (a second
+  `perform(...)`) opens a FRESH window from attempt 1 with a fresh budget.
+
 ## The continuity EXECUTION layer (TL3-006)
 
 `src/continuity.ts` classifies the 16-surface canon; `src/continuityExec/`

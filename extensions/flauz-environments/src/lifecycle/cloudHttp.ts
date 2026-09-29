@@ -69,7 +69,7 @@
  */
 import { isSecretRef, joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
-import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
+import type { DescribeVerdict, ExecutorEffectError, ExecutorEffectResult, ProviderRetryHint } from './types.ts';
 import { excerpt } from './cliPort.ts';
 import type { HashPort, LocalEnvFsPort, SnapshotManifest, SnapshotManifestFile } from './localProcess.ts';
 
@@ -88,9 +88,14 @@ export const CLOUD_SNAPSHOT_DOC_SCHEMA_ID = 'flauz.cloud-snapshot/v0';
 // Ports
 // ---------------------------------------------------------------------------
 
-/** A fetch-like HTTP port (production = the Node stdlib global fetch). */
+/**
+ * A fetch-like HTTP port (production = the Node stdlib global fetch). The
+ * optional `headers` on the response (TL2-F2B, additive) surfaces a
+ * Retry-After-style hint when the provider sends one — absent everywhere
+ * else; every existing port implementation stays assignable.
+ */
 export interface HttpPort {
-	fetch(request: { readonly method: string; readonly url: string; readonly headers?: Record<string, string>; readonly body?: string; readonly timeoutMs?: number }): Promise<{ readonly status: number; readonly bodyText: string }>;
+	fetch(request: { readonly method: string; readonly url: string; readonly headers?: Record<string, string>; readonly body?: string; readonly timeoutMs?: number }): Promise<{ readonly status: number; readonly bodyText: string; readonly headers?: Readonly<Record<string, string>> }>;
 }
 
 /**
@@ -117,7 +122,17 @@ export const nodeHttpPort: HttpPort = {
 			body: request.body,
 			...(request.timeoutMs === undefined ? {} : { signal: AbortSignal.timeout(request.timeoutMs) }),
 		});
-		return { status: response.status, bodyText: await response.text() };
+		// the retry-after header read rides a LOCAL typed cast: the ambient
+		// shim declares only the fetch subset this port historically used
+		// (shims/node.d.ts is outside this lane's owned surface; the runtime
+		// Response carries headers on every Node >= 18).
+		const headers = (response as unknown as { readonly headers: { get(name: string): string | null } }).headers;
+		const retryAfter = headers.get('retry-after');
+		return {
+			status: response.status,
+			bodyText: await response.text(),
+			...(retryAfter === null ? {} : { headers: { 'retry-after': retryAfter } }),
+		};
 	},
 };
 
@@ -153,8 +168,30 @@ export interface CloudTrackRecord {
 	readonly snapshots: readonly string[];
 }
 
-function effectError(code: string, message: string): { ok: false; error: { code: string; message: string } } {
+function effectError(code: string, message: string): { ok: false; error: ExecutorEffectError } {
 	return { ok: false, error: { code, message } };
+}
+
+/**
+ * TL2-F2B — the structured retry hint attached to CLOUD_PROVIDER_ERROR (the
+ * ONLY class whose retryability depends on the provider's status: 5xx and
+ * the network-ish 429 are transient; every other carried status is not —
+ * 401/403/404 map to their own hint-less classes). EPHEMERAL: never
+ * persisted; the manager reads it, records the pinned {code, message} only.
+ */
+function providerRetryHintOf(response: { readonly status: number; readonly headers?: Readonly<Record<string, string>> }): ProviderRetryHint {
+	const raw = response.headers?.['retry-after'];
+	const retryAfterMs = raw === undefined ? undefined : parseRetryAfterMs(raw);
+	return { status: response.status, ...(retryAfterMs === undefined ? {} : { retryAfterMs }) };
+}
+
+/** Parses a Retry-After header value: whole seconds only; malformed (incl. http-date) -> no hint. */
+function parseRetryAfterMs(raw: string): number | undefined {
+	const trimmed = raw.trim();
+	if (!/^\d+$/.test(trimmed) || trimmed.length > 9) {
+		return undefined;
+	}
+	return Number.parseInt(trimmed, 10) * 1000;
 }
 
 export class CloudHttpExecutor implements EnvironmentExecutor {
@@ -235,8 +272,8 @@ export class CloudHttpExecutor implements EnvironmentExecutor {
 	}
 
 	/** One REST call with the typed failure classes (never a raw throw). */
-	private async call(method: string, path: string, apiKey: string, body?: Record<string, unknown>): Promise<{ ok: true; payload: Record<string, unknown> } | { ok: false; error: { code: string; message: string } }> {
-		let response: { readonly status: number; readonly bodyText: string };
+	private async call(method: string, path: string, apiKey: string, body?: Record<string, unknown>): Promise<{ ok: true; payload: Record<string, unknown> } | { ok: false; error: ExecutorEffectError }> {
+		let response: { readonly status: number; readonly bodyText: string; readonly headers?: Readonly<Record<string, string>> };
 		try {
 			response = await this.http.fetch({
 				method,
@@ -259,7 +296,13 @@ export class CloudHttpExecutor implements EnvironmentExecutor {
 			return { ok: false, error: { code: 'CLOUD_SANDBOX_UNKNOWN', message: `cloud-sandbox ${method} ${path}: the provider no longer knows this sandbox (HTTP 404)` } };
 		}
 		if (response.status < 200 || response.status >= 300) {
-			return { ok: false, error: { code: 'CLOUD_PROVIDER_ERROR', message: `cloud-sandbox ${method} ${path} failed (HTTP ${response.status}): ${excerpt(response.bodyText)}` } };
+			// the typed provider failure carries the EPHEMERAL retry hint (5xx/429
+			// are the transient classes the manager's bounded retry engages on)
+			return { ok: false, error: {
+				code: 'CLOUD_PROVIDER_ERROR',
+				message: `cloud-sandbox ${method} ${path} failed (HTTP ${response.status}): ${excerpt(response.bodyText)}`,
+				providerRetryHint: providerRetryHintOf(response),
+			} };
 		}
 		if (response.bodyText.trim().length === 0) {
 			return { ok: true, payload: {} }; // 204-class empty body is legal
