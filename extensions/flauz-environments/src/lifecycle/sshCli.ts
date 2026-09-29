@@ -384,7 +384,17 @@ export class SshCliExecutor implements EnvironmentExecutor {
 		}
 		this.leases.delete(descriptor.id);
 		const removal = await this.cli.spawnCli([...this.baseArgv(shape.connection), 'rm', '-rf', this.remoteDirOf(descriptor.id)], { timeoutMs: this.commandTimeoutMs + this.connectTimeoutMs });
-		if (removal.exitCode !== 0 && removal.spawnError === undefined) {
+		if (removal.spawnError !== undefined) {
+			// the binary vanished before the removal ran: returning ok here
+			// would FABRICATE success (the remote state dir was never removed)
+			// — the teardown fails closed with the typed capability error and
+			// the state is preserved for an honest retry
+			return effectError('CLI_NOT_AVAILABLE', `the ssh binary is not available for the destroy of '${descriptor.id}' (spawn error: ${excerpt(removal.spawnError)}) — the remote state dir was NOT removed (no fabricated success; restore the binary, then retry destroy)`);
+		}
+		if (removal.timedOut) {
+			return effectError('DESTROY_FAILED', `removing the remote state dir for '${descriptor.id}' timed out after ${this.commandTimeoutMs + this.connectTimeoutMs} ms — the removal did not complete (retry destroy)`);
+		}
+		if (removal.exitCode !== 0) {
 			return effectError('DESTROY_FAILED', `removing the remote state dir for '${descriptor.id}' failed (exit ${removal.exitCode}): ${excerpt(removal.stderr)}`);
 		}
 		return { ok: true, detail: { type: 'destroy', pid } };
