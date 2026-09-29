@@ -625,7 +625,7 @@ Status: ACTIVE
 The foundation build and registered hardening backlog are complete. The next work is explicitly separated from those completed portfolios.
 
 ### P2-001 — Control-plane reconciliation
-Status: DONE (2026-09-29, TL1 — PR #51, branch `tl1/p2-001-control-plane-reconciliation`, head `32b06b7c` + this record commit, same merge wave)
+Status: DONE (2026-09-29, TL1 — PR #51, merge `4377e1ce`, branch `tl1/p2-001-control-plane-reconciliation`, same merge wave)
 Owner: TL1
 Purpose: reconcile active control-plane/current-state/handoff documents with integrated main and make the phase routing discoverable from root agent instructions.
 Handoff: `docs/FLAUZ-PROGRAM/TL1-PRODUCT-HANDOFF.md`
