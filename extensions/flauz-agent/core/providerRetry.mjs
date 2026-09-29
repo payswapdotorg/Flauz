@@ -73,10 +73,10 @@
 
 import { OrchestrationError, PROVIDER_RETRY_CLASSES } from './orchestration.mjs';
 
-/** The default window bound (the documented default; §3.2). */
+/** The default window bound (the documented default; section 3.2). */
 export const PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT = 3;
 
-/** The sane cap on a single honored retryAfterMs wait (§3.3). */
+/** The sane cap on a single honored retryAfterMs wait (section 3.3). */
 export const RETRY_AFTER_CAP_MS = 30000;
 
 /** Every DL-35 retry class (terminal 'none' included) - the structural read set. */
@@ -157,7 +157,7 @@ export function isRetryableProviderError(providerError) {
 /**
  * The wait to apply before the next attempt: the error's retryAfterMs when
  * present, bounded by the sane cap; 0 (immediate) when absent - the
- * deterministic posture (§3.3). Pure.
+ * deterministic posture (section 3.3). Pure.
  */
 export function providerRetryWaitMs(providerError) {
 	if (providerError.retryAfterMs === undefined) {

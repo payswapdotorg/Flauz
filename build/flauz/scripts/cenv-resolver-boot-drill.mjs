@@ -92,16 +92,15 @@ Usage:
 	node cenv-resolver-boot-drill.mjs --report <file> [flags]
 
 Flags:
-	--report <file>         the driver report path (REQUIRED; polled until
-	                        the driver writes it)
-	--report-timeout <ms>   report poll budget (default 180000)
-	--log <file>            (repeatable) captured log file to scan
-	--log-dir <dir>         (repeatable) directory tree scanned for *.log
-	--fatal-regex <re>      (repeatable) ADDS a fatal boot-log pattern
-	--json                  machine output (the compat-battery meta shape)
-	--out <path>            write the JSON report to a file as well
-	--no-fail               report-only: FAIL rows printed but exit 0
-	--help                  this text
+	--report <file> driver report path (REQUIRED; polled until written)
+	--report-timeout <ms> report poll budget (default 180000)
+	--log <file> captured log file to scan (repeatable)
+	--log-dir <dir> directory tree scanned for *.log (repeatable)
+	--fatal-regex <re> ADDS a fatal boot-log pattern (repeatable)
+	--json machine output (the compat-battery meta shape)
+	--out <path> write the JSON report to a file as well
+	--no-fail report-only: FAIL rows printed but exit 0
+	--help this text
 
 Exit codes: 0 pass / SKIP-only; 1 FAIL row(s); 2 usage error.
 `);
