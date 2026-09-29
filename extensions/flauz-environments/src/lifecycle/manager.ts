@@ -152,9 +152,61 @@ export class EnvironmentLifecycleManager {
 			if (entry.lastOpRef > records.length) {
 				throw new EnvironmentLifecycleError('STORE_CORRUPT', `entries['${envId}'].lastOpRef ${entry.lastOpRef} is dangling (the ops ledger holds ${records.length} line(s))`);
 			}
+			const absorbed = records[entry.lastOpRef - 1];
+			if (absorbed === undefined || absorbed.environmentId !== envId) {
+				throw new EnvironmentLifecycleError('STORE_CORRUPT', `entries['${envId}'].lastOpRef ${entry.lastOpRef} does not reference this environment's own ledger record (the PIN-2 pair is inconsistent)`);
+			}
+		}
+		const reconciled = EnvironmentLifecycleManager.reconcileWithLedgerTail(envelope, records);
+		if (reconciled !== undefined) {
+			// torn-write recovery (see reconcileWithLedgerTail): the append-only
+			// ledger is the truth — adopt it DURABLY before serving any op
+			this.envelope = reconciled;
+			this.records = records;
+			await this.store.writeEnvelope(reconciled);
+			return;
 		}
 		this.envelope = envelope;
 		this.records = records;
+	}
+
+	/**
+	 * Torn-write recovery: commit() appends the ledger line FIRST and persists
+	 * the envelope SECOND — a crash between the two leaves ledger records
+	 * beyond an entry's lastOpRef. The append-only ledger (re-validated on
+	 * every append) is the truth: recover each entry to the LAST ledger record
+	 * for its environment (the record's toState is the settled state), so no
+	 * environment stays in a pre-op state the ledger says was superseded — in
+	 * particular no environment stays non-terminal when the ledger records a
+	 * destroy-ok. A crash mid-transient reconciles honestly too: the tail
+	 * record of an unsettled op is its retry-attempt row (fromState == toState
+	 * == the transient phase), so the entry keeps the transient phase and the
+	 * describe/stop/destroy probes own the reconciliation from there.
+	 * Returns undefined when the pair is already consistent.
+	 */
+	private static reconcileWithLedgerTail(envelope: LifecycleEnvelope, records: readonly EnvironmentOpRecord[]): LifecycleEnvelope | undefined {
+		let changed = false;
+		const entries: Record<string, LifecycleEntry> = { ...envelope.entries };
+		for (const [envId, entry] of Object.entries(envelope.entries)) {
+			let tailIndex = -1;
+			for (let i = entry.lastOpRef; i < records.length; i++) {
+				if (records[i]!.environmentId === envId) {
+					tailIndex = i;
+				}
+			}
+			if (tailIndex === -1) {
+				continue;
+			}
+			const tail = records[tailIndex]!;
+			entries[envId] = {
+				state: tail.toState,
+				updatedAt: tail.ts,
+				executorKind: entry.executorKind,
+				lastOpRef: tailIndex + 1,
+			};
+			changed = true;
+		}
+		return changed ? { ...envelope, entries } : undefined;
 	}
 
 	private assertBootstrapped(): LifecycleEnvelope {
