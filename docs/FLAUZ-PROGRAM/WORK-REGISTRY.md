@@ -618,6 +618,42 @@ When an interface is not implemented:
 
 A TL may depend on another TL for final integration, but never for starting work.
 
+## Product Acceptance, Discovery and Productization — 2026-09-29
+
+Status: ACTIVE
+
+The foundation build and registered hardening backlog are complete. The next work is explicitly separated from those completed portfolios.
+
+### P2-001 — Control-plane reconciliation
+Status: ACTIVE
+Owner: TL1
+Purpose: reconcile active control-plane/current-state/handoff documents with integrated main and make the phase routing discoverable from root agent instructions.
+Handoff: `docs/FLAUZ-PROGRAM/TL1-PRODUCT-HANDOFF.md`
+
+### P2-002 — Full product acceptance
+Status: ACTIVE
+Owner: TL4
+Purpose: execute the complete user-facing/runtime journey across Agent OS, providers, workspace, browser, environments, resources, approvals, A2A, evidence, failure, recovery and continuity.
+Handoff: `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
+
+### P2-003 — User discovery audit
+Status: ACTIVE
+Owner: TL4
+Purpose: test whether the architecture's capabilities are discoverable, understandable and recoverable through the actual product UX.
+Handoff: `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
+
+### P2-FIX-* — Acceptance/discovery findings
+Status: READY-TO-CLAIM
+Owner: routed by domain
+
+Finding IDs are created by TL4 and routed to exactly one owner:
+- TL1: Code OSS/upstream/packaging/service/control-plane
+- TL2: Agent OS/models/orchestration/memory/workflows/A2A/execution
+- TL3: browser/environments/resources/continuity
+- TL4: UX/IA/accessibility/performance/compatibility/release
+
+A finding must include evidence level, reproduction, owning TL, acceptance test and architecture impact before implementation begins.
+
 ## Current program state
 
-The original four-TL build program is complete at its registered rungs. The active registry is now the post-completion hardening register above. New work must enter this register (or a superseding architecture-approved registry entry) before it is treated as program state.
+The original four-TL build program and all registered post-completion hardening are complete. The active program is now the Product Acceptance, Discovery and Productization phase above. New work must enter this phase registry (or a superseding architecture-approved registry entry) before it is treated as program state.
