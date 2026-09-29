@@ -84,10 +84,10 @@
  */
 import { EnvironmentLifecycleError, type EnvironmentOpName, type ExecutorEffectError, type ProviderRetryHint } from './types.ts';
 
-/** The default window bound (the documented default; the packet's §3.1.2). */
+/** The default window bound (the documented default; the packet's section 3.1.2). */
 export const PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT = 3;
 
-/** The sane cap on a single honored retryAfterMs wait (the precedent's §3.3). */
+/** The sane cap on a single honored retryAfterMs wait (the precedent's section 3.3). */
 export const PROVIDER_RETRY_AFTER_CAP_MS = 30_000;
 
 /**

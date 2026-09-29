@@ -77,6 +77,9 @@ function persistSpec(): void {
 const dropRemaining = new Map<string, number>((spec.drop ?? []).map((entry) => [entry.method, entry.count]));
 const killOn = new Set((spec.killOn ?? []).map((entry) => entry.method));
 
+/** Set when a killOn fault fired: service lines still in the pipe are dropped. */
+let killed = false;
+
 const service: ChildProcess = spawn(process.execPath, [SERVICE_PATH, root], { stdio: ['pipe', 'pipe', 'pipe'] });
 service.stderr?.on('data', (chunk: { toString(encoding?: string): string }) => process.stderr.write(chunk.toString()));
 service.on('close', (code: number | null) => {
@@ -104,6 +107,12 @@ service.stdout?.on('data', (chunk: { toString(encoding?: string): string }) => {
 });
 
 function handleServiceLine(line: string): void {
+	if (killed) {
+		// The service died mid-command: a response that already sat in the
+		// stdout pipe buffer must never reach the client (the harness's
+		// deterministic-death contract).
+		return;
+	}
 	if (line.trim().length === 0) {
 		return;
 	}
@@ -163,6 +172,13 @@ function handleClientLine(line: string): void {
 				killOn.delete(message.cmd);
 				spec = { ...spec, killOn: [...killOn].map((method) => ({ method })) };
 				persistSpec();
+				// Suppress-and-kill (2026-09-29 race fix): the response line can
+				// beat the SIGKILL through the pipe buffers on fast runners -
+				// a raced-in success would resolve the pending request and
+				// break the harness's deterministic-death contract. The kill
+				// flag drops every service line still in flight; the death (or
+				// the request timeout) is the only possible outcome.
+				killed = true;
 				service.kill('SIGKILL');
 			}
 			return;

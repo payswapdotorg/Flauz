@@ -298,11 +298,13 @@ export class CloudHttpExecutor implements EnvironmentExecutor {
 		if (response.status < 200 || response.status >= 300) {
 			// the typed provider failure carries the EPHEMERAL retry hint (5xx/429
 			// are the transient classes the manager's bounded retry engages on)
-			return { ok: false, error: {
-				code: 'CLOUD_PROVIDER_ERROR',
-				message: `cloud-sandbox ${method} ${path} failed (HTTP ${response.status}): ${excerpt(response.bodyText)}`,
-				providerRetryHint: providerRetryHintOf(response),
-			} };
+			return {
+				ok: false, error: {
+					code: 'CLOUD_PROVIDER_ERROR',
+					message: `cloud-sandbox ${method} ${path} failed (HTTP ${response.status}): ${excerpt(response.bodyText)}`,
+					providerRetryHint: providerRetryHintOf(response),
+				}
+			};
 		}
 		if (response.bodyText.trim().length === 0) {
 			return { ok: true, payload: {} }; // 204-class empty body is legal

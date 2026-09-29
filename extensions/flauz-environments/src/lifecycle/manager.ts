@@ -333,7 +333,7 @@ export class EnvironmentLifecycleManager {
 		const maxAttempts = this.providerRetryMaxAttempts;
 		let ordinal = 1;
 		let waitAppliedMs = 0;
-		for (;;) {
+		for (; ;) {
 			let effect: ExecutorEffectResult;
 			try {
 				effect = await this.runExecutorOp(executor, op, descriptor, ctx);
