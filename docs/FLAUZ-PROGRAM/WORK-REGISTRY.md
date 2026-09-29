@@ -102,7 +102,7 @@ Extend the current A2A seam into actual multi-agent coordination with private co
 
 ## TL2 Agent OS surge — cross-TL secondments (2026-09-28)
 
-Status: ACTIVE
+Status: DONE (surge complete — S1 merged PR #26 `dabe2ebc`, S2 merged PR #28 `04fa8f95`, S3 merged PR #30; the completion rule's durable-execution demonstration is the Agent OS runtime census 8 PASS / 0 FAIL / 0 SKIP with `agentos-battery.mjs --surge-rung` ALL-GREEN at main, PR #47 `e222680a`; section text below is the historical surge record, preserved)
 
 TL2 remains the architectural owner. Three bounded secondments are attached to TL2 while the Agent OS lane is the program bottleneck. They do not create new TL ownership and do not change the TL1/TL3/TL4 mission boundaries.
 
@@ -625,10 +625,11 @@ Status: ACTIVE
 The foundation build and registered hardening backlog are complete. The next work is explicitly separated from those completed portfolios.
 
 ### P2-001 — Control-plane reconciliation
-Status: ACTIVE
+Status: DONE (2026-09-29, TL1 — this merge wave; PR recorded below)
 Owner: TL1
 Purpose: reconcile active control-plane/current-state/handoff documents with integrated main and make the phase routing discoverable from root agent instructions.
 Handoff: `docs/FLAUZ-PROGRAM/TL1-PRODUCT-HANDOFF.md`
+Completion record: branch `tl1/p2-001-control-plane-reconciliation` off `c27de198`. Delivered: (1) the TL2 surge section header reconciled ACTIVE -> DONE (its S1/S2/S3 rows were already DONE — the section-level status was the last stale open-claim); (2) `TL2-AGENT-OS-SURGE.md` carries a COMPLETE banner (historical text preserved below it, including its era-accurate "unfinished center" framing); (3) `CURRENT-STATE.md` gains the dated P2-001 verification record (verified head `c27de198`, 0 open PRs via the GitHub API, the full registry audit — every item row DONE, CI evidence at the head with the macOS runner-startup red characterized as pre-existing infrastructure per the prior heads, queued legs named, handoff-map discoverability verified across AGENTS.md / FLAUZ-START-HERE.md / .agents/PRODUCT-PHASE.md); (4) `PARALLEL-EXECUTION.md`'s lane table marks P2-001 closed. No product code, architecture, or historical evidence changed — documentation-only (the control-plane law preserved).
 
 ### P2-002 — Full product acceptance
 Status: ACTIVE
