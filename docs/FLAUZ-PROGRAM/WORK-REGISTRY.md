@@ -655,6 +655,12 @@ Finding IDs are created by TL4 and routed to exactly one owner:
 
 A finding must include evidence level, reproduction, owning TL, acceptance test and architecture impact before implementation begins.
 
+### TL2-ACC-1 — Agent-domain journey rehearsal (P2-002 support)
+Status: DONE
+Owner: TL2
+Purpose: the Agent-OS half of the P2-002 acceptance journey as ONE chained rehearsal — 13 legs over one shared Agent OS state (the seams between INV-1..INV-8) — plus the journey-evidence artifact for the acceptance owner; four candidate findings (CF-J1..J4) documented in P2-FIX format WITHOUT ids (the id namespace stays with TL4's routing).
+Landed: PR #52 (44a5795) — additive-only (two new files, zero edits; the gate-frozen battery untouched). Station receipts independently re-verified: journey 13/13 legs / 98 assertions, `agentos-battery --surge-rung` 8/8, tsc 5.9.3 clean under both configs, MANIFEST sha256 exact, secrets scan clean. Evidence artifact: `docs/FLAUZ-PROGRAM/acceptance/tl2-agent-domain-journey-evidence.md`. Dispatched through the replay worker lane per the operator's product-phase directive (workers only; station implements nothing).
+
 ## Current program state
 
 The original four-TL build program and all registered post-completion hardening are complete. The active program is now the Product Acceptance, Discovery and Productization phase above. New work must enter this phase registry (or a superseding architecture-approved registry entry) before it is treated as program state.
