@@ -43,6 +43,7 @@ import {
 	type ExecutorOpDetail,
 	type ExecutorEffectError,
 	type HttpPort,
+	type LocalEnvFsPort,
 	type ProviderRetryHint,
 	type ProviderRetryOptions,
 	type RetryWaitPort,
@@ -60,6 +61,25 @@ const noWait: RetryWaitPort = async () => undefined;
 function recordingWait(): { waits: number[]; wait: RetryWaitPort } {
 	const waits: number[] = [];
 	return { waits, wait: async ms => { waits.push(ms); } };
+}
+
+/** In-memory LocalEnvFsPort (the cloudHttp.test.ts pattern). */
+function memLocalFs(files: Map<string, string>): LocalEnvFsPort {
+	return {
+		readFileUtf8: async target => files.get(target),
+		writeFile: async (target, contents) => {
+			files.set(target, contents);
+		},
+		rename: async (from, to) => {
+			files.set(to, files.get(from)!);
+			files.delete(from);
+		},
+		mkdir: async () => undefined,
+		readdir: async () => [],
+		rm: async target => {
+			files.delete(target);
+		},
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -269,6 +289,8 @@ test('retry: exhaustion is the EXISTING typed terminal failure — the request-l
 	const failedExhausted = await exhausted.manager.perform('start', opts);
 	await single.manager.perform('create', opts);
 	const failedSingle = await single.manager.perform('start', opts);
+	ok(!failedExhausted.ok);
+	ok(!failedSingle.ok);
 	// the typed OUTCOMES are identical
 	deepStrictEqual(failedExhausted.error, failedSingle.error);
 	// the request-level failure rows serialize identically (byte parity)
@@ -453,7 +475,7 @@ function stubHttpPort(startResponses: readonly StubResponse[]): HttpPort & { cal
 }
 
 async function bootCloudRig(startResponses: readonly StubResponse[], wait: RetryWaitPort) {
-	const fs = memFsPort({});
+	const fs = memLocalFs(new Map<string, string>());
 	const clock = steppingClock(1730000000000);
 	const registry = new EnvironmentRegistry({ root: ROOT, fs, clock });
 	await registry.bootstrap();
