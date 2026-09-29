@@ -146,7 +146,7 @@ export function resolveRetryBound(config: unknown): number {
 	if (keys.length > 1 || (keys.length === 1 && keys[0] !== 'maxAttempts')) {
 		throw new EnvironmentLifecycleError('RETRY_CONFIG_INVALID', `providerRetry config must have at most the key [maxAttempts] (got ${JSON.stringify(keys)})`);
 	}
-	const maxAttempts = config['maxAttempts'];
+	const maxAttempts = config.maxAttempts;
 	if (maxAttempts === undefined) {
 		return PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT;
 	}
@@ -167,11 +167,11 @@ export function readProviderRetryHint(error: ExecutorEffectError | undefined): P
 		return null;
 	}
 	const hint = error.providerRetryHint as Record<string, unknown>;
-	const status = hint['status'];
+	const status = hint.status;
 	if (typeof status !== 'number' || !Number.isSafeInteger(status) || status < 400 || status > 599) {
 		return null; // a failure hint carries a failure status; anything else is malformed
 	}
-	const retryAfterMs = hint['retryAfterMs'];
+	const retryAfterMs = hint.retryAfterMs;
 	if (retryAfterMs !== undefined && !isNonNegativeInteger(retryAfterMs)) {
 		return null;
 	}
