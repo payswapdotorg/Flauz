@@ -440,7 +440,7 @@ interface ProviderServer {
 function startProviderServer(): Promise<ProviderServer> {
 	const calls: Array<{ method: string; path: string }> = [];
 	// INV-2's sandbox (TL2-F2B, the budget-exceeding pattern): the provider fails
-	// the first FIVE starts — beyond the default retry bound 3 — then recovers, so
+	// the first FIVE starts - beyond the default retry bound 3 - then recovers, so
 	// the automatic bounded retry engages, is recorded, and EXHAUSTS before the
 	// caller-driven second start recovers over a fresh window.
 	let inv2StartCalls = 0;
@@ -1061,7 +1061,7 @@ async function journeyInv2(providerPort: number): Promise<void> {
 
 		const providerStartCalls = await readProviderStartCalls(providerPort);
 		recorder.check('inv2.bounded-retry', providerStartCalls >= 2, `bounded, recorded retry behavior over the real socket: the automatic bounded retry performed ${String(providerStartCalls)} provider start call(s) against the failing provider before surfacing the typed error (the window bound is 3; the stub fails the first 5)`);
-		recorder.check('inv2.bounded-exhaustion', providerStartCalls === 3, `the automatic retry count stops at exactly the window bound (${String(providerStartCalls)} call(s) against a stub failing the first 5 — bounded, not unbounded)`);
+		recorder.check('inv2.bounded-exhaustion', providerStartCalls === 3, `the automatic retry count stops at exactly the window bound (${String(providerStartCalls)} call(s) against a stub failing the first 5 - bounded, not unbounded)`);
 		const attemptRows = ops.filter(op => op.op === 'start' && op.result === 'error' && typeof op.error?.message === 'string' && op.error.message.startsWith(PROVIDER_RETRY_ATTEMPT_PREFIX));
 		const attemptFacts = attemptRows.map(op => parseProviderRetryAttemptMessage(op.error?.message));
 		recorder.check('inv2.retry-attempts-recorded', attemptRows.length === 3 && attemptFacts.every(fact => fact !== undefined && fact.op === 'start' && fact.code === 'CLOUD_PROVIDER_ERROR' && fact.maxAttempts === 3) && attemptFacts.map(fact => fact!.ordinal).join(',') === '1,2,3' && attemptFacts[0]?.nextAttemptOrdinal === 2 && attemptFacts[1]?.nextAttemptOrdinal === 3 && attemptFacts[2]?.nextAttemptOrdinal === undefined, `the ops ledger carries the recorded retry attempt sequence over the real socket (ordinals + typed outcomes + waits applied): ${JSON.stringify(attemptFacts)}`);

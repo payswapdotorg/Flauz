@@ -84,10 +84,10 @@
  */
 import { EnvironmentLifecycleError, type EnvironmentOpName, type ExecutorEffectError, type ProviderRetryHint } from './types.ts';
 
-/** The default window bound (the documented default; the packet's §3.1.2). */
+/** The default window bound (the documented default; the packet's section 3.1.2). */
 export const PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT = 3;
 
-/** The sane cap on a single honored retryAfterMs wait (the precedent's §3.3). */
+/** The sane cap on a single honored retryAfterMs wait (the precedent's section 3.3). */
 export const PROVIDER_RETRY_AFTER_CAP_MS = 30_000;
 
 /**
@@ -146,7 +146,7 @@ export function resolveRetryBound(config: unknown): number {
 	if (keys.length > 1 || (keys.length === 1 && keys[0] !== 'maxAttempts')) {
 		throw new EnvironmentLifecycleError('RETRY_CONFIG_INVALID', `providerRetry config must have at most the key [maxAttempts] (got ${JSON.stringify(keys)})`);
 	}
-	const maxAttempts = config['maxAttempts'];
+	const maxAttempts = config.maxAttempts;
 	if (maxAttempts === undefined) {
 		return PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT;
 	}
@@ -167,11 +167,11 @@ export function readProviderRetryHint(error: ExecutorEffectError | undefined): P
 		return null;
 	}
 	const hint = error.providerRetryHint as Record<string, unknown>;
-	const status = hint['status'];
+	const status = hint.status;
 	if (typeof status !== 'number' || !Number.isSafeInteger(status) || status < 400 || status > 599) {
 		return null; // a failure hint carries a failure status; anything else is malformed
 	}
-	const retryAfterMs = hint['retryAfterMs'];
+	const retryAfterMs = hint.retryAfterMs;
 	if (retryAfterMs !== undefined && !isNonNegativeInteger(retryAfterMs)) {
 		return null;
 	}

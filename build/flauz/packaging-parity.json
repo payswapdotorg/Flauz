@@ -88,6 +88,9 @@
 						],
 						"flauz.flauz-browser": [
 							"browser"
+						],
+						"flauz.flauz-environments": [
+							"resolvers"
 						]
 					}
 				}

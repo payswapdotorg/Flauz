@@ -88,6 +88,11 @@ function memLocalFs(files: Map<string, string>): LocalEnvFsPort {
 
 type ScriptEntry = { ok: true } | { ok: false; error: ExecutorEffectError } | { throw: Error };
 
+/** Type-guard for the throw-variant (Object.hasOwn; `in` trips the lint rule). */
+function isThrownEntry(entry: ScriptEntry): entry is { throw: Error } {
+	return Object.hasOwn(entry, 'throw');
+}
+
 const START_500_MESSAGE = 'cloud-sandbox POST /v0/sandboxes/sbx-1/start failed (HTTP 500): {"error":"provider exploded"}';
 
 /** A retryable 5xx provider failure (the typed class + the structured hint). */
@@ -111,7 +116,7 @@ class ScriptedCloudExecutor implements EnvironmentExecutor {
 		this.calls.push(op);
 		const entry = this.script[Math.min(this.index, this.script.length - 1)];
 		this.index += 1;
-		if ('throw' in entry) {
+		if (isThrownEntry(entry)) {
 			throw entry.throw;
 		}
 		if (entry.ok) {

@@ -1,7 +1,7 @@
 {
 	"name": "flauz-environments",
 	"displayName": "Flauz Environments",
-	"description": "Flauz environment registry: typed env descriptors (.flauz/environments.json), provider adapters for SSH/container/cloud-sandbox/workspace-remote, connection-plan generation, the env-switch session-continuity model, and the lifecycle behind executors (real local harness, real ssh/docker/cloud providers, simulated drills behind an opt-in).",
+	"description": "Flauz environment registry: typed env descriptors (.flauz/environments.json), provider adapters for SSH/container/cloud-sandbox/workspace-remote, connection-plan generation, the env-switch session-continuity model, and the lifecycle behind executors (real local harness, real ssh/docker/cloud providers, simulated drills behind an opt-in), and — since TL3-H1 rung 2 — the flauz-env authority resolver (trust-gated resolution of registered provider kinds).",
 	"version": "0.1.0",
 	"publisher": "flauz",
 	"license": "MIT",
@@ -35,10 +35,14 @@
 		"onCommand:flauz.continuity.status",
 		"onCommand:flauz.continuity.verify",
 		"onCommand:flauz.continuity.restore",
-		"onCommand:flauz.continuity.export"
+		"onCommand:flauz.continuity.export",
+		"onCommand:flauz.env.resolver",
+		"onCommand:flauz.env.resolve"
 	],
 	"main": "./dist/extension.js",
-	"enabledApiProposals": [],
+	"enabledApiProposals": [
+		"resolvers"
+	],
 	"contributes": {
 		"views": {
 			"flauz": [
@@ -172,6 +176,18 @@
 				"title": "Export Continuity Bundle",
 				"category": "Flauz",
 				"description": "Export the workspace logical state as a content-addressed continuity bundle under .flauz/continuity-bundles (secret-shaped surfaces are redacted by law, never copied)."
+			},
+			{
+				"command": "flauz.env.resolver",
+				"title": "Show Environment Resolver Status",
+				"category": "Flauz",
+				"description": "Show the flauz-env authority resolver registration surface (prefix, grammar, kinds served; the TL3-H1 rung-2 registration)."
+			},
+			{
+				"command": "flauz.env.resolve",
+				"title": "Resolve Environment Authority",
+				"category": "Flauz",
+				"description": "Resolve an environment authority through the flauz-env resolver core (trust-gated, typed result; the same path the workbench authority resolution drives)."
 			}
 		],
 		"menus": {

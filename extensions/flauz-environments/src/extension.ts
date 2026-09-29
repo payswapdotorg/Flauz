@@ -38,18 +38,38 @@
  * (agents/tools) MUST pass `actor` explicitly — the manager itself rejects
  * any op without a valid actor.
  *
- * v0 boundary: NO resolver registration and NO live remote connection
- * happen here (INTEGRATION-GAP.md; the `resolvers` grant stays absent per
- * DL-33 until real resolver code lands).
+ * v0 boundary note (superseded by TL3-H1 below): the resolver registration
+ * used to stay out with the grant absent (DL-33 no-dead-config timing).
+ *
+ * TL3-H1 rung 2: the `resolvers` grant lands NOW (same commit as the
+ * registration code below — DL-19/DL-33, no dead config) and the extension
+ * registers the `flauz-env` authority resolver through the intended vscode
+ * path: vscode.workspace.registerRemoteAuthorityResolver (the proposal
+ * surface, vscode-dts/vscode.proposed.resolvers.d.ts:456 — vendored with
+ * PROVENANCE; the product allowlist REPLACES the manifest declaration —
+ * product.flauz.json extensionEnabledApiProposals). ALL resolution logic is
+ * the pure core in src/resolver/ (trust/policy gate reading the registry +
+ * the PIN-2 state; per-kind probes through the rung-1 CliPort/HttpPort/
+ * SecretResolverPort seams); this file only maps the typed outcome onto the
+ * vscode ResolverResult surface (the flauz-browser feature-detect pattern —
+ * a host without the live grant records the typed disabled state instead of
+ * crashing; the CI A3-class tripwire asserts the grant IS live).
  */
 import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import type { FileSystemPort } from './api.ts';
+import { ENVIRONMENT_KINDS, type FileSystemPort } from './api.ts';
 import { EnvironmentRegistry } from './registry.ts';
 import { planSwitch } from './continuity.ts';
 import { registerEnvironmentsView, type EnvironmentsViewApi } from './views.ts';
+import {
+	FLAUZ_ENV_AUTHORITY_PREFIX,
+	FlauzEnvResolver,
+	ResolverFailure,
+	formatFlauzEnvAuthority,
+	type ResolverOutcome,
+} from './resolver/index.ts';
 import {
 	ContinuityManager,
 	type ContinuityStatusReport,
@@ -170,6 +190,8 @@ const state: {
 	clock: () => number;
 	/** The host secret storage (vault:<NAME> resolution; set at activation). */
 	secrets: vscode.SecretStorage | undefined;
+	/** TL3-H1: the authority-resolver registration surface (set at activation). */
+	resolver: { readonly registered: boolean; readonly prefix?: string; readonly reason?: string } | undefined;
 } = {
 	registry: undefined,
 	lifecycle: undefined,
@@ -180,6 +202,7 @@ const state: {
 	fs: nodeFs,
 	clock: () => Date.now(),
 	secrets: undefined,
+	resolver: undefined,
 };
 
 function currentRegistry(): EnvironmentRegistry {
@@ -520,10 +543,98 @@ async function runContinuityStatus(): Promise<ContinuityCommandResult> {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// TL3-H1 rung 2 — the authority-resolver boundary (the ONLY vscode-facing
+// resolution code; the logic is the pure core in src/resolver/).
+// ---------------------------------------------------------------------------
+
+/**
+ * Runs one resolution through the pure core against the CURRENT state (a
+ * fresh resolver per call: nothing caches a trust verdict across a
+ * re-resolve — the core re-reads the registry + PIN-2 state every time).
+ */
+async function resolveEnvironment(authority: string, resolveAttempt: number): Promise<ResolverOutcome> {
+	if (state.registry === undefined || state.lifecycle === undefined) {
+		return { ok: false, failure: new ResolverFailure('ENVIRONMENT_ABSENT', `the environment registry is inactive (no workspace folder or failed bootstrap) — authority ${JSON.stringify(authority)} cannot resolve (fail-closed)`) };
+	}
+	const cloudBaseUrl = vscode.workspace.getConfiguration('flauz.environments').get<string>('cloudApiBaseUrl', '');
+	const resolver = new FlauzEnvResolver({
+		registry: state.registry,
+		lifecycle: state.lifecycle,
+		cli: nodeCliPort,
+		http: nodeHttpPort,
+		secrets: secretResolver,
+		root: state.workspaceRoot ?? '',
+		fs: state.fs,
+		cloudBaseUrl,
+	});
+	return await resolver.resolve(authority, { resolveAttempt });
+}
+
+/**
+ * Maps the typed core outcome onto the vscode ResolverResult surface. The
+ * endpoint transport returns a ResolvedAuthority (the bridge token rides
+ * extensionHostEnv; the bridge port rides the result for the workbench —
+ * the vscode API has no argv field, the handshake data rides the RESULT);
+ * the pending-live-rung transport and every typed failure throw
+ * RemoteAuthorityResolverError.NotAvailable naming the exact scope (NEVER a
+ * fabricated endpoint — the blueprint's own error posture).
+ */
+function mapOutcomeToResolverResult(outcome: ResolverOutcome): vscode.ResolverResult {
+	if (!outcome.ok) {
+		const detail = outcome.failure.detail !== undefined ? ` [${outcome.failure.detail}]` : '';
+		throw vscode.RemoteAuthorityResolverError.NotAvailable(`${outcome.failure.code}: ${outcome.failure.message}${detail}`, true);
+	}
+	const result = outcome.result;
+	if (result.transport.kind !== 'endpoint') {
+		throw vscode.RemoteAuthorityResolverError.NotAvailable(`flauz-env: ${result.kind} environment '${result.environmentId}' resolved (backing verified: ${result.backing.identity}) but ${result.transport.pendingReason}`, true);
+	}
+	const authority = new vscode.ResolvedAuthority(result.transport.endpoint.host, result.transport.endpoint.port, result.transport.endpoint.connectionToken);
+	const resolverResult = authority as vscode.ResolverResult;
+	if (result.extensionHostEnv !== undefined) {
+		resolverResult.extensionHostEnv = { ...result.extensionHostEnv };
+	}
+	resolverResult.isTrusted = result.isTrusted;
+	return resolverResult;
+}
+
+/** The vscode-side resolver adapter (thin: parse context, delegate, map). */
+function createAuthorityResolverAdapter(): vscode.RemoteAuthorityResolver {
+	return {
+		resolve: (authority: string, context: vscode.RemoteAuthorityResolverContext) =>
+			resolveEnvironment(authority, context.resolveAttempt ?? 1).then(mapOutcomeToResolverResult),
+	};
+}
+
+/**
+ * Registers the `flauz-env` authority resolver (feature-detected — the
+ * flauz-browser proposed-API posture: a host without the live grant records
+ * the typed disabled state; the grant makes the surface live exactly now,
+ * DL-19/DL-33).
+ */
+function registerAuthorityResolver(context: vscode.ExtensionContext): void {
+	const workspaceCandidate = vscode.workspace as unknown as Partial<Record<'registerRemoteAuthorityResolver', unknown>>;
+	if (typeof workspaceCandidate.registerRemoteAuthorityResolver !== 'function') {
+		state.resolver = { registered: false, reason: `the proposed API 'resolvers' is not available in this host (grant not live) — the flauz-env authority resolver stays unregistered (fail-closed; product.flauz.json extensionEnabledApiProposals owns the grant)` };
+		return;
+	}
+	const register = workspaceCandidate.registerRemoteAuthorityResolver as (prefix: string, resolver: vscode.RemoteAuthorityResolver) => vscode.Disposable;
+	const disposable = register.call(vscode.workspace, FLAUZ_ENV_AUTHORITY_PREFIX, createAuthorityResolverAdapter());
+	context.subscriptions.push(disposable);
+	state.resolver = { registered: true, prefix: FLAUZ_ENV_AUTHORITY_PREFIX };
+}
+
 export function activate(context: vscode.ExtensionContext): void {
 	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 	state.workspaceRoot = workspaceRoot;
 	state.secrets = context.secrets;
+
+	// TL3-H1 rung 2: the authority resolver registers BEFORE any early
+	// return — a remote window on a flauz-env+... authority must find the
+	// registration live even without a workspace folder (resolution then
+	// fails closed with the typed ENVIRONMENT_ABSENT until the registry
+	// boots).
+	registerAuthorityResolver(context);
 
 	// TL4-001: the view registers before any early return so the shell surface
 	// (welcome/error/retry states) exists even without a workspace folder.
@@ -650,6 +761,38 @@ export function activate(context: vscode.ExtensionContext): void {
 		['flauz.continuity.restore', async (arg?: unknown) => runContinuityRestore(arg)],
 		['flauz.continuity.verify', async (arg?: unknown) => runContinuityVerify(arg)],
 		['flauz.continuity.status', async () => runContinuityStatus()],
+		// ---- TL3-H1 rung 2 resolver commands (typed results, never raw throws) ----
+		['flauz.env.resolver', () => {
+			// read-only registration surface (the CI drill + the A3-class
+			// tripwire assert here; command-driven activation model)
+			return {
+				prefix: FLAUZ_ENV_AUTHORITY_PREFIX,
+				grammar: 'flauz-env+<kind>+<envId>',
+				registered: state.resolver?.registered === true,
+				...(state.resolver?.registered === true ? { prefix: state.resolver.prefix } : {}),
+				...(state.resolver?.reason !== undefined ? { reason: state.resolver.reason } : {}),
+				kinds: [...ENVIRONMENT_KINDS],
+			};
+		}],
+		['flauz.env.resolve', async (arg?: unknown) => {
+			// arg: '<envId>' | { id } | { authority } — resolves through the
+			// SAME pure core the workbench authority path drives.
+			const rawAuthority = typeof arg === 'object' && arg !== null ? (arg as { authority?: unknown }).authority : undefined;
+			const rawId = typeof arg === 'string' && arg.length > 0 && !arg.includes('+')
+				? arg
+				: (typeof arg === 'object' && arg !== null ? (arg as { id?: unknown }).id : undefined);
+			if (typeof rawAuthority !== 'string' && typeof rawId !== 'string') {
+				return { ok: false, failure: { code: 'AUTHORITY_MALFORMED', message: 'flauz.env.resolve: expected the environment id or the full authority (string or { id } or { authority })' } };
+			}
+			if (typeof rawAuthority === 'string') {
+				return await resolveEnvironment(rawAuthority, 1);
+			}
+			const descriptor = state.registry?.get(rawId as string);
+			if (descriptor === undefined) {
+				return { ok: false, failure: { code: 'ENVIRONMENT_ABSENT', message: `flauz.env.resolve: environment '${rawId}' is not registered (or the registry is inactive)` } };
+			}
+			return await resolveEnvironment(formatFlauzEnvAuthority(descriptor.kind, descriptor.id), 1);
+		}],
 	];
 
 	for (const [id, handler] of commands) {
@@ -664,4 +807,5 @@ export function deactivate(): void {
 	state.error = undefined;
 	state.view = undefined;
 	state.workspaceRoot = undefined;
+	state.resolver = undefined;
 }

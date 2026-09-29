@@ -31,6 +31,9 @@
 		],
 		"flauz.flauz-browser": [
 			"browser"
+		],
+		"flauz.flauz-environments": [
+			"resolvers"
 		]
 	},
 	"defaultChatAgent": null,
