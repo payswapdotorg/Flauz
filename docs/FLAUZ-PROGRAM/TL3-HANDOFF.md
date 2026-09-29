@@ -16,7 +16,7 @@ Make browser sessions, execution environments, logical resources and continuity 
 TL2-S2 is closed and the helper is released back to TL3.
 
 ## Immediate hardening ownership
-- TL3-H1 — Provider resolver rung 2: live workbench resolver code plus the intended `resolvers` grant.
+- TL3-H1 — Provider resolver rung 2: COMPLETE (merged 2026-09-29, PR #42, fb577dfe75) — live workbench resolver code plus the intended `resolvers` grant landed in the same commit (DL-19/DL-33), with trust-gated resolution through the rung-1 seams and the CI boot-registration drill (job `cenv-resolver-rung2`).
 - TL3-H2 — Browser product residuals: COMPLETE (merged 2026-09-28, 5786446b633) — the boot drill landed (CI job `b-policy-boot-drill`), G5/G3 permanently recorded (DL-75/DL-76). The standing law below still governs any future implementation.
 
 The network-filter default is documented as an extension-platform limitation. Any future implementation must use an architecture-allowed product-side path.
