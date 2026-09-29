@@ -563,10 +563,48 @@ Completion record (2026-09-28, TL1): 474 warnings (the 472 + the TL3-H2 b-policy
 Verification: eslint FULL REPOSITORY 0 findings / 12715 files exit 0 (the CI shape); CI at the head — the Hygiene lane ALL GREEN (the Compile & Hygiene pipeline incl. the eslint pass, the Flauz unit-test subset, fork-critical/activation/IA/premium-UX/product-shell guards) plus Security, Lane-K, Session, Budgets, Rota GREEN (agentos/compat/canaries queued behind runner starvation with complete station coverage: suites 1106 tests 0 failures, fixture matrix 194/194 0 deviations, batteries + doctored controls, a2a determinism receipt identical, security gates GREEN post-re-pin, merged-tree eslint re-verified exit 0 over the TL4-H2 liveEvents code). The eslint layer of the Compile & Hygiene line is green on main; the perf startup-pair R6 drift remains the only TL1-adjacent platform red and stays owned by TL4-H1.
 
 ### TL2-H1 — Live-provider verification
-Status: TODO
+Status: DONE
 Owner: TL2
 Evidence: TL2-002 decision DL-40 explicitly separates fixture verification from live-provider evidence.
 Acceptance: representative credentialed or explicitly provisioned live-provider drills verify routing, authentication failure classes, retry semantics and provenance without storing secrets in the repo.
+
+Completion record (2026-09-29, TL2 — PR #49, merge 21c5c545): the vendor-neutral live drill
+(`extensions/flauz-models/test/canaries/live-provider-runtime.drill.ts` — four rows
+routing/auth-failure/retry/provenance under the envelope `flauz.live-provider-drill/v1`,
+env contract `FLAUZ_LIVE_PROVIDER_{BASE_URL,API_KEY,MODEL}` + optional
+`{HEADERS_JSON,INVALID_HEADERS_JSON}`, SKIP law, redaction law) + the offline contract
+test (30 cases, zero network). Credentials live ONLY in the environment (the acceptance
+law): the repo carries variable names, never values — secrets scan clean.
+
+Station receipts at the pinned base 572a3be8 and re-run at the merged head: node --test
+136/136 (106 baseline + 30 additive); tsc exit 0 under both TS 7.0.2 and tsc@5.9.3;
+battery INV-1..8 PASS with the gate byte-identical (sha256 816f4ba6…); SKIP-law proofs
+(no env → all rows skip naming the three vars, exit 0, zero traffic; only BASE_URL → the
+API_KEY/MODEL skip reasons).
+
+LIVE evidence (station, env-injected only): (1) OpenRouter, a real third-party
+credentialed vendor (meta-llama/llama-3.1-8b-instruct) — ALL FOUR ROWS PASS exit 0:
+routing 200 + exact model echo, auth-failure typed 401 AUTH_FAILED (corrupt Bearer),
+retry bounded-typed-exhaustion (3 wire attempts, all TIMEOUT under the 1ms wall-clock
+budget, waits honored, bound = the imported PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT),
+provenance (responseId gen-…, requestHash, reported + wire usage 30/4, SSE frame count)
+— zero credential material in the output. (2) The platform-provisioned gateway
+(glm-4-plus, X-Token envelope): routing/auth-failure/retry PASS; the provenance row
+honestly reports the gateway's real burst limit (429 → typed RATE_LIMITED/long-backoff
+— itself live evidence of the 429 classification); the gateway's usage frame confirmed
+on the wire by direct probe (18 frames, usage + [DONE]).
+
+Station surgical fix disclosed in the PR: the re-produced delivery's redaction sweep
+collected header values of ANY length; the live gateway run caught the fidelity
+regression (a 1-char header value matches every ISO timestamp's UTC Z suffix → every
+row fails closed). The original delivery's documented >=8-char term law was restored;
+all receipts re-run green after the fix.
+
+Worker lane record: dispatched via the replay (agents-tab GLM-5.3 + Full-Stack); the
+first delivery's staged tree was lost to an idle-pod filesystem recycle (the chat-detail
+API never surfaces assistant content, so marker detection was DOM-only); the worker
+faithfully re-produced on a continuation; an auto-harvest daemon captured the re-delivery
+at zero latency; every receipt re-proven independently at the station before landing.
 
 ## Cross-TL rule
 
