@@ -392,7 +392,7 @@ if [ "$NODE_MAJOR_AB" -gt 22 ] || { [ "$NODE_MAJOR_AB" -eq 22 ] && [ "$NODE_MINO
     expect "agentos-battery golden verdict control PASS"    0 node "$AB" --verdict "$ABF/golden-verdict.json"
     expect "agentos-battery doctored missing-row FAIL"      1 node "$AB" --verdict "$ABF/doctored-verdict-missing-row.json"
     expect "agentos-battery doctored blind-fail FAIL"       1 node "$AB" --verdict "$ABF/doctored-verdict-blind-fail.json"
-    expect "agentos-battery surge-rung fires (findings)"     1 node "$AB" --root "$ROOT" --surge-rung
+    expect "agentos-battery surge-rung all-green (census complete)"     0 node "$AB" --root "$ROOT" --surge-rung
     expect "agentos-battery runtime selftest PASS"      0 node --experimental-strip-types "$ABRUNTIME" --selftest
     # The FULL runtime rung (real child processes + real CDP + the stub
     # provider server) needs FLAUZ_CDP_ENDPOINT -- that lane lives in the

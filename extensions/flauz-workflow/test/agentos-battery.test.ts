@@ -411,7 +411,7 @@ interface CloudLeg {
 	cleanup(): Promise<void>;
 }
 
-/** TL2-F2B — the additive cloud-leg options (absent = the pre-F2B wiring byte-identically). */
+/** TL2-F2B - the additive cloud-leg options (absent = the pre-F2B wiring byte-identically). */
 interface CloudLegOptions {
 	/** The injectable provider-retry wait port (deterministic journeys; default: the real timer). */
 	readonly providerRetryWait?: RetryWaitPort;
@@ -666,11 +666,11 @@ describe('INV-2 provider-failure-retry', () => {
 		// TL2-F2B (the sanctioned journey extension, the F3/INV-5 precedent): the
 		// stub fails BEYOND the retry budget (5 x HTTP 500 against the default
 		// bound 3) so the AUTOMATIC bounded retry engages, is recorded, and
-		// EXHAUSTS — the call count stops at the bound while failures remain
+		// EXHAUSTS - the call count stops at the bound while failures remain
 		// queued (bounded, not unbounded) and the outcome stays the typed
 		// failure. The recovery leg stays CALLER-DRIVEN: the second explicit
 		// perform('start') opens a FRESH window (composability) and recovers
-		// within its own bound. The wait port is injected — never a real sleep
+		// within its own bound. The wait port is injected - never a real sleep
 		// on the test path.
 		const failingStarts: ScriptedResponse[] = Array.from({ length: 5 }, () => ({ status: 500, bodyText: '{"error":"provider exploded"}' }));
 		const leg = await bootCloudLeg(failingStarts, { providerRetryWait: async () => undefined });
@@ -691,7 +691,7 @@ describe('INV-2 provider-failure-retry', () => {
 			// ---- the bounded-retry measurement: the automatic window engaged and exhausted ----
 			const startCalls = leg.http.callsOf('POST', CLOUD_START_PATH);
 			recorder.check('inv2.bounded-retry', startCalls >= 2, `bounded, recorded retry behavior: the automatic bounded retry performed ${String(startCalls)} provider start call(s) against the failing provider before surfacing the typed error (the window bound is 3; 5 failures were queued)`);
-			recorder.check('inv2.bounded-exhaustion', startCalls === 3, `the automatic retry count stops at exactly the window bound (${String(startCalls)} call(s) against 5 queued failures — bounded, not unbounded)`);
+			recorder.check('inv2.bounded-exhaustion', startCalls === 3, `the automatic retry count stops at exactly the window bound (${String(startCalls)} call(s) against 5 queued failures - bounded, not unbounded)`);
 			const attemptRows = ops.filter(op => op.op === 'start' && op.result === 'error' && typeof op.error?.message === 'string' && op.error.message.startsWith(PROVIDER_RETRY_ATTEMPT_PREFIX));
 			const attemptFacts = attemptRows.map(op => parseProviderRetryAttemptMessage(op.error?.message));
 			recorder.check('inv2.retry-attempts-recorded', attemptRows.length === 3 && attemptFacts.every(fact => fact !== undefined && fact.op === 'start' && fact.code === 'CLOUD_PROVIDER_ERROR' && fact.maxAttempts === 3) && attemptFacts.map(fact => fact!.ordinal).join(',') === '1,2,3' && attemptFacts[0]?.nextAttemptOrdinal === 2 && attemptFacts[1]?.nextAttemptOrdinal === 3 && attemptFacts[2]?.nextAttemptOrdinal === undefined, `the ops ledger carries the recorded retry attempt sequence (ordinals + typed outcomes + waits applied): ${JSON.stringify(attemptFacts)}`);
