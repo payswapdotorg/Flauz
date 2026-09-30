@@ -26,6 +26,15 @@ via `Flauz: Focus …` commands:
 - `.flauz/browser-policy.json` — the browser policy (fail-closed: absent file means deny-all).
 - `.flauz/workflows/` — saved workflow envelopes.
 
+## Multi-agent work
+
+The Flauz agent can delegate steps of a multi-step plan to worker agents —
+ask for it in Chat, for example "delegate a step of this plan to a worker
+agent". Each delegation is recorded as a reviewable contract under
+`.flauz/a2a/contracts/`, and the worker agent reports its result back with
+the evidence rows that prove it — the same ledger-backed trail every Flauz
+task carries.
+
 ## States and recovery
 
 - **Empty** — a welcome panel names the surface's first action.

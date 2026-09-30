@@ -26,7 +26,7 @@
                                 "id": "flauz.agent",
                                 "name": "flauz",
                                 "fullName": "Flauz Agent",
-                                "description": "Plan-driven agent bridge with human approval gates and an append-only evidence ledger.",
+                                "description": "Plan-driven agent bridge with human approval gates and an append-only evidence ledger. It can delegate steps to worker agents.",
                                 "isDefault": true,
                                 "isSticky": true,
                                 "locations": [
