@@ -1,0 +1,44 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 7,
+	"slug": "environment-use",
+	"name": "create/use environment",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 5,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg7.environment-created",
+			"ok": true,
+			"detail": "the local environment created (code )"
+		},
+		{
+			"id": "leg7.environment-started",
+			"ok": true,
+			"detail": "the local environment started (state 'running')"
+		},
+		{
+			"id": "leg7.real-grandchild-process",
+			"ok": true,
+			"detail": "a REAL harness process is running (pid 5154, state file flauz.env-state/v0)"
+		},
+		{
+			"id": "leg7.environment-stopped",
+			"ok": true,
+			"detail": "the environment stopped gracefully (lifecycle 'stopped', harness state 'stopped')"
+		},
+		{
+			"id": "leg7.provenance-carrying-ops",
+			"ok": true,
+			"detail": "every lifecycle op carries provenance (actor agent on 3 op rows: create->created,start->running,stop->stopped)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.499Z",
+	"durationMs": 131,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

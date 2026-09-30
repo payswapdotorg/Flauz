@@ -1,0 +1,60 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 4,
+	"slug": "provider-model",
+	"name": "choose a live provider/model",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 8,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg4.default-routes-zero-network",
+			"ok": true,
+			"detail": "the pristine workspace routes to flauz-mock/echo-1 via the labeled zero-network default (decision rd-000001)"
+		},
+		{
+			"id": "leg4.providers-file-enablement",
+			"ok": true,
+			"detail": "the workspace providers file enabled flauz-journey-openai (source providers-file, enabled)"
+		},
+		{
+			"id": "leg4.routes-the-live-capable-provider",
+			"ok": true,
+			"detail": "the user rule routed to flauz-journey-openai/journey-1 (decision rd-000002)"
+		},
+		{
+			"id": "leg4.real-wire-completion",
+			"ok": true,
+			"detail": "the routed provider call streamed the deterministic completion over the real wire: journey wire echo: plan the flauz product acceptance journey..."
+		},
+		{
+			"id": "leg4.wire-provenance",
+			"ok": true,
+			"detail": "the finish event carries the hard-rule provenance (provider flauz-journey-openai, model journey-1, requestHash 896470e8d02c...)"
+		},
+		{
+			"id": "leg4.wire-usage-reported",
+			"ok": true,
+			"detail": "the wire-reported usage arrived (input 17, output 6)"
+		},
+		{
+			"id": "leg4.credential-resolution-on-wire",
+			"ok": true,
+			"detail": "the wire saw model journey-1 under the resolved credential (Bearer; the env: vault ref resolved through the real seam)"
+		},
+		{
+			"id": "leg4.evidence-minted",
+			"ok": true,
+			"detail": "the planning turn minted evidence row E-000002"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.259Z",
+	"durationMs": 46,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts",
+	"notes": "live-provider rung not reached: no FLAUZ_LIVE_PROVIDER_BASE_URL/_API_KEY/_MODEL in this environment (the rung exists: extensions/flauz-models/test/canaries/live-provider-runtime.drill.ts; the adapter+wire path above is the same code path a live vendor uses)"
+}

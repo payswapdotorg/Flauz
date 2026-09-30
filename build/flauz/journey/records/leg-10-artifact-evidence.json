@@ -1,0 +1,39 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 10,
+	"slug": "artifact-evidence",
+	"name": "produce artifact/evidence",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 4,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg10.checkpoint-signed",
+			"ok": true,
+			"detail": "the signed checkpoint row E-000013 carries the ed25519 payload (key flauz-fixture-ed25519-1)"
+		},
+		{
+			"id": "leg10.fragment-saved",
+			"ok": true,
+			"detail": "the mission's distilled provenance saved as fragment W-001 (task T-001)"
+		},
+		{
+			"id": "leg10.chain-verifies",
+			"ok": true,
+			"detail": "the evidence chain verifies at the journey midpoint (15 rows)"
+		},
+		{
+			"id": "leg10.journal-verifies",
+			"ok": true,
+			"detail": "the orchestration journal hash chain verifies (14 rows)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.655Z",
+	"durationMs": 12,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

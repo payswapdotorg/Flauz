@@ -242,3 +242,6 @@ extensions/flauz-agent/core/orchMediator.mjs
 # into the canary --extensions-dir, the compat-l3 fixture precedent)
 build/flauz/scripts/b-policy-boot-drill.mjs
 test/fixtures/browser-policy-driver/main.js
+# Flauz TL4 P2-002 acceptance journey gate (zero-dep .mjs gate runner, the
+# session-battery/agentos-battery CLI precedent; build/flauz/README.md conventions)
+build/flauz/journey/p2-002-journey.mjs
