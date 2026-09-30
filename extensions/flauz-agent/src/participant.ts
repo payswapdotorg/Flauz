@@ -63,7 +63,14 @@ export type ParticipantRegistrar = (
 	dispose(): void;
 };
 
-/** Register the participant with followups for the four human gates. */
+/**
+ * Register the participant with followups for the four human gates plus the
+ * multi-agent delegation followup (P2-FIX-203: one prompt-only followup on
+ * multi-step plans — every Flauz plan is a numbered multi-step plan, so the
+ * user-facing verb for asking the agent to delegate rides the followup row
+ * next to the gates; there is deliberately no `/delegate` slash command —
+ * delegation is a natural-language ask, not a human gate).
+ */
 export function registerParticipant(
 	register: ParticipantRegistrar,
 	deps: ParticipantDeps,
@@ -76,6 +83,7 @@ export function registerParticipant(
 				{ prompt: 'request changes', command: 'request-changes', label: 'Request changes' },
 				{ prompt: 'sign off', command: 'sign-off', label: 'Sign off' },
 				{ prompt: 'cancel', command: 'cancel', label: 'Cancel task' },
+				{ prompt: 'delegate a step of this plan to a worker agent', label: 'Delegate a step to a worker agent' },
 			];
 		},
 	};
