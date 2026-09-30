@@ -1,0 +1,54 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 9,
+	"slug": "approval-takeover",
+	"name": "require/handle approval or takeover",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 7,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg9.gate-arms-fail-closed",
+			"ok": true,
+			"detail": "the human-approval gate armed on S-03 (row R-000011) and the drive executed zero steps"
+		},
+		{
+			"id": "leg9.no-execution-without-approval",
+			"ok": true,
+			"detail": "FAIL-CLOSED: the gated step never started (no approval = no execution)"
+		},
+		{
+			"id": "leg9.takeover-interrupts-gate",
+			"ok": true,
+			"detail": "the interrupted gate moved to takeover-pending (row R-000012, actor human)"
+		},
+		{
+			"id": "leg9.takeover-accepted",
+			"ok": true,
+			"detail": "the human-only takeover acceptance landed with attribution"
+		},
+		{
+			"id": "leg9.takeover-completed-attribution",
+			"ok": true,
+			"detail": "the taken-over step completed by the HUMAN (row R-000014, actor human) -- never by an unapproved agent execution"
+		},
+		{
+			"id": "leg9.takeover-evidence-minted",
+			"ok": true,
+			"detail": "the takeover minted evidence E-000010 into the shared chain"
+		},
+		{
+			"id": "leg9.gate-never-unlocked-agent-run",
+			"ok": true,
+			"detail": "the gate stayed FAIL-CLOSED end to end: the step was completed by the human takeover, never by agent execution"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.639Z",
+	"durationMs": 15,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

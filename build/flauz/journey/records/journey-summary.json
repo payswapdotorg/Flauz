@@ -1,0 +1,184 @@
+{
+	"schema": "flauz.p2-002-journey/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"rung": "runtime",
+	"legs": [
+		{
+			"leg": 1,
+			"slug": "workspace-open",
+			"name": "create/open workspace",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 2,
+			"slug": "mission-task",
+			"name": "create mission/task",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 3,
+			"slug": "agent-session",
+			"name": "start agent session",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 4,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 4,
+			"slug": "provider-model",
+			"name": "choose a live provider/model",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 8,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real",
+			"notes": "live-provider rung not reached: no FLAUZ_LIVE_PROVIDER_BASE_URL/_API_KEY/_MODEL in this environment (the rung exists: extensions/flauz-models/test/canaries/live-provider-runtime.drill.ts; the adapter+wire path above is the same code path a live vendor uses)"
+		},
+		{
+			"leg": 5,
+			"slug": "workspace-resources",
+			"name": "edit/read workspace resources",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 6,
+			"slug": "browser-use",
+			"name": "use browser",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 7,
+			"slug": "environment-use",
+			"name": "create/use environment",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 5,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 8,
+			"slug": "a2a-delegation",
+			"name": "delegate to another agent (A2A)",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 8,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 9,
+			"slug": "approval-takeover",
+			"name": "require/handle approval or takeover",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 7,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 10,
+			"slug": "artifact-evidence",
+			"name": "produce artifact/evidence",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 4,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 11,
+			"slug": "provider-env-failure",
+			"name": "exercise provider/environment failure",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 11,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 12,
+			"slug": "retry-cancel-recover",
+			"name": "retry/cancel/recover",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 13,
+			"slug": "restart",
+			"name": "restart",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 5,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		},
+		{
+			"leg": 14,
+			"slug": "resume-continuity",
+			"name": "resume task and inspect continuity/provenance",
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 26,
+				"fail": 0
+			},
+			"evidenceLevel": "runtime-real"
+		}
+	],
+	"summary": {
+		"pass": 14,
+		"fail": 0,
+		"skip": 0
+	},
+	"levels": {
+		"workspace-open": "runtime-real",
+		"mission-task": "runtime-real",
+		"agent-session": "runtime-real",
+		"provider-model": "runtime-real",
+		"workspace-resources": "runtime-real",
+		"browser-use": "runtime-real",
+		"environment-use": "runtime-real",
+		"a2a-delegation": "runtime-real",
+		"approval-takeover": "runtime-real",
+		"artifact-evidence": "runtime-real",
+		"provider-env-failure": "runtime-real",
+		"retry-cancel-recover": "runtime-real",
+		"restart": "runtime-real",
+		"resume-continuity": "runtime-real"
+	}
+}

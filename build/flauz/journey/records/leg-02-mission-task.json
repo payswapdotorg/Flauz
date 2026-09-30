@@ -1,0 +1,49 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 2,
+	"slug": "mission-task",
+	"name": "create mission/task",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 6,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg2.task-envelope-persisted",
+			"ok": true,
+			"detail": "the .flauz/tasks.json envelope carries the minted task T-001"
+		},
+		{
+			"id": "leg2.mission-to-task-minted",
+			"ok": true,
+			"detail": "submitGraph minted the task envelope T-001 through the orchestration surface"
+		},
+		{
+			"id": "leg2.task-spine-on-disk",
+			"ok": true,
+			"detail": "the persisted task T-001 is 'plan' and carries the mirrored graph-submitted (actor agent) event on its timeline"
+		},
+		{
+			"id": "leg2.graph-envelope-persisted",
+			"ok": true,
+			"detail": "the graphs envelope persists G-001 (5 steps) linked to T-001"
+		},
+		{
+			"id": "leg2.journal-rows",
+			"ok": true,
+			"detail": "the journal records graph-submitted (actor agent, taskId T-001) + graph-approved (actor human)"
+		},
+		{
+			"id": "leg2.graph-approved-state",
+			"ok": true,
+			"detail": "the mission graph G-001 is approved and ready for work"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.243Z",
+	"durationMs": 7,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}
