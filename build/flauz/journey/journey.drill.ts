@@ -564,7 +564,7 @@ function startProviderServer(): Promise<ProviderServer> {
 				} catch {
 					// fall through with the unknown model
 				}
-				chatCalls.push({ model, authorization: request.headers['authorization'] ?? '' });
+				chatCalls.push({ model, authorization: request.headers.authorization ?? '' });
 				if (failNextChat > 0) {
 					failNextChat -= 1;
 					respond(500, JSON.stringify({ error: { message: 'journey provider overloaded (scripted failure window)' } }));
@@ -1101,11 +1101,11 @@ async function childFinisher(root: string, providerPort: number): Promise<void> 
 	// the crash window hook: the S-05 effect settles durably, the sink FREEZES
 	// before driveGraph can journal the step transition, this process reports
 	// the window facts and idles until the parent SIGKILLs it
-	let stateRef: JourneyState | undefined;
+	const stateRefBox: { state?: JourneyState } = {};
 	const freeze: FreezeHook = {
 		matchesKey: key => key.startsWith('flauz-orch/G-001/S-05/run/'),
 		onFreeze: () => {
-			const state = stateRef;
+			const state = stateRefBox.state;
 			if (state === undefined) {
 				childReport('finisher', 'ERROR', { stage: 'freeze-before-boot' });
 				process.exit(1);
@@ -1118,7 +1118,7 @@ async function childFinisher(root: string, providerPort: number): Promise<void> 
 		},
 	};
 	const state = await bootJourney(root, effects, providerPort, freeze);
-	stateRef = state;
+	stateRefBox.state = state;
 	// the crash window composition: S-05 was granted its approval by the
 	// parent BEFORE this child spawned; the drive starts the final step and
 	// freezes inside the sink (the journal append never happens here).
@@ -1172,7 +1172,7 @@ async function childCancelFlight(root: string): Promise<void> {
 	childReport('cancel-flight', 'REPORT', {
 		taskId: runTaskId,
 		toolCalls: executorCalls,
-		crashTyped: crashMessage.includes('flauz.tasks/v0') || crashMessage.includes("status 'cancelled'"),
+		crashTyped: crashMessage.includes('flauz.tasks/v0') || crashMessage.includes('status \'cancelled\''),
 		crashExcerpt: crashMessage.slice(0, 160),
 		finalStatus: finalTask?.status ?? '',
 		cancelEventActor: finalTask?.events.find(event => event.type === 'cancel')?.actor ?? '',
@@ -1201,7 +1201,7 @@ async function runSelftest(): Promise<void> {
 	const reportRole = parts.shift() ?? '';
 	const kind = parts.shift() ?? '';
 	const payload = JSON.parse(parts.join(' ') || '{}') as Record<string, unknown>;
-	drillAssert(reportRole === 'finisher' && kind === 'WINDOW-ARMED' && payload['journalRows'] === 42 && payload['s05Status'] === 'running', 'selftest: the child-report line parser splits role/kind/payload', `${reportRole} ${kind} ${JSON.stringify(payload)}`);
+	drillAssert(reportRole === 'finisher' && kind === 'WINDOW-ARMED' && payload.journalRows === 42 && payload.s05Status === 'running', 'selftest: the child-report line parser splits role/kind/payload', `${reportRole} ${kind} ${JSON.stringify(payload)}`);
 	// (d) the leg catalogue: exactly the 14 canonical legs, in order
 	drillAssert(LEGS.length === 14 && LEGS.every((entry, index) => entry.leg === index + 1), 'selftest: the catalogue carries exactly the 14 canonical legs in order', `legs=${String(LEGS.length)}`);
 	console.log('p2-002 journey drill: selftest GREEN (machinery verified: verdict assembly, SKIP honesty, child line protocol, leg catalogue)');
@@ -1223,7 +1223,7 @@ async function runJourney(): Promise<void> {
 	let missionTaskId = '';
 	let missionGraphId = '';
 	let planningEchoText = '';
-	let briefResourceUri = 'journey-brief.md';
+	const briefResourceUri = 'journey-brief.md';
 	let briefReadBack: string | undefined;
 	let workerEvidenceId = '';
 	let journalRowsAtDeath = 0;
@@ -1789,7 +1789,7 @@ async function runJourney(): Promise<void> {
 			// the child's next transition surfaces the typed stale-run-cancelled crash
 			const flight = spawnJourneyChild('cancel-flight', ['--root', root], { FLAUZ_JOURNEY_SEED_TASK: seedTaskId });
 			const taskReport = await flight.waitFor('TASK', 90_000);
-			cancelRunTaskId = typeof taskReport['taskId'] === 'string' ? taskReport['taskId'] : '';
+			cancelRunTaskId = typeof taskReport.taskId === 'string' ? taskReport.taskId : '';
 			await flight.waitFor('TOOL-START', 90_000);
 			drillAssert(cancelRunTaskId !== '' && cancelRunTaskId !== seedTaskId, 'leg12 runtime: the flight child reported the run task and blocked on tool 1', `runTaskId ${cancelRunTaskId}`);
 			await state.tasks.appendEvent(cancelRunTaskId, { ts: 90_000, actor: 'human', type: 'cancel', payload: { gate: 'mid-flight-runtime' } });
@@ -1797,10 +1797,10 @@ async function runJourney(): Promise<void> {
 			const report = await flight.waitFor('REPORT', 90_000);
 			const flightExit = await flight.waitExit(15_000);
 			drillAssert(flightExit === 0, 'leg12 runtime: the flight child exited cleanly after the report', `exit ${String(flightExit)}`);
-			const toolCalls = typeof report['toolCalls'] === 'number' ? report['toolCalls'] : -1;
-			const crashTyped = report['crashTyped'] === true;
-			const finalStatus = typeof report['finalStatus'] === 'string' ? report['finalStatus'] : '';
-			const cancelEventActor = typeof report['cancelEventActor'] === 'string' ? report['cancelEventActor'] : '';
+			const toolCalls = typeof report.toolCalls === 'number' ? report.toolCalls : -1;
+			const crashTyped = report.crashTyped === true;
+			const finalStatus = typeof report.finalStatus === 'string' ? report.finalStatus : '';
+			const cancelEventActor = typeof report.cancelEventActor === 'string' ? report.cancelEventActor : '';
 			recorder.check('leg12.cancel-recorded-with-attribution', cancelEventActor === 'human', `the cancel event is recorded with actor ${cancelEventActor}`);
 			recorder.check('leg12.downstream-stopped', toolCalls === 1, `downstream work stopped by the mid-flight cancel: ${String(toolCalls)} tool step(s) executed by the flight child (tool 2 never ran after the cancel)`);
 			recorder.check('leg12.cancel-terminal-typed-surface', finalStatus === 'cancelled' && crashTyped, `the cancelled task stays terminal '${finalStatus}' and the in-flight run surfaced the typed stale-run-cancelled crash at its next transition`);
@@ -1823,9 +1823,9 @@ async function runJourney(): Promise<void> {
 			// window and the parent SIGKILLs it (true process death)
 			const finisher = spawnJourneyChild('finisher', ['--root', root, '--provider-port', String(providerServer.port)], {});
 			const windowReport = await finisher.waitFor('WINDOW-ARMED', 120_000);
-			const journalRowsInChild = typeof windowReport['journalRows'] === 'number' ? windowReport['journalRows'] : -1;
-			const s05StatusInChild = typeof windowReport['s05Status'] === 'string' ? windowReport['s05Status'] : '';
-			const sinkLogLines = typeof windowReport['sinkLogLines'] === 'number' ? windowReport['sinkLogLines'] : -1;
+			const journalRowsInChild = typeof windowReport.journalRows === 'number' ? windowReport.journalRows : -1;
+			const s05StatusInChild = typeof windowReport.s05Status === 'string' ? windowReport.s05Status : '';
+			const sinkLogLines = typeof windowReport.sinkLogLines === 'number' ? windowReport.sinkLogLines : -1;
 			finisher.kill9();
 			const deathExit = await finisher.waitExit(15_000);
 
