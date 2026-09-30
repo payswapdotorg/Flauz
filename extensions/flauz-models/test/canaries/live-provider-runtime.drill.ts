@@ -368,18 +368,18 @@ function finalizeObservation(draft: ObservationDraft): void {
 		if (parsed === undefined) {
 			continue;
 		}
-		const id = asString(parsed['id']);
+		const id = asString(parsed.id);
 		if (draft.responseId === undefined && id !== undefined) {
 			draft.responseId = id;
 		}
-		const model = asString(parsed['model']);
+		const model = asString(parsed.model);
 		if (draft.wireModel === undefined && model !== undefined) {
 			draft.wireModel = model;
 		}
-		const usage = asRecord(parsed['usage']);
+		const usage = asRecord(parsed.usage);
 		if (usage !== undefined) {
-			const promptTokens = asFiniteNumber(usage['prompt_tokens']);
-			const completionTokens = asFiniteNumber(usage['completion_tokens']);
+			const promptTokens = asFiniteNumber(usage.prompt_tokens);
+			const completionTokens = asFiniteNumber(usage.completion_tokens);
 			if (promptTokens !== undefined || completionTokens !== undefined) {
 				draft.wireUsage = {
 					...(promptTokens === undefined ? {} : { promptTokens }),
