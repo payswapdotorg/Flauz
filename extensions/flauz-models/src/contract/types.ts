@@ -24,6 +24,8 @@
  * an explicit future integration gap, see the delivery REPORT).
  */
 
+/// <reference path="../ambient.d.ts" />
+
 /** Chat roles on the neutral wire (mirrors vscode.LanguageModelChatMessageRole values 1/2 + system). */
 export type ChatRole = 'system' | 'user' | 'assistant';
 

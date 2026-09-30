@@ -16,6 +16,8 @@
  * presented as a tokenizer.
  */
 
+/// <reference path="../ambient.d.ts" />
+
 import type { ChatInputPart, ChatMessage, ChatRequest, ResponseProvenance, WireFamily } from './types.ts';
 
 /** Characters per estimated token (heuristic: ~4 chars/token for code-ish text). */

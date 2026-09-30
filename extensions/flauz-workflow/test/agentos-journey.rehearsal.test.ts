@@ -143,6 +143,9 @@ import { WorkflowService } from '../src/envelope.ts';
 import { createEd25519Signer } from '../src/keys.ts';
 import { MemoryStore } from '../../flauz-memory/src/memory.ts';
 import { buildEchoResponse, createMockProvider } from '../../flauz-models/src/mockProvider.ts';
+import { ModelCapabilityRegistry } from '../../flauz-models/src/discovery/registry.ts';
+import { ModelRouter, listDecisions } from '../../flauz-models/src/routing/store.ts';
+import { DEFAULT_ROUTING_POLICY } from '../../flauz-models/src/routing/policy.ts';
 import { A2ABus, type A2aMessage } from '../../flauz-agent/core/a2a.mjs';
 import { OrchestrationStore, type TaskPort } from '../../flauz-agent/core/orchStore.mjs';
 import type { JournalRow } from '../../flauz-agent/core/orchestration.mjs';
@@ -152,68 +155,29 @@ import { delegateStep, ingestResultReport, stepResourceId } from '../../flauz-ag
 import { claimStepLease, isLeaseConflictError, leaseConflictFacts, LEASE_CONFLICT_CODE, type ClaimStepLeaseResult } from '../../flauz-agent/core/leaseConflict.mjs';
 
 // ---------------------------------------------------------------------------
-// The flauz-models fabric surface (RUNTIME-RESOLVED dynamic import)
+// The flauz-models fabric surface (STATIC import)
 //
-// The model fabric (the capability registry + the router + the durable
-// decision ledger) is exercised through a runtime-resolved dynamic import:
-// the flauz-models src surface compiles under flauz-models' OWN tsconfig but
-// NOT under this extension's DEFAULT tsconfig -- the default config's
-// noUnusedLocals flags a foreign unused import in the fabric's routing store,
-// and the fabric's contract/adapters sources need ambient
-// TextDecoder/AbortSignal/'node:buffer' declarations this extension's shims
-// do not provide -- and the additive-only law of this work order forbids
-// editing the default tsconfig (or any foreign file) to wire a dedicated
-// config. The local structural types below mirror the real contracts; the
-// leg's runtime checks assert the REAL behavior (the actual registry,
-// router and decision ledger of flauz-models). The seam itself is recorded
-// as a CANDIDATE FINDING in the evidence artifact.
+// P2-FIX-101 closed the typecheck seam this rehearsal recorded as CF-J1: the
+// flauz-models src surface now compiles under this extension's DEFAULT
+// tsconfig (the fabric's routing store dropped its unused import, and the
+// fabric's ambient TextDecoder/AbortSignal/'node:buffer' declarations now
+// travel with its src surface -- extensions/flauz-models/src/ambient.d.ts),
+// so the model fabric (the capability registry + the router + the durable
+// decision ledger) is imported STATICALLY. The import edge is now
+// typecheck-covered; the legs below still assert the REAL behavior (the
+// actual registry, router and decision ledger of flauz-models).
 // ---------------------------------------------------------------------------
 
-/** Structural mirror of the flauz-models routing decision (the members this journey asserts). */
-interface FabricRoutingDecision {
-	readonly decisionId: string;
-	readonly ruleId?: string;
-	readonly selectionBasis: 'rule-match' | 'no-candidate';
-	readonly selected: { readonly providerId: string; readonly modelId: string } | null;
-	readonly candidates: ReadonlyArray<{ readonly eligible: boolean; readonly exclusionReason?: string }>;
-}
-
-/** Structural mirrors of the fabric constructors (the real classes at runtime). */
-interface FabricRegistryHandle {
-	load(): Promise<void>;
-	list(): readonly unknown[];
-}
-
-interface FabricRouterHandle {
-	route(request: { purpose: string; requirements: Record<string, unknown> }): Promise<FabricRoutingDecision>;
-}
-
+/** The fabric module surface this journey drives (the statically imported real modules). */
 interface FabricModules {
-	readonly ModelCapabilityRegistry: new (deps: { root: string; fs: FileSystemPort; clock: () => number }) => FabricRegistryHandle;
-	readonly ModelRouter: new (deps: { stateDir: string; fs: FileSystemPort; clock: () => number; records: () => readonly unknown[]; policy: unknown }) => FabricRouterHandle;
-	readonly listDecisions: (fs: FileSystemPort, stateDir: string) => Promise<ReadonlyArray<{ decisionId: string }>>;
-	readonly DEFAULT_ROUTING_POLICY: unknown;
-}
-
-/**
- * Runtime-resolved dynamic import: the NON-LITERAL specifier keeps the type
- * checker from resolving (and pulling) the flauz-models sources into this
- * program (see the seam note above); the runtime loads the REAL modules.
- */
-function runtimeImport(specifier: string): Promise<unknown> {
-	return import(specifier);
+	readonly ModelCapabilityRegistry: typeof ModelCapabilityRegistry;
+	readonly ModelRouter: typeof ModelRouter;
+	readonly listDecisions: typeof listDecisions;
+	readonly DEFAULT_ROUTING_POLICY: typeof DEFAULT_ROUTING_POLICY;
 }
 
 async function loadFabricModules(): Promise<FabricModules> {
-	const discovery = await runtimeImport('../../flauz-models/src/discovery/registry.ts');
-	const routing = await runtimeImport('../../flauz-models/src/routing/store.ts');
-	const policy = await runtimeImport('../../flauz-models/src/routing/policy.ts');
-	return {
-		ModelCapabilityRegistry: (discovery as { ModelCapabilityRegistry: FabricModules['ModelCapabilityRegistry'] }).ModelCapabilityRegistry,
-		ModelRouter: (routing as { ModelRouter: FabricModules['ModelRouter']; listDecisions: FabricModules['listDecisions'] }).ModelRouter,
-		listDecisions: (routing as { ModelRouter: FabricModules['ModelRouter']; listDecisions: FabricModules['listDecisions'] }).listDecisions,
-		DEFAULT_ROUTING_POLICY: (policy as { DEFAULT_ROUTING_POLICY: unknown }).DEFAULT_ROUTING_POLICY,
-	};
+	return { ModelCapabilityRegistry, ModelRouter, listDecisions, DEFAULT_ROUTING_POLICY };
 }
 
 // ---------------------------------------------------------------------------
@@ -488,9 +452,9 @@ interface JourneyState {
 	readonly ledger: EvidenceLedger;
 	readonly workflows: WorkflowService;
 	readonly memory: MemoryStore;
-	readonly registry: FabricRegistryHandle;
-	readonly router: FabricRouterHandle;
-	readonly listDecisions: (fs: FileSystemPort, stateDir: string) => Promise<ReadonlyArray<{ decisionId: string }>>;
+	readonly registry: InstanceType<typeof ModelCapabilityRegistry>;
+	readonly router: InstanceType<typeof ModelRouter>;
+	readonly listDecisions: typeof listDecisions;
 	readonly store: OrchestrationStore;
 	readonly bus: A2ABus;
 	readonly sink: JourneyEffectSink;
@@ -501,7 +465,7 @@ interface JourneyState {
  * injected so the LEG 12 cold boot re-creates the sink over the same log
  * with the same effect closures (settled keys replay; the closures never
  * re-run for settled keys). The flauz-models fabric modules are loaded once
- * per journey (runtime-resolved; see the seam note) and shared by both
+ * per journey (statically imported; see the seam note) and shared by both
  * boots -- the INSTANCES are per-boot, the on-disk state is shared.
  */
 async function bootJourney(root: string, effects: ReadonlyMap<string, StepEffectFn>, fabric: FabricModules): Promise<JourneyState> {
@@ -652,7 +616,7 @@ test('the P2-002 agent-domain journey: thirteen chained legs over one shared Age
 		providerWaits.push({ ms });
 	};
 
-	// the flauz-models fabric modules (runtime-resolved; see the seam note) --
+	// the flauz-models fabric modules (statically imported; see the seam note) --
 	// loaded ONCE, shared by both boots (the instances are per-boot)
 	const fabric = await loadFabricModules();
 
