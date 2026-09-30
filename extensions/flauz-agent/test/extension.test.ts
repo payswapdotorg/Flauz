@@ -71,6 +71,9 @@ test('activate wires core + participant + tool + commands and emits the document
 		strictEqual(state.tools[0].name, 'flauz_terminal');
 		ok(state.commands.some((entry) => entry.command === 'flauz.showTasks'));
 		ok(state.commands.some((entry) => entry.command === 'flauz.verifyLedger'));
+		// P2-FIX-204: the fifth human gate's row/palette affordance command is
+		// registered with the bridge commands (title "Take Over Step…").
+		ok(state.commands.some((entry) => entry.command === 'flauz.agent.takeoverStep'));
 		strictEqual(
 			recorder.marks.filter((name) => name.startsWith('code/flauz/')).join(','),
 			'code/flauz/willActivateBridge,code/flauz/willConnectCore,code/flauz/didConnectCore,code/flauz/willRegisterParticipants,code/flauz/didRegisterParticipants,code/flauz/willWarmModels,code/flauz/didWarmModels,code/flauz/didActivateBridge',

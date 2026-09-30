@@ -63,7 +63,7 @@ export type ParticipantRegistrar = (
 	dispose(): void;
 };
 
-/** Register the participant with followups for the four human gates. */
+/** Register the participant with followups for the five human gates. */
 export function registerParticipant(
 	register: ParticipantRegistrar,
 	deps: ParticipantDeps,
@@ -76,6 +76,7 @@ export function registerParticipant(
 				{ prompt: 'request changes', command: 'request-changes', label: 'Request changes' },
 				{ prompt: 'sign off', command: 'sign-off', label: 'Sign off' },
 				{ prompt: 'cancel', command: 'cancel', label: 'Cancel task' },
+				{ prompt: 'take over the stuck step', command: 'takeover', label: 'Take over step' },
 			];
 		},
 	};

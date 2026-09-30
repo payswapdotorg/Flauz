@@ -65,14 +65,16 @@ function buildParticipant(seam: SeamLike) {
 	return { handler: entry.handler as vscode.ChatRequestHandler, state };
 }
 
-test('participant registers as flauz.agent with followups for the four human gates', () => {
+test('participant registers as flauz.agent with followups for the five human gates', () => {
 	const seam = recordingSeam();
 	const { state } = buildParticipant(seam);
 	strictEqual(state.participants.length, 1);
 	strictEqual(state.participants[0].id, 'flauz.agent');
 	const followups = state.participants[0].followupProvider?.provideFollowups({} as never, {} as never, undefined as never) as vscode.ChatFollowup[];
 	ok(Array.isArray(followups));
-	strictEqual(followups.map((followup) => followup.command).join(','), 'approve,request-changes,sign-off,cancel');
+	// P2-FIX-204: the takeover escape hatch is the fifth followup (mirrors the
+	// package.json participant command — the fifth human gate).
+	strictEqual(followups.map((followup) => followup.command).join(','), 'approve,request-changes,sign-off,cancel,takeover');
 });
 
 test('free prompts route to handlePrompt; commands route to handleCommand', async () => {
