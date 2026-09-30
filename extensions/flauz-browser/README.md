@@ -134,9 +134,9 @@ global `WebSocket` of Node 22+):
 | CDP client | `src/cdp/transport.ts` | The `CdpTransport` port: promise-based `send(method, params, sessionId?)` with monotonically increasing message ids + response correlation + per-command timeouts; `on(method, handler)` event fan-out (session-scoped CDP events carry the flat-protocol `sessionId`); one-shot `close()`. `WebSocketCdpTransport` implements it over a DevTools WebSocket endpoint (injectable socket factory; no `ws` package). |
 | Simulator | `src/cdp/fake.ts` | `FakeCdpTransport` — **TEST INFRASTRUCTURE, NOT PRODUCTION CODE**: a scriptable Chromium simulator (Target lifecycle, Page.navigate lifecycle with committed-URL mapping, deterministic screenshots, on-cue console/log/network events, `drop()`, wedged modes, a per-connection sent-command log that is THE policy-gating assertion surface). Browser state is shareable across connections for recovery drills. |
 | Sessions | `src/runtime/session.ts`, `src/runtime/sessionManager.ts` | The `BrowserSessionDescriptor` (schema `flauz.browser-session/v0`, an ARCHITECTURE-LOCK section 5 contract family member): `{ schemaVersion: 0, sessionId, initiator, agentId?, partition, policySourceRef, createdAt, state, tabs }`. `sessionId` is a LOGICAL id `flauz:browser:<16-hex>` — never a URL, never a path. `BrowserSessionManager`: open/list/focus/close, navigation, capture, recovery. |
-| Navigation pipeline | `src/runtime/tabs.ts` | The heart (posture P0): (1) verdict via `engine.evaluate` with the SESSION's initiator class; (2) **deny: NO CDP command is sent at all**; (3) allow: `Page.navigate` -> await the COMMITTED url -> `reconcileCommittedUrl` -> on violation return the `about:blank` forced-reset recommendation AND (TL3-002, G6) EXECUTE it via the narrow typed `runForcedReset` when `security.enforceReset` is true — the outcome records `violation.resetExecuted`. Wedged tabs (command timeout on a live transport) are replaced. |
+| Navigation pipeline | `src/runtime/tabs.ts` | The heart (posture P0): (1) verdict via `engine.evaluate` with the SESSION's initiator class; (2) **deny: NO CDP command is sent at all**; (3) allow: `Page.navigate` -> await the COMMITTED url -> `reconcileCommittedUrl` -> on violation return the `about:blank` forced-reset recommendation AND (TL3-002, G6) EXECUTE it via the narrow typed `runForcedReset` when `security.enforceReset` is true — the outcome records `violation.resetExecuted`. Wedged tabs (command timeout on a live transport) are replaced. `enableTabDomains` (exported since the TL3-P2 fix) is mint-time activation step 1 — the Page/Runtime/Network/Log domain enables — shared by `activateLiveTab` AND the recovery re-attach (F-RECOVERY-DOMAINS: real Chromium delivers Page events only to enabled sessions). |
 | Session hardening | `src/runtime/hardening.ts` | TL3-002 items 3.1/3.2, applied on EVERY tab activation (open, wedged replacement, gate attach, recovery re-attach), fail-closed: `Browser.setDownloadBehavior {behavior:'deny'}` for EVERY session (v0 has NO allow surface — a future allow surface is a future policy decision, not implemented); `Emulation.setUserAgentOverride` with the browser's own UA + the appended `FlauzAgent/<v>` product token for AGENT sessions only (human sessions keep the browser default; the partition/session identity is never embedded in the UA). |
-| Popup / new-target gate | `src/runtime/sessionManager.ts` (`attachTargetGate`/`handleAttachedTarget`) | TL3-002 item 3.3: every live tab `Target.setAutoAttach` (flatten, `waitForDebuggerOnStart`, page-filter) so targets created by the tab (window.open / target=_blank — the B1c bypass class for popups) are gated BEFORE first use: the target's URL is policy-checked with the SESSION's initiator class; denied => closed immediately + an evidence row (untrusted-content marked); allowed => released (`Runtime.run`) and attached as a tab of the SAME session (hardened + gated — nested popups too). A denied target that cannot be closed fails the SESSION (fail-closed). |
+| Popup / new-target gate | `src/runtime/sessionManager.ts` (`attachTargetGate`/`handleAttachedTarget`) | TL3-002 item 3.3: every live tab `Target.setAutoAttach` (flatten, `waitForDebuggerOnStart`, page-filter) so targets created by the tab (window.open / target=_blank — the B1c bypass class for popups) are gated BEFORE first use: the target's URL is policy-checked with the SESSION's initiator class; denied => closed immediately + an evidence row (untrusted-content marked); allowed => released (`Runtime.runIfWaitingForDebugger` — the REAL CDP release method; `Runtime.run` is not a real method, fixed by the TL3-P2 audit after drill finding F-RELEASE-CMD) and attached as a tab of the SAME session (hardened + gated — nested popups too). A denied target that cannot be closed fails the SESSION (fail-closed). |
 | Session journal | `src/runtime/journal.ts` | TL3-002 item 3.6 (CROSS-WORKER CONTRACT PIN-1): append-only `.flauz/browser-sessions.jsonl` at the workspace root; one canonical-JSON record + `\n` per open/state-transition/close/failure (schema `flauz.browser-session-journal/v0`, full descriptor snapshots, MANDATORY actor — an unknown initiator fails the write loudly and a journal failure at OPEN fails the session). The read-side `validateSessionJournalLine` is the contract checker for the lane that consumes the journal READ-ONLY; fixtures at `test/fixtures/browser-session-journal/`. |
 | Capture + evidence | `src/runtime/capture.ts` | Console (`Runtime.consoleAPICalled`, `Log.entryAdded`) and network (`Network.*`) capture buffers, screenshots — each mappable to an evidence row via the EXISTING `toEvidenceRow`. Capture-derived rows that embed page-derived strings (console/network/screenshot/popup URLs) carry the machine-checkable `untrusted-content:` BOUNDARY MARKER in the note (a marker, NOT content sanitization — no sanitization claim). Artifacts flow through the injected `ArtifactWriterPort` to `.flauz/artifacts/<taskId>/` (production: `FileSystemArtifactWriter`; tests: `InMemoryArtifactWriter`). |
 | Host adapters | `src/runtime/host.ts` | The `BrowserHost` port with two implementations: `CdpEndpointHost` (an EXTERNAL Chromium over a CDP WebSocket endpoint from `FLAUZ_CDP_ENDPOINT` — the sidecar/headless/test path) and `WorkbenchBrowserHost` (posture P0: `window.openBrowserTab` + `BrowserTab.startCDPSession` through STRUCTURAL ports; the vendored `vscode-dts/vscode.proposed.browser.d.ts` is the only file carrying proposed-API types). |
@@ -146,13 +146,18 @@ the affected sessions go `suspended`; the manager reconnects (fresh transport),
 reconciles the tab list against the descriptors (existing targets re-attached
 and RESTORED — only targets the ownership registry attributes to the session's
 session+partition, TL3-002 item 3.5 — vanished targets marked LOST), re-applies
-the per-session hardening + popup gate to every re-attached tab, re-checks
-every recovered tab's URL against the CURRENT policy (violations surface as
-evidence rows in the recovery verdict), and every subsequent navigation is
-gated against the current engine again. A failed reconnect marks the sessions
-`failed` (never a half-open state). A wedged tab is closed best-effort at the
-browser level, marked `failed` with `replacedByTabId` pointing at a fresh
-`about:blank` tab. Every state transition is journaled (item 3.6).
+the FULL mint-time activation to every re-attached tab — domain enables
+(`Page.enable`/`Runtime.enable`/`Network.enable`/`Log.enable`, the TL3-P2 fix
+for drill finding F-RECOVERY-DOMAINS: real Chromium delivers Page events only
+to enabled sessions, so without the re-enable every post-recovery commit
+observation timed out and the post-commit reconciliation was skipped) + the
+per-session hardening + popup gate — re-checks every recovered tab's URL
+against the CURRENT policy (violations surface as evidence rows in the
+recovery verdict), and every subsequent navigation is gated against the
+current engine again. A failed reconnect marks the sessions `failed` (never a
+half-open state). A wedged tab is closed best-effort at the browser level,
+marked `failed` with `replacedByTabId` pointing at a fresh `about:blank` tab.
+Every state transition is journaled (item 3.6).
 
 **Session state machine**: `opening -> active -> suspended (drop, while
 recovering) -> closed`, plus `failed` (with an error record) for: partition
@@ -254,17 +259,29 @@ What it PINS as real-Chromium divergences from the FakeCdpTransport contract
 (asserted as observed — drift canaries; if Chromium changes, the drill fails
 and forces a re-look): **F-DELIVERY** (page-session `Target.setAutoAttach` —
 the popup gate's placement — does NOT deliver `window.open` popups; they are
-browser-level targets and free-run), **F-POPUP-URL** (at browser-level
-attach a popup arrives with `targetInfo.url` EMPTY — the pending URL is not
-available at gate time), **F-RELEASE-CMD** (`Runtime.run` is not a real CDP
-method; the real release is `Runtime.runIfWaitingForDebugger` — the gate's
-allow-path sends `Runtime.run`), **F-OPENER-BLOCK** (`window.open` blocks the
-opener while a popup is held; never returns if the held popup is closed),
-and **F-RECOVERY-DOMAINS** (the recovery re-attach does not re-send
-`Page.enable`, so post-recovery commit observation times out — the fake
-cannot catch this because it does not model domain-enable state). These are
-recorded for the TL as fix candidates (see INTEGRATION-GAP.md "What
-remains"); this lane reports and pins them, it does not paper over them.
+browser-level targets and free-run; OPEN — the TL-adjudicated browser-level
+gate-placement redesign), **F-POPUP-URL** (at browser-level attach a popup
+arrives with `targetInfo.url` EMPTY — the pending URL is not available at
+gate time; OPEN — same redesign decision), and **F-OPENER-BLOCK**
+(`window.open` blocks the opener while a popup is held; never returns if the
+held popup is closed; OPEN — the redesign's timing shape). These three remain
+recorded for the TL as the gate-placement fix candidates (see
+INTEGRATION-GAP.md "What remains"); this lane reports and pins them, it does
+not paper over them.
+
+**Two of the five originally pinned findings are FIXED (TL3-P2 partition A
+product-readiness audit, branch `tl3/p2-partition-a`), each with a unit
+regression test that fails on the untouched base and a flipped real-wire
+drill assertion:** **F-RELEASE-CMD** — the gate allow-path now releases held
+targets with the REAL CDP command `Runtime.runIfWaitingForDebugger` (`Runtime.run`
+is not a real method; with the wrong command every policy-ALLOWED popup was
+closed instead of attached on a real browser; the fake now models the real
+wire, rejecting `Runtime.run` like real Chromium); and **F-RECOVERY-DOMAINS**
+— the recovery re-attach now runs the FULL mint-time activation on the fresh
+session (domain enables + hardening + gate; previously the missing
+`Page.enable` re-send made every post-recovery commit observation time out on
+real Chromium, silently skipping the security-relevant post-commit
+reconciliation after each transport drop).
 
 ```sh
 # launch a real Chromium (a DevTools endpoint + popup blocking disabled —

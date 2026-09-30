@@ -15,9 +15,11 @@
  *     waitForDebuggerOnStart) and gates each new target's URL through the
  *     policy engine with the SESSION's initiator class BEFORE the target is
  *     used: denied => the target is closed immediately + an evidence row;
- *     allowed => the target is released (Runtime.run) and attached as a tab of
- *     the SAME session. This closes the window.open/target=_blank bypass of
- *     the navigation gate.
+ *     allowed => the target is released (Runtime.runIfWaitingForDebugger —
+ *     the REAL CDP release method; `Runtime.run` is not a real method, fixed
+ *     by the TL3-P2 audit after drill finding F-RELEASE-CMD) and attached as
+ *     a tab of the SAME session. This closes the window.open/target=_blank
+ *     bypass of the navigation gate.
  *   - Credential isolation (item 3.5): tabs belong to exactly one
  *     session/partition — cross-partition tab use is a TYPED error
  *     (`flauz.browser.tab.cross-partition`), same-partition foreign-session
@@ -76,6 +78,7 @@ import {
 } from './session.ts';
 import {
 	activateLiveTab,
+	enableTabDomains,
 	type ForcedResetOutcome,
 	type LiveTab,
 	runNavigation,
@@ -703,7 +706,9 @@ export class BrowserSessionManager {
 	 * The gate itself: BEFORE a new target created by a session tab is
 	 * used, its URL is policy-checked with the SESSION's initiator class.
 	 * DENY => the target is closed immediately + an evidence row. ALLOW =>
-	 * the (waiting) target is released via Runtime.run and attached as a
+	 * the (waiting) target is released via Runtime.runIfWaitingForDebugger
+	 * (the REAL CDP release command — `Runtime.run` is not a real method;
+	 * the TL3-P2 fix for drill finding F-RELEASE-CMD) and attached as a
 	 * tab of the SAME session (ownership, hardening, and its own gate —
 	 * nested popups are gated too). Closing failures on denied targets
 	 * fail the SESSION (fail-closed: an ungovernable target never
@@ -774,10 +779,16 @@ export class BrowserSessionManager {
 			}
 
 			// ALLOW: release the waiting target and attach it as a tab of
-			// this session (BEFORE this point the target was never used).
+			// this session (BEFORE this point the target was never used). The
+			// release command is `Runtime.runIfWaitingForDebugger` — the REAL
+			// CDP method (real Chromium answers `Runtime.run` with
+			// "'Runtime.run' wasn't found": drill finding F-RELEASE-CMD, fixed
+			// here by the TL3-P2 partition A audit — with the wrong command
+			// every policy-ALLOWED popup hit this catch path and was closed on
+			// a real browser).
 			try {
 				const handle = await this.host.attachTab(targetId);
-				await handle.transport.send('Runtime.run');
+				await handle.transport.send('Runtime.runIfWaitingForDebugger');
 				const live = await activateLiveTab(this.deps, descriptor, handle.transport, targetId, url);
 				await this.attachTargetGate(entry, live);
 				this.registerTargetOwnership(descriptor, live.record);
@@ -903,8 +914,12 @@ export class BrowserSessionManager {
 	/**
 	 * Transport-drop recovery: suspend live sessions, reconnect (fresh
 	 * transport), reconcile the tab list vs the descriptors (restore what
-	 * exists, mark lost tabs), re-apply the per-session hardening + popup
-	 * gate to every re-attached tab, and re-check the reconciled state
+	 * exists, mark lost tabs), re-apply the FULL mint-time activation to
+	 * every re-attached tab (domain enables + per-session hardening +
+	 * popup gate — the domain re-enable is the TL3-P2 fix for drill
+	 * finding F-RECOVERY-DOMAINS: without it, post-recovery commit
+	 * observation timed out on real Chromium and the post-commit
+	 * reconciliation was skipped), and re-check the reconciled state
 	 * against the CURRENT policy (violations surface as evidence rows;
 	 * every further navigation is gated against the current engine again).
 	 * Re-attach only touches targets the ownership registry attributes to
@@ -985,9 +1000,16 @@ export class BrowserSessionManager {
 						try {
 							const handle = await this.host.attachTab(record.targetId);
 							tab.transport = handle.transport;
-							// Re-apply the per-session hardening on the FRESH session
-							// (fail-closed: a tab that cannot be hardened is lost, not
-							// silently re-opened) and re-attach its popup gate.
+							// Re-apply the FULL mint-time activation on the FRESH
+							// session (fail-closed: a tab that cannot be activated
+							// is lost, not silently re-opened): domain enables (the
+							// TL3-P2 fix for drill finding F-RECOVERY-DOMAINS — real
+							// Chromium delivers Page events only to sessions with the
+							// domain enabled, so without the re-enable every
+							// post-recovery commit observation timed out and the
+							// post-commit reconciliation was skipped), then the
+							// per-session hardening, then the popup gate.
+							await enableTabDomains(handle.transport);
 							await applySessionHardening(handle.transport, entry.descriptor);
 							await this.attachTargetGate(entry, tab);
 							tab.recorder.attach(handle.transport);
