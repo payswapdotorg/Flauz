@@ -499,7 +499,7 @@ test('concurrent conflicting claims serialize through the transition lock and ea
 // ---------------------------------------------------------------------------
 
 test('the typed conflict maps into the closed failure taxonomy: an OrchestrationError subclass carrying the conflict facts', () => {
-	const error = new LeaseConflictError({ resource: 'flauz-orch/G-001/S-01', violation: 'lease', holder: 'agent-a', leaseId: 'L-001-01-1', deadline: 1_700_000_060_000, claimant: 'agent-b' });
+	const error = new LeaseConflictError({ code: LEASE_CONFLICT_CODE, resource: 'flauz-orch/G-001/S-01', violation: 'lease', holder: 'agent-a', leaseId: 'L-001-01-1', deadline: 1_700_000_060_000, claimant: 'agent-b' });
 	assert.ok(error instanceof OrchestrationError);
 	assert.equal(error.code, 'illegal-transition', 'the domain code rides the closed ORCHESTRATION_ERROR_CODE_MAP (the taxonomy posture)');
 	assert.equal(error.conflictCode, LEASE_CONFLICT_CODE, 'the conflict identity is the a2a namespace');
