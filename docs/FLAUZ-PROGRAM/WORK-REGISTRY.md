@@ -646,7 +646,7 @@ Handoff: `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
 Completion record: dispatched through the replay worker lane (Worker B, packet pinned @ `7558680d8`; local commit `14fb6b68` — the worker delivered its full completion report; harvest sha256-verified 13/13 primary files + 95 fixture files probe-verified = 108/108). Delivered: the 9-area discovery audit — 23-row rubric (TL4-PRODUCT-HANDOFF checklist x persona split) audited over the REAL view sources/manifests/participant/guide at `local-real` (static-contract evidence class — the ia-gate/premium-ux-gate precedent): 18 PASS · 5 NON-PASS routed P2-FIX-201..205 (201 environments-welcome-primary-action, 202 home-workflows-row-inert, 203 delegation-a2a-undiscoverable, 204 takeover-not-comprehensible, 205 agent-bridge-commands-uncategorized) · 0 non-audited. Harness: `build/flauz/discovery/` (zero-dep gate, fail-closed, KNOWN_GAPS pin registry, `--strict` post-fix mode) + 11 fixture cases in verify-fixtures.sh (5 fixture trees x 19 files) + CI step in flauz-hygiene.yml. Evidence artifact `docs/FLAUZ-PROGRAM/acceptance/p2-003-discovery-audit.md` (with proposed registry text — landed here). Findings routed: P2-FIX-201..205 (owners: 201/202/205 TL4; 203/204 TL2). STATION re-verification (independent): discovery gate on the real tree 18 PASS / 6 KNOWN-GAP routed (exit 0 --require; enforced-fail --strict); clean fixture 23/23 CLEAN; 4 drift fixtures fire REGRESSIONS fail-closed; verify-fixtures 230-case family green (the 224/230 delta is node_modules-presence variance, 0 deviations both ways); fixtures/compat/fork-critical/activation/ia/premium-ux/budget green; CI lanes green on the merge head. Honest residues: workbench boot infeasible in the delivery sandbox — runtime re-verification named in each finding's acceptance test (the single largest residual); a11y is labels-only (source-level); personas are analytical walkthroughs, no live user sessions.
 
 ### P2-FIX-* — Acceptance/discovery findings
-Status: CLAIM WAVE OPEN (2026-09-30): TL2 has claimed its five routed findings (101/103/104/203/204 — record below); 102 (TL1), 105 (TL3) and 201/202/205 (TL4) remain READY-TO-CLAIM for their routed owners
+Status: CLAIM WAVE OPEN (2026-09-30): TL2 has claimed its five routed findings (101/103/104/203/204 — record below) and TL4 has claimed its three (201/202/205 — record below); 102 (TL1) and 105 (TL3) remain READY-TO-CLAIM for their routed owners
 Owner: routed by domain
 
 Finding IDs are created by TL4 and routed to exactly one owner:
@@ -667,6 +667,20 @@ Pinned base: `e063c12b95141c96e2edc6e5ddde0cbc0e301146` (flauz main at claim tim
 - **P2-FIX-204** (takeover fifth human gate) — partition A — branch `flauz-p2fix/p2-fix-204`
 
 Claim discipline: minimal-diff per finding acceptance test; gate-frozen battery byte-identical; targeted tests + evidence at the honestly-achieved level; individual landing PRs; TL4 independent retest to close each. TL2 claims no finding outside its routed set (102/105/201/202/205 untouched).
+
+#### TL4 claim record — P2-FIX-201/202/205 (2026-09-30)
+Pinned base: `e063c12b95141c96e2edc6e5ddde0cbc0e301146` (identical to the TL2 claim-wave base; the findings were authored + station-verified at base `7558680d8` and landed on main via PR #55 — the acceptance shapes are pinned in the P2-003 clean fixture tree `test/fixtures/discovery-gate/clean/` and the discovery gate's KNOWN_GAPS registry). All three work orders are dispatched through the replay worker lane per the operator's product-phase directive (workers only; the station implements nothing). One dedicated branch per finding, cut from the pinned base only:
+
+- **P2-FIX-201** (environments welcome misses its primary action) — partition D — branch `flauz-p2fix/p2-fix-201`
+- **P2-FIX-202** (the one inert Home row) — partition D — branch `flauz-p2fix/p2-fix-202`
+- **P2-FIX-205** (agent-bridge commands uncategorized) — partition D — branch `flauz-p2fix/p2-fix-205`
+
+Per-finding acceptance contracts (evidence level `local-real` static contract per the P2-003 audit; the runtime re-verification is the TL4 station's named residual — see claim discipline):
+- **201** — the `flauz.environments` welcome links `flauz.env.register` (Register Environment) as its primary action, per the clean-fixture shape (the Register link precedes Refresh and Back-to-Home; the command already ships in the palette with category Flauz and in the guide's "Where to go next"). Acceptance: discovery gate row DA03 PASS on the real tree + station runtime re-verification.
+- **202** — the Home `workflowsRow()` `!state.present` branch carries `command: flauz.workflow.save` ("Save Run as Workflow" — the trigger that creates the index; mirrors the Environments not-initialized contrast) and the tooltip gains the clean-fixture guidance sentence. Acceptance: DA06 PASS + station runtime re-verification.
+- **205** — `flauz.showTasks` and `flauz.verifyLedger` gain `category: "Flauz"` (joining the palette family; clean-fixture titles unchanged). Acceptance: DA18 PASS ×2 + station runtime re-verification. The audit narrative's title-collision / raw-dump / verdict-surface remarks are explicitly DEFERRED beyond this claim (outside the minimal-diff acceptance shape the clean fixture pins; candidates for a future UX-polish wave — recorded, not lost).
+
+Claim discipline: minimal-diff per finding acceptance test; gate-frozen battery byte-identical; targeted tests + evidence at the honestly-achieved level; individual landing PRs; TL4 independent retest to close each (discovery gate `--strict` on each merged tree — all five pinned instances retired — plus the named runtime re-verification). TL4 claims no finding outside its routed set (102/105/101/103/104/203/204 untouched).
 
 ### TL2-ACC-1 — Agent-domain journey rehearsal (P2-002 support)
 Status: DONE
