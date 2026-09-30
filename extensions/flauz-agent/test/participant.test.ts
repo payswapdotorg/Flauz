@@ -8,6 +8,8 @@
 
 import { test } from 'node:test';
 import { ok, strictEqual, match } from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Orchestrator, GOLDEN_COMMAND, type ChatStreamLike, type ToolResultLike } from '../src/orchestrator.ts';
 import { registerParticipant, PARTICIPANT_ID } from '../src/participant.ts';
 import { createMockVscode } from './harness/vscode-mock.ts';
@@ -72,7 +74,8 @@ test('participant registers as flauz.agent with followups for the four human gat
 	strictEqual(state.participants[0].id, 'flauz.agent');
 	const followups = state.participants[0].followupProvider?.provideFollowups({} as never, {} as never, undefined as never) as vscode.ChatFollowup[];
 	ok(Array.isArray(followups));
-	strictEqual(followups.map((followup) => followup.command).join(','), 'approve,request-changes,sign-off,cancel');
+	const commandFollowups = followups.filter((followup) => followup.command !== undefined);
+	strictEqual(commandFollowups.map((followup) => followup.command).join(','), 'approve,request-changes,sign-off,cancel');
 });
 
 test('free prompts route to handlePrompt; commands route to handleCommand', async () => {
@@ -92,4 +95,27 @@ test('free prompts route to handlePrompt; commands route to handleCommand', asyn
 
 	const unknown = await drive(handler, { command: 'bogus', prompt: '' });
 	match(unknown.markdown.join('\n'), /Unknown command/);
+});
+
+test('P2-FIX-203: the participant description names worker-agent delegation (the DA11 surface)', () => {
+	const manifestPath = fileURLToPath(new URL('../package.json', import.meta.url));
+	const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
+		contributes: { chatParticipants: Array<{ id: string; description: string }> };
+	};
+	const participant = manifest.contributes.chatParticipants.find((entry) => entry.id === 'flauz.agent');
+	ok(participant !== undefined, 'flauz.agent is contributed');
+	match(participant.description, /delegate steps to worker agents/, 'the description names the delegation capability (the DA11 corpus word)');
+	match(participant.description, /approval gates/, 'DA07 regression: the approval gates stay named');
+	match(participant.description, /evidence ledger/, 'DA07 regression: the evidence ledger stays named');
+});
+
+test('P2-FIX-203: followups offer delegating a step of a multi-step plan to a worker agent', () => {
+	const seam = recordingSeam();
+	const { state } = buildParticipant(seam);
+	const followups = state.participants[0].followupProvider?.provideFollowups({} as never, {} as never, undefined as never) as vscode.ChatFollowup[];
+	ok(Array.isArray(followups));
+	const delegation = followups.find((followup) => followup.command === undefined);
+	ok(delegation !== undefined, 'the prompt-only delegation followup is contributed');
+	strictEqual(delegation.prompt, 'delegate a step of this plan to a worker agent');
+	strictEqual(delegation.label, 'Delegate a step to a worker agent');
 });
