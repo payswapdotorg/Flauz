@@ -646,7 +646,7 @@ Handoff: `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
 Completion record: dispatched through the replay worker lane (Worker B, packet pinned @ `7558680d8`; local commit `14fb6b68` — the worker delivered its full completion report; harvest sha256-verified 13/13 primary files + 95 fixture files probe-verified = 108/108). Delivered: the 9-area discovery audit — 23-row rubric (TL4-PRODUCT-HANDOFF checklist x persona split) audited over the REAL view sources/manifests/participant/guide at `local-real` (static-contract evidence class — the ia-gate/premium-ux-gate precedent): 18 PASS · 5 NON-PASS routed P2-FIX-201..205 (201 environments-welcome-primary-action, 202 home-workflows-row-inert, 203 delegation-a2a-undiscoverable, 204 takeover-not-comprehensible, 205 agent-bridge-commands-uncategorized) · 0 non-audited. Harness: `build/flauz/discovery/` (zero-dep gate, fail-closed, KNOWN_GAPS pin registry, `--strict` post-fix mode) + 11 fixture cases in verify-fixtures.sh (5 fixture trees x 19 files) + CI step in flauz-hygiene.yml. Evidence artifact `docs/FLAUZ-PROGRAM/acceptance/p2-003-discovery-audit.md` (with proposed registry text — landed here). Findings routed: P2-FIX-201..205 (owners: 201/202/205 TL4; 203/204 TL2). STATION re-verification (independent): discovery gate on the real tree 18 PASS / 6 KNOWN-GAP routed (exit 0 --require; enforced-fail --strict); clean fixture 23/23 CLEAN; 4 drift fixtures fire REGRESSIONS fail-closed; verify-fixtures 230-case family green (the 224/230 delta is node_modules-presence variance, 0 deviations both ways); fixtures/compat/fork-critical/activation/ia/premium-ux/budget green; CI lanes green on the merge head. Honest residues: workbench boot infeasible in the delivery sandbox — runtime re-verification named in each finding's acceptance test (the single largest residual); a11y is labels-only (source-level); personas are analytical walkthroughs, no live user sessions.
 
 ### P2-FIX-* — Acceptance/discovery findings
-Status: READY-TO-CLAIM (10 landed by the P2 wave: 101..105 + 201..205)
+Status: CLAIM WAVE OPEN (2026-09-30): TL2 has claimed its five routed findings (101/103/104/203/204 — record below); 102 (TL1), 105 (TL3) and 201/202/205 (TL4) remain READY-TO-CLAIM for their routed owners
 Owner: routed by domain
 
 Finding IDs are created by TL4 and routed to exactly one owner:
@@ -656,6 +656,17 @@ Finding IDs are created by TL4 and routed to exactly one owner:
 - TL4: UX/IA/accessibility/performance/compatibility/release
 
 A finding must include evidence level, reproduction, owning TL, acceptance test and architecture impact before implementation begins.
+
+#### TL2 claim record — P2-FIX-101/103/104/203/204 (2026-09-30)
+Pinned base: `e063c12b95141c96e2edc6e5ddde0cbc0e301146` (flauz main at claim time; the findings were authored + station-verified at base `7558680d8c537cc724c5026ca4a637afc86a1d72` and landed on main via PR #54/#55 — the TL2 station verified each finding text on main verbatim before claiming). All five work orders are dispatched through the replay worker lane per the operator's product-phase directive (workers only; the station implements nothing). One dedicated branch per finding, cut from the pinned base only:
+
+- **P2-FIX-101** (models-fabric cross-extension typecheck) — partition B — branch `flauz-p2fix/p2-fix-101`
+- **P2-FIX-103** (leaseConflict declaration code field) — partition A — branch `flauz-p2fix/p2-fix-103`
+- **P2-FIX-104** (bus notice outlives lease release) — partition C — branch `flauz-p2fix/p2-fix-104`
+- **P2-FIX-203** (delegation/A2A user-facing surface) — partition C — branch `flauz-p2fix/p2-fix-203`
+- **P2-FIX-204** (takeover fifth human gate) — partition A — branch `flauz-p2fix/p2-fix-204`
+
+Claim discipline: minimal-diff per finding acceptance test; gate-frozen battery byte-identical; targeted tests + evidence at the honestly-achieved level; individual landing PRs; TL4 independent retest to close each. TL2 claims no finding outside its routed set (102/105/201/202/205 untouched).
 
 ### TL2-ACC-1 — Agent-domain journey rehearsal (P2-002 support)
 Status: DONE
