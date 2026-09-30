@@ -242,3 +242,7 @@ extensions/flauz-agent/core/orchMediator.mjs
 # into the canary --extensions-dir, the compat-l3 fixture precedent)
 build/flauz/scripts/b-policy-boot-drill.mjs
 test/fixtures/browser-policy-driver/main.js
+# Flauz TL4/P2-003 user discovery audit gate (zero-dep .mjs harness, build/flauz/README.md conventions)
+build/flauz/discovery/p2-003-discovery-gate.mjs
+build/flauz/discovery/rubric.mjs
+build/flauz/discovery/audit.mjs

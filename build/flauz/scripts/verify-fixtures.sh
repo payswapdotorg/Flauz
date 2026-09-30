@@ -133,6 +133,20 @@ expect "premium-ux-gate empty dir --require FAIL"      1 node "$S/premium-ux-gat
 expect "premium-ux-gate usage error (bad flag)"        2 node "$S/premium-ux-gate.mjs" --definitely-not-a-flag
 expect "premium-ux-gate --help"                        0 node "$S/premium-ux-gate.mjs" --help
 
+# ---- p2-003-discovery-gate: TL4/P2-003 user discovery audit ----
+D="$ROOT/build/flauz/discovery/p2-003-discovery-gate.mjs"
+expect "discovery-gate clean fixture PASS"            0 node "$D" --root "$F/discovery-gate/clean" --require
+expect "discovery-gate real tree PASS (known gaps pinned)" 0 node "$D" --root "$ROOT" --require
+expect "discovery-gate real tree --strict FAIL (enforce pinned gaps)" 1 node "$D" --root "$ROOT" --require --strict
+expect "discovery-gate missing view FAIL"              1 node "$D" --root "$F/discovery-gate/fail-missing-view" --require
+expect "discovery-gate welcome no-link FAIL"          1 node "$D" --root "$F/discovery-gate/fail-welcome-link" --require
+expect "discovery-gate error-grammar FAIL"            1 node "$D" --root "$F/discovery-gate/fail-error-grammar" --require
+expect "discovery-gate a11y-labels FAIL"              1 node "$D" --root "$F/discovery-gate/fail-a11y" --require
+expect "discovery-gate empty dir SKIP"                0 node "$D" --root "$F/perf-timers"
+expect "discovery-gate empty dir --require FAIL"      1 node "$D" --root "$F/perf-timers" --require
+expect "discovery-gate usage error (bad flag)"        2 node "$D" --definitely-not-a-flag
+expect "discovery-gate --help"                        0 node "$D" --help
+
 # ---- proposed-api-rota: DL-4 churn gate ----
 expect "rota clean fixture PASS"                       0 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/clean"
 expect "rota dirty fixture FAIL (absent+mismatch)"     1 node "$S/proposed-api-rota.mjs" --repo-root "$F/rota/dirty"

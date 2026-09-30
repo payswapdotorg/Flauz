@@ -92,6 +92,13 @@ jobs:
       - name: Premium UX gate (TL4-002 — state/a11y/typography discipline)
         run: node build/flauz/scripts/premium-ux-gate.mjs --root . --require
 
+      - name: Discovery audit gate (TL4/P2-003 — user discovery rubric)
+        # P2-003: the 23-row discovery rubric (static-contract class). Misses
+        # pinned in the gate's KNOWN_GAPS registry are routed P2-FIX findings
+        # (non-fatal here); unpinned misses fail. --strict is the post-fix
+        # enforcement mode for the TL4 station re-verification.
+        run: node build/flauz/discovery/p2-003-discovery-gate.mjs --root . --require
+
       - name: Verify product shell (TL1-002 — merged product posture)
         run: node build/flauz/scripts/verify-product.mjs --root . --require
 
