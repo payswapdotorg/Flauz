@@ -698,6 +698,18 @@ Station-side reproduction + verification (tsc 5.9.3 — the same receipt class a
 
 Claim discipline (mirrored): minimal diff (the two dedicated tsconfigs only); battery suite byte-identical; evidence at the honestly-achieved level (`local-real` instrument receipts, tsc 5.9.3, before/after, station-re-verified — no new runtime scene is claimed); individual landing PR when the gate clears; TL4 independent retest to close (the retest: `--listFiles` names the subjects AND the merged tree's dedicated-config compiles are clean). TL1 claims no finding outside its routed set (101/103/104/105/201..205 untouched).
 
+#### TL3 claim record — P2-FIX-105 (2026-09-30)
+Pinned base: `e063c12b95141c96e2edc6e5ddde0cbc0e301146` (identical to the TL2/TL4/TL1 claim-wave bases; the finding was authored by P2-002 Worker A at base `7558680d8`, landed on main via PR #54, and is routed TL3 — the finding's own "Exact owning TL" field and the P2-002 completion record's owner table both name TL3; every other claim wave has deliberately left 105 untouched). The work order is dispatched through the replay worker lane per the operator's product-phase directive (workers only; the station implements nothing). One dedicated branch, cut from the pinned base only:
+
+- **P2-FIX-105** (browser session journal does not record navigation events) — partition A (browser runtime/security + evidence capture) — branch `flauz-p2fix/p2-fix-105`
+
+Per-finding acceptance contract (the finding's own acceptance test; evidence level runtime-real — the gap was reproduced against real headless Chromium during LEG 6, receipt `leg-06-browser-use.json`):
+- **105** — after `open -> navigate(allowed) -> navigate(denied) -> close`, the on-disk journal (`.flauz/browser-sessions.jsonl`, `flauz.browser-session-journal/v0`) carries the two navigation rows in addition to opened/closed: the allow row with its committed URL, and the deny row recording that ZERO wire commands were sent (the J3 fail-closed row); the leg-6 receipt's journal-row census becomes 4. The journal envelope is versioned, so an explicit schema-version decision is part of the fix. Additive event type only — no new store, no change outside the browser runtime evidence path (`extensions/flauz-browser/src/runtime/journal.ts` and its session-journal contract).
+
+Claim discipline: minimal-diff per the finding acceptance test; gate-frozen battery byte-identical; targeted tests + evidence at the honestly-achieved level (runtime-real journal census on real headless Chromium, before/after on the pinned base); individual landing PR; TL4 independent retest to close. TL3 claims no finding outside its routed set (101/102/103/104/201..205 untouched).
+
+Dispatch status: the TL3 P2 product-readiness audit wave (A browser / B environments / C resources-continuity) is in flight through the same worker lane (partition A is mid-audit with live pod evidence); the P2-FIX-105 work order queues behind it for GLM-5.3/pod capacity. The claim is recorded now so the routing table is complete; the fix branch receives the worker's delivery after independent station verification (harvest → pinned-base re-gates → apply → push).
+
 ### TL2-ACC-1 — Agent-domain journey rehearsal (P2-002 support)
 Status: DONE
 Owner: TL2
