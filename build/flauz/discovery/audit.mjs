@@ -410,7 +410,7 @@ function checkHomeRowsActionable(surface) {
 	let branches = 0;
 	for (const match of text.matchAll(branchRe)) {
 		const body = match[1];
-		if (!body.includes("'not initialized'")) { continue; }
+		if (!body.includes('\'not initialized\'')) { continue; }
 		branches += 1;
 		const idMatch = /id: '([A-Za-z-]+)'/.exec(body);
 		const rowId = idMatch === null ? 'unknown' : idMatch[1];
@@ -822,7 +822,7 @@ function checkPostActionRecovery(surface) {
 		} else {
 			evidence.push('verify-fail path returns the task to an approvable state with an explicit /approve retry instruction');
 		}
-		if (!orchestrator.includes("type: 'fail'")) {
+		if (!orchestrator.includes('type: \'fail\'')) {
 			misses.push({ subject: 'flauz-agent-orchestrator-recovery', detail: 'execution failures do not append a fail event — the failed state would be invisible' });
 		} else {
 			evidence.push('execution failure appends a fail event (task becomes failed, visible with its error)');

@@ -363,7 +363,7 @@ test('routing row: happy stub -> pass with 2xx, served-model echo and non-empty 
 	strictEqual(detail.finishReason, 'stop');
 	const sent = stub.seen[0];
 	ok(sent !== undefined);
-	strictEqual(sent.headers?.['Authorization'], `Bearer ${FAKE_KEY}`, 'the env-resolved Bearer key rides the wire');
+	strictEqual(sent.headers?.Authorization, `Bearer ${FAKE_KEY}`, 'the env-resolved Bearer key rides the wire');
 	strictEqual(sent.headers?.['Content-Type'], 'application/json', 'adapter headers survive the merge');
 	strictEqual(sent.headers?.['x-extra-header'], 'extra-under', 'extras merge under adapter headers');
 	strictEqual(sent.url, `${FAKE_BASE_URL}/chat/completions`);
@@ -453,7 +453,7 @@ test('auth-failure row: INVALID_HEADERS_JSON rides OVER the adapter Authorizatio
 	strictEqual(outcome.status, 'pass');
 	const sent = stub.seen[0];
 	ok(sent !== undefined);
-	strictEqual(sent.headers?.['Authorization'], invalidValue, 'the invalid override wins over the adapter credential');
+	strictEqual(sent.headers?.Authorization, invalidValue, 'the invalid override wins over the adapter credential');
 });
 
 test('retry row: every attempt typed-aborts -> bounded typed exhaustion at the default bound, no real sleep', async () => {
