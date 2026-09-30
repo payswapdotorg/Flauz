@@ -22,6 +22,8 @@ export declare const LEASE_CONFLICT_VIOLATIONS: ['lease', 'claim'];
 
 /** The facts of one typed lease conflict (the assertable shape). */
 export interface LeaseConflictFacts {
+	/** The conflict identity carried by the facts projection (the a2a surface's own namespace, distinct from the taxonomy domain code). */
+	readonly code: 'flauz.a2a.lease-conflict';
 	/** The shared-resource id the conflict is over. */
 	resource: string;
 	/** The violation class: 'lease' (TTL hold) | 'claim' (deadline-less hold). */

@@ -15,7 +15,8 @@
                 "onCommand:flauz.showTasks",
                 "onCommand:flauz.verifyLedger",
                 "onCommand:flauz.focusView.agentSessions",
-                "onCommand:flauz.agent.refreshSessions"
+                "onCommand:flauz.agent.refreshSessions",
+                "onCommand:flauz.agent.takeoverStep"
         ],
         "main": "./dist/extension.js",
         "enabledApiProposals": [],
@@ -25,7 +26,7 @@
                                 "id": "flauz.agent",
                                 "name": "flauz",
                                 "fullName": "Flauz Agent",
-                                "description": "Plan-driven agent bridge with human approval gates and an append-only evidence ledger.",
+                                "description": "Plan-driven agent bridge with human approval gates and an append-only evidence ledger. It can delegate steps to worker agents.",
                                 "isDefault": true,
                                 "isSticky": true,
                                 "locations": [
@@ -51,6 +52,10 @@
                                         {
                                                 "name": "cancel",
                                                 "description": "Cancel the active task (human gate)"
+                                        },
+                                        {
+                                                "name": "takeover",
+                                                "description": "Take over a stuck step by hand — request, accept and complete it yourself (human gate)"
                                         }
                                 ]
                         }
@@ -101,6 +106,11 @@
                         {
                                 "command": "flauz.verifyLedger",
                                 "title": "Verify Flauz Evidence Ledger"
+                        },
+                        {
+                                "command": "flauz.agent.takeoverStep",
+                                "title": "Take Over Step…",
+                                "category": "Flauz"
                         },
                         {
                                 "command": "flauz.focusView.agentSessions",

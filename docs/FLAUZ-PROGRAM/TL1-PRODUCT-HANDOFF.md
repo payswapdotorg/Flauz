@@ -6,6 +6,27 @@ Keep the Flauz repository self-describing and conflict-free while the product mo
 
 ## Active work
 
+### P2-FIX-102 — the TL1-routed acceptance finding
+**Status: CLAIMED + IMPLEMENTED, landing deliberately deferred (2026-09-30 — the authoritative claim record and the landing-gate decision record live in `WORK-REGISTRY.md`)**
+
+The dedicated Agent OS/session battery tsconfig receipts compile none of
+their named subjects (the inherited base `exclude` removes exactly the files
+the dedicated `include` lists — vacuously green receipts). The minimal
+two-tsconfig fix (`"exclude": []` in both dedicated configs) is implemented
+on branch `flauz-p2fix/p2-fix-102` (pushed head `a5908655`; worker-lane
+delivery, independently station-re-verified) and is held out of main by the
+cross-TL landing gate: the flip surfaces a latent TL2-owned
+battery-instrument drift family (80 diagnostic entries, all in the four
+battery-suite files or naming their harness shims; four of them are
+P2-FIX-103's `LeaseConflictFacts` drift) that would redden the
+`flauz-agentos`/`flauz-session` CI lanes if 102 landed alone. TL1 does not
+fix that family (the cross-domain law); 102 lands in the same merge wave
+that resolves the family, or after TL4 routes it as findings. When the gate
+clears: rebase/update against current main, independently rerun the
+acceptance test (`--listFiles` names the subjects AND the merged tree's
+dedicated-config compiles are clean), land through a dedicated PR, update
+the registry and this handoff in the same merge wave.
+
 ### P2-001 — Control-plane reconciliation
 **Status: DONE (2026-09-29, this merge wave — see `WORK-REGISTRY.md` for the completion record)**
 
@@ -18,7 +39,7 @@ discoverable from `AGENTS.md`, `FLAUZ-START-HERE.md` and
 TL1's remaining phase role: substrate maintenance, `P2-FIX-*` findings
 routed to the TL1 domain (Code OSS/upstream/packaging/service seam/control
 plane), and canonical control-plane integration for other TLs' registry
-text. There is no open TL1 implementation item; do not invent one.
+text. Do not invent TL1 product work outside a routed finding.
 
 Delivered scope (the original P2-001 deliverables, all met):
 

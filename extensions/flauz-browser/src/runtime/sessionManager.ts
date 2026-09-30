@@ -25,11 +25,16 @@
  *     targets the ownership registry attributes to THIS session+partition.
  *     (Electron-side partition MINTING remains product-side gap G5.)
  *   - Session journal (item 3.6, CROSS-WORKER CONTRACT PIN-1): every
- *     open/state transition/close/failure appends a canonical record to
- *     `.flauz/browser-sessions.jsonl` (src/runtime/journal.ts). The actor is
- *     MANDATORY: an unknown initiator fails the journal write loudly, and a
- *     journal failure at OPEN fails the session (fail-closed — a session that
- *     cannot be journaled never opens half-way).
+ *     open/state transition/close/failure — and, since P2-FIX-105, every
+ *     navigation attempt (allow OR deny, via the manager's navigation
+ *     surfaces: open startUrl / navigate / forced reset) — appends a canonical
+ *     record to `.flauz/browser-sessions.jsonl` (src/runtime/journal.ts). The
+ *     actor is MANDATORY: an unknown initiator fails the journal write loudly,
+ *     and a journal failure at OPEN fails the session (fail-closed — a session
+ *     that cannot be journaled never opens half-way). A navigation row is
+ *     written from the DECISION-path outcome (a deny row records that ZERO
+ *     wire commands were sent); a navigation-path journal write failure is
+ *     captured in journalErrors (never silent), mirroring the close path.
  *
  * INVARIANTS (fail-closed, pinned by tests):
  *   - Missing policy -> the engine's builtin deny-all denies; a DENIED
@@ -94,6 +99,7 @@ import {
 } from './capture.ts';
 import {
 	type SessionJournalEvent,
+	type SessionJournalNavigation,
 	type SessionJournalPort,
 	buildSessionJournalRecord,
 	journalActorOf,
@@ -315,6 +321,48 @@ export class BrowserSessionManager {
 		}
 	}
 
+	/**
+	 * P2-FIX-105 — the navigation-facts projection of one decision-path
+	 * outcome onto the journal contract ({@link SessionJournalNavigation}).
+	 * Sourced EXCLUSIVELY from the decision path's own return value: a deny
+	 * outcome carries `sent:false` BY CONSTRUCTION (the pipeline sent zero
+	 * commands), an allow outcome carries the committed URL — never from a
+	 * wire-command observation (there is none on deny).
+	 */
+	private navigationFactsOf(outcome: NavigationOutcome): SessionJournalNavigation {
+		return {
+			decision: outcome.verdict.decision,
+			requestedUrl: outcome.requestedUrl,
+			sent: outcome.sent,
+			...(outcome.committedUrl === undefined ? {} : { committedUrl: outcome.committedUrl }),
+		};
+	}
+
+	/**
+	 * P2-FIX-105 — appends one 'navigated' journal record (the navigation
+	 * verdict as durable on-disk session evidence). Best-effort with a
+	 * captured, never-silent failure (the {@link journalErrors} audit
+	 * surface): the navigation itself already happened (or was denied) —
+	 * failing it AFTER the fact would fabricate an outcome that did not
+	 * occur, so the write failure is recorded instead, mirroring the
+	 * close-path discipline.
+	 */
+	private async journalNavigationBestEffort(descriptor: BrowserSessionDescriptor, outcome: NavigationOutcome): Promise<void> {
+		if (this.journal === undefined) {
+			return;
+		}
+		try {
+			const record = buildSessionJournalRecord(journalActorOf(descriptor.initiator), 'navigated', descriptor, this.clock(), this.navigationFactsOf(outcome));
+			await this.journal.append(record);
+		} catch (err) {
+			this.journalErrorRecords.push({
+				code: 'flauz.browser.journal',
+				message: `journal navigated event for ${descriptor.sessionId} failed: ${err instanceof Error ? err.message : String(err)}`,
+				at: isoAt(this.clock),
+			});
+		}
+	}
+
 	/** Journal write failures captured on the best-effort paths (audit surface; never silent). */
 	journalErrors(): readonly BrowserSessionErrorRecord[] {
 		return this.journalErrorRecords;
@@ -411,6 +459,10 @@ export class BrowserSessionManager {
 		}
 
 		if (navigation !== undefined) {
+			// P2-FIX-105: the (allowed) startUrl navigation is durable
+			// session evidence too — journaled AFTER the 'opened' birth
+			// certificate so the session's first row stays 'opened'.
+			await this.journalNavigationBestEffort(descriptor, navigation);
 			return { descriptor: snapshotDescriptor(descriptor), navigation };
 		}
 		return { descriptor: snapshotDescriptor(descriptor) };
@@ -541,13 +593,20 @@ export class BrowserSessionManager {
 
 	// #region Navigation + capture surfaces
 
-	/** Policy-gated navigation (the pipeline; see src/runtime/tabs.ts). */
+	/**
+	 * Policy-gated navigation (the pipeline; see src/runtime/tabs.ts).
+	 * P2-FIX-105: every navigation attempt — ALLOWED or DENIED — appends a
+	 * 'navigated' journal record (the verdict + requested/committed URLs +
+	 * the zero-wire-commands fact), written from the DECISION-path outcome.
+	 */
 	async navigate(sessionId: string, url: string, options: { tabId?: string } = {}): Promise<NavigationOutcome | SessionOperationError> {
 		const picked = this.pickTab(sessionId, options.tabId);
 		if (isSessionError(picked)) {
 			return picked;
 		}
-		return runNavigation(this.deps, picked.entry.descriptor, picked.tab, url);
+		const outcome = await runNavigation(this.deps, picked.entry.descriptor, picked.tab, url);
+		await this.journalNavigationBestEffort(picked.entry.descriptor, outcome);
+		return outcome;
 	}
 
 	/**
@@ -561,7 +620,11 @@ export class BrowserSessionManager {
 		if (isSessionError(picked)) {
 			return picked;
 		}
-		return runForcedReset(this.deps, picked.entry.descriptor, picked.tab);
+		const outcome = await runForcedReset(this.deps, picked.entry.descriptor, picked.tab);
+		// P2-FIX-105: a forced reset IS a navigation through the full
+		// policy pipeline (about:blank) — its verdict is journal evidence.
+		await this.journalNavigationBestEffort(picked.entry.descriptor, outcome);
+		return outcome;
 	}
 
 	/** Screenshot: bytes + evidence row (+ artifact when a writer is configured). */
