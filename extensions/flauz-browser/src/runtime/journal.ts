@@ -19,7 +19,31 @@
  *   followed by exactly one `\n`. The fixture
  *   test/fixtures/browser-session-journal/ pins the byte form.)
  *
- * Every open / state transition / close / failure appends a record. The actor
+ *   P2-FIX-105 (navigation events as durable session evidence): the event
+ *   vocabulary is EXTENDED additively with `navigated` -- one row per
+ *   navigation attempt driven through the session manager's navigation
+ *   surfaces (open startUrl / navigate / forced reset), written from the
+ *   DECISION-path outcome (never from a wire-command observation: a deny
+ *   verdict sends ZERO wire commands, so there is nothing on the wire to
+ *   observe -- the deny row's `sent:false` IS the J3 fail-closed fact). A
+ *   `navigated` row carries the SAME six envelope keys PLUS one additive
+ *   `navigation` object:
+ *
+ *     "navigation":{"decision":"allow"|"deny","requestedUrl":"<url>",
+ *                  "committedUrl":"<url>"?,"sent":<bool>}
+ *
+ *   Lifecycle rows are BYTE-IDENTICAL to the pre-P2-FIX-105 form (six keys,
+ *   same canonical serialization). The envelope STAYS at
+ *   `flauz.browser-session-journal/v0` / schemaVersion 0 on purpose: the
+ *   additive event type + additive optional field is the compatible
+ *   evolution for the pinned v0 readers (journalBridge.ts -- THE reader
+ *   precedent -- validates fail-closed PER LINE with TYPED SKIPs, so a v0
+ *   reader skips navigation rows it does not know and keeps consuming the
+ *   lifecycle rows it does; a version bump would instead make EVERY row
+ *   unreadable by every pinned v0 reader, breaking the continuity seam).
+ *
+ * Every open / state transition / close / failure appends a record; every
+ * navigation attempt appends a `navigated` record. The actor
  * is MANDATORY and fail-closed: an unknown initiator makes the journal write
  * fail LOUDLY with the typed {@link BrowserSessionJournalError}.
  *
@@ -53,7 +77,17 @@ import {
 /** Schema id pinned into every journal record (the cross-worker contract name). */
 export const BROWSER_SESSION_JOURNAL_SCHEMA_ID = 'flauz.browser-session-journal/v0';
 
-/** The only journal schemaVersion this writer/validator understands. */
+/**
+ * The only journal schemaVersion this writer/validator understands.
+ *
+ * SCHEMA-VERSION DECISION (P2-FIX-105, explicit): KEPT at 0. The navigation
+ * event is an ADDITIVE event value + an ADDITIVE optional `navigation` key;
+ * lifecycle rows stay byte-identical. A v0-pinned reader that does not know
+ * the `navigated` event rejects those lines through its designed
+ * fail-closed-per-line path (a TYPED SKIP) and keeps consuming lifecycle
+ * rows; bumping the envelope version would orphan EVERY row (lifecycle
+ * included) at every pinned v0 reader. See the module docblock.
+ */
 export const BROWSER_SESSION_JOURNAL_SCHEMA_VERSION = 0;
 
 /** Journal path relative to the workspace root. */
@@ -63,11 +97,41 @@ export const BROWSER_SESSION_JOURNAL_PATH = '.flauz/browser-sessions.jsonl';
 export const BROWSER_SESSION_JOURNAL_ACTORS = ['agent', 'human', 'tool'] as const;
 export type SessionJournalActor = (typeof BROWSER_SESSION_JOURNAL_ACTORS)[number];
 
-/** The event enum (PIN-1). */
-export const BROWSER_SESSION_JOURNAL_EVENTS = ['opened', 'state-changed', 'closed', 'failed'] as const;
+/**
+ * The event enum (PIN-1; P2-FIX-105 adds `navigated` additively -- one row per
+ * navigation attempt, carrying the policy decision + requested/committed
+ * URLs + the zero-wire-commands fact; see {@link SessionJournalNavigation}).
+ */
+export const BROWSER_SESSION_JOURNAL_EVENTS = ['opened', 'state-changed', 'closed', 'failed', 'navigated'] as const;
 export type SessionJournalEvent = (typeof BROWSER_SESSION_JOURNAL_EVENTS)[number];
 
-/** One journal record (the pinned shape). */
+/** The navigation decision vocabulary (mirrors the policy engine's PolicyDecision). */
+export const BROWSER_SESSION_JOURNAL_NAVIGATION_DECISIONS = ['allow', 'deny'] as const;
+
+/**
+ * The navigation facts one `navigated` row carries (P2-FIX-105 -- the finding's
+ * proposed vocabulary: decision allow/deny, target URL, committed URL,
+ * whether any wire command was sent):
+ *   - `decision` -- the AUTHORITATIVE gate verdict for the requested URL;
+ *   - `requestedUrl` -- the target URL of the attempt;
+ *   - `committedUrl` -- the URL that actually committed (allow path only);
+ *   - `sent` -- false iff ZERO wire commands were sent. A DENY verdict sends
+ *     zero commands BY CONSTRUCTION (fail-closed), so a deny row always
+ *     carries `sent:false` and NO `committedUrl` (the J3 fail-closed row is
+ *     self-certifying: the validator REJECTS a deny row that claims a commit
+ *     or a sent command -- such a row cannot be produced by the decision
+ *     path and must never be accepted as evidence).
+ */
+export interface SessionJournalNavigation {
+	readonly decision: (typeof BROWSER_SESSION_JOURNAL_NAVIGATION_DECISIONS)[number];
+	readonly requestedUrl: string;
+	/** Present iff the navigation committed; ABSENT on deny (nothing was sent, nothing loaded). */
+	readonly committedUrl?: string;
+	/** False iff ZERO wire commands were sent (always false on deny). */
+	readonly sent: boolean;
+}
+
+/** One journal record (the pinned shape; `navigation` rides ONLY `navigated` rows). */
 export interface SessionJournalRecord {
 	readonly schemaVersion: typeof BROWSER_SESSION_JOURNAL_SCHEMA_VERSION;
 	readonly schema: typeof BROWSER_SESSION_JOURNAL_SCHEMA_ID;
@@ -77,6 +141,8 @@ export interface SessionJournalRecord {
 	readonly event: SessionJournalEvent;
 	/** Full descriptor snapshot at the moment of the event. */
 	readonly descriptor: BrowserSessionDescriptor;
+	/** The navigation facts; present iff `event` is 'navigated' (P2-FIX-105). */
+	readonly navigation?: SessionJournalNavigation;
 }
 
 /** Typed journal error (fail-closed surface; `code` is stable for logs/audit). */
@@ -165,14 +231,51 @@ function validateDescriptorShape(value: unknown): BrowserSessionDescriptor {
 }
 
 /**
+ * Validates the navigation facts of one `navigated` row (P2-FIX-105).
+ * FAIL-CLOSED on the J3 invariant: a DENY row must record that ZERO wire
+ * commands were sent (`sent:false`) and must NOT claim a committed URL —
+ * the decision path never sends anything on deny, so a deny row claiming a
+ * commit or a sent command cannot be evidence. An ALLOW row records
+ * `committedUrl` when the navigation committed (absent on operational
+ * failures — commit timeout / transport loss / wedged-tab replacement —
+ * which are honest facts, not contract deviations).
+ */
+function validateNavigationShape(value: unknown): SessionJournalNavigation {
+	if (!isPlainObject(value)) {
+		throw new BrowserSessionJournalError('navigation must be an object { decision, requestedUrl, committedUrl?, sent } on a \'navigated\' record');
+	}
+	if (value.decision !== 'allow' && value.decision !== 'deny') {
+		throw new BrowserSessionJournalError(`navigation.decision must be 'allow' or 'deny' (got ${JSON.stringify(value.decision)})`);
+	}
+	if (typeof value.requestedUrl !== 'string') {
+		throw new BrowserSessionJournalError('navigation.requestedUrl must be a string');
+	}
+	if (typeof value.sent !== 'boolean') {
+		throw new BrowserSessionJournalError('navigation.sent must be a boolean (false iff ZERO wire commands were sent)');
+	}
+	if (value.committedUrl !== undefined && typeof value.committedUrl !== 'string') {
+		throw new BrowserSessionJournalError('navigation.committedUrl must be a string when present');
+	}
+	if (value.decision === 'deny' && value.sent !== false) {
+		throw new BrowserSessionJournalError('navigation: a DENY verdict sends ZERO wire commands by construction — a deny row must carry sent:false (J3 fail-closed)');
+	}
+	if (value.decision === 'deny' && value.committedUrl !== undefined) {
+		throw new BrowserSessionJournalError('navigation: a DENY verdict never commits a URL — a deny row must NOT carry committedUrl (J3 fail-closed)');
+	}
+	return value as unknown as SessionJournalNavigation;
+}
+
+/**
  * Builds (and validates) one journal record. The actor must be one of the
  * contract actors ({@link BROWSER_SESSION_JOURNAL_ACTORS} — sessions produce
  * 'agent'/'human' via {@link journalActorOf}; 'tool' is accepted for
- * tool-attributed rows from other lanes). Throws
- * {@link BrowserSessionJournalError} on any contract violation -- the caller
- * surfaces it (fail-closed), never drops the record silently.
+ * tool-attributed rows from other lanes). The `navigation` facts are legal
+ * ONLY on a 'navigated' row (a lifecycle row carrying navigation facts — or
+ * a navigation row without them — is a contract deviation, fail-closed).
+ * Throws {@link BrowserSessionJournalError} on any contract violation -- the
+ * caller surfaces it (fail-closed), never drops the record silently.
  */
-export function buildSessionJournalRecord(actor: SessionJournalActor | string, event: SessionJournalEvent | string, descriptor: BrowserSessionDescriptor, ts: number): SessionJournalRecord {
+export function buildSessionJournalRecord(actor: SessionJournalActor | string, event: SessionJournalEvent | string, descriptor: BrowserSessionDescriptor, ts: number, navigation?: SessionJournalNavigation): SessionJournalRecord {
 	if (!BROWSER_SESSION_JOURNAL_ACTORS.includes(actor as SessionJournalActor)) {
 		throw new BrowserSessionJournalError(`unknown journal actor ${JSON.stringify(actor)} (allowed: ${BROWSER_SESSION_JOURNAL_ACTORS.join(', ')})`);
 	}
@@ -183,6 +286,15 @@ export function buildSessionJournalRecord(actor: SessionJournalActor | string, e
 		throw new BrowserSessionJournalError(`ts must be a non-negative integer epoch-ms (got ${JSON.stringify(ts)})`);
 	}
 	validateDescriptorShape(descriptor);
+	if (event === 'navigated' && navigation === undefined) {
+		throw new BrowserSessionJournalError("a 'navigated' record must carry its navigation facts { decision, requestedUrl, committedUrl?, sent }");
+	}
+	if (event !== 'navigated' && navigation !== undefined) {
+		throw new BrowserSessionJournalError(`navigation facts ride ONLY 'navigated' records (got event ${JSON.stringify(event)})`);
+	}
+	if (navigation !== undefined) {
+		validateNavigationShape(navigation);
+	}
 	return {
 		schemaVersion: BROWSER_SESSION_JOURNAL_SCHEMA_VERSION,
 		schema: BROWSER_SESSION_JOURNAL_SCHEMA_ID,
@@ -190,6 +302,7 @@ export function buildSessionJournalRecord(actor: SessionJournalActor | string, e
 		actor: actor as SessionJournalActor,
 		event: event as SessionJournalEvent,
 		descriptor: snapshotDescriptor(descriptor),
+		...(navigation === undefined ? {} : { navigation }),
 	};
 }
 
@@ -224,8 +337,14 @@ export function validateSessionJournalLine(line: string): JournalLineValidation 
 	if (!isPlainObject(parsed)) {
 		return { ok: false, error: new BrowserSessionJournalError('record must be a JSON object') };
 	}
+	// P2-FIX-105: the key set is the SIX pinned envelope keys, PLUS exactly
+	// one additive 'navigation' key on a 'navigated' row (and only there — a
+	// lifecycle row carrying a 7th key, or a navigation row missing its facts,
+	// is a contract deviation).
+	const expectedNavigationKeySet = ['actor', 'descriptor', 'event', 'navigation', 'schema', 'schemaVersion', 'ts'];
+	const expectedLifecycleKeySet = ['actor', 'descriptor', 'event', 'schema', 'schemaVersion', 'ts'];
+	const expected = parsed.event === 'navigated' ? expectedNavigationKeySet : expectedLifecycleKeySet;
 	const keys = Object.keys(parsed).sort();
-	const expected = ['actor', 'descriptor', 'event', 'schema', 'schemaVersion', 'ts'];
 	if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
 		return { ok: false, error: new BrowserSessionJournalError(`record key set must be exactly {${expected.join(', ')}} (got {${Object.keys(parsed).sort().join(', ')}})`) };
 	}
@@ -248,6 +367,13 @@ export function validateSessionJournalLine(line: string): JournalLineValidation 
 		validateDescriptorShape(parsed.descriptor);
 	} catch (err) {
 		return { ok: false, error: err instanceof BrowserSessionJournalError ? err : new BrowserSessionJournalError(String(err)) };
+	}
+	if (parsed.event === 'navigated') {
+		try {
+			validateNavigationShape(parsed.navigation);
+		} catch (err) {
+			return { ok: false, error: err instanceof BrowserSessionJournalError ? err : new BrowserSessionJournalError(String(err)) };
+		}
 	}
 	const record = parsed as unknown as SessionJournalRecord;
 	if (line !== sessionJournalLine(record)) {
