@@ -53,6 +53,7 @@ import {
 	isLeaseConflictError,
 	isLeaseLive,
 	leaseConflictFacts,
+	releaseStepLease,
 	stepResourceId,
 } from '../core/leaseConflict.mjs';
 import { makeClock, sha256Of } from './harness/orchWorkspace.ts';
@@ -513,4 +514,138 @@ test('the typed conflict maps into the closed failure taxonomy: an Orchestration
 	assert.equal(isLeaseConflictError(new Error('nope')), false);
 	assert.equal(isLeaseConflictError(null), false);
 	assert.equal(leaseConflictFacts(new Error('nope')), null);
+});
+
+// ---------------------------------------------------------------------------
+// P2-FIX-104 (DL-78, the release-mirror law): a durable lease release
+// PROJECTS onto the A2A bus - the composed release mints the retraction
+// notice, the bus projection retracts, and a fresh claim by any claimant
+// proceeds with both layers in agreement
+// ---------------------------------------------------------------------------
+
+test('P2-FIX-104 acceptance (DL-78 release-mirror): the composed release retracts the bus notice; a fresh claimStepLease by a different claimant lands exactly one acquisition row and the bus projection names the new holder', async () => {
+	const { store, root } = makeWiredStore('p2fix104-accept');
+	const graphId = await submittedApproved(store);
+	const bus = new A2ABus(root);
+	const resource = stepResourceId(graphId, 'S-01');
+
+	// worker-1 holds the step lease through the composed claim path (row + notice)
+	const first = await claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: 'flauz.agent.worker-1', ttlMs: 60_000, origin: 'a2a:flauz.agent.worker-1' });
+	assert.equal(first.status, 'acquired');
+	assert.notEqual(bus.activeClaimOf(resource), undefined, 'the acquire notice is the journal-projected claim');
+
+	// the composed release (the DL-78 mirror): the durable row FIRST, then the retraction notice
+	const released = await releaseStepLease(store, bus, { graphId, stepId: 'S-01', origin: 'a2a:flauz.agent.worker-1' });
+	assert.equal(released.status, 'released');
+	assert.equal(released.leaseId, first.leaseId);
+	assert.equal(released.holder, 'flauz.agent.worker-1');
+	assert.notEqual(released.rowId, null);
+	assert.notEqual(released.noticeId, null);
+
+	// the durable layer: exactly one lease-released row (the store's own release row shape), evidence-bearing
+	const releasedRows = store.journalRows.filter((row) => row.type === 'lease-released');
+	assert.equal(releasedRows.length, 1, 'exactly one lease-released row');
+	assert.equal((releasedRows[0].payload as { leaseId: string }).leaseId, first.leaseId);
+	assert.equal((releasedRows[0].payload as { holder: string }).holder, 'flauz.agent.worker-1');
+	assert.equal((store.stateOf(graphId) as { leases?: Record<string, unknown> }).leases?.['S-01'], undefined, 'the store layer is free');
+	assert.match((releasedRows[0].payload as { evidenceId?: string }).evidenceId ?? '', /^E-\d{6,}$/, 'the release minted its evidence row');
+	const ledger = readLedger(root);
+	const releaseEvidenceId = (releasedRows[0].payload as { evidenceId?: string }).evidenceId as string;
+	const releaseLedgerRow = ledgerRowOfEvidenceId(ledger, releaseEvidenceId);
+	assert.ok(releaseLedgerRow !== undefined, 'the release evidence row exists in the ledger');
+	assert.equal(releaseLedgerRow?.uri, `flauz-orch-transition://${releasedRows[0].rowId}`, 'the release evidence references its own journal row');
+	assert.equal(releaseLedgerRow?.sha256, contentHashOf(transitionFactsOf(releasedRows[0])), 'the release sha256 recomputes from the journal row (no fabricated evidence)');
+
+	// the bus layer: the projection RETRACTED (the mirror - the notice never outlives the release)
+	assert.equal(bus.activeClaimOf(resource), undefined, 'bus.activeClaimOf returns undefined once the release lands (DL-78)');
+
+	// the retraction notice on the on-disk bus journal: acquire, release, both from the holder
+	const notices = readFileSync(join(root, '.flauz', 'a2a', 'messages.jsonl'), 'utf-8').split('\n').filter((line: string) => line.length > 0).map((line: string) => JSON.parse(line) as { id: string; kind: string; from: string; to: string; payload: { action: string; resource: string; leaseUntil: number | null } });
+	assert.equal(notices.length, 2, 'exactly two notices: the acquire and the retraction');
+	assert.deepEqual(notices[0]?.payload, { action: 'acquire', resource, leaseUntil: first.deadline });
+	assert.deepEqual(notices[1]?.payload, { action: 'release', resource, leaseUntil: null }, 'the retraction notice carries leaseUntil null (only acquire carries a lease)');
+	assert.equal(notices[1]?.kind, 'resource-claim');
+	assert.equal(notices[1]?.from, 'flauz.agent.worker-1', 'the retraction is minted from the RELEASED holder (fail-closed: only the active holder may clear a live claim)');
+	assert.equal(notices[1]?.id, released.noticeId);
+
+	// THE ACCEPTANCE TEST: a fresh claimStepLease by a DIFFERENT claimant - both layers in agreement
+	const acquiredRowsBefore = store.journalRows.filter((row) => row.type === 'lease-acquired').length;
+	const fresh = await claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: 'flauz.agent.worker-2', ttlMs: 60_000, origin: 'a2a:flauz.agent.worker-2' });
+	assert.equal(fresh.status, 'acquired', 'the fresh claim by a different claimant proceeds (no typed conflict - both layers agree)');
+	const acquiredRows = store.journalRows.filter((row) => row.type === 'lease-acquired');
+	assert.equal(acquiredRows.length, acquiredRowsBefore + 1, 'exactly one acquisition row landed for the fresh claim');
+	assert.equal((acquiredRows[acquiredRows.length - 1].payload as { holder: string }).holder, 'flauz.agent.worker-2');
+	assert.equal(store.journalRows.filter((row) => row.type === 'conflict-noticed').length, 0, 'no refusal row: the released lease no longer conflicts');
+
+	// the bus projection names the NEW holder
+	const active = bus.activeClaimOf(resource);
+	assert.equal(active?.holder, 'flauz.agent.worker-2');
+	assert.equal(active?.leaseId, fresh.noticeId, 'the projection is the fresh acquire notice');
+
+	// both chains verify end-to-end through the release and the re-acquire
+	assert.equal(store.verifyJournal().ok, true);
+	assert.equal(seamLedgerVerifies(root), true);
+});
+
+test('P2-FIX-104 regression: releaseStepLease validates its input fail-closed and refuses a step with no active lease', async () => {
+	const { store } = makeWiredStore('p2fix104-params');
+	const graphId = await submittedApproved(store);
+	const bus = new A2ABus(makeRoot('p2fix104-params-bus'));
+	await assert.rejects(() => releaseStepLease(store, bus, null as unknown as { graphId: string; stepId: string; origin: string }), /releaseStepLease requires/);
+	await assert.rejects(() => releaseStepLease(store, bus, { graphId: '', stepId: 'S-01', origin: 'test:p2fix104' }), /requires a graphId and stepId/);
+	await assert.rejects(() => releaseStepLease(store, bus, { graphId, stepId: 'S-01', origin: '' }), /origin must be a non-empty provenance string/);
+	await assert.rejects(() => releaseStepLease(store, null as unknown as A2ABus, { graphId, stepId: 'S-01', origin: 'test:p2fix104' }), /requires an a2a bus port/);
+	await assert.rejects(() => releaseStepLease(store, bus, { graphId: 'G-999', stepId: 'S-01', origin: 'test:p2fix104' }), /unknown graph/);
+	// the store's own release posture, verbatim: a step with no active lease refuses
+	await assert.rejects(() => releaseStepLease(store, bus, { graphId, stepId: 'S-01', origin: 'test:p2fix104' }), (error: unknown) => error instanceof OrchestrationError && error.code === 'illegal-transition' && /no active lease/.test(error.message));
+	// the refusals minted no rows (fail-closed: no partial state)
+	assert.equal(store.journalRows.filter((row) => row.type === 'lease-released').length, 0);
+});
+
+test('P2-FIX-104 regression: the leaseUntil horizon stays advisory for EXPIRY (an un-released expired lease does not retract; the takeover still goes through the recorded-expiry hygiene)', async () => {
+	const { store, root } = makeWiredStore('p2fix104-expiry');
+	const graphId = await submittedApproved(store);
+	const bus = new A2ABus(root);
+	const resource = stepResourceId(graphId, 'S-01');
+	const first = await claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: 'agent-a', ttlMs: 5_000, origin: 'a2a:agent-a' });
+	// the clock passes the deadline; the lease is EXPIRED but un-released and un-recorded
+	const reloaded = new OrchestrationStore(root, { taskPort: new WorkspaceSeam(root), clock: makeClock(1_700_000_900_000).clock });
+	const reloadedBus = new A2ABus(root);
+	// the v0 expiry posture is UNCHANGED by the mirror: no auto-retraction, the store posture still conflicts
+	assert.notEqual(reloadedBus.activeClaimOf(resource), undefined, 'an expired-but-un-released lease does not mint a retraction (the mirror fires on RELEASE only)');
+	await assert.rejects(() => claimStepLease(reloaded, reloadedBus, { graphId, stepId: 'S-01', claimant: 'agent-b', ttlMs: 60_000, origin: 'a2a:agent-b' }), (error: unknown) => isLeaseConflictError(error) && leaseConflictFacts(error)?.deadline === first.deadline,
+		'the recorded-active lease still conflicts (the takeover goes through the hygiene, never around it)');
+	assert.equal(reloaded.journalRows.filter((row) => row.type === 'lease-released').length, 0, 'no release was involved (expiry is not release)');
+	// the existing hygiene records the expiry; NOW the takeover lands and the bus names the taker
+	const report = await recoveryScan(reloaded, { now: 1_700_000_900_000 });
+	assert.ok(report.actions.includes('G-001:lease-expired:L-001-01-1'), `the recovery pass freed the expired lease (${JSON.stringify(report.actions)})`);
+	const takeover = await claimStepLease(reloaded, reloadedBus, { graphId, stepId: 'S-01', claimant: 'agent-b', ttlMs: 60_000, origin: 'a2a:agent-b' });
+	assert.equal(takeover.status, 'acquired');
+	assert.equal(takeover.leaseId, 'L-001-01-2', 'the takeover minted the next ordinal lease id');
+	assert.equal(reloadedBus.activeClaimOf(resource)?.holder, 'agent-b', 'the bus projection names the taker');
+	assert.equal(reloaded.verifyJournal().ok, true);
+});
+
+test('P2-FIX-104 regression: the retracted projection is durable state (the mirror survives the restart; a different claimant acquires after recovery)', async () => {
+	const { store, root } = makeWiredStore('p2fix104-restart');
+	const graphId = await submittedApproved(store);
+	const bus = new A2ABus(root);
+	const resource = stepResourceId(graphId, 'S-01');
+	await claimStepLease(store, bus, { graphId, stepId: 'S-01', claimant: 'agent-a', ttlMs: 60_000, origin: 'a2a:agent-a' });
+	await releaseStepLease(store, bus, { graphId, stepId: 'S-01', origin: 'a2a:agent-a' });
+	// kill-recover: fresh store + bus over the SAME root (the on-disk journals are the truth)
+	const reloaded = new OrchestrationStore(root, { taskPort: new WorkspaceSeam(root), clock: makeClock(1_700_000_100_000).clock });
+	const reloadedBus = new A2ABus(root);
+	assert.equal((reloaded.stateOf(graphId) as { leases?: Record<string, unknown> }).leases?.['S-01'], undefined, 'the store layer is free after the restart');
+	assert.equal(reloadedBus.activeClaimOf(resource), undefined, 'the retraction survived the restart (the projection re-derives from the notice journal)');
+	// the acceptance posture holds post-restart: a different claimant proceeds with both layers in agreement
+	const fresh = await claimStepLease(reloaded, reloadedBus, { graphId, stepId: 'S-01', claimant: 'agent-b', ttlMs: 60_000, origin: 'a2a:agent-b' });
+	assert.equal(fresh.status, 'acquired');
+	assert.equal(reloadedBus.activeClaimOf(resource)?.holder, 'agent-b', 'the bus projection names the new holder after recovery');
+	const acquired = reloaded.journalRows.filter((row) => row.type === 'lease-acquired');
+	assert.equal(acquired.length, 2, 'the original acquisition plus exactly one fresh acquisition row');
+	assert.equal((acquired[1].payload as { holder: string }).holder, 'agent-b');
+	assert.equal(reloaded.journalRows.filter((row) => row.type === 'conflict-noticed').length, 0);
+	assert.equal(reloaded.verifyJournal().ok, true);
+	assert.equal(seamLedgerVerifies(root), true);
 });

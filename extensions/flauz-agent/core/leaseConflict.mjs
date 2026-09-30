@@ -353,3 +353,96 @@ export async function claimStepLease(store, bus, input) {
 		};
 	});
 }
+
+/**
+ * Release the step's resource lease through the flauz.a2a claim path: the
+ * DL-78 RELEASE-MIRROR LAW (P2-FIX-104) - a durable lease release
+ * (`lease-released` journal row) PROJECTS onto the A2A bus. The release
+ * mints a bus release/retraction notice (a `resource-claim` notice with
+ * action 'release' from the released holder), so `bus.activeClaimOf` of the
+ * step's resource returns `undefined` once the release lands - the watcher
+ * mirror never outlives the durable fact it mirrors (a mirror that
+ * outlives its source's release inverts the authority: the projection
+ * would refuse what the source has already freed). A subsequent
+ * claimStepLease by ANY claimant then proceeds with both layers in
+ * agreement: exactly one acquisition row lands and the bus projection
+ * names the new holder.
+ *
+ * Order of guarantees (inside the store's transition lock, mirroring
+ * claimStepLease's structure):
+ *   - no active lease on the step: the typed illegal-transition refusal
+ *     (the store's own release posture, verbatim);
+ *   - a live lease: the evidence-bearing lease-released row lands FIRST
+ *     (the durable primary fact, the same row shape the store's own
+ *     releaseLease mints), then the retraction notice posts on the bus
+ *     (from the RELEASED holder - the bus's fail-closed law stands: only
+ *     the active holder may clear a LIVE claim; a foreign release of a
+ *     live notice is refused, never a silent takeover).
+ *
+ * Scope guards (DL-78's own, preserved): the `leaseUntil` horizon stays
+ * advisory for EXPIRY semantics (an un-released lease that expires is
+ * unchanged v0 posture - the takeover goes through the recorded-expiry
+ * hygiene, never around it); the store stays authoritative (the mirror is
+ * a projection retraction, not a second enforcement source - when the bus
+ * projection names a DIFFERENT live holder than the store's released
+ * holder, the bus refuses the retraction fail-closed and the typed
+ * LeaseConflictError surfaces with the durable release row already
+ * recorded: the layers disagree honestly, the caller learns it); no
+ * state-machine change.
+ *
+ * @param {import('./orchStore.mjs').OrchestrationStore} store the orchestration store (the lease authority)
+ * @param {import('./a2a.mjs').A2ABus} bus the a2a bus (the claim surface)
+ * @param {object} input {graphId, stepId, actor?, origin, toAgent?}
+ * @returns {status: 'released', leaseId, holder, rowId, noticeId}
+ */
+export async function releaseStepLease(store, bus, input) {
+	if (!isPlainObject(input)) {
+		throw new OrchestrationError('releaseStepLease requires {graphId, stepId, actor?, origin, toAgent?}', 'invalid-params');
+	}
+	if (!isNonEmptyString(input.graphId) || !isNonEmptyString(input.stepId)) {
+		throw new OrchestrationError('releaseStepLease requires a graphId and stepId', 'invalid-params');
+	}
+	if (!isNonEmptyString(input.origin)) {
+		throw new OrchestrationError('releaseStepLease origin must be a non-empty provenance string (e.g. a2a:<agentId>)', 'invalid-params');
+	}
+	if (bus === null || typeof bus.post !== 'function') {
+		throw new OrchestrationError('releaseStepLease requires an a2a bus port ({ post({message}) })', 'invalid-params');
+	}
+	return store.withTransitionLock(async () => {
+		const graph = store.requireGraph(input.graphId);
+		store.requireStep(graph, input.stepId);
+		const now = store.clock();
+		const resource = stepResourceId(input.graphId, input.stepId);
+		const state = store.stateOf(input.graphId);
+		const lease = state.leases[input.stepId];
+		if (lease === undefined) {
+			throw new OrchestrationError(`releaseStepLease: no active lease on step ${String(input.stepId)}`, 'illegal-transition');
+		}
+		// the durable primary fact first (the store's own releaseLease row shape, verbatim)
+		const row = await store.appendEvidenceBearingRowLocked('lease-released', {
+			graphId: input.graphId,
+			stepId: input.stepId,
+			actor: input.actor ?? 'agent',
+			origin: input.origin,
+			payload: { leaseId: lease.leaseId, holder: lease.holder },
+		});
+		// the DL-78 mirror: the retraction notice from the RELEASED holder clears
+		// the bus projection (activeClaimOf -> undefined once the release lands)
+		const posted = bus.post({
+			message: {
+				kind: 'resource-claim',
+				from: lease.holder,
+				to: input.toAgent ?? 'flauz.watchers',
+				ts: now,
+				payload: { action: 'release', resource, leaseUntil: null },
+			},
+		});
+		return {
+			status: 'released',
+			leaseId: lease.leaseId,
+			holder: lease.holder,
+			rowId: row.rowId,
+			noticeId: posted.id,
+		};
+	});
+}
