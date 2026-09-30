@@ -55,8 +55,7 @@ import {
 
 import { PROVIDER_RETRY_AFTER_CAP_MS, PROVIDER_RETRY_FIXED_DELAY_MS, PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT, isRetryableProviderStatus, providerRetryWaitMs, resolveRetryBound } from '../../flauz-environments/src/lifecycle/providerRetry.ts';
 
-import { HttpPortAbortError } from '../src/contract/ports.ts';
-import type { HttpPort, HttpPortRequest, HttpPortResponse } from '../src/contract/ports.ts';
+import { type HttpPort, type HttpPortRequest, type HttpPortResponse, HttpPortAbortError } from '../src/contract/ports.ts';
 
 // ---------------------------------------------------------------------------
 // In-memory machinery (no sockets, no fetch, no fs -- readFileSync is used
