@@ -1,0 +1,49 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 12,
+	"slug": "retry-cancel-recover",
+	"name": "retry/cancel/recover",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 6,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg12.cloud-retry-recovers",
+			"ok": true,
+			"detail": "the caller-driven retry recovered on a fresh bounded window over the real wire (state 'running')"
+		},
+		{
+			"id": "leg12.retry-recorded-in-ops-ledger",
+			"ok": true,
+			"detail": "the ops ledger carries the two explicit start requests (1 error + 1 ok) plus five recorded retry attempt rows across the two bounded windows (3 exhausted + 2 failed; the successful third call of the fresh window is the request-level ok row) (7 start lines total, 6 wire calls; the recovered window records its recovered attempt too)"
+		},
+		{
+			"id": "leg12.cancel-recorded-with-attribution",
+			"ok": true,
+			"detail": "the cancel event is recorded with actor human"
+		},
+		{
+			"id": "leg12.downstream-stopped",
+			"ok": true,
+			"detail": "downstream work stopped by the mid-flight cancel: 1 tool step(s) executed by the flight child (tool 2 never ran after the cancel)"
+		},
+		{
+			"id": "leg12.cancel-terminal-typed-surface",
+			"ok": true,
+			"detail": "the cancelled task stays terminal 'cancelled' and the in-flight run surfaced the typed stale-run-cancelled crash at its next transition"
+		},
+		{
+			"id": "leg12.cancel-event-on-disk",
+			"ok": true,
+			"detail": "the cancelled run task T-004 is terminal on disk with the human-attributed cancel event"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.732Z",
+	"durationMs": 333,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

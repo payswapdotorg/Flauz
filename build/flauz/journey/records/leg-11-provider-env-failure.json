@@ -1,0 +1,74 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 11,
+	"slug": "provider-env-failure",
+	"name": "exercise provider/environment failure",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 11,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg11.recovered-within-bound",
+			"ok": true,
+			"detail": "the provider-reliant step recovered on attempt 3/3 (bounded) and succeeded"
+		},
+		{
+			"id": "leg11.retry-attempts-recorded",
+			"ok": true,
+			"detail": "the retry window recorded its attempts (ordinals 1,2,3; outcomes retryable-failed,retryable-failed,recovered)"
+		},
+		{
+			"id": "leg11.retry-rows-typed-from-real-wire",
+			"ok": true,
+			"detail": "every attempt row carries the typed facts classified from the REAL 500 wire responses (code PROVIDER_OVERLOADED,PROVIDER_OVERLOADED,PROVIDER_OVERLOADED; waits applied 0,0,0; bound 3)"
+		},
+		{
+			"id": "leg11.wire-call-census",
+			"ok": true,
+			"detail": "the real provider wire saw exactly 3 chat calls (2 failures + 1 recovery)"
+		},
+		{
+			"id": "leg11.final-gate-armed",
+			"ok": true,
+			"detail": "the final-assembly gate armed (S-05 awaits the human)"
+		},
+		{
+			"id": "leg11.cloud-created-then-fails-typed",
+			"ok": true,
+			"detail": "the cloud env created then the failing start surfaced the typed CLOUD_PROVIDER_ERROR over the real wire"
+		},
+		{
+			"id": "leg11.cloud-state-reflects-failure",
+			"ok": true,
+			"detail": "lifecycle state after the provider failure 'failed'"
+		},
+		{
+			"id": "leg11.cloud-bounded-exhaustion-recorded",
+			"ok": true,
+			"detail": "the cloud provider retry stopped at exactly the window bound (3 wire calls against a stub failing the first 5; ordinals 1,2,3)"
+		},
+		{
+			"id": "leg11.exhaustion-bounded",
+			"ok": true,
+			"detail": "the exhaustion window stopped at exactly the bound (3 attempts; outcomes retryable-failed,retryable-failed,exhausted)"
+		},
+		{
+			"id": "leg11.exhaustion-terminal-recorded",
+			"ok": true,
+			"detail": "the exhausted step failed TERMINALLY (retryPlanned false) and the graph failed honestly (never a silent success)"
+		},
+		{
+			"id": "leg11.probe-no-silent-success",
+			"ok": true,
+			"detail": "the probe never completed (no silent success)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.668Z",
+	"durationMs": 64,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

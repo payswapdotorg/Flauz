@@ -1,0 +1,49 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 1,
+	"slug": "workspace-open",
+	"name": "create/open workspace",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 6,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg1.workspace-envelope-bootstrapped",
+			"ok": true,
+			"detail": "the workspace root carries the bootstrapped flauz.tasks/v0 envelope (0 tasks)"
+		},
+		{
+			"id": "leg1.evidence-ledger-ensured",
+			"ok": true,
+			"detail": "the evidence ledger file exists on disk (ensure())"
+		},
+		{
+			"id": "leg1.memory-ensured",
+			"ok": true,
+			"detail": "the tiered memory substrate is ensured on disk"
+		},
+		{
+			"id": "leg1.environment-registry-bootstrapped",
+			"ok": true,
+			"detail": "the environment registry bootstrapped empty (a clean workspace)"
+		},
+		{
+			"id": "leg1.orchestration-store-initialized",
+			"ok": true,
+			"detail": "the orchestration store initialized clean (0 graphs, 0 journal rows; its on-disk home materializes with the first graph)"
+		},
+		{
+			"id": "leg1.model-registry-materialized",
+			"ok": true,
+			"detail": "the model capability state materialized on first load (capabilities.json,routing-policy.json)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.242Z",
+	"durationMs": 1,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

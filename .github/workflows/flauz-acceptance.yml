@@ -1,0 +1,226 @@
+# ---------------------------------------------------------------------------------------------
+# Flauz TL4 — P2-002: the full product acceptance journey (14 legs, real runtime).
+#
+# The journey-static job (every push/PR that touches the journey surface):
+#   1. the gate's --list catalogue (the CLI surface is alive),
+#   2. the drill's --selftest (the machinery: verdict assembly, SKIP honesty,
+#      the child line protocol, the leg catalogue -- no Chromium, no sockets),
+#   3. a doctored-records probe (expected exit 1) proves the gate fires -- a
+#      gate that cannot fail is not a gate (the session-battery lane pattern),
+#   4. --verify of the repo's committed receipts (the station entry point
+#      shape: the receipts on disk must satisfy the evidence levels).
+#
+# The journey job (the RUNTIME lane, opt-in for cost, honest in the trigger
+# list -- the flauz-budgets-runtime / session-runtime wiring mirrored):
+# workflow_dispatch (input `runtime`, default true) AND pushes that change
+# the journey harness / records / workflow. PRs run journey-static only.
+#   1. Chrome-for-Testing 153.0.8010.12 (the exact version the TL3-003 and
+#      TL4-007 drills were verified against) is downloaded from the official
+#      pinned storage path and launched headless with a CDP endpoint,
+#   2. the gate runs the FULL 14-leg journey over the real product runtime
+#      (real fs, real child processes, real A2A bus, real provider wire,
+#      real CDP, real LocalProcessExecutor) in --require evidence mode,
+#      writing per-leg receipts to build/flauz/journey/records/ (the
+#      mkdir-before-records pattern; a fresh run overwrites them),
+#   3. the lane asserts the drill's GREEN line verbatim.
+#
+# Constraints honored (same conventions as flauz-session.yml /
+# flauz-budgets.yml): no secrets, read-only perms, actions pinned to the
+# SHAs upstream's own workflows use, node 22 (type stripping >= 22.6),
+# zero-dep gate (node >= 20 stdlib only).
+# ---------------------------------------------------------------------------------------------
+
+name: Flauz Acceptance Journey
+
+on:
+  push:
+    branches: [flauz/main, main]
+    paths:
+      - 'build/flauz/journey/**'
+      - '.github/workflows/flauz-acceptance.yml'
+  pull_request:
+    branches: [flauz/main, main]
+    paths:
+      - 'build/flauz/journey/**'
+      - '.github/workflows/flauz-acceptance.yml'
+  workflow_dispatch:
+    inputs:
+      runtime:
+        description: 'Run the journey runtime lane (the full 14-leg journey over a real Chromium)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flauz-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journey-static:
+    name: 'Acceptance journey gate (P2-002 static — catalogue + selftest + gate-fires probe)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: The gate catalogue (--list)
+        run: node build/flauz/journey/p2-002-journey.mjs --list
+
+      - name: The drill machinery selftest (--selftest; no Chromium, no sockets)
+        run: node --experimental-strip-types build/flauz/journey/journey.drill.ts --selftest
+
+      - name: Prove the gate fires (doctored receipt must exit 1)
+        run: |
+          set -e
+          rm -rf "$RUNNER_TEMP/doctored-records"
+          cp -r build/flauz/journey/records "$RUNNER_TEMP/doctored-records"
+          node -e "
+            const fs = require('fs');
+            const p = process.argv[1] + '/leg-07-environment-use.json';
+            const r = JSON.parse(fs.readFileSync(p, 'utf-8'));
+            r.verdict = 'FAIL';
+            r.firstFailing = 'leg7.doctored: the receipt was doctored to FAIL (the gate must fire)';
+            fs.writeFileSync(p, JSON.stringify(r, null, '\t') + '\n');
+          " "$RUNNER_TEMP/doctored-records"
+          set +e
+          node build/flauz/journey/p2-002-journey.mjs --verify "$RUNNER_TEMP/doctored-records" \
+            > "$RUNNER_TEMP/doctored.log" 2>&1
+          code=$?
+          set -e
+          cat "$RUNNER_TEMP/doctored.log"
+          if [ "$code" -ne 1 ]; then
+            echo "::error::journey gate unexpectedly exited $code on the doctored receipt (expected 1 — the gate must fire)"
+            exit 1
+          fi
+          echo "expected: the doctored receipt fired the journey gate (exit 1)"
+
+      - name: Verify the committed receipts (the station re-verification shape)
+        run: node build/flauz/journey/p2-002-journey.mjs --verify build/flauz/journey/records --require
+
+  # ---------------------------------------------------------------------------
+  # The RUNTIME lane: the full 14-leg acceptance journey over the REAL
+  # product runtime (real CDP against a real headless Chrome-for-Testing +
+  # the real provider wire + real child processes). Opt-in for cost.
+  # ---------------------------------------------------------------------------
+  journey:
+    name: 'Acceptance journey (P2-002 runtime — 14 legs, real CDP + real wire + real processes)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # fetch-depth 2: the in-job path filter diffs HEAD^..HEAD
+          fetch-depth: 2
+
+      - name: Decide whether the runtime lane runs
+        id: plan
+        run: |
+          set -e
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "${{ inputs.runtime }}" = "false" ]; then
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (workflow_dispatch input runtime=false)"
+              exit 0
+            fi
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "runtime lane dispatched (input runtime=true)"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            CHANGED=$(git diff --name-only HEAD^ HEAD || true)
+            if printf '%s\n' "$CHANGED" | grep -Eq '^build/flauz/journey/|^\.github/workflows/flauz-acceptance\.yml'; then
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "runtime lane runs (journey surface changed):"
+              printf '%s\n' "$CHANGED" | grep -E '^build/flauz/journey/|^\.github/workflows/flauz-acceptance\.yml' || true
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"
+              echo "runtime lane skipped (no journey-surface change in this push)"
+            fi
+            exit 0
+          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "runtime lane skipped (event $GITHUB_EVENT_NAME runs journey-static only)"
+
+      - name: Setup Node.js (type stripping needs node >= 22.6)
+        if: steps.plan.outputs.run == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      # ---- the pinned real browser (the TL3-003 / TL4-007 / budgets drills'
+      # verified version; direct storage.googleapis.com pin, no registry) ----
+      - name: Install pinned Chrome for Testing (153.0.8010.12)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          curl -fsSL --retry 3 -o /tmp/cft.zip \
+            "https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.12/linux64/chrome-linux64.zip"
+          mkdir -p "$RUNNER_TEMP/cft"
+          unzip -q /tmp/cft.zip -d "$RUNNER_TEMP/cft"
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" --version
+
+      - name: Launch Chrome for Testing (CDP endpoint)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" \
+            --headless=new --no-sandbox --disable-gpu \
+            --disable-popup-blocking --remote-debugging-port=9222 \
+            --user-data-dir="$RUNNER_TEMP/flauz-cft-profile" about:blank \
+            > "$RUNNER_TEMP/cft.log" 2>&1 &
+          for i in $(seq 1 30); do
+            sleep 1
+            if curl -sf -m 2 http://127.0.0.1:9222/json/version > "$RUNNER_TEMP/cft-version.json"; then
+              break
+            fi
+          done
+          EP=$(node -p "JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/cft-version.json','utf8')).webSocketDebuggerUrl")
+          if [ -z "$EP" ]; then
+            echo "::error::Chrome for Testing did not expose a CDP endpoint in 30s"; cat "$RUNNER_TEMP/cft.log" || true; exit 1
+          fi
+          echo "FLAUZ_CDP_ENDPOINT=$EP" >> "$GITHUB_ENV"
+          echo "endpoint: $EP"
+
+      # ---- the records dir (the drills --records into it; a fresh run
+      # overwrites the committed receipts -- the mkdir-before-records pattern) ----
+      - name: Prepare the journey records dir
+        if: steps.plan.outputs.run == 'true'
+        run: mkdir -p build/flauz/journey/records
+
+      - name: Run the full acceptance journey (gate --require evidence mode)
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -o pipefail
+          set -e
+          node build/flauz/journey/p2-002-journey.mjs --root . --require \
+            2>&1 | tee "$RUNNER_TEMP/journey-runtime.log"
+
+      - name: Assert the GREEN line
+        if: steps.plan.outputs.run == 'true'
+        run: |
+          set -e
+          grep -q 'p2-002 journey: PASS -- 14/14 legs PASS' "$RUNNER_TEMP/journey-runtime.log"
+          grep -q 'p2-002 journey drill: GREEN (14 legs over the real runtime)' "$RUNNER_TEMP/journey-runtime.log"
+          grep -Eq 'p2-002 journey drill: [0-9]+ assertions, 0 failures' "$RUNNER_TEMP/journey-runtime.log"
+          echo "journey runtime: GREEN line verified (14 legs over the real runtime)"
+
+      - name: Upload the journey receipts
+        if: always() && steps.plan.outputs.run == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v5.0.0-preview
+        with:
+          name: flauz-journey-receipts
+          path: |
+            build/flauz/journey/records
+            $RUNNER_TEMP/journey-runtime.log
+          if-no-files-found: warn
