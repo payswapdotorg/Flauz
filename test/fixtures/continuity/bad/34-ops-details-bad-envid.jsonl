@@ -1,1 +1,1 @@
-{"schemaVersion":0,"schema":"flauz.continuity-ops/v0","ts":1760000100000,"actor":"human","op":"export","bundleId":"flauz:continuity:0123456789abcdef","result":"ok","details":{"fromEnvironmentId":"staging","surfacesCarried":7,"surfacesLost":12,"surfacesRedacted":3}}
+{"actor":"human","bundleId":"flauz:continuity:0123456789abcdef","details":{"fromEnvironmentId":"staging","surfacesCarried":7,"surfacesLost":12,"surfacesRedacted":3},"op":"export","prev":null,"result":"ok","schema":"flauz.continuity-ops/v0","schemaVersion":0,"ts":1760000100000}

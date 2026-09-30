@@ -68,7 +68,12 @@ const vscodeFs: FileSystemPort = {
 		} catch {
 			current = '';
 		}
-		await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(current + contents));
+		// atomic append (DL-77: never an in-place mutation): read the
+		// existing bytes, write the extension to a tmp file, rename over
+		// the target -- a torn append can never leave a half-written line.
+		const tmpUri = vscode.Uri.file(`${path}.tmp`);
+		await vscode.workspace.fs.writeFile(tmpUri, new TextEncoder().encode(current + contents));
+		await vscode.workspace.fs.rename(tmpUri, uri, { overwrite: true });
 	},
 	rename: async (fromPath, toPath) => {
 		await vscode.workspace.fs.rename(vscode.Uri.file(fromPath), vscode.Uri.file(toPath), { overwrite: true });

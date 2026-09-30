@@ -278,25 +278,33 @@ source environment instead of the bundle — the documented trade-off.
 
 Append-only, one canonical JSON line per op, envelope
 `flauz.continuity-ops/v0`: `{schemaVersion, schema, ts, actor, op:
-'export'|'restore'|'verify', bundleId, result: 'ok'|'error', details?
-{fromEnvironmentId?, toEnvironmentId?, surfacesCarried, surfacesLost,
-surfacesRedacted}, error? {code, message}}` (MANDATORY actor — a missing
-actor is a schema rejection; the existing content is re-validated and
-preserved byte-for-byte before extension). Both new shapes are pinned by
-the fixtures at `test/fixtures/continuity/` (valid + a 35-case invalid
-matrix).
+'export'|'restore'|'verify', bundleId, result: 'ok'|'error', prev,
+details? {fromEnvironmentId?, toEnvironmentId?, surfacesCarried,
+surfacesLost, surfacesRedacted}, error? {code, message}}` (MANDATORY
+actor — a missing actor is a schema rejection; the existing content is
+re-validated and preserved byte-for-byte before extension; appends are
+STRICTLY SERIAL — the DL-77 transition lock, no interleaving, no lost
+lines). `prev` is the per-row hash chain — the sha256 of the PREVIOUS
+record's canonical line (null on the genesis record) — so an in-place
+content edit of any non-final record is a typed `OPS_CORRUPT` failure at
+parse time, never a silent rewrite (DL-77 tamper detection). Both new
+shapes are pinned by the fixtures at `test/fixtures/continuity/` (valid +
+a 35-case invalid matrix).
 
 ### Commands + the switch hand-off flow
 
 - `flauz.continuity.export` — `{ actor?, environmentId?, switchPlanRef? }`
   -> the bundle manifest (materializes the bundle; journals the op).
 - `flauz.continuity.restore` — `{ bundleId, actor?, targetEnvironmentId?,
-  force? }` -> typed outcome: re-hydrates state files atomically (tmp+rename
-  per file; all-or-nothing PER SURFACE with per-surface results), FAILS
-  CLOSED on untrusted target environments, REQUIRES `force` to overwrite
-  non-empty existing state (else typed `RESTORE_TARGET_NOT_EMPTY`), and
-  records every surface outcome (`carried`/`lost`/`redacted`/`skipped` — a
-  failed surface leaves the prior target state untouched).
+  force? }` -> typed outcome: re-hydrates state files atomically and
+  ALL-OR-NOTHING (every carried surface is fully validated — artifact
+  presence, content hashes, byte sizes — BEFORE any byte is written; a
+  write-phase failure rolls every already-written path back to its prior
+  state, so a failed restore never leaves a partially-restored workspace),
+  FAILS CLOSED on untrusted target environments, REQUIRES `force` to
+  overwrite non-empty existing state (else typed `RESTORE_TARGET_NOT_EMPTY`),
+  and records every surface outcome (`carried`/`lost`/`redacted`/`skipped` —
+  a failed restore leaves the prior target state untouched).
 - `flauz.continuity.verify` — `{ bundleId }` -> integrity check (manifest
   hashes re-verified against the bundle artifacts; the re-derivable path
   hash for redacted surfaces; typed per-surface verdicts).

@@ -196,7 +196,11 @@ export interface ContinuityOpDetails {
 	readonly surfacesRedacted: number;
 }
 
-/** One ops-ledger line: `flauz.continuity-ops/v0` (the exact key set). */
+/**
+ * One ops-ledger line: `flauz.continuity-ops/v0` (the exact key set).
+ * `prev` is the per-row hash chain (DL-77 tamper detection): the sha256 of
+ * the PREVIOUS record's canonical line, null on the genesis record.
+ */
 export interface ContinuityOpRecord {
 	readonly schemaVersion: number;
 	readonly schema: string;
@@ -205,9 +209,13 @@ export interface ContinuityOpRecord {
 	readonly op: ContinuityOpName;
 	readonly bundleId: string;
 	readonly result: 'ok' | 'error';
+	readonly prev: string | null;
 	readonly details?: ContinuityOpDetails;
 	readonly error?: ContinuityOpError;
 }
+
+/** Input to `ContinuityOpsLedger.append` (`prev` is minted by the ledger). */
+export type ContinuityOpAppendInput = Omit<ContinuityOpRecord, 'prev'>;
 
 // ---------------------------------------------------------------------------
 // Command-level typed outcomes (ephemeral, never persisted whole in the

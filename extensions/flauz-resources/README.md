@@ -36,17 +36,30 @@ ACCESS.**
   the edge-legality matrix, `FileSystemPort`/`Clock` ports, pure-TS sha256.
 - `src/graph.ts` — `ResourceGraph`: `.flauz/resources.json`
   (`flauz.resources/v0`) persistence (nodes + edges + surfaces,
-  stable-sorted output); `addRef`/`updateRef`/`removeRef` (refuses while
+  stable-sorted output) with STRICTLY SERIAL mutations (the DL-77
+  transition lock — concurrent callers queue, none interleave);
+  `addRef`/`updateRef`/`removeRef` (refuses while
   edges/surfaces reference the node — typed error listing them),
   `addSurface` (versioned), `addEdge`/`removeEdge` (typed endpoint +
-  legality validation), queries (`byKind`, `neighbors`, `lineage` over the
+  legality + ANCESTRY-CYCLE validation: the `produced` / `restored-from` /
+  `snapshot-of` / `derived-from` relations must stay acyclic per kind —
+  mutual ancestry is temporally impossible and rejected at append, at
+  load and by verify), queries (`byKind`, `neighbors`, `lineage` over the
   produced/restored-from/snapshot-of chain, `surfacesFor`), integrity
   verification (`verifyEnvelope`/`verifyWorkspace`) and the DOT export.
 - `src/provenance.ts` — the append-only mutation log
   `.flauz/resources-ops.jsonl` (`flauz.resources-ops/v0`): op, ref id,
   actor (MANDATORY), timestamp, before/after digests (sha256 of the
-  canonical envelope). The records chain via the state digests;
-  `verifyChain` detects truncation and tampering.
+  canonical envelope) and `prev` — the sha256 of the PREVIOUS record's
+  canonical line (null on the genesis record). The records chain twice:
+  through the state digests (record N's `beforeDigest` equals record N-1's
+  `afterDigest`) AND through the per-row `prev` hash chain — so reorder,
+  delete, truncate, digest edit, seq edit and in-place CONTENT edit of any
+  non-final record are all detected; an empty ledger over a non-empty
+  graph is erased history. Appends are STRICTLY SERIAL (the DL-77
+  transition lock) and the file is only ever extended (a torn tail —
+  missing trailing newline — refuses to parse or extend). `verifyChain`
+  detects truncation and tampering.
 - `src/continuity.ts` — `RestorationPlan` per family: browser-session
   (sessionId/initiator/partition/state summary, contract-aligned with
   Worker A's BrowserSessionDescriptor), environment (registry descriptor
@@ -67,7 +80,8 @@ ACCESS.**
   only (`onCommand:flauz.res.*`; activation-lint R3 keeps this extension
   off `onStartupFinished`). The `FileSystemPort` binds `vscode.workspace.fs`
   (readFile/writeFile/createDirectory/rename; appendFile as
-  read-concat-write) — fully mock-testable.
+  read + tmp + atomic rename — an append never mutates the journal in
+  place, DL-77) — fully mock-testable.
 - `test/` — `node --test` suites (api / graph / continuity / provenance /
   contract / extension / **browserSessions**). Zero dependencies; Node >=
   23.6 (type stripping). The repo fixture matrix lives at

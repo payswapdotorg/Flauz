@@ -14,7 +14,18 @@
  *   - `.flauz/continuity-ops.jsonl` — append-only, one canonical
  *     (sorted-keys, compact) JSON line per op. Appends re-validate and
  *     preserve every existing byte (read + validate + extend + atomic
- *     rewrite); the ledger never rewrites history.
+ *     rewrite) and are STRICTLY SERIAL (the DL-77 transition lock — no
+ *     concurrent append can interleave or lose a line); the ledger never
+ *     rewrites history.
+ *
+ * Per-row hash chaining (DL-77 tamper detection, the flauz-workspace `prev`
+ * discipline): every record carries `prev` — the sha256 of the PREVIOUS
+ * record's canonical line (null on the genesis record). `parseLedger`
+ * verifies the chain, so an in-place content edit of any non-final record
+ * (result, actor, op, details, ...) is a typed OPS_CORRUPT failure — never a
+ * silent rewrite. The final record's metadata remains covered by its own
+ * fields (the unkeyed-tail limit shared with the sibling evidence ledger's
+ * pre-signature posture).
  *
  * Parsing is STRICT: unknown keys, wrong schema ids, non-enum statuses/
  * actors/ops/results, cross-field violations (a `carried` entry without its
@@ -57,6 +68,7 @@ import {
 	isContinuityBundleId,
 	type BundleSurfaceEntry,
 	type ContinuityBundleManifest,
+	type ContinuityOpAppendInput,
 	type ContinuityOpDetails,
 	type ContinuityOpError,
 	type ContinuityOpRecord,
@@ -300,8 +312,8 @@ function parseOpDetails(value: unknown, where: string): ContinuityOpDetails {
 /** Validates one parsed ledger line (strict, exact key set). */
 export function parseContinuityOpRecord(value: unknown, lineNo: number): ContinuityOpRecord {
 	const where = `ops ledger line ${lineNo}`;
-	if (!isPlainObject(value) || !hasOnlyKeys(value, ['schemaVersion', 'schema', 'ts', 'actor', 'op', 'bundleId', 'result'], ['details', 'error'])) {
-		throw opsError(`${where} must have the keys [schemaVersion, schema, ts, actor, op, bundleId, result] plus at most [details, error] (the flauz.continuity-ops/v0 contract)`);
+	if (!isPlainObject(value) || !hasOnlyKeys(value, ['schemaVersion', 'schema', 'ts', 'actor', 'op', 'bundleId', 'result', 'prev'], ['details', 'error'])) {
+		throw opsError(`${where} must have the keys [schemaVersion, schema, ts, actor, op, bundleId, result, prev] plus at most [details, error] (the flauz.continuity-ops/v0 contract)`);
 	}
 	if (value.schemaVersion !== CONTINUITY_SCHEMA_VERSION) {
 		throw opsError(`${where} schemaVersion must be exactly ${CONTINUITY_SCHEMA_VERSION}`);
@@ -323,6 +335,9 @@ export function parseContinuityOpRecord(value: unknown, lineNo: number): Continu
 	}
 	if (value.result !== 'ok' && value.result !== 'error') {
 		throw opsError(`${where} result must be 'ok' or 'error' (got ${JSON.stringify(value.result)})`);
+	}
+	if (value.prev !== null && (typeof value.prev !== 'string' || !/^[0-9a-f]{64}$/.test(value.prev))) {
+		throw opsError(`${where} prev must be null (the genesis record) or 64 lowercase hex chars (the previous record's line hash -- the per-row tamper chain)`);
 	}
 	if (value.result === 'error') {
 		if (!hasKey(value, 'error')) {
@@ -352,6 +367,7 @@ export function parseContinuityOpRecord(value: unknown, lineNo: number): Continu
 		op: value.op as ContinuityOpRecord['op'],
 		bundleId: value.bundleId,
 		result: value.result,
+		prev: value.prev as string | null,
 		...(hasKey(value, 'details') ? { details: value.details as ContinuityOpDetails } : {}),
 		...(value.result === 'error'
 			? { error: { code: (value.error as Record<string, string>).code, message: (value.error as Record<string, string>).message } }
@@ -375,16 +391,26 @@ export function serializeContinuityOpRecord(record: ContinuityOpRecord): string 
 	return canonicalJson(record);
 }
 
+/** sha256 over the canonical stored line of a record -- the per-row chain link value. */
+export function continuityOpRecordHash(record: ContinuityOpRecord): string {
+	return sha256Hex(serializeContinuityOpRecord(record));
+}
+
 /**
  * The append-only continuity ops ledger. `append` re-validates the full
- * existing content before extending it (history is never silently mutated);
- * the extended file is written atomically (tmp + rename).
+ * existing content (schema AND the per-row prev chain -- history is never
+ * silently mutated) before extending it; the extended file is written
+ * atomically (tmp + rename); appends are STRICTLY SERIAL (the DL-77
+ * transition lock: concurrent appends queue, none interleave, none lose a
+ * line).
  */
 export class ContinuityOpsLedger {
 	private readonly root: string;
 	private readonly fs: FileSystemPort;
 	private readonly clock: Clock;
 	private readonly opsPath: string;
+	/** The DL-77 serialized-append discipline (the transition lock). */
+	private appendLock: Promise<unknown> = Promise.resolve();
 
 	constructor(options: { readonly root: string; readonly fs: FileSystemPort; readonly clock?: Clock }) {
 		this.root = options.root;
@@ -395,6 +421,22 @@ export class ContinuityOpsLedger {
 
 	get path(): string {
 		return this.opsPath;
+	}
+
+	/** Runs `operation` strictly serially against every other append (DL-77). */
+	private runSerial<T>(operation: () => Promise<T>): Promise<T> {
+		const prior = this.appendLock;
+		let release: () => void = () => undefined;
+		this.appendLock = new Promise<void>(resolve => {
+			release = resolve;
+		});
+		return prior.then(async () => {
+			try {
+				return await operation();
+			} finally {
+				release();
+			}
+		});
 	}
 
 	/** Validates + parses a full ledger document (used by load + tests). */
@@ -411,6 +453,14 @@ export class ContinuityOpsLedger {
 			}
 			records.push(parseContinuityOpLine(line, i + 1));
 		}
+		// per-row hash chain: record N's prev === sha256(record N-1 line); genesis carries null
+		for (let i = 0; i < records.length; i++) {
+			const record = records[i]!;
+			const expectedPrev = i === 0 ? null : continuityOpRecordHash(records[i - 1]!);
+			if (record.prev !== expectedPrev) {
+				throw opsError(`ops ledger line ${i + 1} prev does not match the previous record's line hash (in-place content tamper: expected ${String(expectedPrev)}, got ${String(record.prev)})`);
+			}
+		}
 		return records;
 	}
 
@@ -423,23 +473,27 @@ export class ContinuityOpsLedger {
 		return ContinuityOpsLedger.parseLedger(raw);
 	}
 
-	/** Appends one record; returns its 1-based line number. Existing bytes preserved. */
-	async append(record: ContinuityOpRecord): Promise<number> {
-		await this.fs.mkdir(joinPath(this.root, FLAUZ_DIR));
-		const raw = await this.fs.readFileUtf8(this.opsPath);
-		const existing = raw === undefined || raw.trim().length === 0 ? '' : raw;
-		if (existing.length > 0) {
-			ContinuityOpsLedger.parseLedger(existing); // corruption fails closed BEFORE we extend
-		}
-		const line = serializeContinuityOpRecord(record);
-		if (line.includes('\n')) {
-			throw opsError('an op record must serialize to a single line');
-		}
-		const contents = `${existing}${line}\n`;
-		const tmp = `${this.opsPath}.tmp`;
-		await this.fs.writeFile(tmp, contents);
-		await this.fs.rename(tmp, this.opsPath);
-		return contents.split('\n').length - 1; // number of lines
+	/** Appends one record (mints its prev chain link); returns the minted record. Existing bytes preserved. */
+	async append(input: ContinuityOpAppendInput): Promise<ContinuityOpRecord> {
+		return await this.runSerial(async () => {
+			await this.fs.mkdir(joinPath(this.root, FLAUZ_DIR));
+			const raw = await this.fs.readFileUtf8(this.opsPath);
+			const existing = raw === undefined || raw.trim().length === 0 ? '' : raw;
+			const priorRecords = existing.length === 0 ? [] : ContinuityOpsLedger.parseLedger(existing); // corruption fails closed BEFORE we extend
+			const prev = priorRecords.length === 0 ? null : continuityOpRecordHash(priorRecords[priorRecords.length - 1]!);
+			const record: ContinuityOpRecord = { ...input, prev };
+			const lineNo = priorRecords.length + 1;
+			parseContinuityOpRecord(record, lineNo); // our own record is strict-parsed before it lands
+			const line = serializeContinuityOpRecord(record);
+			if (line.includes('\n')) {
+				throw opsError('an op record must serialize to a single line');
+			}
+			const contents = `${existing}${line}\n`;
+			const tmp = `${this.opsPath}.tmp`;
+			await this.fs.writeFile(tmp, contents);
+			await this.fs.rename(tmp, this.opsPath);
+			return record;
+		});
 	}
 }
 

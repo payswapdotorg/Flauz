@@ -12,9 +12,12 @@ read-only):
   'redacted', artifactPath?, sha256?, bytes?, note?}}}`.
 - `.flauz/continuity-ops.jsonl` — append-only, one canonical JSON line per
   op: `{schemaVersion, schema, ts, actor, op: 'export'|'restore'|'verify',
-  bundleId, result: 'ok'|'error', details? {fromEnvironmentId?,
+  bundleId, result: 'ok'|'error', prev, details? {fromEnvironmentId?,
   toEnvironmentId?, surfacesCarried, surfacesLost, surfacesRedacted},
-  error? {code, message}}`.
+  error? {code, message}}`. `prev` is the per-row hash chain — the sha256 of
+  the PREVIOUS record's canonical line, `null` on the genesis record (the
+  DL-77 tamper-evidence chain: an in-place record edit breaks the successor's
+  `prev` and is a typed `OPS_CORRUPT` rejection).
 
 ## The surface-status contract (pinned here, not just in code)
 

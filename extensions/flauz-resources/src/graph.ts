@@ -28,6 +28,8 @@ import {
 	ResourceGraphError,
 	canonicalJson,
 	clone,
+	edgeClosesCycle,
+	findEdgeCycle,
 	isEdgeKind,
 	isPlainObject,
 	hasKey,
@@ -105,12 +107,35 @@ export class ResourceGraph {
 	private readonly clock: Clock;
 	private readonly ledger: ProvenanceLedger;
 	private state: ResourcesEnvelope | undefined;
+	/**
+	 * The DL-77 serialized-mutation discipline (the transition lock): graph
+	 * mutations are STRICTLY serial. Concurrent callers queue here -- two
+	 * interleaved commits would race on the shared `.tmp` path, lose the
+	 * earlier mutation's envelope write and fork the ops digest chain.
+	 */
+	private transitionLock: Promise<unknown> = Promise.resolve();
 
 	constructor(options: ResourceGraphOptions) {
 		this.root = options.root;
 		this.fs = options.fs;
 		this.clock = options.clock ?? (() => Date.now());
 		this.ledger = new ProvenanceLedger({ root: options.root, fs: options.fs, clock: this.clock });
+	}
+
+	/** Runs `operation` strictly serially against every other mutation (DL-77). */
+	private runSerial<T>(operation: () => Promise<T>): Promise<T> {
+		const prior = this.transitionLock;
+		let release: () => void = () => undefined;
+		this.transitionLock = new Promise<void>(resolve => {
+			release = resolve;
+		});
+		return prior.then(async () => {
+			try {
+				return await operation();
+			} finally {
+				release();
+			}
+		});
 	}
 
 	/** The workspace root this graph is bound to. */
@@ -133,16 +158,21 @@ export class ResourceGraph {
 		if (this.state !== undefined) {
 			return this.state;
 		}
-		await this.fs.mkdir(joinPath(this.root, FLAUZ_DIR));
-		const raw = await this.fs.readFileUtf8(this.filePath);
-		if (raw === undefined) {
-			this.state = clone(EMPTY_ENVELOPE);
-			await this.persist();
-			await this.ledger.ensure();
+		return await this.runSerial(async () => {
+			if (this.state !== undefined) {
+				return this.state;
+			}
+			await this.fs.mkdir(joinPath(this.root, FLAUZ_DIR));
+			const raw = await this.fs.readFileUtf8(this.filePath);
+			if (raw === undefined) {
+				this.state = clone(EMPTY_ENVELOPE);
+				await this.persist();
+				await this.ledger.ensure();
+				return this.state;
+			}
+			this.state = ResourceGraph.parseEnvelope(raw);
 			return this.state;
-		}
-		this.state = ResourceGraph.parseEnvelope(raw);
-		return this.state;
+		});
 	}
 
 	/** Validates + parses a graph document (used by bootstrap, tests + the canary). */
@@ -221,6 +251,14 @@ export class ResourceGraph {
 				throw new ResourceGraphError('FLAUZ_RESOURCES_EDGE_ILLEGAL', edgeLegalityError(edge.kind, fromKind, toKind));
 			}
 		}
+		// load-time integrity (fail-closed): a graph file with dangling edges,
+		// self-edges, illegal endpoint kinds, orphan surfaces or ancestry
+		// cycles is REJECTED -- the same typed rules addEdge/addSurface
+		// enforce on mutation.
+		const cycle = findEdgeCycle(edges);
+		if (cycle !== undefined) {
+			throw new ResourceGraphError('FLAUZ_RESOURCES_EDGE_ILLEGAL', `flauz.resources/v0: edges carry a '${cycle.kind}' cycle: ${cycle.path.join(' -> ')} (ancestry edge kinds must stay acyclic per kind)`);
+		}
 		for (const [index, record] of surfaces.entries()) {
 			if (!kindById.has(record.refId)) {
 				throw new ResourceGraphError('FLAUZ_RESOURCES_SCHEMA', `flauz.resources/v0: surfaces[${index}]: surface bound to unknown ref '${record.refId}' (no orphan surfaces)`);
@@ -241,6 +279,10 @@ export class ResourceGraph {
 
 	/** Adds a ref (createdAt minted from the graph clock). Rejects duplicate ids. */
 	async addRef(input: RefInput): Promise<ResourceRef> {
+		return await this.runSerial(() => this.addRefSerial(input));
+	}
+
+	private async addRefSerial(input: RefInput): Promise<ResourceRef> {
 		this.assertBootstrapped();
 		const candidate = {
 			schemaVersion: 0,
@@ -262,6 +304,10 @@ export class ResourceGraph {
 
 	/** Patches a ref's displayName (the only mutable field in v0; identity is immutable). */
 	async updateRef(id: string, patch: { displayName: string }, provenance: ResourceProvenance): Promise<ResourceRef> {
+		return await this.runSerial(() => this.updateRefSerial(id, patch, provenance));
+	}
+
+	private async updateRefSerial(id: string, patch: { displayName: string }, provenance: ResourceProvenance): Promise<ResourceRef> {
 		this.assertBootstrapped();
 		const validated = validateProvenance(provenance, 'updateRef.provenance');
 		if (!isPlainObject(patch) || !hasOnlyPatchKeys(patch)) {
@@ -286,6 +332,10 @@ export class ResourceGraph {
 	 * bound to it (a typed error lists the offending edges + surface families).
 	 */
 	async removeRef(id: string, provenance: ResourceProvenance): Promise<void> {
+		return await this.runSerial(() => this.removeRefSerial(id, provenance));
+	}
+
+	private async removeRefSerial(id: string, provenance: ResourceProvenance): Promise<void> {
 		this.assertBootstrapped();
 		const validated = validateProvenance(provenance, 'removeRef.provenance');
 		if (this.get(id) === undefined) {
@@ -314,6 +364,10 @@ export class ResourceGraph {
 	 * change. An identical-to-current surface is rejected as a no-op.
 	 */
 	async addSurface(refId: string, surface: Surface, provenance: ResourceProvenance): Promise<SurfaceRecord> {
+		return await this.runSerial(() => this.addSurfaceSerial(refId, surface, provenance));
+	}
+
+	private async addSurfaceSerial(refId: string, surface: Surface, provenance: ResourceProvenance): Promise<SurfaceRecord> {
 		this.assertBootstrapped();
 		const validated = validateProvenance(provenance, 'addSurface.provenance');
 		const validatedSurface = validateSurface(surface, 'addSurface.surface');
@@ -348,6 +402,10 @@ export class ResourceGraph {
 
 	/** Adds an edge (typed endpoint + legality validation; createdAt from the clock). */
 	async addEdge(input: EdgeInput, provenance: ResourceProvenance): Promise<GraphEdge> {
+		return await this.runSerial(() => this.addEdgeSerial(input, provenance));
+	}
+
+	private async addEdgeSerial(input: EdgeInput, provenance: ResourceProvenance): Promise<GraphEdge> {
 		this.assertBootstrapped();
 		const validated = validateProvenance(provenance, 'addEdge.provenance');
 		const edge = this.validateNewEdge(input, validated);
@@ -359,6 +417,10 @@ export class ResourceGraph {
 
 	/** Removes an edge (kind, from, to). */
 	async removeEdge(kind: EdgeKind, from: string, to: string, provenance: ResourceProvenance): Promise<void> {
+		return await this.runSerial(() => this.removeEdgeSerial(kind, from, to, provenance));
+	}
+
+	private async removeEdgeSerial(kind: EdgeKind, from: string, to: string, provenance: ResourceProvenance): Promise<void> {
 		this.assertBootstrapped();
 		const validated = validateProvenance(provenance, 'removeEdge.provenance');
 		if (!isEdgeKind(kind)) {
@@ -379,10 +441,12 @@ export class ResourceGraph {
 	 * by the continuity service; validated like any other edge.
 	 */
 	async restoreRef(refId: string, originRefId: string, provenance: ResourceProvenance): Promise<GraphEdge> {
-		this.assertBootstrapped();
-		const edge = await this.addEdge({ kind: 'restored-from', from: refId, to: originRefId }, provenance);
-		await this.commitOpOnly('restore', refId, provenance, `restored from ${originRefId}`);
-		return edge;
+		return await this.runSerial(async () => {
+			this.assertBootstrapped();
+			const edge = await this.addEdgeSerial({ kind: 'restored-from', from: refId, to: originRefId }, provenance);
+			await this.commitOpOnly('restore', refId, provenance, `restored from ${originRefId}`);
+			return edge;
+		});
 	}
 
 	// -------------------------------------------------------------------------
@@ -513,6 +577,9 @@ export class ResourceGraph {
 		}
 		if (!isEdgeLegalForKinds(input.kind, fromRef.kind, toRef.kind)) {
 			throw new ResourceGraphError('FLAUZ_RESOURCES_EDGE_ILLEGAL', edgeLegalityError(input.kind, fromRef.kind, toRef.kind));
+		}
+		if (edgeClosesCycle(input.kind, input.from, input.to, this.state!.edges)) {
+			throw new ResourceGraphError('FLAUZ_RESOURCES_EDGE_ILLEGAL', `flauz.resources/v0: addEdge rejected: '${input.kind}' ${input.from} -> ${input.to} closes a '${input.kind}' cycle (ancestry edge kinds must stay acyclic per kind)`);
 		}
 		const duplicate = this.state!.edges.some(edge => edge.kind === input.kind && edge.from === input.from && edge.to === input.to);
 		if (duplicate) {
@@ -662,6 +729,10 @@ export function verifyEnvelope(envelope: ResourcesEnvelope): VerifyReport {
 		} catch (err) {
 			push('bad-edge', path, (err as Error).message);
 		}
+	}
+	const cycle = findEdgeCycle(envelope.edges);
+	if (cycle !== undefined) {
+		push('edge-cycle', 'edges', `edges carry a '${cycle.kind}' cycle: ${cycle.path.join(' -> ')} (ancestry edge kinds must stay acyclic per kind)`);
 	}
 	const surfacePairs = new Set<string>();
 	for (const [index, record] of envelope.surfaces.entries()) {
