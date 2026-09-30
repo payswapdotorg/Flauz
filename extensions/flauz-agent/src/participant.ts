@@ -19,52 +19,52 @@ import type { ModelSelection } from './models.ts';
 export const PARTICIPANT_ID = 'flauz.agent';
 
 export interface ParticipantRequest {
-	prompt: string;
-	requestId: string;
-	toolInvocationToken: unknown;
+        prompt: string;
+        requestId: string;
+        toolInvocationToken: unknown;
 }
 
 export interface ParticipantDeps {
-	orchestrator: Orchestrator;
-	getModelSelection: () => ModelSelection;
-	logger?: (message: string) => void;
+        orchestrator: Orchestrator;
+        getModelSelection: () => ModelSelection;
+        logger?: (message: string) => void;
 }
 
 let requestCounter = 0;
 
 function nextRequestId(): string {
-	requestCounter += 1;
-	return `req-${String(requestCounter).padStart(4, '0')}`;
+        requestCounter += 1;
+        return `req-${String(requestCounter).padStart(4, '0')}`;
 }
 
 /** Build the ChatRequestHandler that routes turns to the orchestrator. */
 export function createParticipantHandler(deps: ParticipantDeps): vscode.ChatRequestHandler {
-	return async (request, _context, stream, _token) => {
-		const participantRequest: ParticipantRequest = {
-			prompt: request.prompt,
-			requestId: nextRequestId(),
-			toolInvocationToken: request.toolInvocationToken,
-		};
-		if (typeof request.command === 'string' && request.command.length > 0) {
-			await deps.orchestrator.handleCommand(request.command, participantRequest, stream);
-		} else {
-			await deps.orchestrator.handlePrompt(participantRequest, stream);
-		}
-		return {};
-	};
+        return async (request, _context, stream, _token) => {
+                const participantRequest: ParticipantRequest = {
+                        prompt: request.prompt,
+                        requestId: nextRequestId(),
+                        toolInvocationToken: request.toolInvocationToken,
+                };
+                if (typeof request.command === 'string' && request.command.length > 0) {
+                        await deps.orchestrator.handleCommand(request.command, participantRequest, stream);
+                } else {
+                        await deps.orchestrator.handlePrompt(participantRequest, stream);
+                }
+                return {};
+        };
 }
 
 /** Structural slice of `vscode.chat.createChatParticipant`. */
 export type ParticipantRegistrar = (
-	id: string,
-	handler: vscode.ChatRequestHandler,
+        id: string,
+        handler: vscode.ChatRequestHandler,
 ) => {
-	followupProvider?: vscode.ChatFollowupProvider;
-	dispose(): void;
+        followupProvider?: vscode.ChatFollowupProvider;
+        dispose(): void;
 };
 
 /**
- * Register the participant with followups for the four human gates plus the
+ * Register the participant with followups for the five human gates plus the
  * multi-agent delegation followup (P2-FIX-203: one prompt-only followup on
  * multi-step plans — every Flauz plan is a numbered multi-step plan, so the
  * user-facing verb for asking the agent to delegate rides the followup row
@@ -72,20 +72,21 @@ export type ParticipantRegistrar = (
  * delegation is a natural-language ask, not a human gate).
  */
 export function registerParticipant(
-	register: ParticipantRegistrar,
-	deps: ParticipantDeps,
+        register: ParticipantRegistrar,
+        deps: ParticipantDeps,
 ): { dispose(): void } {
-	const participant = register(PARTICIPANT_ID, createParticipantHandler(deps));
-	participant.followupProvider = {
-		provideFollowups() {
-			return [
-				{ prompt: 'approve', command: 'approve', label: 'Approve plan' },
-				{ prompt: 'request changes', command: 'request-changes', label: 'Request changes' },
-				{ prompt: 'sign off', command: 'sign-off', label: 'Sign off' },
-				{ prompt: 'cancel', command: 'cancel', label: 'Cancel task' },
-				{ prompt: 'delegate a step of this plan to a worker agent', label: 'Delegate a step to a worker agent' },
-			];
-		},
-	};
-	return { dispose: () => participant.dispose() };
+        const participant = register(PARTICIPANT_ID, createParticipantHandler(deps));
+        participant.followupProvider = {
+                provideFollowups() {
+                        return [
+                                { prompt: 'approve', command: 'approve', label: 'Approve plan' },
+                                { prompt: 'request changes', command: 'request-changes', label: 'Request changes' },
+                                { prompt: 'sign off', command: 'sign-off', label: 'Sign off' },
+                                { prompt: 'cancel', command: 'cancel', label: 'Cancel task' },
+                                { prompt: 'take over the stuck step', command: 'takeover', label: 'Take over step' },
+                                { prompt: 'delegate a step of this plan to a worker agent', label: 'Delegate a step to a worker agent' },
+                        ];
+                },
+        };
+        return { dispose: () => participant.dispose() };
 }

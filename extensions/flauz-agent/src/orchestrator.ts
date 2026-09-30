@@ -28,6 +28,7 @@ import type { SeamLike, Task } from './types.ts';
 import { writeCommandOutput, sha256Of } from './artifacts.ts';
 import { modelAttribution, type ModelSelection } from './models.ts';
 import { TERMINAL_TOOL_ID } from './tools/terminalTool.ts';
+import type { TakeoverPort, TakeoverResult } from './takeover.ts';
 
 /** The command the golden path runs (echo -> deterministic output). */
 export const GOLDEN_COMMAND = 'echo flauz-golden-path-ok';
@@ -50,6 +51,8 @@ export interface OrchestratorDeps {
 	workspaceRoot: string;
 	/** Current model selection (the participant refreshes it per turn). */
 	getModelSelection: () => ModelSelection;
+	/** The human takeover port (P2-FIX-204 — the fifth human gate); optional so test wiring can omit it. */
+	takeoverPort?: TakeoverPort;
 	logger?: (message: string) => void;
 }
 
@@ -90,7 +93,7 @@ export class Orchestrator {
 		const existing = await this.activeTask();
 		if (existing && existing.status !== 'plan') {
 			stream.markdown(
-				`Task **${existing.id}** is currently **${existing.status}**. Use \`/approve\`, \`/request-changes\`, \`/sign-off\`, or \`/cancel\` to move it forward before starting something new.`,
+				`Task **${existing.id}** is currently **${existing.status}**. Use \`/approve\`, \`/request-changes\`, \`/sign-off\`, or \`/cancel\` to move it forward before starting something new — or \`/takeover\` to take a stuck step over by hand (human gate).`,
 			);
 			return;
 		}
@@ -113,7 +116,7 @@ export class Orchestrator {
 		stream.markdown(plan);
 	}
 
-	/** Command turn: one of the four human gates (or a participant command). */
+	/** Command turn: one of the five human gates (or a participant command). */
 	async handleCommand(
 		command: string,
 		request: { prompt: string; requestId: string; toolInvocationToken: unknown },
@@ -142,8 +145,11 @@ export class Orchestrator {
 				await this.deps.seam.appendEvent(taskId, { actor: 'human', type: 'cancel', payload: {} });
 				stream.markdown(`Task **${taskId}** cancelled.`);
 				return;
+			case 'takeover':
+				await this.takeover(taskId, request, stream);
+				return;
 			default:
-				stream.markdown(`Unknown command \`/${command}\`. Available: /approve, /request-changes, /sign-off, /cancel.`);
+				stream.markdown(`Unknown command \`/${command}\`. Available: /approve, /request-changes, /sign-off, /cancel, /takeover.`);
 		}
 	}
 
@@ -236,6 +242,58 @@ export class Orchestrator {
 				`Verification failed (ledger ok=${String(ledger.ok)}${ledger.firstBadSeq !== undefined ? `, firstBadSeq=${String(ledger.firstBadSeq)}` : ''}). Task **${taskId}** is back in **execute** — reply \`/approve\` to retry.`,
 			);
 		}
+	}
+
+	/**
+	 * The fifth human gate (P2-FIX-204): the human takes the active task's
+	 * stuck step over by hand — request -> accept -> complete, every row
+	 * actor `human`, evidence minted into the shared ledger (the LEG 9
+	 * discipline through a user-facing affordance).
+	 */
+	private async takeover(
+		taskId: string,
+		request: { prompt: string; requestId: string; toolInvocationToken: unknown },
+		stream: ChatStreamLike,
+	): Promise<void> {
+		const port = this.deps.takeoverPort;
+		if (port === undefined) {
+			stream.markdown('Takeover is not available in this session — the orchestration runtime is not attached to the bridge.');
+			return;
+		}
+		stream.progress('Taking the stuck step over by hand (human gate)…');
+		const result = await port.takeOverStep(taskId, request.prompt);
+		stream.markdown(this.takeoverMarkdown(result));
+	}
+
+	/** The user-facing takeover result (the comprehensible-approval pattern: outcome, attribution, evidence). */
+	private takeoverMarkdown(result: TakeoverResult): string {
+		if (result.outcome === 'none') {
+			return [
+				'Nothing to take over.',
+				'',
+				result.message,
+			].join('\n');
+		}
+		if (result.outcome === 'error') {
+			return [
+				`Unable to take over: ${result.message}`,
+				'',
+				'The takeover was refused and nothing was recorded — the step stays in its current human-gated state.',
+			].join('\n');
+		}
+		const { receipt } = result;
+		const lines = [
+			`Step **${receipt.stepId}** (${receipt.stepTitle}) of **${receipt.graphId}** is taken over by you — completed as the human (human gate).`,
+			'',
+			`- Takeover sequence: ${receipt.rows.map(row => `\`${row.type}\``).join(' → ')} — every journal row is attributed to you (actor **human**); the agent never runs this step.`,
+		];
+		if (receipt.evidence !== undefined) {
+			lines.push(`- Evidence in the shared ledger: \`${receipt.evidence.uri}\`${receipt.evidence.evidenceId !== null ? ` (${receipt.evidence.evidenceId})` : ''} — journaled with human attribution.`);
+		}
+		lines.push(`- Completion summary: ${receipt.summary}`);
+		lines.push('');
+		lines.push('The takeover is journaled in the orchestration journal and evidence-bearing in the ledger — the Agent Sessions view shows the live state.');
+		return lines.join('\n');
 	}
 
 	private async signOff(taskId: string, stream: ChatStreamLike): Promise<void> {

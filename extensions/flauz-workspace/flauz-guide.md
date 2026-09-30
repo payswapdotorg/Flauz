@@ -46,6 +46,16 @@ task carries.
   The Browser view is the deliberate exception: an invalid policy file always
   falls back to the built-in deny-all policy (fail-closed), never to a stale
   policy file.
+- **Takeover** — when a task step is stuck on a pending approval gate and
+  you would rather finish it yourself, take it over by hand: reply
+  `/takeover` to the Flauz agent in Chat (the fifth human gate — the note
+  you type becomes your completion summary), or select the **Take Over
+  Step…** row under the active task in **Agent Sessions**. The request, the
+  acceptance and the completion are human-only transitions — the agent may
+  not run a taken-over step, and recovery never advances it. Every takeover
+  row is journaled in the orchestration journal with your attribution, and
+  the completion mints an evidence row into the shared ledger — the step
+  ends up completed by you, never by an unapproved agent execution.
 
 ## Keyboard and navigation
 
