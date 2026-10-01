@@ -19,7 +19,7 @@ Read:
 4. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`
 5. this file
 
-Then inspect current `main).
+Then inspect current `main`.
 
 ## Core product model
 
