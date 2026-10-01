@@ -1,0 +1,33 @@
+{
+	"name": "flauz-environments",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"contributes": {
+		"views": {
+			"flauz": [
+				{ "id": "flauz.environments", "name": "Environments" }
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.environments",
+				"contents": "No Flauz environments registered.\nEnvironments (local, SSH, container, cloud sandbox) live in .flauz/environments.json and carry trust, capabilities and connection plans.\n[Register Environment](command:flauz.env.register)\n[Refresh Environments View](command:flauz.env.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
+			}
+		],
+		"commands": [
+			{ "command": "flauz.env.list", "title": "List Environments", "category": "Flauz" },
+			{ "command": "flauz.env.register", "title": "Register Environment", "category": "Flauz" },
+			{ "command": "flauz.env.unregister", "title": "Unregister Environment", "category": "Flauz" },
+			{ "command": "flauz.env.activate", "title": "Activate Environment", "category": "Flauz" },
+			{ "command": "flauz.env.deactivate", "title": "Deactivate Environment", "category": "Flauz" },
+			{ "command": "flauz.focusView.environments", "title": "Focus Flauz Environments", "category": "Flauz" },
+			{ "command": "flauz.env.refreshView", "title": "Refresh Environments View", "category": "Flauz" }
+		],
+		"menus": {
+			"view/title": [
+				{ "command": "flauz.env.refreshView", "when": "view == flauz.environments", "group": "navigation" }
+			]
+		}
+	}
+}

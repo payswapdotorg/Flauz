@@ -1,0 +1,44 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 13,
+	"slug": "restart",
+	"name": "restart",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 5,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg13.approval-granted",
+			"ok": true,
+			"detail": "the human granted the final-assembly approval (row R-000029); S-05 is ready"
+		},
+		{
+			"id": "leg13.true-process-death",
+			"ok": true,
+			"detail": "the finisher child died by SIGKILL (waitExit null; null/137 = signal death)"
+		},
+		{
+			"id": "leg13.crash-window-open",
+			"ok": true,
+			"detail": "the death landed between the settled effect and its journal append (30 journal rows frozen; S-05 running, started, never succeeded)"
+		},
+		{
+			"id": "leg13.effect-settled-durably",
+			"ok": true,
+			"detail": "the final-assembly effect settled durably on key flauz-orch/G-001/S-05/run/1 and survived the process death (8 sink log lines)"
+		},
+		{
+			"id": "leg13.state-frozen-on-disk",
+			"ok": true,
+			"detail": "the death froze 30 journal rows, 20 ledger rows and 4 tasks on disk"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:20.066Z",
+	"durationMs": 287,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

@@ -8,7 +8,7 @@ The original four-TL build and post-completion hardening are complete. The curre
 
 | Work | Owner | Can run now? | Primary artifact |
 |---|---|---|---|
-| P2-001 Control-plane reconciliation | TL1 | YES | control-plane docs + registry evidence |
+| P2-001 Control-plane reconciliation | TL1 | DONE (closed in its merge wave — see `WORK-REGISTRY.md`) | control-plane docs + registry evidence |
 | P2-002 Full product acceptance | TL4 | YES | acceptance journey evidence |
 | P2-003 User discovery audit | TL4 | YES | discovery findings/evidence |
 | P2-FIX-* Routed findings | TL1/TL2/TL3/TL4 by domain | As claimed | implementation PR + re-test evidence |

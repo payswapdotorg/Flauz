@@ -1,0 +1,49 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 5,
+	"slug": "workspace-resources",
+	"name": "edit/read workspace resources",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 6,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg5.resource-round-trip",
+			"ok": true,
+			"detail": "the workspace resource journey-brief.md round-trips on the real fs (151 bytes, task-pinned)"
+		},
+		{
+			"id": "leg5.resource-on-disk",
+			"ok": true,
+			"detail": "the edited resource is persisted on disk (151 bytes)"
+		},
+		{
+			"id": "leg5.step-started-attribution",
+			"ok": true,
+			"detail": "the tool step started with runner attribution flauz.agent.primary"
+		},
+		{
+			"id": "leg5.effect-idempotency-key",
+			"ok": true,
+			"detail": "the effect settled exactly once on its idempotency key flauz-orch/G-001/S-01/run/1"
+		},
+		{
+			"id": "leg5.step-succeeded",
+			"ok": true,
+			"detail": "the brief-drafting step S-01 succeeded (row R-000005)"
+		},
+		{
+			"id": "leg5.changeset-linkage",
+			"ok": true,
+			"detail": "the resource edit minted changeset evidence E-000004 and the task carries the change journey-brief.md"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.305Z",
+	"durationMs": 19,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

@@ -15,7 +15,6 @@
  */
 
 import type { Clock, FileSystemPort } from '../contract/ports.ts';
-import type { CapabilityQuery } from '../discovery/registry.ts';
 import { atomicWrite, appendJsonlLine, envelopeText, joinStatePath, readEnvelope, readJsonl, StateFileError } from '../discovery/stateFiles.ts';
 import { DEFAULT_ROUTING_POLICY, ROUTING_DECISION_SCHEMA_ID, ROUTING_POLICY_SCHEMA_ID, evaluateRoutingPolicy, type RouteRequest, type RoutingDecision, type RoutingPolicyFile, type RoutingRule } from './policy.ts';
 

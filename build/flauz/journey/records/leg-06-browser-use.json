@@ -1,0 +1,49 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 6,
+	"slug": "browser-use",
+	"name": "use browser",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 6,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg6.session-opens-active",
+			"ok": true,
+			"detail": "the agent browser session opened ACTIVE on the real Chromium (flauz:browser:1dd1a5d73452b3eb)"
+		},
+		{
+			"id": "leg6.allowed-navigation-commits",
+			"ok": true,
+			"detail": "the allowed navigation COMMITTED on the real Chromium (Page.navigate -> committed URL http://127.0.0.1:37349/journey)"
+		},
+		{
+			"id": "leg6.one-wire-drive",
+			"ok": true,
+			"detail": "exactly ONE Page.navigate drive command hit the real wire (1)"
+		},
+		{
+			"id": "leg6.fail-closed-denial",
+			"ok": true,
+			"detail": "the denied navigation produced a deny verdict with ZERO additional Page.navigate frames on the real wire (frames 1)"
+		},
+		{
+			"id": "leg6.session-journal-on-disk",
+			"ok": true,
+			"detail": "the browser session journal persisted 2 records on disk (open/navigate/close events; the journal is the session's on-disk evidence)"
+		},
+		{
+			"id": "leg6.browser-evidence-minted",
+			"ok": true,
+			"detail": "the browser session journal is hash-pinned into the shared evidence chain (E-000005)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.324Z",
+	"durationMs": 175,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

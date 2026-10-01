@@ -35,6 +35,7 @@ import { Orchestrator, type ToolResultLike } from './orchestrator.ts';
 import { registerTerminalTool } from './tools/terminalTool.ts';
 import { registerParticipant, PARTICIPANT_ID } from './participant.ts';
 import { registerAgentSessionsView, type BridgeStatus } from './sessionsView.ts';
+import { createOrchTakeoverPort, seamTaskPort } from './takeover.ts';
 import type { Task } from './types.ts';
 
 let activeSeam: SeamClient | undefined;
@@ -131,6 +132,11 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 
 	if (seam !== undefined && workspaceRoot !== undefined) {
 		const selection: { current: ModelSelection } = { current: { models: [], status: 'no-models' } };
+		// P2-FIX-204: the human takeover port — the fifth human gate. The
+		// in-process orch mediator owns .flauz/orchestration/; the evidence
+		// rows the takeover ops mint go through the seam (the service stays
+		// the ledger's single writer).
+		const takeoverPort = createOrchTakeoverPort(workspaceRoot, seamTaskPort(seam), log);
 		const orchestrator = new Orchestrator({
 			seam,
 			workspaceRoot,
@@ -140,6 +146,7 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 					toolInvocationToken: options.toolInvocationToken as vscode.ChatParticipantToolToken,
 					input: options.input,
 				}) as Promise<ToolResultLike>,
+			takeoverPort,
 			logger: log,
 		});
 		const participantHandle = registerParticipant(
@@ -147,7 +154,7 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 			{ orchestrator, getModelSelection: () => selection.current, logger: log },
 		);
 		context.subscriptions.push(participantHandle);
-		updateStatus({ participantRegistered: true });
+		updateStatus({ participantRegistered: true, takeoverStep: (taskId) => takeoverPort.stuckStepOf(taskId) });
 
 		context.subscriptions.push(
 			vscode.commands.registerCommand('flauz.showTasks', async () => {
@@ -159,6 +166,26 @@ async function activateInner(context: vscode.ExtensionContext): Promise<void> {
 			vscode.commands.registerCommand('flauz.verifyLedger', async () => {
 				const verdict = await seam!.verifyLedger();
 				log(`ledger verify: ok=${String(verdict.ok)} rows=${String(verdict.rows)}${verdict.firstBadSeq !== undefined ? ` firstBadSeq=${String(verdict.firstBadSeq)}` : ''}`);
+				channel.show();
+			}),
+		);
+		// P2-FIX-204: the Agent Sessions row/palette affordance — performs the
+		// same human takeover sequence as the /takeover chat command
+		// (request -> accept -> complete, actor human, evidence-bearing).
+		context.subscriptions.push(
+			vscode.commands.registerCommand('flauz.agent.takeoverStep', async (arg?: { taskId?: unknown }) => {
+				const taskId = typeof arg?.taskId === 'string' ? arg.taskId : (await activeTaskFromSeam(seam!))?.id;
+				if (taskId === undefined) {
+					log('takeover: no active Flauz task — nothing to take over');
+					return;
+				}
+				const result = await takeoverPort.takeOverStep(taskId, '');
+				if (result.outcome === 'taken-over') {
+					log(`takeover: step ${result.receipt.stepId} of ${result.receipt.graphId} completed by the human (rows: ${result.receipt.rows.map(row => row.rowId).join(', ')})`);
+				} else {
+					log(`takeover: ${result.message}`);
+				}
+				sessionsView.provider.refresh();
 				channel.show();
 			}),
 		);
