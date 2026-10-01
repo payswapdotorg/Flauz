@@ -55,7 +55,7 @@
 		"viewsWelcome": [
 			{
 				"view": "flauz.environments",
-				"contents": "No Flauz environments registered.\nEnvironments (local, SSH, container, cloud sandbox) live in .flauz/environments.json and carry trust, capabilities and connection plans.\n[Refresh Environments View](command:flauz.env.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
+				"contents": "No Flauz environments registered.\nEnvironments (local, SSH, container, cloud sandbox) live in .flauz/environments.json and carry trust, capabilities and connection plans.\n[Register Environment](command:flauz.env.register)\n[Refresh Environments View](command:flauz.env.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
 			}
 		],
 		"commands": [
