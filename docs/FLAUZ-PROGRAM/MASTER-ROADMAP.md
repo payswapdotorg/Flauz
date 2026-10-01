@@ -66,7 +66,7 @@ Current inherited items include:
 - P2-FIX-111 — restoration-family vocabulary alignment;
 - P2-FIX-113 — signed/keyed hash-chain decision or explicit deferral.
 
-A finding is complete only when its code, tests, evidence and registry state agree on `main).
+A finding is complete only when its code, tests, evidence and registry state agree on `main`.
 
 ### A-PROD-002 — Final independent product verification
 
@@ -399,5 +399,5 @@ A new TL can reconstruct the entire program by reading:
 3. `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`;
 4. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`;
 5. the applicable TL handoff;
-6. the actual `main) tree.
+6. the actual `main` tree.
 
