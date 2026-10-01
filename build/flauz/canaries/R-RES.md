@@ -58,7 +58,7 @@
 | # | Assertion | Mechanism | Status |
 |---|---|---|---|
 | A1 | good fixture loads: 10 nodes / 10 edges / 8 surface records, `$schema` pinned, `verifyEnvelope` clean | embedded canary step | automated (fixture) |
-| A2 | every bad fixture (68-file matrix) rejected with `flauz.resources/v0:`-prefixed errors (every validation rule violated at least once) | embedded canary step | automated (fixture) |
+| A2 | every bad fixture (69-file matrix) rejected with `flauz.resources/v0:`-prefixed errors (every validation rule violated at least once; fixture 69 = the DL-82 restored-from plan-kind legality — `restored-from`/`snapshot-of` from `task`/`agent-session`/`workflow` kinds rejected at load, append and verify) | embedded canary step | automated (fixture) |
 | A3 | the identity law: paths/URLs are rejected as ref ids; URN namespaces match kinds; Worker A's `flauz:browser:<16-hex>` + the registry's `env-*` ids validate | embedded canary step | automated (fixture) |
 | A4 | surface versioning: a path move / endpoint swap retains the prior version — identity survives access-surface change (the unification-without-flattening acceptance) | embedded canary step (live temp workspace) | automated (fixture) |
 | A5 | provenance: every mutation appends an ops record with a mandatory actor; before/after digests chain to the persisted state; a truncated/tampered tail fails the chain | embedded canary step (live temp workspace) | automated (fixture) |

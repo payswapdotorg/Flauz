@@ -257,8 +257,18 @@ export interface EdgeLegality {
 	readonly to: readonly ResourceKind[] | '*';
 }
 
+/**
+ * The restorable from-kinds: EXACTLY the kinds with a v0 restoration family
+ * in ContinuityService (`FAMILY_BY_KIND`) -- DL-82 (P2-FIX-111), the
+ * restrict-the-matrix convergence. `task`, `agent-session` and `workflow`
+ * LEAVE the restorable from-kinds until their owning lanes (flauz-workspace
+ * task envelope; Agent OS agent sessions) mint their restoration families
+ * (the joint DL-R2 re-admission wave: matrix + family + tests + fixtures
+ * together) -- the graph grammar never admits edges the service cannot
+ * execute.
+ */
 const RESTORABLE_KINDS: readonly ResourceKind[] = [
-	'file', 'directory', 'artifact', 'evidence', 'agent-session', 'browser-session', 'environment', 'task', 'workflow',
+	'file', 'directory', 'artifact', 'evidence', 'browser-session', 'environment',
 ];
 
 export const EDGE_LEGALITY: Readonly<Record<EdgeKind, EdgeLegality>> = {

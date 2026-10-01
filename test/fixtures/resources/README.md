@@ -11,14 +11,17 @@ contract suites) and the R-RES canary (YAML-embedded steps in
   versioned surface records (a file path move + a browser endpoint swap --
   the identity-vs-access story). Generated THROUGH the real graph API and
   verified clean by `verifyEnvelope` before being written.
-- `bad/` — the rejection matrix: 68 numbered files, one defect per file.
+- `bad/` — the rejection matrix: 69 numbered files, one defect per file.
   Every validation rule is violated at least once: envelope structure
   (01-12), node identity / the identity law — paths, URLs, malformed or
   kind-mismatched URNs as ids (13-25), node fields incl. fail-closed
   provenance (26-36), edges — closed kind set, missing endpoints, self
   edges, duplicates, the endpoint-kind legality matrix (37-45), surface
   records — families, orphans, version rules (46-55), and the per-family
-  surface shapes (56-68).
+  surface shapes (56-68); the DL-82 restoration from-kind convergence
+  (69: a `restored-from` edge from a `task`-kind ref, rejected once
+  `RESTORABLE_KINDS` converged to exactly the kinds with v0 restoration
+  families).
 - `contracts/` — the pinned cross-worker shapes (DL-32: duplicated types +
   literal fixtures, never cross-extension imports):
   - `browser-session-descriptor.json` — Worker A's BrowserSessionDescriptor
