@@ -37,7 +37,7 @@
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { sha256Hex } from '../../../../extensions/flauz-workspace/src/api.ts';
-import { type AnswerParseOptions, stripMarkdownJsonFence } from '../answerFence.ts';
+import { fenceTolerantParseBody, type AnswerParseOptions } from '../answerFence.ts';
 import type { DogfoodExercise, DogfoodHarness, ExerciseCheck, ExerciseReceipt, EvidenceItem } from '../harnessTypes.ts';
 
 /** The canonical evidence-ledger module (repo-relative, posix). */
@@ -223,9 +223,14 @@ export type ParseAnswerOutcome = { readonly ok: true; readonly answer: ExploreAn
  * trailing markdown fence pair around the JSON payload is stripped
  * before the raw parse; malformed JSON inside the fence still FAILS.
  * The default (machine lanes) parses raw JSON only -- unchanged.
+ *
+ * P2-FIX-120: the fence-tolerant path now ALSO extracts the FIRST
+ * COMPLETE fenced block from anywhere in the text (prose before/after
+ * allowed -- the live model's conversational wrapping); a text with no
+ * complete fence still falls to the raw parse (the honest failure).
  */
 export function parseExploreAnswer(text: string, options?: AnswerParseOptions): ParseAnswerOutcome {
-        const strip = options?.fenceTolerant === true ? stripMarkdownJsonFence(text) : { fenced: false, body: text };
+        const strip = fenceTolerantParseBody(text, options);
         let parsed: unknown;
         try {
                 parsed = JSON.parse(strip.body);

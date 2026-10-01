@@ -31,7 +31,7 @@
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { sha256Hex } from '../../../../extensions/flauz-workspace/src/api.ts';
-import { type AnswerParseOptions, stripMarkdownJsonFence } from '../answerFence.ts';
+import { fenceTolerantParseBody, type AnswerParseOptions } from '../answerFence.ts';
 import type { AskOutcome, AskProviderFailure, DogfoodExercise, DogfoodHarness, DogfoodMode, ExerciseCheck, ExerciseReceipt, EvidenceItem, LaneSwitchReceipt } from '../harnessTypes.ts';
 
 /** The answer document's pinned schema id. */
@@ -97,9 +97,14 @@ export type ParseSwitchOutcome = { readonly ok: true; readonly answer: SwitchAns
  * before the raw parse (strip-fence-then-parse); malformed JSON inside
  * the fence still FAILS. The default (machine lanes) parses raw JSON
  * only -- unchanged, the W1/W2 evidence path.
+ *
+ * P2-FIX-120: the fence-tolerant path now ALSO extracts the FIRST
+ * COMPLETE fenced block from anywhere in the text (prose before/after
+ * allowed -- the live model's conversational wrapping); a text with no
+ * complete fence still falls to the raw parse (the honest failure).
  */
 export function parseSwitchAnswer(text: string, options?: AnswerParseOptions): ParseSwitchOutcome {
-        const strip = options?.fenceTolerant === true ? stripMarkdownJsonFence(text) : { fenced: false, body: text };
+        const strip = fenceTolerantParseBody(text, options);
         let parsed: unknown;
         try {
                 parsed = JSON.parse(strip.body);
@@ -514,7 +519,7 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                                 providersFileSha256: record.receipt.providersFileSha256,
                                 evidenceId: record.receipt.evidenceId,
                                 ask: record.ask.kind === 'ok'
-                                        ? { kind: 'ok', decisionId: record.ask.decisionId, attempts: record.ask.attempts, durationMs: record.ask.durationMs, wallClockBudgetMs: record.ask.wallClockBudgetMs, fenceStripped: harness.mode === 'live-provider' && stripMarkdownJsonFence(record.ask.text).fenced, text: record.ask.text }
+                                        ? { kind: 'ok', decisionId: record.ask.decisionId, attempts: record.ask.attempts, durationMs: record.ask.durationMs, wallClockBudgetMs: record.ask.wallClockBudgetMs, fenceStripped: harness.mode === 'live-provider' && fenceTolerantParseBody(record.ask.text, { fenceTolerant: true }).fenced, text: record.ask.text }
                                         : { kind: 'provider-failure', decisionId: record.ask.decisionId, code: record.ask.code, retryClass: record.ask.retryClass, retryable: record.ask.retryable, status: record.ask.status, attempts: record.ask.attempts, wallClockBudgetMs: record.ask.wallClockBudgetMs, message: record.ask.message },
                                 askPromptRedacted: redactAskPromptForReport(record.askPrompt),
                                 promptFacts: record.promptFacts,

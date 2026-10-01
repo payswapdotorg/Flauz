@@ -1,4 +1,4 @@
-# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes)
+# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1)
 
 The W1 harness for A-PROD-003 (dogfooding): the driver machinery + the
 friction-log contract + the exercise lanes that the station then runs
@@ -41,18 +41,35 @@ fixes (P2-FIX-117/118/119; finding docs in docs/FLAUZ-PROGRAM/findings/):
   path for this question is RETIRED (both lanes answer from the
   prompt-carried facts — the god-view is gone).
 
+**W3.1 (A-PROD-003-W3.1, branch flauz-tla/aprod003-w31-fence-extract)**
+implements the REGISTERED W3 live finding P2-FIX-120 (finding doc in
+docs/FLAUZ-PROGRAM/findings/) as a harness-side fix:
+
+- **P2-FIX-120 (prose-adjacent fenced answers):** the live model emits
+  the fenced JSON **surrounded by prose** ("```json {...} ``` Success!"),
+  and the W2.1 stripper only strips a fence pair that ENDS the text. The
+  fence-tolerant path (live lanes) now: clean-pair strip FIRST (the
+  W2.1 semantics, back-compat — `stripMarkdownJsonFence` is UNCHANGED),
+  then the extraction fallback `extractFirstFencedJsonBlock` — the
+  FIRST COMPLETE fenced block (a fence-opening line, content, a
+  matching fence-closing line) from ANYWHERE in the text; prose
+  before/after is allowed. Malformed JSON inside the extracted block
+  still FAILS; a text with NO complete fence still falls to the raw
+  parse (the honest failure); the raw-JSON machine-lane default is
+  unchanged.
+
 ## Files
 
 | File | Role |
 |---|---|
 | `dogfood-driver.mjs` | THE DRIVER: boots the real seams on one mkdtemp workspace root (TaskService, EvidenceLedger + the fixture ed25519 signer, MemoryStore, OrchestrationStore, Model Fabric) and executes the exercise scripts against them. Selectable provider lanes. Writes the run receipts. |
 | `frictionlog.mjs` (+ `frictionlog.d.mts`) | The friction-log contract, schema `flauz.dogfood-friction/v1` (append-only JSONL; ask-measuring timing rows carry the optional `wallClockBudgetMs`, P2-FIX-117). The `.d.mts` is the hand-written declaration (the repo's `a2a.d.mts` zero-dependency discipline). |
-| `answerFence.ts` | P2-FIX-118: the strip-fence-then-parse helper (one leading/trailing markdown fence pair around a JSON payload; malformed JSON inside still fails; the raw path stays the machine-lane default). |
+| `answerFence.ts` | P2-FIX-118 + P2-FIX-120: the fence-tolerant parse resolution — the W2.1 clean-pair strip (`stripMarkdownJsonFence`, UNCHANGED: one leading/trailing markdown fence pair around a JSON payload) plus the W3.1 extraction fallback (`extractFirstFencedJsonBlock`: the first COMPLETE fenced block from anywhere in the text; prose before/after allowed) composed by `fenceTolerantParseBody` (clean-pair first, then extraction; malformed JSON inside still fails; the raw path stays the machine-lane default). |
 | `fake-provider.mjs` (+ `fake-provider.d.mts`) | The fake/scripted provider lanes on a REAL local socket. The fake lane COMPUTES its exploration answer at request time (the ledger-consumer map from the real tree) and READS its provider-configuration answer from the prompt-carried facts (P2-FIX-119: the server-side computation path is retired). The scripted-failing lane answers every completion with HTTP 500 -> the REAL adapter's typed `PROVIDER_OVERLOADED`. The `.d.mts` is the hand-written declaration for the test suite. |
 | `harnessTypes.ts` | The harness/exercise contracts (typed against the real seam modules; the ask facade accepts an ask-time prompt builder, P2-FIX-119, and the ask outcomes carry `wallClockBudgetMs`, P2-FIX-117). |
 | `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise (live-lane answers parse through the P2-FIX-118 tolerant path). |
 | `exercises/provider-switch.task.ts` | EXERCISE 2 (provider switching + failure/recovery): the switch plan, the ask-time facts-carrying question builder (P2-FIX-119), the workspace-state verification (strict, unchanged), the friction policy, the exercise. |
-| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip). |
+| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests). |
 
 ## How to run
 
