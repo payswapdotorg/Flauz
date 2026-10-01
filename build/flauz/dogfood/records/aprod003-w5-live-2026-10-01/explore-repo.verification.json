@@ -1,0 +1,273 @@
+{
+	"schema": "flauz.dogfood-explore-verification/v1",
+	"ledgerModule": "extensions/flauz-workspace/src/ledger.ts",
+	"verified": false,
+	"checked": [
+		{
+			"file": "extensions/flauz-core/src/index.ts",
+			"line": 12,
+			"consumes": [
+				"EvidenceLedger",
+				"EvidenceItem"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-core/src/index.ts:12 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-core/src/index.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-core/src/index.ts'"
+			]
+		},
+		{
+			"file": "extensions/flauz-core/src/commands/verify.ts",
+			"line": 8,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-core/src/commands/verify.ts:8 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-core/src/commands/verify.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-core/src/commands/verify.ts'"
+			]
+		},
+		{
+			"file": "extensions/flauz-core/src/commands/collect.ts",
+			"line": 14,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-core/src/commands/collect.ts:14 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-core/src/commands/collect.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-core/src/commands/collect.ts'"
+			]
+		},
+		{
+			"file": "extensions/flauz-core/src/commands/collect.ts",
+			"line": 22,
+			"consumes": [
+				"EvidenceItem"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-core/src/commands/collect.ts:22 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-core/src/commands/collect.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-core/src/commands/collect.ts'"
+			]
+		},
+		{
+			"file": "extensions/flauz-cli/src/commands/flauz.ts",
+			"line": 7,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-cli/src/commands/flauz.ts:7 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-cli/src/commands/flauz.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-cli/src/commands/flauz.ts'"
+			]
+		},
+		{
+			"file": "extensions/flauz-cli/src/commands/flauz.ts",
+			"line": 8,
+			"consumes": [
+				"EvidenceItem"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-cli/src/commands/flauz.ts:8 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-cli/src/commands/flauz.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-cli/src/commands/flauz.ts'"
+			]
+		},
+		{
+			"file": "extensions/flauz-cli/src/commands/flauz.ts",
+			"line": 9,
+			"consumes": [
+				"EvidenceLedger",
+				"EvidenceItem"
+			],
+			"ok": false,
+			"problems": [
+				"no ledger-import statement resolves at extensions/flauz-cli/src/commands/flauz.ts:9 in the tree (phantom entry)",
+				"the re-read of extensions/flauz-cli/src/commands/flauz.ts failed: ENOENT: no such file or directory, open '/tmp/verifyw32/extensions/flauz-cli/src/commands/flauz.ts'"
+			]
+		}
+	],
+	"missed": [
+		{
+			"file": "extensions/flauz-workflow/src/commands.ts",
+			"line": 24,
+			"symbols": [
+				"hasKey"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/src/coordination.ts",
+			"line": 44,
+			"symbols": [
+				"hasKey",
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/src/envelope.ts",
+			"line": 47,
+			"symbols": [
+				"hasKey",
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/src/executable.ts",
+			"line": 42,
+			"symbols": [
+				"hasKey",
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/src/extension.ts",
+			"line": 32,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/agentos-battery.test.ts",
+			"line": 90,
+			"symbols": [
+				"EvidenceLedger",
+				"rowLine"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts",
+			"line": 141,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts",
+			"line": 97,
+			"symbols": [
+				"EvidenceLedger",
+				"rowLine"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts",
+			"line": 106,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/generateLedgerFixtures.ts",
+			"line": 36,
+			"symbols": [
+				"EvidenceLedger",
+				"rowHash"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/hardening.test.ts",
+			"line": 25,
+			"symbols": [
+				"EvidenceLedger",
+				"rowHash"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/helpers.ts",
+			"line": 15,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/recovery-matrix.test.ts",
+			"line": 33,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workflow/test/session-battery.test.ts",
+			"line": 53,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/src/checkpoint.ts",
+			"line": 7,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/src/commands.ts",
+			"line": 11,
+			"symbols": [
+				"hasKey",
+				"validateRowInput",
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/src/extension.ts",
+			"line": 10,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/src/scmArtifactProvider.ts",
+			"line": 8,
+			"symbols": [
+				"evidenceIdOf"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/src/taskService.ts",
+			"line": 27,
+			"symbols": [
+				"hasKey"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/src/views.ts",
+			"line": 33,
+			"symbols": [
+				"evidenceIdOf"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts",
+			"line": 88,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/test/helpers.ts",
+			"line": 10,
+			"symbols": [
+				"EvidenceLedger"
+			]
+		},
+		{
+			"file": "extensions/flauz-workspace/test/ledger.test.ts",
+			"line": 12,
+			"symbols": [
+				"rowHash",
+				"rowLine"
+			]
+		}
+	],
+	"totals": {
+		"claimed": 7,
+		"real": 23,
+		"verifiedEntries": 0,
+		"problemEntries": 7,
+		"missedEntries": 23
+	}
+}

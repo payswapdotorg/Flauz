@@ -1,0 +1,73 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "explore-repo",
+	"title": "repository exploration: map every consumer of the evidence ledger",
+	"dimensions": [
+		"repository exploration",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "FAIL",
+	"checks": [
+		{
+			"id": "explore.model-call-ok",
+			"ok": true,
+			"detail": "the exploration turn streamed 1130 chars through provider flauz-dogfood-live (decision rd-000002, 1 attempt(s), 3978 ms, finish_reason: stop)"
+		},
+		{
+			"id": "explore.answer-parses",
+			"ok": true,
+			"detail": "the answer document carries 7 claimed consumers"
+		},
+		{
+			"id": "explore.map-sound",
+			"ok": false,
+			"detail": "every claimed entry re-reads as a real ledger import (0/7 sound)"
+		},
+		{
+			"id": "explore.map-complete",
+			"ok": false,
+			"detail": "the map misses 23 of the 23 real consumers"
+		},
+		{
+			"id": "explore.map-100-percent",
+			"ok": false,
+			"detail": "claimed 7 vs real 23; verified=false"
+		},
+		{
+			"id": "explore.evidence-minted",
+			"ok": true,
+			"detail": "the answer + verification artifacts are hash-pinned into the evidence ledger (E-000003, E-000004)"
+		}
+	],
+	"evidenceIds": [
+		"E-000003",
+		"E-000004"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-answer.json",
+			"sha256": "baec0ce7e7795f0d1618ea0e25e493806c9cdfdcdb1b8a7e3b4b1c2252767ab1"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-verification.json",
+			"sha256": "a1f96812d43565ee4b48efadf18acca41ed3d78e902cf3b8b115ce86dcbaae41"
+		}
+	],
+	"frictionLogPath": "/tmp/dogfood-w5-records/explore-repo.friction.jsonl",
+	"frictionRows": {
+		"friction": 1,
+		"timing": 2,
+		"recovery": 0
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"the fake lane computed its map live from the tree (the provider's own scan); the driver verified every receipt independently (regex scanner + per-entry re-read)",
+		"model intelligence: fixture (the scripted fake lane); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)"
+	]
+}

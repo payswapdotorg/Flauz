@@ -1,0 +1,100 @@
+{
+	"schema": "flauz.dogfood-run/v1",
+	"wo": "A-PROD-003-W1",
+	"runId": "dogfood-2026-10-01T21-10-38-274Z",
+	"mode": "live-provider",
+	"modelIntelligence": "live-provider",
+	"startedAt": "2026-10-01T21:10:38.282Z",
+	"durationMs": 6765,
+	"wallClockBudget": {
+		"configuredMs": 300000,
+		"defaultMs": 15000,
+		"source": "env:FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS",
+		"wiredThrough": "AdapterConfig.requestTimeoutMs (the product request wall-clock budget surface; the typed TIMEOUT + bounded-retry semantics unchanged)"
+	},
+	"liveCompletionBudget": {
+		"configuredTokens": 32768,
+		"defaultTokens": 32768,
+		"source": "default",
+		"wiredThrough": "ChatRequest.maxOutputTokens -> the openAiCompat adapter wire body max_tokens (the LIVE lane's ask requests only; the fake lanes' request shape unchanged)"
+	},
+	"workspaceRoot": "/tmp/flauz-dogfood-5VHnZD",
+	"repoRoot": "/tmp/verifyw32",
+	"recordsDir": "/tmp/dogfood-w5-records",
+	"exercises": [
+		{
+			"exerciseId": "explore-repo",
+			"title": "repository exploration: map every consumer of the evidence ledger",
+			"dimensions": [
+				"repository exploration",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "FAIL",
+			"assertions": {
+				"pass": 3,
+				"fail": 3
+			},
+			"evidenceIds": [
+				"E-000003",
+				"E-000004"
+			],
+			"frictionLogPath": "/tmp/dogfood-w5-records/explore-repo.friction.jsonl",
+			"frictionRows": {
+				"friction": 1,
+				"timing": 2,
+				"recovery": 0
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the fake lane computed its map live from the tree (the provider's own scan); the driver verified every receipt independently (regex scanner + per-entry re-read)",
+				"model intelligence: fixture (the scripted fake lane); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)"
+			]
+		},
+		{
+			"exerciseId": "provider-switch",
+			"title": "provider switching: fake -> scripted-failing -> fake with typed failure + recovery",
+			"dimensions": [
+				"provider switching",
+				"failure/recovery",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000010"
+			],
+			"frictionLogPath": "/tmp/dogfood-w5-records/provider-switch.friction.jsonl",
+			"frictionRows": {
+				"friction": 1,
+				"timing": 5,
+				"recovery": 1
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the typed failure classes are the product's real code paths (the adapter's error taxonomy + the product's bounded-retry bound); the failing wire itself is the harness's scripted lane",
+				"model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)",
+				"P2-FIX-119: both lanes answer from the prompt-carried workspace facts (providers file content + routing-decision tail, embedded at ask time); the fake lane's server-side computation path for this question is retired; the verification stays strict (checked against the real state files)",
+				"P2-FIX-118: live-lane answers parse through the fence-tolerant path (strip-fence-then-parse; malformed JSON inside a fence still fails); machine lanes keep the raw-JSON default",
+				"P2-FIX-121: every ok ask's receipt record carries the finish reason (finishReason + the visible finishDetail line); a `length` finish renders as TRUNCATED -- a visible truncation, never a silent ok"
+			]
+		}
+	],
+	"localLaneCensus": {
+		"chatCalls": 0,
+		"failCalls": 3,
+		"exploreComputations": 0,
+		"configPromptReads": 0,
+		"note": "the local wire census (the live lane, when selected, talks to the vendor directly and never appears here); the provider-configuration answers are read from the prompt-carried workspace facts (P2-FIX-119: the server-side computation path is retired for that question)"
+	}
+}
