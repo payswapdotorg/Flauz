@@ -1,0 +1,11 @@
+{
+	"version": 1,
+	"description": "Minimal fixture registry for the P2-003 discovery gate (DA23 parity-coverage check).",
+	"rows": [
+		{ "surface": "extensions/flauz-workspace", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] },
+		{ "surface": "extensions/flauz-agent", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] },
+		{ "surface": "extensions/flauz-environments", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] },
+		{ "surface": "extensions/flauz-browser", "capability": "fixture", "class": "desktop-full", "reason": "fixture", "evidence": [] },
+		{ "surface": "extensions/flauz-models", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] }
+	]
+}

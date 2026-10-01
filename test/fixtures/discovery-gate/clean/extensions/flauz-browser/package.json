@@ -1,0 +1,37 @@
+{
+	"name": "flauz-browser",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"contributes": {
+		"views": {
+			"flauz": [
+				{ "id": "flauz.browser", "name": "Browser" }
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.browser",
+				"contents": "The Flauz browser policy is not active here.\nBrowser policy lives in .flauz/browser-policy.json inside a workspace folder — Flauz enforces it fail-closed (deny-all by default) for both human and agent browsing.\n[Open Folder](command:workbench.action.files.openFolder)\n[Open (or Create) Browser Policy File](command:flauz.browser.setPolicy)"
+			}
+		],
+		"commands": [
+			{ "command": "flauz.browser.setPolicy", "title": "Open (or Create) Browser Policy File", "category": "Flauz" },
+			{ "command": "flauz.browser.showPolicy", "title": "Show Effective Browser Policy", "category": "Flauz" },
+			{ "command": "flauz.browser.verifyPolicy", "title": "Verify Browser Policy File", "category": "Flauz" },
+			{ "command": "flauz.browser.checkUrl", "title": "Check a URL Against the Browser Policy", "category": "Flauz" },
+			{ "command": "flauz.browser.openSession", "title": "Open a Flauz Browser Session", "category": "Flauz" },
+			{ "command": "flauz.browser.closeSession", "title": "Close a Flauz Browser Session", "category": "Flauz" },
+			{ "command": "flauz.browser.sessions", "title": "List Flauz Browser Sessions", "category": "Flauz" },
+			{ "command": "flauz.browser.navigate", "title": "Navigate a Flauz Browser Tab (Policy-Gated)", "category": "Flauz" },
+			{ "command": "flauz.browser.screenshot", "title": "Capture a Flauz Browser Tab Screenshot", "category": "Flauz" },
+			{ "command": "flauz.focusView.browser", "title": "Focus Flauz Browser", "category": "Flauz" },
+			{ "command": "flauz.browser.refreshView", "title": "Refresh Browser View", "category": "Flauz" }
+		],
+		"menus": {
+			"view/title": [
+				{ "command": "flauz.browser.refreshView", "when": "view == flauz.browser", "group": "navigation" }
+			]
+		}
+	}
+}

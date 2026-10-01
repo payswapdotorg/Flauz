@@ -26,6 +26,15 @@ via `Flauz: Focus …` commands:
 - `.flauz/browser-policy.json` — the browser policy (fail-closed: absent file means deny-all).
 - `.flauz/workflows/` — saved workflow envelopes.
 
+## Multi-agent work
+
+The Flauz agent can delegate steps of a multi-step plan to worker agents —
+ask for it in Chat, for example "delegate a step of this plan to a worker
+agent". Each delegation is recorded as a reviewable contract under
+`.flauz/a2a/contracts/`, and the worker agent reports its result back with
+the evidence rows that prove it — the same ledger-backed trail every Flauz
+task carries.
+
 ## States and recovery
 
 - **Empty** — a welcome panel names the surface's first action.
@@ -37,6 +46,16 @@ via `Flauz: Focus …` commands:
   The Browser view is the deliberate exception: an invalid policy file always
   falls back to the built-in deny-all policy (fail-closed), never to a stale
   policy file.
+- **Takeover** — when a task step is stuck on a pending approval gate and
+  you would rather finish it yourself, take it over by hand: reply
+  `/takeover` to the Flauz agent in Chat (the fifth human gate — the note
+  you type becomes your completion summary), or select the **Take Over
+  Step…** row under the active task in **Agent Sessions**. The request, the
+  acceptance and the completion are human-only transitions — the agent may
+  not run a taken-over step, and recovery never advances it. Every takeover
+  row is journaled in the orchestration journal with your attribution, and
+  the completion mints an evidence row into the shared ledger — the step
+  ends up completed by you, never by an unapproved agent execution.
 
 ## Keyboard and navigation
 

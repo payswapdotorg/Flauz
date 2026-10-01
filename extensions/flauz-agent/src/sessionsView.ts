@@ -21,6 +21,7 @@
 import type * as vscode from 'vscode';
 import type { Task } from './types.ts';
 import type { ModelSelection } from './models.ts';
+import type { TakeoverStepSnapshot } from './takeover.ts';
 import { formatAge, formatTimestamp } from './format.ts';
 
 /** View id this module serves (contributed in package.json, container `flauz`). */
@@ -31,6 +32,13 @@ export const VIEW_COMMAND_IDS = [
 	'flauz.focusView.agentSessions',
 	'flauz.agent.refreshSessions',
 ] as const;
+
+/**
+ * P2-FIX-204 — the takeover affordance command the stuck/taken-over step row
+ * invokes (registered by extension.ts next to the bridge commands; performs
+ * the same human takeover sequence as the participant's /takeover).
+ */
+export const TAKEOVER_ROW_COMMAND = 'flauz.agent.takeoverStep';
 
 /**
  * Session-to-task reveal navigation (TL4-PREMIUM-UX.md section 5): registered
@@ -55,12 +63,19 @@ export interface BridgeStatus {
 	readonly workspaceOpen: boolean;
 	/** Probes the seam for the active task; undefined when the seam is down. */
 	readonly activeTask?: () => Promise<Task | undefined>;
+	/**
+	 * P2-FIX-204 — probes the takeover runtime for the active task's
+	 * human-gated step (stuck on a pending gate, or held by an in-flight
+	 * takeover); undefined when the takeover runtime is not attached.
+	 */
+	readonly takeoverStep?: (taskId: string) => Promise<TakeoverStepSnapshot | undefined>;
 }
 
-/** Tree element union: one status row, the active task row, or an error row. */
+/** Tree element union: one status row, the active task row, a takeover row, or an error row. */
 export type SessionsTreeElement =
 	| { readonly kind: 'status'; readonly id: 'core' | 'participant' | 'terminalTool' | 'models'; readonly label: string; readonly description: string; readonly tooltip: string; readonly icon: string; readonly contextValue: string }
 	| { readonly kind: 'task'; readonly task: Task }
+	| { readonly kind: 'takeover'; readonly snapshot: TakeoverStepSnapshot; readonly taskId: string }
 	| { readonly kind: 'error'; readonly message: string; readonly retryCommand: string };
 
 /** The vscode slices the view needs (injected: real api in extension.ts, doubles in tests). */
@@ -79,6 +94,82 @@ export type ActiveTaskProbe = () => Promise<Task | undefined>;
 
 function truncate(text: string, max: number): string {
 	return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
+}
+
+// ---- P2-FIX-204: the takeover row rendering (label/description/tooltip/a11y per state) ----
+
+/** The stuck-step escape hatch label — the affordance the finding asks to be visible where the stuck work is. */
+function takeoverLabelOf(snapshot: TakeoverStepSnapshot): string {
+	if (snapshot.state === 'stuck') {
+		return `Take Over Step ${snapshot.stepId}…`;
+	}
+	if (snapshot.state === 'takeover-pending') {
+		return `Step ${snapshot.stepId} takeover requested`;
+	}
+	return `Step ${snapshot.stepId} taken over`;
+}
+
+/** The `taken-over` state rendered legibly (the finding's icon + description contract). */
+function takeoverDescriptionOf(snapshot: TakeoverStepSnapshot): string {
+	if (snapshot.state === 'stuck') {
+		return 'stuck on the approval gate — finish it by hand (human gate)';
+	}
+	if (snapshot.state === 'takeover-pending') {
+		return 'waiting for your acceptance (human gate)';
+	}
+	return 'held for the human — the agent may not run it';
+}
+
+function takeoverTooltipOf(snapshot: TakeoverStepSnapshot): string {
+	const common = 'The takeover is journaled in the orchestration journal with human attribution, and its completion mints an evidence row into the shared ledger — the agent never runs a taken-over step.';
+	if (snapshot.state === 'stuck') {
+		return [
+			`Step ${snapshot.stepId} (${snapshot.stepTitle}) of ${snapshot.graphId} is stuck on a pending approval gate.`,
+			'Take it over by hand: the request, the acceptance and the completion are human-only transitions — never auto-advanced.',
+			common,
+			'Selecting this row performs the takeover.',
+		].join('\n');
+	}
+	if (snapshot.state === 'takeover-pending') {
+		return [
+			`A takeover of step ${snapshot.stepId} (${snapshot.stepTitle}) was requested and is waiting for your acceptance.`,
+			'Only a human can accept a takeover (human gate) — recovery never advances it.',
+			common,
+			'Selecting this row accepts the takeover and completes the step as the human.',
+		].join('\n');
+	}
+	return [
+		`Step ${snapshot.stepId} (${snapshot.stepTitle}) of ${snapshot.graphId} is taken over and held for you — the agent may not run it (human-only transitions, never auto-advanced).`,
+		common,
+		'Selecting this row records your completion of the step with evidence.',
+	].join('\n');
+}
+
+function takeoverA11yOf(snapshot: TakeoverStepSnapshot): string {
+	if (snapshot.state === 'stuck') {
+		return `Take Over Step ${snapshot.stepId}, ${snapshot.stepTitle}: stuck on the approval gate, finish it by hand (human gate)`;
+	}
+	if (snapshot.state === 'takeover-pending') {
+		return `Step ${snapshot.stepId} takeover requested, waiting for your acceptance (human gate)`;
+	}
+	return `Step ${snapshot.stepId} taken over, held for the human — the agent may not run it`;
+}
+
+/**
+ * P2-FIX-204 — the takeover row of the active task's human-gated step, when
+ * one exists. Additive surface state: a probe failure returns no row (the
+ * observed bridge rows stay — last-known-good), it never blanks the tree.
+ */
+async function takeoverRowsOf(status: BridgeStatus, task: Task): Promise<SessionsTreeElement[]> {
+	if (status.takeoverStep === undefined) {
+		return [];
+	}
+	try {
+		const snapshot = await status.takeoverStep(task.id);
+		return snapshot === undefined ? [] : [{ kind: 'takeover', snapshot, taskId: task.id }];
+	} catch {
+		return [];
+	}
 }
 
 /** Builds the status rows for a snapshot (pure; exported for tests). */
@@ -186,6 +277,7 @@ export class AgentSessionsTreeProvider implements vscode.TreeDataProvider<Sessio
 			const task = await status.activeTask();
 			if (task !== undefined) {
 				rows.push({ kind: 'task', task });
+				rows.push(...await takeoverRowsOf(status, task));
 			}
 			return rows;
 		} catch (err) {
@@ -226,6 +318,18 @@ export class AgentSessionsTreeProvider implements vscode.TreeDataProvider<Sessio
 				item.contextValue = 'flauzSessionTask';
 				item.command = { command: REVEAL_TASK_COMMAND, title: 'Reveal Flauz Task', arguments: [{ taskId: task.id }] };
 				item.accessibilityInformation = { label: `Active task ${task.id}, ${task.title}, status ${task.status}` };
+				return item;
+			}
+			case 'takeover': {
+				const snapshot = element.snapshot;
+				const item = new api.TreeItem(takeoverLabelOf(snapshot), api.TreeItemCollapsibleState.None);
+				item.id = `flauz.agentSessions/takeover/${snapshot.graphId}/${snapshot.stepId}`;
+				item.description = takeoverDescriptionOf(snapshot);
+				item.tooltip = takeoverTooltipOf(snapshot);
+				item.iconPath = new api.ThemeIcon('person');
+				item.contextValue = 'flauzSessionTakeover';
+				item.command = { command: TAKEOVER_ROW_COMMAND, title: 'Take Over Step…', arguments: [{ taskId: element.taskId }] };
+				item.accessibilityInformation = { label: takeoverA11yOf(snapshot) };
 				return item;
 			}
 			case 'error': {

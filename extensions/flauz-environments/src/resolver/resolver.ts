@@ -70,7 +70,7 @@
 import { isSecretRef, joinPath, type CloudSandboxConnection, type ContainerConnection, type EnvironmentDescriptor, type FileSystemPort, type SshConnection } from '../api.ts';
 import type { EnvironmentRegistry } from '../registry.ts';
 import type { ConnectionPlan } from '../providers/types.ts';
-import { EnvironmentLifecycleManager, isRunningState } from '../lifecycle/index.ts';
+import { EnvironmentLifecycleError, EnvironmentLifecycleManager, isRunningState } from '../lifecycle/index.ts';
 import { excerpt, type CliPort } from '../lifecycle/cliPort.ts';
 import type { HttpPort, SecretResolverPort } from '../lifecycle/cloudHttp.ts';
 import { AGENT_HOST_BRIDGE_TOKEN_ENV_VAR, ResolverFailure, type FlauzResolvedData, type ResolverOutcome } from './types.ts';
@@ -151,8 +151,44 @@ export class FlauzEnvResolver {
 		this.probeTimeoutMs = options.probeTimeoutMs ?? 30_000;
 	}
 
-	/** Resolves one Flauz environment authority (typed outcome, never a raw throw). */
+	/**
+	 * Resolves one Flauz environment authority (typed outcome, never a raw
+	 * throw — the module contract). The pipeline body runs in resolveChecked;
+	 * this boundary maps an unreadable source onto the typed gate refusal: an
+	 * unbootstrapped/corrupt lifecycle manager (EnvironmentLifecycleError)
+	 * can never PROVE a PIN-2 entry, so the trust gate refuses fail-closed;
+	 * anything else from the registry seam reads as the environment being
+	 * absent (the extension boundary's own inactive-registry posture).
+	 */
 	async resolve(authority: string, context?: ResolveContext): Promise<ResolverOutcome> {
+		try {
+			return await this.resolveChecked(authority, context);
+		} catch (err) {
+			if (err instanceof ResolverFailure) {
+				return { ok: false, failure: err };
+			}
+			if (err instanceof EnvironmentLifecycleError) {
+				return {
+					ok: false,
+					failure: new ResolverFailure(
+						'TRUST_REFUSED',
+						`the PIN-2 lifecycle state is not readable for ${JSON.stringify(authority)} (${err.message}) — resolution is rejected fail-closed (the trust gate reads the lifecycle verdict; recover the lifecycle state, then retry)`,
+						err.code,
+					),
+				};
+			}
+			return {
+				ok: false,
+				failure: new ResolverFailure(
+					'ENVIRONMENT_ABSENT',
+					`the environment registry is not readable for ${JSON.stringify(authority)} (${err instanceof Error ? err.message : String(err)}) — resolution fails closed`,
+				),
+			};
+		}
+	}
+
+	/** The pipeline body (typed result at every step; see the module doc). */
+	private async resolveChecked(authority: string, context?: ResolveContext): Promise<ResolverOutcome> {
 		const parse = parseFlauzEnvAuthority(authority);
 		if (!parse.ok) {
 			return { ok: false, failure: authorityFailure(parse) };

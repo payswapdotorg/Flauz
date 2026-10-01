@@ -1,0 +1,37 @@
+{
+	"name": "flauz-models",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"contributes": {
+		"viewsWelcome": [
+			{
+				"view": "flauz.models",
+				"contents": "No Flauz model providers registered yet.\nFlauz ships the deterministic flauz-mock echo provider (activated on demand) plus design stubs for future vendor adapters.\n[Refresh Models View](command:flauz.models.refreshView)\n[Back to Flauz Home](command:flauz.focusView.home)"
+			}
+		],
+		"commands": [
+			{
+				"command": "flauz.focusView.models",
+				"title": "Focus Flauz Models",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.models.refreshView",
+				"title": "Refresh Models View",
+				"category": "Flauz"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "flauz.models.refreshView",
+					"when": "view == flauz.models",
+					"group": "navigation"
+				}
+			]
+		}
+	}
+}

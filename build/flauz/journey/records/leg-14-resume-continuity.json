@@ -1,0 +1,149 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 14,
+	"slug": "resume-continuity",
+	"name": "resume task and inspect continuity/provenance",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 26,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg14.task-envelopes-recover",
+			"ok": true,
+			"detail": "all 4 task envelopes recovered (mission T-001 carries its mirrored events)"
+		},
+		{
+			"id": "leg14.ledger-recovers-no-loss",
+			"ok": true,
+			"detail": "the ledger chain recovered with NO silent state loss (verify ok, 20 rows === 20 at death)"
+		},
+		{
+			"id": "leg14.journal-recovers-no-loss",
+			"ok": true,
+			"detail": "the orchestration journal recovered exactly (30 rows, chain verifies, no torn tail)"
+		},
+		{
+			"id": "leg14.provider-retry-state-survives",
+			"ok": true,
+			"detail": "the provider-retry state created in LEG 11 survived the restart (3 attempt rows) -- the seam held"
+		},
+		{
+			"id": "leg14.memory-recovers",
+			"ok": true,
+			"detail": "tiered memory recovered and verifies (1 records; the session records persist)"
+		},
+		{
+			"id": "leg14.a2a-journal-recovers",
+			"ok": true,
+			"detail": "the A2A bus journal recovered (the worker mailbox replays the delegation; 2 messages on disk)"
+		},
+		{
+			"id": "leg14.workflow-fragments-recover",
+			"ok": true,
+			"detail": "both workflow fragments recovered (W-001,W-002)"
+		},
+		{
+			"id": "leg14.routing-state-recovers",
+			"ok": true,
+			"detail": "the model routing state recovered (2 durable decisions incl. the live-capable one)"
+		},
+		{
+			"id": "leg14.cloud-env-state-recovers",
+			"ok": true,
+			"detail": "the environment lifecycle recovered (cloud 'running', local 'stopped')"
+		},
+		{
+			"id": "leg14.cancelled-run-recovers-terminal",
+			"ok": true,
+			"detail": "the cancelled run task recovered terminal (T-004: cancelled)"
+		},
+		{
+			"id": "leg14.recovery-marks-interrupted",
+			"ok": true,
+			"detail": "the recovery pass marked the interrupted final step (step-interrupted:S-05); S-05 is ready again"
+		},
+		{
+			"id": "leg14.recovery-never-fabricates",
+			"ok": true,
+			"detail": "the recovery pass completed nothing on its own (no fabricated completion)"
+		},
+		{
+			"id": "leg14.work-continues-replays",
+			"ok": true,
+			"detail": "the interrupted step re-drove on the SAME key flauz-orch/G-001/S-05/run/1: the settled effect REPLAYED (1 fresh + 1 replay -- never executed twice)"
+		},
+		{
+			"id": "leg14.mission-completes",
+			"ok": true,
+			"detail": "the mission graph completed after the restart (drive completed=true)"
+		},
+		{
+			"id": "leg14.takeover-step-survives-restart",
+			"ok": true,
+			"detail": "the taken-over step survived the restart with its takeover state intact"
+		},
+		{
+			"id": "leg14.session-claim-released",
+			"ok": true,
+			"detail": "the session claim was released with attribution (flauz.agent.primary)"
+		},
+		{
+			"id": "leg14.chain-verifies-end-to-end",
+			"ok": true,
+			"detail": "the final chain verifies: 22 rows, seqs contiguous 1..22"
+		},
+		{
+			"id": "leg14.journal-verifies",
+			"ok": true,
+			"detail": "the orchestration journal hash chain verifies (37 rows)"
+		},
+		{
+			"id": "leg14.journal-evidence-linkage",
+			"ok": true,
+			"detail": "every one of the 8 evidence-bearing journal rows resolves into the ledger"
+		},
+		{
+			"id": "leg14.primary-agent-attribution",
+			"ok": true,
+			"detail": "the primary agent's attribution is intact (5 started steps + the session claim round-trip)"
+		},
+		{
+			"id": "leg14.delegate-attribution",
+			"ok": true,
+			"detail": "the delegate's attribution is intact (decision row + result-received origin + the typed bus round-trip)"
+		},
+		{
+			"id": "leg14.delegate-evidence-attributed",
+			"ok": true,
+			"detail": "the delegate's evidence E-000006 still resolves to T-001"
+		},
+		{
+			"id": "leg14.takeover-attribution",
+			"ok": true,
+			"detail": "the takeover's three rows all carry the human attribution (takeover-requested,takeover-accepted,takeover-completed)"
+		},
+		{
+			"id": "leg14.canceller-attribution",
+			"ok": true,
+			"detail": "every human act kept its attribution (graph approval, final gate grant, the mid-flight run cancel)"
+		},
+		{
+			"id": "leg14.task-ledger-linkage",
+			"ok": true,
+			"detail": "every one of the 17 mission ledger rows has its evidence event on the task timeline (no orphan evidence, no silent drops)"
+		},
+		{
+			"id": "leg14.resource-provenance",
+			"ok": true,
+			"detail": "the workspace resource is still on disk and its ledger row hash-pins it (journey-brief.md)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:20.354Z",
+	"durationMs": 36,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

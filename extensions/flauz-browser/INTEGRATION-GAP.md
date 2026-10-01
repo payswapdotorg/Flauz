@@ -319,41 +319,58 @@ TL adjudicates DL-31.
   hot-swapped-deny variant flagging the real committed URL).
 - REAL-CHROMIUM FINDINGS pinned by the TL3-003 drill (asserted as
   observed — divergences between real Chromium and the FakeCdpTransport
-  contract, recorded for the TL, NOT papered over):
-  - **F-DELIVERY**: `Target.setAutoAttach` on a PAGE session (the popup
+  contract, recorded for the TL, NOT papered over; **two of the five are
+  now FIXED by the TL3-P2 partition A product-readiness audit, branch
+  `tl3/p2-partition-a`**, each with a unit regression test that fails on
+  the untouched base and a flipped real-wire drill assertion):
+  - **F-DELIVERY** (OPEN): `Target.setAutoAttach` on a PAGE session (the popup
     gate's placement) does NOT deliver `window.open` popups on real
     Chromium — popups are browser-level targets and free-run past the
     page-level gate. The fake models popup delivery to the opener
-    target's sessions; real Chromium does not provide it.
-  - **F-POPUP-URL**: at browser-level attach (`waitForDebuggerOnStart`),
+    target's sessions; real Chromium does not provide it. Fixing this is
+    the TL-adjudicated browser-level gate-placement redesign (below) — a
+    pinned-semantics change this audit does not make unilaterally.
+  - **F-POPUP-URL** (OPEN): at browser-level attach (`waitForDebuggerOnStart`),
     a `window.open` popup arrives with `targetInfo.url` EMPTY — the
-    pending navigation URL is NOT available at gate time.
-  - **F-RELEASE-CMD**: `Runtime.run` is NOT a real CDP method (real
-    Chromium rejects it with "'Runtime.run' wasn't found"); the real
-    release command is `Runtime.runIfWaitingForDebugger`. The gate's
-    allow-path (`sessionManager.ts` `handleAttachedTarget`) sends
-    `Runtime.run`.
-  - **F-OPENER-BLOCK**: `window.open` BLOCKS the opener's JS while the
+    pending navigation URL is NOT available at gate time. Part of the
+    same redesign decision (the URL-observation strategy).
+  - **F-RELEASE-CMD** (**FIXED — TL3-P2**): `Runtime.run` is NOT a real CDP
+    method (real Chromium rejects it with "'Runtime.run' wasn't found"); the
+    real release command is `Runtime.runIfWaitingForDebugger`. The gate's
+    allow-path (`sessionManager.ts` `handleAttachedTarget`) now sends
+    `Runtime.runIfWaitingForDebugger`, and the fake models the real wire
+    (accepting only the real method, rejecting `Runtime.run` exactly like
+    real Chromium), so the defect class is pinned at unit level
+    (`test/popup-gate.test.ts`, the F-RELEASE-CMD regression) and on the
+    real wire (drill 3.1d-6d keeps pinning the motivating real-wire fact).
+  - **F-OPENER-BLOCK** (OPEN): `window.open` BLOCKS the opener's JS while the
     popup is held; the call returns only after release — and never
     returns if the held popup is closed without release (the deny-path
     shape). The browser-level deny-path PRIMITIVE (close a held popup
     before use via `Target.closeTarget` -> target destroyed) and the
     allow-path primitive (`Runtime.runIfWaitingForDebugger` release)
-    both hold on real Chromium.
-  - **F-RECOVERY-DOMAINS**: the recovery re-attach does not re-send the
-    domain enables (`Page.enable` et al. — `activateLiveTab` runs them
-    only at mint time), so on real Chromium `Page.frameNavigated` never
-    flows on the fresh session and the post-recovery commit OBSERVATION
-    times out (the security-relevant post-commit reconciliation is
-    skipped after recovery). The fake cannot catch this: it emits Page
-    events without modeling domain-enable state. The current-policy
-    recheck itself is browser-state based (`Target.getTargets`) and
-    survives.
-  These are the exact fix candidates for the TL station to adjudicate
-  (browser-level auto-attach placement / URL-observation strategy;
-  release-command rename; domain re-enable on recovery) — each changes
-  landed TL3-001/TL3-002 runtime semantics pinned by the unit suites, so
-  they are recorded, not patched, by this lane.
+    both hold on real Chromium. Timing shape of the same redesign.
+  - **F-RECOVERY-DOMAINS** (**FIXED — TL3-P2**): the recovery re-attach did
+    not re-send the domain enables (`Page.enable` et al. — `activateLiveTab`
+    ran them only at mint time), so on real Chromium `Page.frameNavigated`
+    never flowed on the fresh session and the post-recovery commit
+    OBSERVATION timed out (the security-relevant post-commit
+    reconciliation was skipped after recovery). The recovery re-attach
+    now runs the FULL mint-time activation (domain enables + hardening +
+    gate — `enableTabDomains` in `src/runtime/tabs.ts`), pinned at unit
+    level (`test/recovery.test.ts`, the F-RECOVERY-DOMAINS regression)
+    and on the real wire (drill 3.1e-3c + the FLIPPED 3.1e-4b, which
+    fails on the untouched base and asserts the fixed commit
+    observation). The current-policy recheck itself was always
+    browser-state based (`Target.getTargets`) and survives.
+  The three OPEN findings (F-DELIVERY, F-POPUP-URL, F-OPENER-BLOCK) are
+  the exact REMAINING fix candidates for the TL station to adjudicate
+  (browser-level auto-attach placement / URL-observation strategy) — each
+  changes landed TL3-001/TL3-002 runtime semantics pinned by the unit
+  suites, so they are recorded, not patched, by this lane. The other two
+  original candidates (release-command rename, domain re-enable on
+  recovery) were unambiguous minimal correctness fixes and are landed by
+  the TL3-P2 audit.
 - RECORDED — G5 (partition NAMING control): **PERMANENTLY RECORDED
   (TL3-H2) as a verified product limitation** — the workbench host cannot
   mint Electron partitions with the flauz names (the proposed API exposes

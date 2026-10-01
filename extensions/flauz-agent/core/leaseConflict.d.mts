@@ -22,6 +22,8 @@ export declare const LEASE_CONFLICT_VIOLATIONS: ['lease', 'claim'];
 
 /** The facts of one typed lease conflict (the assertable shape). */
 export interface LeaseConflictFacts {
+	/** The conflict identity carried by the facts projection (the a2a surface's own namespace, distinct from the taxonomy domain code). */
+	readonly code: 'flauz.a2a.lease-conflict';
 	/** The shared-resource id the conflict is over. */
 	resource: string;
 	/** The violation class: 'lease' (TTL hold) | 'claim' (deadline-less hold). */
@@ -117,3 +119,30 @@ export declare function claimStepLease(store: OrchestrationStore, bus: A2ABus, i
 	origin: string;
 	toAgent?: string;
 }): Promise<ClaimStepLeaseResult>;
+
+/** The outcome of one release through the composed flauz.a2a claim path (the DL-78 release-mirror law, P2-FIX-104). */
+export interface ReleaseStepLeaseResult {
+	status: 'released';
+	leaseId: string;
+	holder: string;
+	rowId: string;
+	noticeId: string;
+}
+
+/**
+ * Release the step's resource lease through the flauz.a2a claim path: the
+ * DL-78 RELEASE-MIRROR LAW (P2-FIX-104) - the durable `lease-released`
+ * journal row lands first (the store's own release row shape), then the
+ * retraction notice posts on the bus from the released holder, so
+ * `bus.activeClaimOf` of the step's resource returns `undefined` once the
+ * release lands and a subsequent claimStepLease by any claimant proceeds
+ * with both layers in agreement (exactly one acquisition row; the bus
+ * projection names the new holder).
+ */
+export declare function releaseStepLease(store: OrchestrationStore, bus: A2ABus, input: {
+	graphId: string;
+	stepId: string;
+	actor?: string;
+	origin: string;
+	toAgent?: string;
+}): Promise<ReleaseStepLeaseResult>;

@@ -118,6 +118,11 @@ export const LIFECYCLE_ERROR_CODES = [
 	// TL2-F2B (additive): an invalid providerRetry manager-options config
 	// is a typed fail-closed constructor throw — never a silent default.
 	'RETRY_CONFIG_INVALID',
+	// TL3-PB audit (additive): a second mutating op issued on an environment
+	// while one is already in flight is a typed PRE-FLIGHT rejection —
+	// interleaved commits could otherwise resurrect a destroyed envelope and
+	// record an impossible ledger sequence (the interleaving law).
+	'OP_IN_FLIGHT',
 ] as const;
 export type LifecycleErrorCode = (typeof LIFECYCLE_ERROR_CODES)[number];
 

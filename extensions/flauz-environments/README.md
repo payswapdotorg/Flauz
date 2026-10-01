@@ -160,7 +160,12 @@ stopped -> destroyed` (+ `failed` with an error record, + the attach/detach
 connection substate carried as `/attached` composites on running/stopped).
 Every mutating op is ledger-recorded with MANDATORY provenance
 (`agent|human|tool` — a missing actor is a schema rejection), before/after
-state and a typed result/error. `describe` is a read-only probe that never
+state and a typed result/error. ONE mutating op runs per environment at a
+time: a second op issued while one is in flight is the typed pre-flight
+rejection `OP_IN_FLIGHT` (nothing recorded, nothing mutated) — concurrent
+commits could otherwise interleave and record an impossible sequence (e.g. a
+start-ok landing after a destroy-ok), silently violating the state machine's
+terminal states. `describe` is a read-only probe that never
 reports silently healthy: crash reconciliation surfaces a typed `stale`
 verdict when the persisted state outruns the backing truth, and an alive pid
 this executor never spawned surfaces as `orphan` (never signalled — pid
