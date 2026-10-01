@@ -798,6 +798,8 @@ TL3's readiness-audit candidates (documented in P2-FIX format without ids in `do
 
 All eight await claims per the claim-wave discipline (minimal-diff, gate-frozen instruments, individual landing PRs, TL4 independent retest to close). TL4's own wave-closeout order (the verify-fixtures strict-expectation pin flip) is recorded above and dispatches through the worker lane with the next TL4 claim.
 
+**Closeout DONE (2026-10-01):** worker lane p2fix-closeout (chat `459e6d47`, GLM-5.3/Full-Stack) delivered the one-line pin flip as commit `75d6827d` on main `1bf4e51f52e` (push verified via ls-remote); PR #80 squash-merged `10dfdf1e8a2`. STATION re-verification (independent): verify-fixtures **ALL 230 CASES AS EXPECTED (0 deviations)** — the family fully green with the post-closure posture; discovery gate `--require --strict` exit 0 (23 PASS · 0 KNOWN-GAP); the four drift fixtures still fail-closed within the family run. Station battery at `10dfdf1e8a2`: **9 GREEN / 0 RED**. The P2-FIX discovery wave is fully closed — findings, instruments and battery all consistent.
+
 ### TL2-ACC-1 — Agent-domain journey rehearsal (P2-002 support)
 Status: DONE
 Owner: TL2
