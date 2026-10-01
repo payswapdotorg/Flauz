@@ -14,7 +14,13 @@
  *   - the exercise verification logic (the explore-repo scanner +
  *     verifier over fixture trees AND a live-tree self-consistency
  *     smoke; the provider-switch plan/summary/answer-verification
- *     logic).
+ *     logic);
+ *   - P2-FIX-122 (A-PROD-003-W6): the explore-repo EXCERPT mode -- the
+ *     excerpt builder's determinism, the excerpt-scoped verification
+ *     logic (fixture excerpts with known consumers: hallucination
+ *     detection against the excerpt, the completeness bar), the
+ *     question/prompt round-trip, and the exercise's excerpt-mode
+ *     wiring (the ask-time builder, the banked excerpt, the receipt).
  *
  * Harness tests (build/flauz/dogfood/**): NOT gate instruments.
  */
@@ -32,7 +38,8 @@ import { answerParseFailDetail, consumeAskStream, DEFAULT_LIVE_MAX_TOKENS, finis
 import { createOpenAiCompatAdapter } from '../../../extensions/flauz-models/src/adapters/openAiCompat.ts';
 import { nodeHttpPort } from '../../../extensions/flauz-models/src/contract/nodePorts.ts';
 import { sha256Hex } from '../../../extensions/flauz-workspace/src/api.ts';
-import { EXPLORE_ANSWER_SCHEMA, EXPLORE_QUESTION, LEDGER_MODULE, parseExploreAnswer, parseImportStatement, scanLedgerConsumers, specifierResolvesTo, verifyConsumersMap, type ExploreAnswer, type GroundTruthConsumer } from './exercises/explore-repo.task.ts';
+import { EXPLORE_ANSWER_SCHEMA, EXPLORE_EXCERPT_SCHEMA, EXPLORE_EXCERPT_VERIFICATION_SCHEMA, EXPLORE_QUESTION, EXCERPT_BLOCK_BEGIN, EXCERPT_BLOCK_END, EXCERPT_SEED, LEDGER_MODULE, parseExploreAnswer, parseImportStatement, scanLedgerConsumers, specifierResolvesTo, verifyConsumersMap, buildTreeExcerpt, buildExcerptQuestion, excerptBlock, excerptConsumersOf, verifyPromptCarriesExcerpt, verifyExcerptConsumersMap, EXPLORE_EXERCISE, type ExploreAnswer, type GroundTruthConsumer, type TreeExcerpt } from './exercises/explore-repo.task.ts';
+import type { AskOutcome, AskPrompt, DogfoodHarness, ExerciseReceipt } from './harnessTypes.ts';
 import { extractFirstFencedJsonBlock, fenceTolerantParseBody, stripMarkdownJsonFence } from './answerFence.ts';
 import { SWITCH_ANSWER_SCHEMA, buildSwitchQuestion, healthyLaneOf, parseSwitchAnswer, plannedSwitchSequence, providerFailureDetail, readSwitchQuestionFacts, redactAskPromptForReport, recoveryAccount, summarizeSwitchRun, verifyPromptCarriesFacts, verifySwitchAnswer, type SwitchRunRecord } from './exercises/provider-switch.task.ts';
 
@@ -960,5 +967,417 @@ suite('P2-FIX-121: the finish-reason surfacing (a length finish is a VISIBLE tru
                 } finally {
                         lane.close();
                 }
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-122 -- the explore-repo EXCERPT mode (the bare-model lane)
+// ---------------------------------------------------------------------------
+
+/**
+ * The excerpt fixture tree: the ledger at the CANONICAL module path (so
+ * the builder's default ledgerModule finds it), consumers exercising the
+ * shared resolution rules (extensionless + .js-twin), a distractor
+ * import, and filler files so the seeded selection is meaningful.
+ */
+async function buildExcerptFixtureTree(): Promise<string> {
+        const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flauz-dogfood-excerpt-'));
+        const write = async (relative: string, contents: string): Promise<void> => {
+                const target = path.join(root, relative);
+                await fs.mkdir(path.dirname(target), { recursive: true });
+                await fs.writeFile(target, contents, { encoding: 'utf-8' });
+        };
+        await write('extensions/flauz-workspace/src/ledger.ts', 'export const alpha = 1;\nexport const beta = 2;\nexport type Gamma = {};\nexport const delta = 4;\n');
+        await write('extensions/flauz-workspace/src/consumerA.ts', `// a header comment (the import is on line 2)\nimport { alpha } from './ledger';\nexport const use = alpha;\n`);
+        await write('extensions/flauz-workspace/src/consumerB.ts', `import { beta, type Gamma } from './ledger.js';\nexport const pair = [beta, null] as const;\n`);
+        await write('extensions/flauz-beta/src/farConsumer.ts', `import { delta } from '../../flauz-workspace/src/ledger.ts';\nexport const deep = delta;\n`);
+        await write('extensions/flauz-workspace/src/distractor.ts', `import { existsSync } from './other.ts';\nexport const x = existsSync;\n`);
+        for (let index = 0; index < 14; index += 1) {
+                await write(`extensions/flauz-gamma/src/filler${String(index).padStart(2, '0')}.ts`, `import { value } from './constants';\nexport const local = value + ${String(index)};\n`);
+        }
+        return root;
+}
+
+/** A hand-built excerpt with KNOWN consumers (the verifier tests judge exactly this). */
+function handBuiltExcerpt(): TreeExcerpt {
+        return {
+                schema: EXPLORE_EXCERPT_SCHEMA,
+                ledgerModule: LEDGER_MODULE,
+                seed: 7,
+                fileCount: 4,
+                files: [
+                        {
+                                file: 'extensions/flauz-workspace/src/a.ts',
+                                lines: [
+                                        { line: 3, text: `import { one, two } from './ledger';` },
+                                        { line: 9, text: `import { other } from './unrelated';` },
+                                ],
+                        },
+                        {
+                                file: 'extensions/flauz-workspace/src/b.ts',
+                                lines: [
+                                        { line: 1, text: `import { three } from '../src/ledger.js';` },
+                                ],
+                        },
+                        {
+                                file: 'extensions/flauz-workspace/src/c.ts',
+                                lines: [
+                                        { line: 5, text: `import * as ns from './ledger.ts';` },
+                                ],
+                        },
+                        {
+                                file: 'extensions/flauz-beta/src/d.ts',
+                                lines: [
+                                        { line: 2, text: `import { existsSync } from './x.ts';` },
+                                ],
+                        },
+                ],
+        };
+}
+
+/** The known consumers of the hand-built excerpt (the excerpt-mode ground truth). */
+const HAND_BUILT_CONSUMERS: GroundTruthConsumer[] = [
+        { file: 'extensions/flauz-workspace/src/a.ts', line: 3, symbols: ['one', 'two'] },
+        { file: 'extensions/flauz-workspace/src/b.ts', line: 1, symbols: ['three'] },
+        { file: 'extensions/flauz-workspace/src/c.ts', line: 5, symbols: ['*'] },
+];
+
+function excerptAnswerOf(consumers: readonly GroundTruthConsumer[]): ExploreAnswer {
+        return { schema: EXPLORE_ANSWER_SCHEMA, consumers: consumers.map(consumer => ({ file: consumer.file, line: consumer.line, consumes: [...consumer.symbols] })) };
+}
+
+suite('P2-FIX-122: the excerpt builder (deterministic, seeded)', () => {
+
+        test('the defaults are pinned: the seed and the file count the exercise uses', () => {
+                assert.strictEqual(EXCERPT_SEED, 1220);
+                assert.strictEqual(typeof buildTreeExcerpt, 'function');
+        });
+
+        test('DETERMINISM: the same root + seed + fileCount yield the byte-identical excerpt (two builds deep-equal)', async () => {
+                const root = await buildExcerptFixtureTree();
+                const first = await buildTreeExcerpt(root, { fileCount: 5, seed: 4242 });
+                const second = await buildTreeExcerpt(root, { fileCount: 5, seed: 4242 });
+                assert.deepStrictEqual(second, first);
+                assert.strictEqual(first.schema, EXPLORE_EXCERPT_SCHEMA);
+                assert.strictEqual(first.ledgerModule, LEDGER_MODULE);
+                assert.strictEqual(first.seed, 4242);
+                assert.strictEqual(first.fileCount, 5);
+        });
+
+        test('the seed drives the selection: two seeds pick different file sets over the same tree', async () => {
+                const root = await buildExcerptFixtureTree();
+                const left = await buildTreeExcerpt(root, { fileCount: 3, seed: 1 });
+                const right = await buildTreeExcerpt(root, { fileCount: 3, seed: 2 });
+                const filesOf = (excerpt: TreeExcerpt): string[] => excerpt.files.map(file => file.file);
+                assert.notDeepStrictEqual(filesOf(right), filesOf(left));
+        });
+
+        test('the excerpt carries import lines only, with the real 1-based line numbers and verbatim text, all under extensions/flauz-*', async () => {
+                const root = await buildExcerptFixtureTree();
+                const excerpt = await buildTreeExcerpt(root, { fileCount: 4, seed: 99 });
+                assert.ok(excerpt.fileCount > 0);
+                for (const file of excerpt.files) {
+                        assert.ok(file.file.startsWith('extensions/flauz-'), file.file);
+                        const text = await fs.readFile(path.join(root, file.file), { encoding: 'utf-8' });
+                        const rawLines = text.split('\n');
+                        for (const line of file.lines) {
+                                assert.strictEqual(line.text, rawLines[line.line - 1]);
+                                assert.notStrictEqual(parseImportStatement(line.text), null);
+                        }
+                }
+        });
+
+        test('the consumer guarantee: a selection that would miss every consumer is augmented with the first consumer file (the excerpt lane is never vacuous)', async () => {
+                const root = await buildExcerptFixtureTree();
+                // fileCount 0 -> an empty seeded selection; the guarantee must land the
+                // alphabetically-first consumer file so the excerpt carries a consumer
+                const excerpt = await buildTreeExcerpt(root, { fileCount: 0, seed: 5 });
+                assert.deepStrictEqual(excerpt.files.map(file => file.file), ['extensions/flauz-beta/src/farConsumer.ts']);
+                assert.ok(excerptConsumersOf(excerpt).length >= 1);
+        });
+
+        test('the default build over the fixture tree: all files selected, the excerpt consumers equal the tree ground truth', async () => {
+                const root = await buildExcerptFixtureTree();
+                const excerpt = await buildTreeExcerpt(root);
+                const truth = await scanLedgerConsumers(root);
+                assert.ok(excerpt.fileCount >= 18);
+                assert.deepStrictEqual(excerptConsumersOf(excerpt), [...truth]);
+        });
+});
+
+suite('P2-FIX-122: the excerpt consumers + the question round-trip', () => {
+
+        test('excerptConsumersOf re-derives exactly the known consumers (the shared resolution rules hold within the excerpt; distractor rows are not consumers)', () => {
+                const excerpt = handBuiltExcerpt();
+                assert.deepStrictEqual(excerptConsumersOf(excerpt), [...HAND_BUILT_CONSUMERS]);
+        });
+
+        test('buildExcerptQuestion embeds the markers + the verbatim block + the ledger module + the answer schema, and does NOT carry the fake lane full-scan trigger phrase', () => {
+                const excerpt = handBuiltExcerpt();
+                const question = buildExcerptQuestion(excerpt);
+                assert.ok(question.includes(EXCERPT_BLOCK_BEGIN));
+                assert.ok(question.includes(EXCERPT_BLOCK_END));
+                assert.ok(question.includes(excerptBlock(excerpt)));
+                assert.ok(question.includes(LEDGER_MODULE));
+                assert.ok(question.includes(EXPLORE_ANSWER_SCHEMA));
+                assert.ok(question.includes(`import { one, two } from './ledger';`));
+                // the fake lane's exploration trigger (fake-provider.mjs keys on this
+                // phrase) -- the excerpt question must never trigger the server-side
+                // full scan: the excerpt lane is a DIFFERENT question
+                assert.ok(!question.toLowerCase().includes('every consumer of the evidence ledger'));
+                // the full-tree question (the fake lane's, UNCHANGED) still carries it
+                assert.ok(EXPLORE_QUESTION.includes('every consumer of the evidence ledger'));
+                assert.ok(EXPLORE_QUESTION.includes('across extensions/flauz-*'));
+        });
+
+        test('verifyPromptCarriesExcerpt accepts the built question and flags a gutted prompt (block or markers removed)', () => {
+                const excerpt = handBuiltExcerpt();
+                const question = buildExcerptQuestion(excerpt);
+                assert.deepStrictEqual(verifyPromptCarriesExcerpt(question, excerpt), { ok: true, problems: [] });
+                const guttedBlock = question.replace(excerptBlock(excerpt), 'the excerpt went missing');
+                assert.ok(!verifyPromptCarriesExcerpt(guttedBlock, excerpt).ok);
+                const noMarkers = excerptBlock(excerpt);
+                const flagged = verifyPromptCarriesExcerpt(noMarkers, excerpt);
+                assert.ok(!flagged.ok);
+                assert.ok(flagged.problems.some(problem => problem.includes('no tree-excerpt section')));
+                const emptyExcerpt: TreeExcerpt = { ...excerpt, files: [{ file: 'extensions/flauz-workspace/src/empty.ts', lines: [] }] };
+                const vacuous = verifyPromptCarriesExcerpt(question, emptyExcerpt);
+                assert.ok(!vacuous.ok);
+                assert.ok(vacuous.problems.some(problem => problem.includes('vacuous excerpt')));
+        });
+});
+
+suite('P2-FIX-122: the excerpt-mode verification logic (the same 100% bar, scoped to the excerpt)', () => {
+
+        test('a fully-correct map verifies 100% (sound + complete against the excerpt), and the receipt embeds the excerpt + the pinned schema', () => {
+                const excerpt = handBuiltExcerpt();
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(HAND_BUILT_CONSUMERS), excerpt);
+                assert.strictEqual(verification.schema, EXPLORE_EXCERPT_VERIFICATION_SCHEMA);
+                assert.strictEqual(verification.mode, 'excerpt');
+                assert.strictEqual(verification.ledgerModule, LEDGER_MODULE);
+                assert.deepStrictEqual(verification.excerpt, excerpt);
+                assert.strictEqual(verification.verified, true);
+                assert.deepStrictEqual(verification.totals, { claimed: 3, real: 3, verifiedEntries: 3, problemEntries: 0, missedEntries: 0 });
+        });
+
+        test('HALLUCINATION DETECTION (the W5 class): a plausible real-tree entry claimed OUTSIDE the excerpt fails soundness (not an excerpt row)', () => {
+                const excerpt = handBuiltExcerpt();
+                const hallucinated = [
+                        ...HAND_BUILT_CONSUMERS,
+                        { file: 'extensions/flauz-workspace/src/real-but-not-in-excerpt.ts', line: 7, symbols: ['EvidenceLedger'] },
+                ];
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(hallucinated), excerpt);
+                assert.strictEqual(verification.verified, false);
+                assert.strictEqual(verification.totals.problemEntries, 1);
+                const problem = verification.checked.find(entry => !entry.ok)?.problems.join('; ');
+                assert.ok(problem?.includes('is not an excerpt row'), problem ?? '');
+                assert.ok(problem?.includes('outside the excerpt'), problem ?? '');
+        });
+
+        test('a non-ledger excerpt row claimed as a consumer fails (the row is real but imports a different module -- hallucinated consumer)', () => {
+                const excerpt = handBuiltExcerpt();
+                const doctored = [
+                        ...HAND_BUILT_CONSUMERS,
+                        { file: 'extensions/flauz-beta/src/d.ts', line: 2, symbols: ['existsSync'] },
+                ];
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(doctored), excerpt);
+                assert.strictEqual(verification.verified, false);
+                const problem = verification.checked.find(entry => !entry.ok)?.problems.join('; ');
+                assert.ok(problem?.includes('does not import'), problem ?? '');
+                assert.ok(problem?.includes('hallucinated consumer'), problem ?? '');
+        });
+
+        test('a wrong line number inside an excerpt file is flagged with the file\'s real excerpt lines', () => {
+                const excerpt = handBuiltExcerpt();
+                const doctored = HAND_BUILT_CONSUMERS.map(consumer => consumer.file.endsWith('b.ts')
+                        ? { file: consumer.file, line: 4, symbols: [...consumer.symbols] }
+                        : { file: consumer.file, line: consumer.line, symbols: [...consumer.symbols] });
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(doctored), excerpt);
+                assert.strictEqual(verification.verified, false);
+                const problem = verification.checked.find(entry => !entry.ok)?.problems.join('; ');
+                assert.ok(problem?.includes('the excerpt carries no import line at'), problem ?? '');
+                assert.ok(problem?.includes('its import lines: 1'), problem ?? '');
+        });
+
+        test('the completeness bar: a missing excerpt consumer fails (missed exactly the dropped one)', () => {
+                const excerpt = handBuiltExcerpt();
+                const incomplete = HAND_BUILT_CONSUMERS.filter(consumer => !consumer.file.endsWith('c.ts'));
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(incomplete), excerpt);
+                assert.strictEqual(verification.verified, false);
+                assert.strictEqual(verification.totals.missedEntries, 1);
+                assert.strictEqual(verification.missed[0]?.file, 'extensions/flauz-workspace/src/c.ts');
+        });
+
+        test('a symbol mismatch is flagged (what it consumes is checked against the excerpt row\'s bindings)', () => {
+                const excerpt = handBuiltExcerpt();
+                const doctored = HAND_BUILT_CONSUMERS.map(consumer => consumer.file.endsWith('a.ts')
+                        ? { file: consumer.file, line: consumer.line, symbols: ['one'] }
+                        : { file: consumer.file, line: consumer.line, symbols: [...consumer.symbols] });
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(doctored), excerpt);
+                assert.strictEqual(verification.verified, false);
+                const problem = verification.checked.find(entry => !entry.ok)?.problems.join('; ');
+                assert.ok(problem?.includes('consumes mismatch'), problem ?? '');
+        });
+
+        test('a duplicate map entry is flagged', () => {
+                const excerpt = handBuiltExcerpt();
+                const duplicated = [...HAND_BUILT_CONSUMERS, HAND_BUILT_CONSUMERS[0] ?? { file: '', line: 1, symbols: [] }];
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(duplicated), excerpt);
+                assert.strictEqual(verification.verified, false);
+                assert.ok(verification.checked.some(entry => entry.problems.some(problem => problem.includes('duplicate map entry'))));
+        });
+
+        test('a non-clean path (absolute / dot-dot) is flagged before the row lookup', () => {
+                const excerpt = handBuiltExcerpt();
+                const dirty = [
+                        ...HAND_BUILT_CONSUMERS,
+                        { file: '../outside/escape.ts', line: 1, symbols: ['x'] },
+                ];
+                const verification = verifyExcerptConsumersMap(excerptAnswerOf(dirty), excerpt);
+                assert.strictEqual(verification.verified, false);
+                assert.ok(verification.checked.some(entry => entry.problems.some(problem => problem.includes('not a clean repo-relative posix path'))));
+        });
+});
+
+suite('P2-FIX-122: the exercise\'s excerpt-mode wiring (live-provider lane, stubbed seams)', () => {
+
+        /**
+         * A minimal harness for the exercise-level wiring test: the SEAMS are
+         * stubs (the driver\'s receipts claim the seam levels, not unit tests),
+         * the exercise logic + the excerpt machinery + the FrictionLog are the
+         * REAL modules. The ask stub mimics the provider facade: the prompt
+         * builder runs INSIDE the ask window (after the stand-in routing
+         * decision), exactly like makeProviderFacade.ask does.
+         */
+        async function runExerciseInMode(mode: 'fake-lane' | 'live-provider'): Promise<{ receipt: ExerciseReceipt; root: string; recordsDir: string; askedPrompts: string[] }> {
+                const treeRoot = await buildExcerptFixtureTree();
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flauz-dogfood-exercise-'));
+                const recordsDir = path.join(root, 'records');
+                await fs.mkdir(recordsDir, { recursive: true });
+                const askedPrompts: string[] = [];
+                const friction = new FrictionLog({ path: path.join(recordsDir, 'explore-repo.friction.jsonl'), clock: () => 1_000 });
+                let seq = 0;
+                const ask = async (input: AskPrompt): Promise<AskOutcome> => {
+                        // the ask window: the builder runs AFTER the (stand-in) routing
+                        // decision, right before the request ships -- the P2-FIX-119
+                        // discipline the real facade pins
+                        const prompt = typeof input === 'function' ? await input({ decisionId: 'rd-000001' }) : input;
+                        askedPrompts.push(prompt);
+                        if (mode === 'fake-lane') {
+                                return { kind: 'ok', text: 'n/a', decisionId: 'rd-000001', providerId: 'flauz-dogfood-fake', modelId: 'dogfood-1', durationMs: 5, attempts: 1, wallClockBudgetMs: 15_000, finishReason: 'stop' };
+                        }
+                        // the "model": answers perfectly FROM THE PROMPT -- the answer is
+                        // derived from a FRESH excerpt build (determinism: it must equal the
+                        // excerpt the exercise itself embedded), fenced like a live model
+                        const excerpt = await buildTreeExcerpt(treeRoot);
+                        const consumers = excerptConsumersOf(excerpt);
+                        const text = `\`\`\`json\n${JSON.stringify({ schema: EXPLORE_ANSWER_SCHEMA, consumers: consumers.map(consumer => ({ file: consumer.file, line: consumer.line, consumes: [...consumer.symbols] })) })}\n\`\`\``;
+                        return { kind: 'ok', text, decisionId: 'rd-000001', providerId: 'flauz-dogfood-live', modelId: 'live-model', durationMs: 12, attempts: 1, wallClockBudgetMs: 15_000, finishReason: 'stop' };
+                };
+                const harness = {
+                        runId: 'test-run',
+                        mode,
+                        root,
+                        repoRoot: treeRoot,
+                        recordsDir,
+                        clock: () => 1_000,
+                        friction,
+                        tasks: { recordEvidence: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}` }; } },
+                        ledger: { append: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}`, seq }; } },
+                        memory: {},
+                        store: {},
+                        provider: { ask },
+                        exerciseId: 'explore-repo',
+                        taskId: 'T-001',
+                        graphId: 'G-001',
+                        stepId: 'S-01',
+                        log: () => undefined,
+                } as unknown as DogfoodHarness;
+                const receipt = await EXPLORE_EXERCISE.run(harness);
+                return { receipt, root, recordsDir, askedPrompts };
+        }
+
+        test('live-provider mode: the ask-time builder embeds the excerpt, the perfect answer verifies 100%, the excerpt is banked, the receipt is excerpt-scoped', async () => {
+                const { receipt, root, recordsDir, askedPrompts } = await runExerciseInMode('live-provider');
+                assert.strictEqual(receipt.verdict, 'PASS');
+                // the ask used the EXCERPT question (built inside the ask window)
+                assert.strictEqual(askedPrompts.length, 1);
+                assert.ok(askedPrompts[0]?.includes(EXCERPT_BLOCK_BEGIN), 'the ask prompt embeds the excerpt markers');
+                assert.ok(!askedPrompts[0]?.toLowerCase().includes('every consumer of the evidence ledger'));
+                // the checks: the excerpt-embedded check + the SAME three map checks (scoped) + evidence
+                const ids = receipt.checks.map(check => check.id);
+                assert.deepStrictEqual(ids, ['explore.model-call-ok', 'explore.answer-parses', 'explore.excerpt-embedded', 'explore.map-sound', 'explore.map-complete', 'explore.map-100-percent', 'explore.evidence-minted']);
+                assert.ok(receipt.checks.every(check => check.ok), receipt.checks.filter(check => !check.ok).map(check => check.detail).join(' | '));
+                assert.ok(receipt.checks.find(check => check.id === 'explore.map-complete')?.detail.includes('excerpt consumers'));
+                // the excerpt lane banked THREE artifacts: the answer + the excerpt + the verification
+                assert.strictEqual(receipt.evidenceItems.length, 3);
+                const excerptArtifact = receipt.evidenceItems.find(item => item.uri.endsWith('explore-excerpt.json'));
+                assert.ok(excerptArtifact, 'the excerpt artifact is minted');
+                // the excerpt artifact on disk == the deterministic excerpt (a reviewer can check the answer against it by hand)
+                const bankedExcerpt = JSON.parse(await fs.readFile(path.join(root, excerptArtifact?.uri ?? ''), { encoding: 'utf-8' })) as TreeExcerpt;
+                const expected = await buildTreeExcerpt((await buildExcerptFixtureTree()));
+                assert.deepStrictEqual(bankedExcerpt.schema, EXPLORE_EXCERPT_SCHEMA);
+                assert.deepStrictEqual(bankedExcerpt, expected);
+                // the records receipt: the excerpt-mode schema, embedding the excerpt, all entries ok
+                const verification = JSON.parse(await fs.readFile(path.join(recordsDir, 'explore-repo.verification.json'), { encoding: 'utf-8' })) as { schema: string; mode: string; excerpt: TreeExcerpt; verified: boolean; totals: { claimed: number; real: number } };
+                assert.strictEqual(verification.schema, EXPLORE_EXCERPT_VERIFICATION_SCHEMA);
+                assert.strictEqual(verification.mode, 'excerpt');
+                assert.deepStrictEqual(verification.excerpt, expected);
+                assert.strictEqual(verification.verified, true);
+                assert.strictEqual(verification.totals.claimed, verification.totals.real);
+                // the notes describe the excerpt lane (P2-FIX-122), never the fake lane
+                assert.ok(receipt.notes.some(note => note.includes('P2-FIX-122')));
+                assert.ok(receipt.notes.every(note => !note.includes('the fake lane computed its map live from the tree')));
+        });
+
+        test('live-provider mode: a HALLUCINATED answer (the W5 shape: plausible entries outside the excerpt) FAILs the receipt and banks the excerpt anyway', async () => {
+                const treeRoot = await buildExcerptFixtureTree();
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flauz-dogfood-exercise-'));
+                const recordsDir = path.join(root, 'records');
+                await fs.mkdir(recordsDir, { recursive: true });
+                const friction = new FrictionLog({ path: path.join(recordsDir, 'explore-repo.friction.jsonl'), clock: () => 1_000 });
+                let seq = 0;
+                const hallucinatedText = JSON.stringify({
+                        schema: EXPLORE_ANSWER_SCHEMA,
+                        consumers: [
+                                { file: 'extensions/flauz-workspace/src/invented.ts', line: 12, consumes: ['EvidenceLedger'] },
+                                { file: 'extensions/flauz-agent/src/also-invented.ts', line: 4, consumes: ['ledgerAppend'] },
+                        ],
+                });
+                const ask = async (input: AskPrompt): Promise<AskOutcome> => {
+                        const prompt = typeof input === 'function' ? await input({ decisionId: 'rd-000001' }) : input;
+                        assert.ok(prompt.includes(EXCERPT_BLOCK_BEGIN));
+                        return { kind: 'ok', text: hallucinatedText, decisionId: 'rd-000001', providerId: 'flauz-dogfood-live', modelId: 'live-model', durationMs: 12, attempts: 1, wallClockBudgetMs: 15_000, finishReason: 'stop' };
+                };
+                const harness = {
+                        runId: 'test-run', mode: 'live-provider', root, repoRoot: treeRoot, recordsDir, clock: () => 1_000, friction,
+                        tasks: { recordEvidence: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}` }; } },
+                        ledger: { append: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}`, seq }; } },
+                        memory: {}, store: {}, provider: { ask },
+                        exerciseId: 'explore-repo', taskId: 'T-001', graphId: 'G-001', stepId: 'S-01', log: () => undefined,
+                } as unknown as DogfoodHarness;
+                const receipt = await EXPLORE_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'FAIL');
+                assert.ok(!receipt.checks.find(check => check.id === 'explore.map-sound')?.ok);
+                assert.ok(receipt.checks.find(check => check.id === 'explore.map-100-percent')?.detail.includes('excerpt'));
+                // the excerpt is STILL banked (the reviewer checks the failed answer against it)
+                assert.strictEqual(receipt.evidenceItems.length, 3);
+                const verification = JSON.parse(await fs.readFile(path.join(recordsDir, 'explore-repo.verification.json'), { encoding: 'utf-8' })) as { verified: boolean; totals: { problemEntries: number; missedEntries: number; claimed: number } };
+                assert.strictEqual(verification.verified, false);
+                assert.strictEqual(verification.totals.problemEntries, 2);
+                // honest friction: the miss is logged with the excerpt scope
+                const rows = await friction.readAll();
+                assert.ok(rows.some(row => row.type === 'friction' && (row as { detail: string }).detail.includes('judged against the excerpt')));
+        });
+
+        test('fake-lane mode: the exercise still asks the full-tree question verbatim (the machinery ground truth, UNCHANGED by P2-FIX-122)', async () => {
+                const { receipt, askedPrompts } = await runExerciseInMode('fake-lane');
+                // the stubbed fake-lane ask returns a non-answer; the machinery paths this
+                // pins are the QUESTION and the VERIFICATION LANE: the ask prompt is the
+                // full-tree EXPLORE_QUESTION (byte-for-byte), never an excerpt question
+                assert.deepStrictEqual(askedPrompts, [EXPLORE_QUESTION]);
+                // and the receipt carries no excerpt check (the fake lane is unchanged)
+                assert.ok(!receipt.checks.some(check => check.id === 'explore.excerpt-embedded'));
+                assert.ok(!receipt.evidenceItems.some(item => item.uri.endsWith('explore-excerpt.json')));
         });
 });

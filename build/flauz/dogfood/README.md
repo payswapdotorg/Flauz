@@ -1,4 +1,4 @@
-# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2)
+# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2 + W6 exercise design)
 
 The W1 harness for A-PROD-003 (dogfooding): the driver machinery + the
 friction-log contract + the exercise lanes that the station then runs
@@ -84,6 +84,64 @@ docs/FLAUZ-PROGRAM/findings/) as a harness-side fix:
   live exploration run's answer parses, or fails with a VISIBLE
   truncation marker — never a bare raw-parse error again.
 
+**W6 (A-PROD-003-W6, branch flauz-tla/aprod003-w6-exercise-design)**
+implements the REGISTERED W5 live finding P2-FIX-122 (finding doc:
+docs/FLAUZ-PROGRAM/findings/P2-FIX-122-bare-model-exploration-unanswerable.md)
+as a harness-side exercise-design fix:
+
+- **P2-FIX-122 (the exploration exercise demands a capability a bare
+  live model cannot have):** the W5 live run proved the harness
+  machinery fully live-capable — and the exploration knowledge checks
+  failed HONESTLY (0/7 sound, 23/23 missed: the model cannot see the
+  20k-file tree; its seven plausible entries were hallucinations).
+  The exercise now SPLITS BY LANE:
+  - the **fake lane keeps the full-tree question and the full-tree
+    verification, UNCHANGED** — its server-side scan (fake-provider.mjs)
+    IS the ground truth for the machinery (the G4 driver run);
+  - the **live (bare-model) lane grows the EXCERPT mode**: the ask-time
+    prompt builder (the P2-FIX-119 discipline — built INSIDE the ask
+    window, after the ask's own durable routing decision, right before
+    the request ships) embeds a **tree EXCERPT**: `buildTreeExcerpt` — a
+    deterministic, seeded (mulberry32, `EXCERPT_SEED = 1220`), capped
+    (`EXCERPT_FILE_COUNT = 64` files of the ~370 flauz-* sources)
+    selection of files' import lines from the driver's own scan, with a
+    **consumer guarantee** (whenever the tree has ledger consumers, the
+    excerpt carries at least one — the alphabetically-first consumer
+    file joins a selection that would miss them all; never a vacuous
+    test). The question becomes **"report the ledger consumers among
+    THIS excerpt's lines"** (the same operational definition + answer
+    schema, scoped to the excerpt; the question never carries the fake
+    lane's full-scan trigger phrase).
+  - the **verification is excerpt-scoped**
+    (`verifyExcerptConsumersMap`): every claimed entry must re-read
+    WITHIN the excerpt (its file:line is an excerpt row, the row REALLY
+    imports the ledger module, the symbols match the row's bindings)
+    and every excerpt consumer must be claimed — **the same 100% bar,
+    judged against the excerpt embedded in the prompt** (a REAL tree
+    consumer outside the excerpt fails as out-of-scope; a hallucinated
+    entry fails soundness; a missed excerpt consumer fails
+    completeness). Pure function over the answer + the banked excerpt
+    — no tree reads: the excerpt is this lane's ground truth.
+  - **the excerpt is banked into the exercise receipt**: a hash-pinned
+    workspace artifact (`.flauz/artifacts/<task>/explore-excerpt.json`)
+    AND embedded in the verification receipt
+    (`flauz.dogfood-explore-excerpt-verification/v1`, written to the
+    records dir as `explore-repo.verification.json`) — a reviewer can
+    check the model's answer against the excerpt BY HAND.
+  - the receipt keeps the SAME check ids as W5 (`explore.map-sound` /
+    `explore.map-complete` / `explore.map-100-percent` — the live
+    receipt reads exactly like the W5 one, scoped to the excerpt) plus
+    the new `explore.excerpt-embedded` (the ask prompt is CHECKED to
+    carry the excerpt verbatim — checked, not trusted).
+  - the **agent-with-tools lane is deferred** to the tools dogfood wave
+    (the browser/environment/multi-agent dimensions where the model can
+    actually read the tree) — per the finding's candidate acceptance.
+
+  The station's live W6 run (the env contract present) is the
+  live-lane verification of this design; the worker's G4 receipt is
+  the fake-lane run (the credential-free law — live evidence is
+  claimed only by the station).
+
 ## Files
 
 | File | Role |
@@ -94,9 +152,9 @@ docs/FLAUZ-PROGRAM/findings/) as a harness-side fix:
 | `fake-provider.mjs` (+ `fake-provider.d.mts`) | The fake/scripted provider lanes on a REAL local socket. The fake lane COMPUTES its exploration answer at request time (the ledger-consumer map from the real tree) and READS its provider-configuration answer from the prompt-carried facts (P2-FIX-119: the server-side computation path is retired). The scripted-failing lane answers every completion with HTTP 500 -> the REAL adapter's typed `PROVIDER_OVERLOADED`. The `.d.mts` is the hand-written declaration for the test suite. |
 | `harnessTypes.ts` | The harness/exercise contracts (typed against the real seam modules; the ask facade accepts an ask-time prompt builder, P2-FIX-119, and the ask outcomes carry `wallClockBudgetMs`, P2-FIX-117, + `finishReason`, P2-FIX-121). |
 | `liveBudget.mjs` (+ `liveBudget.d.mts`) | P2-FIX-121: the live completion-budget knob (`FLAUZ_DOGFOOD_LIVE_MAX_TOKENS`, default 32 768, pure fail-closed parser `parseLiveMaxTokens`) + the finish-reason surfacing (`consumeAskStream` — the ask-stream consumption joining the text deltas AND capturing the terminal finish event's reason; `finishReasonDetail`/`answerParseFailDetail` — a `length` finish renders as the VISIBLE TRUNCATED marker). The `.d.mts` is the hand-written declaration (the frictionlog.d.mts zero-dependency discipline). |
-| `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise (live-lane answers parse through the P2-FIX-118 tolerant path). |
+| `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise (live-lane answers parse through the P2-FIX-118 tolerant path; P2-FIX-122: the live lane answers the EXCERPT-mode question — `buildTreeExcerpt`/`buildExcerptQuestion`/`verifyExcerptConsumersMap`, the excerpt-scoped 100% bar, the banked excerpt; the fake lane keeps the full-tree question, UNCHANGED). |
 | `exercises/provider-switch.task.ts` | EXERCISE 2 (provider switching + failure/recovery): the switch plan, the ask-time facts-carrying question builder (P2-FIX-119), the workspace-state verification (strict, unchanged), the friction policy, the exercise. |
-| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests; + the W3.2 suites: P2-FIX-121 the knob's default/env/fail-closed parsing + the finish-reason surfacing incl. the fixture-level scripted stream carrying finish_reason `length` through the REAL adapter → the VISIBLE TRUNCATED marker in the receipt detail). |
+| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests; + the W3.2 suites: P2-FIX-121 the knob's default/env/fail-closed parsing + the finish-reason surfacing incl. the fixture-level scripted stream carrying finish_reason `length` through the REAL adapter → the VISIBLE TRUNCATED marker in the receipt detail; + the W6 suites: P2-FIX-122 the excerpt builder's determinism/seed-sensitivity/consumer-guarantee, the excerpt-scoped verification logic (fixture excerpts with known consumers — hallucination detection against the excerpt, the completeness bar), the question/prompt round-trip, and the exercise's excerpt-mode wiring in live-provider mode incl. the fake-lane-unchanged pins). |
 
 ## How to run
 
@@ -204,15 +262,23 @@ belong in the wave report, not the run log.
 
 ## The exercises and their receipts
 
-**explore-repo** — the question: *"map every consumer of the evidence
-ledger across extensions/flauz-\*: file + line + what it consumes"*
-(operational definition pinned inside the prompt). The provider answers
-by scanning the real tree at request time; the driver independently
+**explore-repo** — the question SPLITS BY LANE (P2-FIX-122): the fake
+lane asks *"map every consumer of the evidence ledger across
+extensions/flauz-\*: file + line + what it consumes"* (operational
+definition pinned inside the prompt) — the provider answers by
+scanning the real tree at request time; the driver independently
 scans (its own regex scanner), re-reads every claimed `file:line`, and
-requires 100% soundness AND completeness. Receipts:
-`explore-repo.verification.json` (the checked map),
+requires 100% soundness AND completeness. The live lane asks the
+EXCERPT-mode question (*"report the ledger consumers among THIS
+excerpt's lines"*) — the deterministic tree excerpt is embedded in the
+prompt at ask time and the same 100% bar is judged against the
+excerpt (the banked excerpt + the answer + the verification receipt
+are hash-pinned; a reviewer can check the model's answer against the
+excerpt by hand). Receipts:
+`explore-repo.verification.json` (the checked map — in live mode the
+excerpt-mode receipt embedding the excerpt),
 `explore-repo.receipt.json`, the friction log, two hash-pinned
-evidence rows (the answer as received + the verification).
+evidence rows (three in live mode: + the excerpt artifact).
 
 **provider-switch** — the sequence `healthy -> scripted-failing ->
 healthy`, each switch = the real providers-file enablement act + the
