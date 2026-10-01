@@ -11,24 +11,22 @@ The repository default `main` is the canonical Flauz product line. The preserved
 
 ## Current phase
 
-**Product Acceptance, Discovery and Productization**
+**Two-TL Product Completion and Engineering Lab**
 
-Read the phase control document first:
-`docs/FLAUZ-PROGRAM/PRODUCT-PHASE.md`
+Canonical roadmap:
+`docs/FLAUZ-PROGRAM/MASTER-ROADMAP.md`
 
 ## Read before coding
 
 1. `docs/FLAUZ-PROGRAM/SOURCE-OF-TRUTH.md`
-2. `docs/FLAUZ-PROGRAM/PRODUCT-PHASE.md`
-3. `docs/FLAUZ-PROGRAM/CURRENT-STATE.md`
-4. `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`
-5. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`
-6. `docs/FLAUZ-PROGRAM/PARALLEL-EXECUTION.md`
-7. the active TL handoff:
-   - TL1 -> `docs/FLAUZ-PROGRAM/TL1-PRODUCT-HANDOFF.md`
-   - TL2 -> `docs/FLAUZ-PROGRAM/TL2-PRODUCT-HANDOFF.md`
-   - TL3 -> `docs/FLAUZ-PROGRAM/TL3-PRODUCT-HANDOFF.md`
-   - TL4 -> `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
+2. `docs/FLAUZ-PROGRAM/MASTER-ROADMAP.md`
+3. `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`
+4. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`
+5. the active TL handoff:
+   - TL-A -> `docs/FLAUZ-PROGRAM/TL-A-PRODUCTIZATION-HANDOFF.md`
+   - TL-B -> `docs/FLAUZ-PROGRAM/TL-B-ENGINEERING-LAB-HANDOFF.md`
+
+Historical P2 documents remain useful evidence but do not determine current ownership.
 
 ## Product rule
 
@@ -40,14 +38,20 @@ Preserve existing Code OSS capabilities unless a requirement explicitly proves o
 
 ## Operating rule
 
-No chat history is required to decide what to do next.
+No chat history is required.
 
 1. Find your TL handoff.
-2. Claim only an unclaimed registry item in your lane.
-3. Inspect current `main`.
-4. Implement in your ownership boundary.
-5. Test at the evidence level required by the work item.
-6. Record evidence and remaining risk.
+2. Claim only an unclaimed item in your lane.
+3. Work from current `main`.
+4. Use stable contracts, fixtures or mocks for cross-TL dependencies.
+5. Test at the evidence level required by the item.
+6. Record evidence, exact SHA/PR and remaining risk.
 7. Update the registry in the same merge wave.
 
-When you find a problem owned by another TL, create a routed `P2-FIX-###` finding. Do not patch across the ownership boundary.
+### Two-TL independence law
+
+TL-A must be able to complete productionization without the Engineering Lab.
+
+TL-B must be able to complete the Lab without waiting for productionization.
+
+The Lab may only cross into real execution through the stable `LabExecutionPort` / AgentTask / Workflow boundary.
