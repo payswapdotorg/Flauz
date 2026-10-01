@@ -1,27 +1,29 @@
-# Flauz Agent Routing — Active Product Phase
+# Flauz Agent Routing — Two-TL Product Completion and Engineering Lab
 
 Before making product changes:
 
 1. Read `FLAUZ-START-HERE.md`.
-2. Read `docs/FLAUZ-PROGRAM/PRODUCT-PHASE.md`.
-3. Read the active TL handoff for your lane.
+2. Read `docs/FLAUZ-PROGRAM/MASTER-ROADMAP.md`.
+3. Read `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`.
+4. Read `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`.
+5. Read the active TL handoff.
 
 Active handoffs:
 
-- TL1 -> `docs/FLAUZ-PROGRAM/TL1-PRODUCT-HANDOFF.md`
-- TL2 -> `docs/FLAUZ-PROGRAM/TL2-PRODUCT-HANDOFF.md`
-- TL3 -> `docs/FLAUZ-PROGRAM/TL3-PRODUCT-HANDOFF.md`
-- TL4 -> `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
+- TL-A -> `docs/FLAUZ-PROGRAM/TL-A-PRODUCTIZATION-HANDOFF.md`
+- TL-B -> `docs/FLAUZ-PROGRAM/TL-B-ENGINEERING-LAB-HANDOFF.md`
 
-Current phase work:
+Current phase:
 
-- P2-001 -> TL1
-- P2-002 -> TL4
-- P2-003 -> TL4
-- P2-FIX-* -> route by domain; never self-assign across TL boundaries
+- **TL-A:** remaining P2-FIX tail, final verification, dogfooding, beta, production and post-production reliability.
+- **TL-B:** Engineering Lab contracts, workload/task learning, task worlds, Agent Bodies, organization/model/capability search, Lab UI, calibration and closed-loop proof.
 
-Conflict rule:
+Non-interference:
 
-If a change belongs to another TL's owned domain, stop at a finding/contract and route it. Do not patch the neighboring TL's implementation tree.
+- Work only inside your registered lane.
+- Cross-TL dependencies use versioned contracts, fixtures or mocks.
+- Never cherry-pick another TL worker branch.
+- Only `main` is product state.
+- Architecture changes require an architecture decision before implementation.
 
-Only `main` is product state.
+Historical four-TL P2 handoffs remain evidence only.

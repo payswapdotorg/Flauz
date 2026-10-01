@@ -620,7 +620,7 @@ A TL may depend on another TL for final integration, but never for starting work
 
 ## Product Acceptance, Discovery and Productization — 2026-09-29
 
-Status: ACTIVE
+Status: HISTORICAL COMPLETE — 2026-10-01
 
 The foundation build and registered hardening backlog are complete. The next work is explicitly separated from those completed portfolios.
 
@@ -872,3 +872,77 @@ Landed: PR #52 (44a5795) — additive-only (two new files, zero edits; the gate-
 ## Current program state
 
 The original four-TL build program and all registered post-completion hardening are complete. The active program is now the Product Acceptance, Discovery and Productization phase above. New work must enter this phase registry (or a superseding architecture-approved registry entry) before it is treated as program state.
+
+
+## Two-TL Product Completion and Engineering Lab — 2026-10-01
+
+Status: ACTIVE  
+Supersedes current execution routing in the historical Product Acceptance, Discovery and Productization phase. Historical records remain immutable evidence.
+
+### Program ownership
+
+- **TL-A:** Product Completion and Productionization.
+- **TL-B:** Engineering Lab and Adaptive Optimization.
+
+Both TLs operate from current `main), use stable contracts, and do not wait for the other TL.
+
+### TL-A inherited acceptance tail
+
+| Item | Owner | Status | Purpose |
+|---|---|---|---|
+| P2-FIX-102 | TL-A | ACTIVE | Land dedicated battery/session tsconfig fix after clearing the surfaced battery-instrument drift gate |
+| P2-FIX-106 | TL-A | ACTIVE | Browser popup-gate placement + Fetch pre-use observation |
+| P2-FIX-107 | TL-A | ACTIVE | At-record URL query-value redaction with continuity-export compatibility |
+| P2-FIX-109 | TL-A | ACTIVE | Executor cancellation port and partial-effect reconciliation |
+| P2-FIX-110 | TL-A | ACTIVE | Explicit remotePidAlive UNVERIFIABLE outcome |
+| P2-FIX-111 | TL-A | ACTIVE | Restoration-family vocabulary convergence |
+| P2-FIX-113 | TL-A | ACTIVE | Keyed/signed hash-chain decision and bounded closure |
+
+Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
+
+### Phase A — Product Completion / Productionization
+
+| ID | Owner | Status | Dependency |
+|---|---|---|---|
+| A-PROD-001 | TL-A | ACTIVE | inherited P2-FIX tail |
+| A-PROD-002 | TL-A | TODO | A-PROD-001 |
+| A-PROD-003 | TL-A | ACTIVE | current integrated product; independent of TL-B |
+| A-PROD-004 | TL-A | TODO | A-PROD-001 + dogfood evidence |
+| A-PROD-005 | TL-A | TODO | A-PROD-004 |
+| A-PROD-006 | TL-A | TODO | A-PROD-005 |
+
+### Phase B — Engineering Lab
+
+| ID | Owner | Status | Dependency |
+|---|---|---|---|
+| LAB-001 | TL-B | ACTIVE | stable Flauz contracts |
+| LAB-002 | TL-B | TODO | LAB-001 |
+| LAB-003 | TL-B | TODO | LAB-001 + LAB-002 |
+| LAB-004 | TL-B | TODO | LAB-001 |
+| LAB-005 | TL-B | TODO | LAB-004 |
+| LAB-006 | TL-B | TODO | LAB-004 + stable Tool/Capability contracts |
+| LAB-007 | TL-B | TODO | LAB-003 + LAB-005/006 |
+| LAB-008 | TL-B | TODO | LAB-007 + real-task observation adapter |
+| LAB-009 | TL-B | TODO | LAB-001 + LAB-005 |
+| LAB-010 | TL-B | TODO | LAB-001 + AgentTask/Workflow stable seam |
+| LAB-011 | TL-B | TODO | LAB-005..010 |
+
+### Independence / ownership law
+
+- TL-A does not depend on the Engineering Lab for production readiness.
+- TL-B does not depend on TL-A implementation for simulation/search milestones.
+- Cross-TL work uses versioned contracts, fixtures or mock adapters.
+- No worker branch is cherry-picked into another TL branch.
+- Shared control-plane updates are made only by the registered owner of the control-plane wave.
+- Architecture changes require a decision record before implementation.
+- DONE requires implementation on `main), targeted evidence and registry update in the same merge wave.
+
+### Completion target
+
+The program is complete only when:
+
+1. TL-A closes the inherited gap tail and proves production operation.
+2. TL-B proves the Engineering Lab closed loop.
+3. The shared LabRecommendation -> AgentTask/Workflow integration is independently re-verified.
+4. Dogfood, beta and production gates are complete.
+5. Post-production reliability and calibration loops are operational.
