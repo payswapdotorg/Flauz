@@ -892,7 +892,7 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 |---|---|---|---|
 | P2-FIX-102 | TL-A | ACTIVE | Land dedicated battery/session tsconfig fix after clearing the surfaced battery-instrument drift gate |
 | P2-FIX-106 | TL-A | ACTIVE | Browser popup-gate placement + Fetch pre-use observation |
-| P2-FIX-107 | TL-A | ACTIVE | At-record URL query-value redaction with continuity-export compatibility |
+| P2-FIX-107 | TL-A | DONE | At-record query-value redaction landed (PR #93 7ba8ccb4eee) |
 | P2-FIX-109 | TL-A | ACTIVE | Executor cancellation port and partial-effect reconciliation |
 | P2-FIX-110 | TL-A | DONE | remotePidAlive UNVERIFIABLE landed (PR #91 5ca57a719b9e) |
 | P2-FIX-111 | TL-A | ACTIVE | Restoration-family vocabulary convergence |
@@ -906,11 +906,15 @@ Pinned base: `3928b0eeeba0c7d640147e605111da547fd6bbe3` (main at claim time — 
 
 - **P2-FIX-102** (vacuous dedicated battery/session tsconfigs) — **CLAIMED, gate surveyed:** station drift survey on the pinned base (worktree, `"exclude": []` flip applied to `tsconfig.agentos-battery.json` + `tsconfig.session-battery.json`, tsc 5.9.3): the flip surfaces **76 drift entries — 46 agentos + 30 session** (the historical 80 minus the four `LeaseConflictFacts` entries P2-FIX-103 already cleared). Work = the flip + clearing the drift family (shim gaps: node `versions`/`kill`/`exit`, console `error`; declaration drift: `EnvOpLine.toState`, `ClaimStepLeaseResult` narrowing, `committedUrl` on the navigation union; instrument-side strictness: `override` modifiers, definite-assignment) so both dedicated typechecks exit 0 with their subjects in the program. TL1's held branch `a5908655` is historical provenance, not imported.
 - **P2-FIX-106** (popup-gate placement redesign) — **CLAIMED, decision recorded (DL-79)** — branch `flauz-p2fix/p2-fix-106` — dispatch Wave 1 slot 1: the browser-level placement + Fetch-domain pre-use observation implementation; the real-Chromium drill pins (F-DELIVERY/F-POPUP-URL/F-OPENER-BLOCK) flip from FINDING-pinned to assertion-pinned in the same change.
-- **P2-FIX-107** (URL redaction control point) — **CLAIMED, decision recorded (DL-80)** — branch `flauz-p2fix/p2-fix-107` — dispatch Wave 1 slot 2: the two-layer law's at-record layer (secret-shaped query-param VALUE redaction at the browser persistence boundaries; continuity export untouched).
+- **P2-FIX-107** (URL redaction control point) — **DONE:** PR #93, squash-merged `7ba8ccb4eee5` (see the TL-A landing record below).
 - **P2-FIX-109** (executor cancellation ports) — **CLAIMED, decision recorded (DL-81 below)** — branch `flauz-p2fix/p2-fix-109` — the cooperative cancellation port + destroy-supersede law + partial-effect reconciliation; dispatch after the decision-record wave lands.
 - **P2-FIX-110** (remotePidAlive unverifiable window) — **DONE:** PR #91, squash-merged `5ca57a719b9e` (see the TL-A landing record below).
 - **P2-FIX-111** (edge-matrix vs plan-family vocabulary asymmetry) — **CLAIMED, decision recorded (DL-82 below)** — branch `flauz-p2fix/p2-fix-111` — the restrict-the-matrix convergence (matrix + tests + fixtures as one DL-R2-shaped change); dispatch after the decision-record wave lands.
 - **P2-FIX-113** (unkeyed hash chains) — **CLOSED BY DECISION (DL-83 below):** the bounded deferral is recorded with its explicit trigger (the beta/production security gate requiring whole-tail-adversary tamper-evidence); no implementation this wave — the decision IS the deliverable (the P2-FIX-112 precedent).
+
+#### TL-A landing record — P2-FIX-107 DONE (2026-10-01)
+
+- **P2-FIX-107 (at-record secret-shaped query-value redaction) — DONE:** PR #93, squash-merged `7ba8ccb4eee5`. Worker lane delivery (chat `999d7dd7`, GLM-5.3/Full-Stack), worker head `6e3a19654b3` (single commit on the pinned base `3928b0eeeba`, no rebase). Harvest: sha256-verified 5/5 + tree self-check; bundle verified. STATION re-verification (independent, clean worktree): browser suite **225/225/0/0** (baseline 218 + 7 P2-FIX-107 tests — the worker receipt reproduced exactly); `tsc --noEmit` exit 0; GATE-FROZEN instruments AND the flauz-resources export lane byte-identical (zero diff); secrets scan clean. Diff: 5 files +571/−7 — the DL-80 at-record layer (`urlRedaction.ts` normalization helper, detector imported from flauz-resources) at exactly the three decided persistence boundaries (journal tab-URL snapshots, `navigated` requested/committed URLs, popup-gate record `url`); runtime navigation semantics unchanged; the continuity export untouched. The BEFORE→AFTER canary receipts: journal lines carrying the canary 3/4 → 0/4, popup-gate urls 2/2 → 0/2, wire facts unchanged. Honest scope notes carried: verdict notes keep their structure (DL-80 scope guard — the export layer's beat); percent-decoded carriers redacted via the decoded form (same shape class); `[redacted]` is not itself secret-shaped (never re-trips a detector). Evidence level local-real (the real write path under the fake CDP transport's wire log).
 
 #### TL-A landing record — P2-FIX-110 DONE (2026-10-01)
 
