@@ -538,3 +538,5 @@ when the binary/daemon is absent — they never fabricate a pass.
 Known residual: the harness path resolves relative to `src/extension.ts`
 (`../fixtures/env-agent.ts`); the TL1 bundler must ship `fixtures/` next to
 `dist/` when this extension is packaged (v0 runs from source in the dev flow).
+Shipped (P2-FIX-108): the manifest's `flauzPackagedAssets` contract, bundler
+verification and packaging-parity rule PP6 now enforce the packaged tree.

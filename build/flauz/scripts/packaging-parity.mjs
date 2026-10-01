@@ -40,6 +40,14 @@
 //   PP5 posture summary   : per-extension packaging posture + capability
 //                           classes summarized so the web build story is
 //                           readable at a glance.
+//   PP6 packaged assets   : manifests declaring flauzPackagedAssets (the
+//                           fixed-harness packaging contract, P2-FIX-108)
+//                           must be shape-valid - an array of non-empty
+//                           relative paths, no '..' segments, not absolute -
+//                           and every declared asset must exist under the
+//                           extension root: a declared asset absent from
+//                           the packaged tree is a violation, registry
+//                           rows or not.
 //
 // Registry: build/flauz/packaging-parity.json (schema documented in the
 // registry itself; report: docs/FLAUZ-PROGRAM/PACKAGING-PARITY.md).
@@ -137,8 +145,9 @@ Options:
 Rules: PP1 registry present + shape-valid ; PP2 per-extension coverage ;
 PP3 evidence re-derivation (manifest-key / node-import / node-free) ;
 PP4 class consistent with the constraint ; PP5 per-extension posture
-summary. Registry: build/flauz/packaging-parity.json; report:
-docs/FLAUZ-PROGRAM/PACKAGING-PARITY.md.
+summary ; PP6 packaged-asset presence (flauzPackagedAssets: every
+declared asset must ship next to dist/). Registry:
+build/flauz/packaging-parity.json; report: docs/FLAUZ-PROGRAM/PACKAGING-PARITY.md.
 
 Exit codes: 0 clean/SKIP ; 1 drift/violation ; 2 usage error.
 `);
@@ -312,6 +321,55 @@ function checkEvidenceItem(rootDir, item) {
 	if (item.kind === 'node-import') { return checkNodeImport(rootDir, item); }
 	if (item.kind === 'node-free') { return checkNodeFree(rootDir, item); }
 	return [`unknown evidence kind '${item.kind}'`];
+}
+
+// ---------------------------------------------------------------------------------------------
+// PP6: packaged-asset presence (P2-FIX-108) - manifest-declared, independent of registry rows
+// ---------------------------------------------------------------------------------------------
+
+/** Shape-checks a manifest's flauzPackagedAssets; returns { assets } | { error }. */
+function readPackagedAssets(pkg) {
+	const declared = pkg.flauzPackagedAssets;
+	if (declared === undefined) { return { assets: null }; }
+	if (!Array.isArray(declared)) {
+		return { error: `must be an array of relative asset paths (found ${JSON.stringify(declared).slice(0, 40)})` };
+	}
+	for (const asset of declared) {
+		if (typeof asset !== 'string' || asset.length === 0) {
+			return { error: `entries must be non-empty strings (found ${JSON.stringify(asset).slice(0, 40)})` };
+		}
+		if (path.isAbsolute(asset)) {
+			return { error: `entry '${asset}' must be relative to the extension root, not absolute` };
+		}
+		if (asset.split('/').includes('..')) {
+			return { error: `entry '${asset}' must not contain '..' segments (it cannot escape the extension root)` };
+		}
+	}
+	return { assets: declared };
+}
+
+function checkPackagedAssets(rootDir, manifests) {
+	for (const m of manifests) {
+		const parsed = readJsonFile(m.abs);
+		if (parsed.problem !== undefined) { continue; }
+		const { assets, error } = readPackagedAssets(parsed.value ?? {});
+		if (error !== undefined) {
+			fail(`PP6 ${m.name}: malformed flauzPackagedAssets - ${error}`);
+			continue;
+		}
+		if (assets === null) { continue; }
+		const extDir = path.dirname(m.abs);
+		let absent = 0;
+		for (const asset of assets) {
+			if (!fs.existsSync(path.join(extDir, asset))) {
+				fail(`PP6 ${m.name}: packaged asset '${asset}' declared but absent from the packaged tree`);
+				absent++;
+			}
+		}
+		if (absent === 0) {
+			pass(`PP6 ${m.name}: packaged assets present (${assets.length} declared)`);
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -546,6 +604,10 @@ function main() {
 			}
 		}
 	}
+
+	// ---- PP6: packaged-asset presence (P2-FIX-108) - evaluated after the registry
+	// rules so the existing output order stays stable (PP1..PP5, then PP6).
+	checkPackagedAssets(rootDir, manifests);
 
 	emit(rootDir, registryPath, manifests, registry, rowResults);
 }
