@@ -637,6 +637,13 @@ export class DockerCliExecutor implements EnvironmentExecutor {
 	/** stop-then-remove, `rm -f` escalation on races (idempotent for a gone container). */
 	private async removeContainer(containerId: string, name: string): Promise<{ ok: true } | { ok: false; error: { code: string; message: string } }> {
 		const stopped = await this.cli.spawnCli(['docker', 'stop', '--time', String(this.stopGraceSeconds), name], { timeoutMs: this.commandTimeoutMs + this.stopGraceSeconds * 1000 });
+		if (stopped.spawnError !== undefined) {
+			// the binary vanished before the stop ran: falling through to the
+			// inspect fallback would read its own spawn failure as "already
+			// gone" and FABRICATE teardown success — fail closed with the
+			// typed capability error instead (the container was NOT removed)
+			return { ok: false, error: { code: 'CLI_NOT_AVAILABLE', message: `the docker binary is not available for the teardown of '${name}' (spawn error: ${excerpt(stopped.spawnError)}) — the container was NOT stopped/removed (no fabricated success; restore the binary, then retry)` } };
+		}
 		if (stopped.exitCode !== 0) {
 			const stoppedGone = await this.cli.spawnCli(['docker', 'inspect', name], { timeoutMs: this.commandTimeoutMs });
 			if (stoppedGone.exitCode !== 0) {

@@ -18,6 +18,11 @@
  *     - missing/invalid actor            -> ACTOR_REQUIRED / ACTOR_INVALID
  *     - environment not in the registry  -> ENVIRONMENT_UNKNOWN
  *     - no executor / no opt-in          -> NO_EXECUTOR / SIMULATED_NOT_OPTED_IN
+ *     - op overlaps an in-flight op    -> OP_IN_FLIGHT (the interleaving
+ *                                         law: one mutating op per
+ *                                         environment at a time — concurrent
+ *                                         commits could otherwise interleave
+ *                                         and violate the state machine)
  *
  *   POST-ACCEPTANCE (ledger-recorded error lines, state changes only per the
  *   transition table — returned as `{ ok: false, error }` outcomes):
@@ -124,6 +129,8 @@ export class EnvironmentLifecycleManager {
 	private readonly providerRetryWait: RetryWaitPort;
 	private envelope: LifecycleEnvelope | undefined;
 	private records: readonly EnvironmentOpRecord[] = [];
+	/** One mutating op per environment at a time (the interleaving law). */
+	private readonly inFlight = new Map<string, Promise<EnvironmentOpOutcome>>();
 
 	constructor(options: EnvironmentLifecycleManagerOptions) {
 		this.registry = options.registry;
@@ -145,9 +152,61 @@ export class EnvironmentLifecycleManager {
 			if (entry.lastOpRef > records.length) {
 				throw new EnvironmentLifecycleError('STORE_CORRUPT', `entries['${envId}'].lastOpRef ${entry.lastOpRef} is dangling (the ops ledger holds ${records.length} line(s))`);
 			}
+			const absorbed = records[entry.lastOpRef - 1];
+			if (absorbed === undefined || absorbed.environmentId !== envId) {
+				throw new EnvironmentLifecycleError('STORE_CORRUPT', `entries['${envId}'].lastOpRef ${entry.lastOpRef} does not reference this environment's own ledger record (the PIN-2 pair is inconsistent)`);
+			}
+		}
+		const reconciled = EnvironmentLifecycleManager.reconcileWithLedgerTail(envelope, records);
+		if (reconciled !== undefined) {
+			// torn-write recovery (see reconcileWithLedgerTail): the append-only
+			// ledger is the truth — adopt it DURABLY before serving any op
+			this.envelope = reconciled;
+			this.records = records;
+			await this.store.writeEnvelope(reconciled);
+			return;
 		}
 		this.envelope = envelope;
 		this.records = records;
+	}
+
+	/**
+	 * Torn-write recovery: commit() appends the ledger line FIRST and persists
+	 * the envelope SECOND — a crash between the two leaves ledger records
+	 * beyond an entry's lastOpRef. The append-only ledger (re-validated on
+	 * every append) is the truth: recover each entry to the LAST ledger record
+	 * for its environment (the record's toState is the settled state), so no
+	 * environment stays in a pre-op state the ledger says was superseded — in
+	 * particular no environment stays non-terminal when the ledger records a
+	 * destroy-ok. A crash mid-transient reconciles honestly too: the tail
+	 * record of an unsettled op is its retry-attempt row (fromState == toState
+	 * == the transient phase), so the entry keeps the transient phase and the
+	 * describe/stop/destroy probes own the reconciliation from there.
+	 * Returns undefined when the pair is already consistent.
+	 */
+	private static reconcileWithLedgerTail(envelope: LifecycleEnvelope, records: readonly EnvironmentOpRecord[]): LifecycleEnvelope | undefined {
+		let changed = false;
+		const entries: Record<string, LifecycleEntry> = { ...envelope.entries };
+		for (const [envId, entry] of Object.entries(envelope.entries)) {
+			let tailIndex = -1;
+			for (let i = entry.lastOpRef; i < records.length; i++) {
+				if (records[i]!.environmentId === envId) {
+					tailIndex = i;
+				}
+			}
+			if (tailIndex === -1) {
+				continue;
+			}
+			const tail = records[tailIndex]!;
+			entries[envId] = {
+				state: tail.toState,
+				updatedAt: tail.ts,
+				executorKind: entry.executorKind,
+				lastOpRef: tailIndex + 1,
+			};
+			changed = true;
+		}
+		return changed ? { ...envelope, entries } : undefined;
 	}
 
 	private assertBootstrapped(): LifecycleEnvelope {
@@ -236,6 +295,31 @@ export class EnvironmentLifecycleManager {
 		const envelope = this.assertBootstrapped();
 		const fromState = envelope.entries[request.id]?.state ?? 'registered';
 		const now = this.clock();
+
+		// -- accepted attempt: everything from here is ledger-recorded --
+		// ONE mutating op per environment at a time (the interleaving law): a
+		// second op issued while one is in flight is a typed PRE-FLIGHT
+		// rejection. Without the guard, two overlapping performs interleave
+		// their commits — a start landing after a destroy-ok would resurrect a
+		// destroyed envelope and record an impossible ledger sequence (the
+		// machine's terminal states must hold). The check-then-set below is
+		// synchronous (no await between), so exactly one op per environment is
+		// ever inside the accepted section; the caller awaits the in-flight
+		// op, then retries.
+		if (this.inFlight.has(request.id)) {
+			throw new EnvironmentLifecycleError('OP_IN_FLIGHT', `op '${opName}' on '${request.id}' overlaps an op already in flight on this environment — concurrent lifecycle ops on one environment are rejected fail-closed (await the in-flight op, then retry)`);
+		}
+		const attempt = this.performAccepted(opName, request.id, descriptor, executor, fromState, now, actor);
+		this.inFlight.set(request.id, attempt);
+		try {
+			return await attempt;
+		} finally {
+			this.inFlight.delete(request.id);
+		}
+	}
+
+	/** The accepted-attempt body (one-per-environment, gated by perform). */
+	private async performAccepted(opName: EnvironmentOpName, id: string, descriptor: EnvironmentDescriptor, executor: EnvironmentExecutor, fromState: string, now: number, actor: ProvenanceActor): Promise<EnvironmentOpOutcome> {
 		const ctx: ExecutorOpContext = { actor, now };
 		const base = {
 			schemaVersion: LIFECYCLE_SCHEMA_VERSION,
@@ -243,11 +327,10 @@ export class EnvironmentLifecycleManager {
 			ts: now,
 			actor,
 			op: opName,
-			environmentId: request.id,
+			environmentId: id,
 			fromState,
 		};
 
-		// -- accepted attempt: everything from here is ledger-recorded --
 		const recordError = async (error: EnvironmentOpError): Promise<EnvironmentOpOutcome> => {
 			const record: EnvironmentOpRecord = { ...base, result: 'error', toState: fromState, error };
 			await this.commit(record, fromState, executor.executorKind);
@@ -265,17 +348,17 @@ export class EnvironmentLifecycleManager {
 		if ((opName === 'start' || opName === 'attach') && descriptor.trust.posture === 'untrusted') {
 			return await recordError({
 				code: 'TRUST_POSTURE_REJECTED',
-				message: `environment '${request.id}' has trust posture 'untrusted' — ${opName} is rejected fail-closed (re-register with a trusted posture or review the descriptor; SECURITY-MODEL 3.4)`,
+				message: `environment '${id}' has trust posture 'untrusted' — ${opName} is rejected fail-closed (re-register with a trusted posture or review the descriptor; SECURITY-MODEL 3.4)`,
 			});
 		}
 		if ((opName === 'start' || opName === 'attach') && !descriptor.enabled) {
-			return await recordError({ code: 'ENVIRONMENT_DISABLED', message: `environment '${request.id}' is disabled — ${opName} is rejected (enable the descriptor first)` });
+			return await recordError({ code: 'ENVIRONMENT_DISABLED', message: `environment '${id}' is disabled — ${opName} is rejected (enable the descriptor first)` });
 		}
 
 		// transient phase persistence (crash mid-start/stop reconciles as stale)
 		const transient = transientPhase(fromState, opName);
 		if (transient !== undefined) {
-			await this.patchEntry(request.id, transient, now, executor.executorKind);
+			await this.patchEntry(id, transient, now, executor.executorKind);
 		}
 
 		// TL2-F2B — the bounded, recorded provider-retry window over the
