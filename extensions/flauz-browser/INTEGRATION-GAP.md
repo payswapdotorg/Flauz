@@ -319,37 +319,51 @@ TL adjudicates DL-31.
   hot-swapped-deny variant flagging the real committed URL).
 - REAL-CHROMIUM FINDINGS pinned by the TL3-003 drill (asserted as
   observed — divergences between real Chromium and the FakeCdpTransport
-  contract, recorded for the TL, NOT papered over; **two of the five are
-  now FIXED by the TL3-P2 partition A product-readiness audit, branch
-  `tl3/p2-partition-a`**, each with a unit regression test that fails on
-  the untouched base and a flipped real-wire drill assertion):
-  - **F-DELIVERY** (OPEN): `Target.setAutoAttach` on a PAGE session (the popup
-    gate's placement) does NOT deliver `window.open` popups on real
-    Chromium — popups are browser-level targets and free-run past the
-    page-level gate. The fake models popup delivery to the opener
-    target's sessions; real Chromium does not provide it. Fixing this is
-    the TL-adjudicated browser-level gate-placement redesign (below) — a
-    pinned-semantics change this audit does not make unilaterally.
-  - **F-POPUP-URL** (OPEN): at browser-level attach (`waitForDebuggerOnStart`),
-    a `window.open` popup arrives with `targetInfo.url` EMPTY — the
-    pending navigation URL is NOT available at gate time. Part of the
-    same redesign decision (the URL-observation strategy).
+  contract, recorded for the TL, NOT papered over; **all five are now
+  FIXED — two by the TL3-P2 partition A product-readiness audit (branch
+  `tl3/p2-partition-a`) and three by P2-FIX-106 (branch
+  `flauz-p2fix/p2-fix-106`, decision DL-79)**, each with a unit regression
+  suite and a flipped real-wire drill assertion):
+  - **F-DELIVERY** (**FIXED — P2-FIX-106, DL-79**): `Target.setAutoAttach` on a
+    PAGE session did NOT deliver `window.open` popups on real Chromium —
+    popups are browser-level targets and free-ran past the page-level
+    gate. FIXED by the TL-decided browser-level placement (DL-79): the
+    gate now sits on browser-scope `Target.setAutoAttach` and a
+    `window.open` to a denied host is intercepted, observed pre-use,
+    denied, aborted BEFORE the wire (zero bytes to the denied host,
+    proven by the drill's origin-server hit count) and destroyed —
+    pinned at unit level (`test/popup-gate.test.ts`) and on the real
+    wire (drill 3.1d-2..3c). The fake re-models real browser-level
+    delivery (root-scope, page sessions receive nothing).
+  - **F-POPUP-URL** (**FIXED — P2-FIX-106, DL-79**): at browser-level attach
+    (`waitForDebuggerOnStart`), a `window.open` popup arrives with
+    `targetInfo.url` EMPTY — the pending navigation URL is NOT available
+    at gate time (the fact stays pinned: a debugger-held target starts
+    NO request). FIXED by Fetch-domain pre-use observation: interception
+    armed on the held session, the hold released, and the FIRST
+    `Fetch.requestPaused` — pausing before the wire — carries the
+    destination onto the gate event's `observedUrl` (drill 3.1d-2b/5b).
   - **F-RELEASE-CMD** (**FIXED — TL3-P2**): `Runtime.run` is NOT a real CDP
     method (real Chromium rejects it with "'Runtime.run' wasn't found"); the
     real release command is `Runtime.runIfWaitingForDebugger`. The gate's
-    allow-path (`sessionManager.ts` `handleAttachedTarget`) now sends
+    release (`sessionManager.ts` — `gateHeldPopup` since P2-FIX-106; the
+    allow-path release, on the popup's held session) now sends
     `Runtime.runIfWaitingForDebugger`, and the fake models the real wire
     (accepting only the real method, rejecting `Runtime.run` exactly like
     real Chromium), so the defect class is pinned at unit level
     (`test/popup-gate.test.ts`, the F-RELEASE-CMD regression) and on the
-    real wire (drill 3.1d-6d keeps pinning the motivating real-wire fact).
-  - **F-OPENER-BLOCK** (OPEN): `window.open` BLOCKS the opener's JS while the
-    popup is held; the call returns only after release — and never
-    returns if the held popup is closed without release (the deny-path
-    shape). The browser-level deny-path PRIMITIVE (close a held popup
-    before use via `Target.closeTarget` -> target destroyed) and the
-    allow-path primitive (`Runtime.runIfWaitingForDebugger` release)
-    both hold on real Chromium. Timing shape of the same redesign.
+    real wire (drill 3.1d-8 keeps pinning the motivating real-wire fact).
+  - **F-OPENER-BLOCK** (**FIXED — P2-FIX-106, DL-79**): `window.open` BLOCKS
+    the opener's JS while the popup is held; the call returns only after
+    release — and never returned if the held popup was closed without
+    release (the old deny-path shape). FIXED by decisiveness (DL-79):
+    the gate arms interception and releases the hold immediately on
+    opener attribution (no indefinite hold is lawful); the verdict is
+    reached on the FIRST paused request and acted on immediately, so
+    the opener's `window.open` returns on BOTH paths, and a
+    no-destination popup (no request ever pauses) is released with the
+    bounded no-request window disarming interception (drill
+    3.1d-4/6/7).
   - **F-RECOVERY-DOMAINS** (**FIXED — TL3-P2**): the recovery re-attach did
     not re-send the domain enables (`Page.enable` et al. — `activateLiveTab`
     ran them only at mint time), so on real Chromium `Page.frameNavigated`
@@ -363,14 +377,15 @@ TL adjudicates DL-31.
     fails on the untouched base and asserts the fixed commit
     observation). The current-policy recheck itself was always
     browser-state based (`Target.getTargets`) and survives.
-  The three OPEN findings (F-DELIVERY, F-POPUP-URL, F-OPENER-BLOCK) are
-  the exact REMAINING fix candidates for the TL station to adjudicate
-  (browser-level auto-attach placement / URL-observation strategy) — each
-  changes landed TL3-001/TL3-002 runtime semantics pinned by the unit
-  suites, so they are recorded, not patched, by this lane. The other two
-  original candidates (release-command rename, domain re-enable on
-  recovery) were unambiguous minimal correctness fixes and are landed by
-  the TL3-P2 audit.
+  The three candidates that needed TL adjudication (F-DELIVERY, F-POPUP-URL,
+  F-OPENER-BLOCK — browser-level auto-attach placement / URL-observation
+  strategy) were decided by the TL as DL-79 and are landed by P2-FIX-106
+  (branch `flauz-p2fix/p2-fix-106`): the browser-level placement + Fetch
+  pre-use observation redesign, with the unit-pinned TL3-002 gate tests
+  re-pinned to the new contract in the same change and the fake re-modeling
+  real browser-level delivery. The other two original candidates
+  (release-command rename, domain re-enable on recovery) were unambiguous
+  minimal correctness fixes and are landed by the TL3-P2 audit.
 - RECORDED — G5 (partition NAMING control): **PERMANENTLY RECORDED
   (TL3-H2) as a verified product limitation** — the workbench host cannot
   mint Electron partitions with the flauz names (the proposed API exposes
