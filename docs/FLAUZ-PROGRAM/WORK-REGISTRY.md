@@ -871,7 +871,7 @@ Landed: PR #52 (44a5795) — additive-only (two new files, zero edits; the gate-
 
 ## Current program state
 
-The original four-TL build program and all registered post-completion hardening are complete. The active program is now the Product Acceptance, Discovery and Productization phase above. New work must enter this phase registry (or a superseding architecture-approved registry entry) before it is treated as program state.
+The original four-TL build program and all registered post-completion hardening are complete. **Historical program state:** the Product Acceptance, Discovery and Productization phase above. Current ownership and next work are defined by the Two-TL Product Completion and Engineering Lab section below.
 
 
 ## Two-TL Product Completion and Engineering Lab — 2026-10-01
@@ -884,7 +884,7 @@ Supersedes current execution routing in the historical Product Acceptance, Disco
 - **TL-A:** Product Completion and Productionization.
 - **TL-B:** Engineering Lab and Adaptive Optimization.
 
-Both TLs operate from current `main), use stable contracts, and do not wait for the other TL.
+Both TLs operate from current `main`, use stable contracts, and do not wait for the other TL.
 
 ### TL-A inherited acceptance tail
 
@@ -935,7 +935,7 @@ Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branche
 - No worker branch is cherry-picked into another TL branch.
 - Shared control-plane updates are made only by the registered owner of the control-plane wave.
 - Architecture changes require a decision record before implementation.
-- DONE requires implementation on `main), targeted evidence and registry update in the same merge wave.
+- DONE requires implementation on `main`, targeted evidence and registry update in the same merge wave.
 
 ### Completion target
 
