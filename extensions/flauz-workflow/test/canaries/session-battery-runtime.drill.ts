@@ -214,7 +214,7 @@ interface WireFrame {
 class RecordingWebSocketCdpTransport extends WebSocketCdpTransport {
 	readonly sentFrames: WireFrame[] = [];
 
-	protected postMessage(payload: Record<string, unknown>): void {
+	protected override postMessage(payload: Record<string, unknown>): void {
 		this.sentFrames.push({
 			method: typeof payload.method === 'string' ? payload.method : '',
 			sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
