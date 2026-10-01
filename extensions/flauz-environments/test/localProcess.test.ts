@@ -16,7 +16,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { type ChildHandle, type HashPort, EnvironmentLifecycleManager, type LocalEnvFsPort, LocalProcessExecutor, type ProcessPort } from '../src/lifecycle/index.ts';
+import { type ChildHandle, type HashPort, EnvironmentLifecycleManager, type LocalEnvFsPort, LocalProcessExecutor, mintCancellationPort, type ProcessPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor } from '../src/api.ts';
 import { fixedClock, workspaceRemoteRegistrationInput } from './helpers.ts';
 
@@ -326,7 +326,8 @@ test('local-real: a harness that refuses graceful termination is SIGKILL-escalat
 test('local-real: double start at the executor level is a typed ALREADY_RUNNING error (the manager-level guard is the state machine)', async () => {
 	const rig = await bootRig();
 	try {
-		const ctx = { actor: 'human' as const, now: Date.now() };
+		// DL-81: a bare direct-call context now carries a minted (never-cancelled) port
+		const ctx = { actor: 'human' as const, now: Date.now(), cancellation: mintCancellationPort().port };
 		await rig.executor.create(rig.descriptor, ctx);
 		const first = await rig.executor.start(rig.descriptor, ctx);
 		ok(first.ok);

@@ -26,7 +26,15 @@
  *     "status": "running" | "stopped", "stoppedAt": <epochMs> }
  *
  * Run: node fixtures/env-agent.ts --state-dir <dir> --id <envId> [--heartbeat-ms <n>]
+ *      [--ignore-termination] [--delay-ready-ms <n>]
  * (Node >= 23.6 type stripping; zero dependencies.)
+ *
+ * --delay-ready-ms (DL-81 / P2-FIX-109 drill flag, constructed by the
+ * executor/tests only): sleep n ms AFTER the state file lands and the signal
+ * handlers are armed, BEFORE the stdio `ready` line — a genuinely slow
+ * start, so cancellation drills can destroy an environment whose real child
+ * is mid-effect (spawned, state written, readiness unconfirmed). A SIGTERM
+ * during the delay takes the armed graceful-shutdown path.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -36,6 +44,7 @@ interface HarnessArgs {
 	envId: string;
 	heartbeatMs: number;
 	ignoreTermination: boolean;
+	delayReadyMs: number;
 }
 
 function parseArgs(argv: readonly string[]): HarnessArgs {
@@ -43,6 +52,7 @@ function parseArgs(argv: readonly string[]): HarnessArgs {
 	let envId: string | undefined;
 	let heartbeatMs = 500;
 	let ignoreTermination = false;
+	let delayReadyMs = 0;
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i]!;
 		if (arg === '--state-dir') {
@@ -60,14 +70,24 @@ function parseArgs(argv: readonly string[]): HarnessArgs {
 			// DRILL FLAG: refuse graceful termination so executors must exercise
 			// the SIGKILL escalation path. Constructed by the executor/tests only.
 			ignoreTermination = true;
+		} else if (arg === '--delay-ready-ms') {
+			// DRILL FLAG (DL-81 / P2-FIX-109): delay the stdio ready line so a
+			// destroy can arrive while a REAL child is mid-effect. Constructed
+			// by the executor/tests only.
+			const raw = argv[++i];
+			const parsed = raw === undefined ? Number.NaN : Number(raw);
+			if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 60_000) {
+				fail(`--delay-ready-ms must be an integer in [0, 60000] (got ${JSON.stringify(raw)})`);
+			}
+			delayReadyMs = parsed;
 		} else {
-			fail(`unknown argument ${JSON.stringify(arg)} (expected --state-dir <dir> --id <envId> [--heartbeat-ms <n>] [--ignore-termination])`);
+			fail(`unknown argument ${JSON.stringify(arg)} (expected --state-dir <dir> --id <envId> [--heartbeat-ms <n>] [--ignore-termination] [--delay-ready-ms <n>])`);
 		}
 	}
 	if (stateDir === undefined || envId === undefined || stateDir.length === 0 || envId.length === 0) {
 		fail('both --state-dir <dir> and --id <envId> are required');
 	}
-	return { stateDir, envId, heartbeatMs, ignoreTermination };
+	return { stateDir, envId, heartbeatMs, ignoreTermination, delayReadyMs };
 }
 
 function emit(event: Record<string, unknown>): void {
@@ -138,6 +158,13 @@ writeState(args.stateDir, baseState());
 // now implies handlers armed; the protocol itself is unchanged.
 process.on('SIGTERM', () => { if (!args.ignoreTermination) { shutdown('SIGTERM'); } });
 process.on('SIGINT', () => { if (!args.ignoreTermination) { shutdown('SIGINT'); } });
+
+// DL-81 / P2-FIX-109 drill flag: the delayed ready line (handlers are armed
+// above, so a SIGTERM during the delay takes the graceful-shutdown path —
+// exactly the mid-effect cancellation window the drills destroy into).
+if (args.delayReadyMs > 0) {
+	await new Promise<void>(resolve => setTimeout(resolve, args.delayReadyMs));
+}
 
 emit({ type: 'ready', pid: process.pid });
 

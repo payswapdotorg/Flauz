@@ -22,7 +22,17 @@
  *                                         law: one mutating op per
  *                                         environment at a time — concurrent
  *                                         commits could otherwise interleave
- *                                         and violate the state machine)
+ *                                         and violate the state machine).
+ *                                         DL-81 EXCEPTION: a `destroy` issued
+ *                                         while a NON-terminal op is in flight
+ *                                         is NOT rejected — it supersedes: it
+ *                                         mints the cooperative cancellation
+ *                                         on the in-flight attempt, awaits its
+ *                                         CANCELLED completion (and defensive
+ *                                         reap), then proceeds as the terminal
+ *                                         op. Every other pair keeps the D1
+ *                                         law (reject, never interleave).
+ *     - cancel() with nothing in flight -> OP_NOT_IN_FLIGHT (DL-81)
  *
  *   POST-ACCEPTANCE (ledger-recorded error lines, state changes only per the
  *   transition table — returned as `{ ok: false, error }` outcomes):
@@ -55,6 +65,7 @@ import { failureState, successState, transientPhase, transitionFor } from './sta
 
 import { defaultRetryWait, formatProviderRetryAttemptMessage, isRetryableProviderStatus, providerRetryWaitMs, readProviderRetryHint, resolveRetryBound, type ProviderRetryOptions, type RetryWaitPort } from './providerRetry.ts';
 import type { EnvironmentExecutor, ExecutorOpContext } from './executor.ts';
+import { cancelledEffect, mintCancellationPort, readCancellationFacts, type CancellationPortMint, type ExecutorCancellationPort } from './executor.ts';
 
 export interface EnvironmentLifecycleManagerOptions {
 	/** The booted descriptor registry (trust + kind lookups). */
@@ -104,6 +115,18 @@ interface RetryWindowContext {
 	readonly executorKind: string;
 }
 
+/**
+ * DL-81 / P2-FIX-109 — one accepted in-flight attempt: its outcome promise,
+ * its op name (the destroy-supersede rule needs the terminal/non-terminal
+ * distinction) and the cooperative cancellation port the manager minted for
+ * it (the cancel mint is manager-only; the executor only observes).
+ */
+interface InFlightAttempt {
+	readonly promise: Promise<EnvironmentOpOutcome>;
+	readonly op: EnvironmentOpName;
+	readonly port: CancellationPortMint;
+}
+
 const RECORDED_ERROR_MESSAGE_MAX = 300;
 
 function requireActor(op: string, actor: unknown): ProvenanceActor {
@@ -129,8 +152,8 @@ export class EnvironmentLifecycleManager {
 	private readonly providerRetryWait: RetryWaitPort;
 	private envelope: LifecycleEnvelope | undefined;
 	private records: readonly EnvironmentOpRecord[] = [];
-	/** One mutating op per environment at a time (the interleaving law). */
-	private readonly inFlight = new Map<string, Promise<EnvironmentOpOutcome>>();
+	/** One mutating op per environment at a time (the interleaving law) + the DL-81 cancellation port per attempt. */
+	private readonly inFlight = new Map<string, InFlightAttempt>();
 
 	constructor(options: EnvironmentLifecycleManagerOptions) {
 		this.registry = options.registry;
@@ -277,10 +300,10 @@ export class EnvironmentLifecycleManager {
 
 	/**
 	 * Performs one mutating lifecycle op. Pre-flight schema failures throw
-	 * typed errors; every accepted attempt (success OR failure) is recorded
-	 * in the ops ledger with MANDATORY provenance and returned as a typed
-	 * outcome.
-		 */
+	 * typed errors; every accepted attempt (success, failure OR CANCELLED —
+	 * DL-81) is recorded in the ops ledger with MANDATORY provenance and
+	 * returned as a typed outcome.
+	 */
 	async perform(op: unknown, request: LifecycleOpRequest): Promise<EnvironmentOpOutcome> {
 		if (typeof op !== 'string' || !(ENVIRONMENT_OPS as readonly string[]).includes(op)) {
 			throw new EnvironmentLifecycleError('OP_UNKNOWN', `unknown lifecycle op ${JSON.stringify(op)} (expected one of ${ENVIRONMENT_OPS.join('|')})`);
@@ -292,9 +315,9 @@ export class EnvironmentLifecycleManager {
 		}
 		const descriptor = this.descriptorFor(request.id);
 		const executor = this.resolveExecutor(descriptor.kind, request.simulated);
-		const envelope = this.assertBootstrapped();
-		const fromState = envelope.entries[request.id]?.state ?? 'registered';
-		const now = this.clock();
+		let envelope = this.assertBootstrapped();
+		let fromState = envelope.entries[request.id]?.state ?? 'registered';
+		let now = this.clock();
 
 		// -- accepted attempt: everything from here is ledger-recorded --
 		// ONE mutating op per environment at a time (the interleaving law): a
@@ -302,15 +325,38 @@ export class EnvironmentLifecycleManager {
 		// rejection. Without the guard, two overlapping performs interleave
 		// their commits — a start landing after a destroy-ok would resurrect a
 		// destroyed envelope and record an impossible ledger sequence (the
-		// machine's terminal states must hold). The check-then-set below is
-		// synchronous (no await between), so exactly one op per environment is
-		// ever inside the accepted section; the caller awaits the in-flight
-		// op, then retries.
+		// machine's terminal states must hold).
+		//
+		// DL-81 / P2-FIX-109 — the destroy-supersede rule: a `destroy` issued
+		// while a NON-terminal op is in flight on the same environment is NOT
+		// OP_IN_FLIGHT-rejected (terminal decisiveness — a destroy must never
+		// wait out a wedged start): it mints the cooperative cancellation on
+		// the in-flight attempt, awaits its CANCELLED completion (the attempt
+		// records its own cancelled ledger line; its executor defensively
+		// reaps at the observation checkpoint), and then proceeds as the
+		// terminal op over the settled envelope. Every other op pair keeps
+		// the D1 interleaving law unchanged (reject, never interleave).
+		if (opName === 'destroy') {
+			const superseded = this.inFlight.get(request.id);
+			if (superseded !== undefined && superseded.op !== 'destroy') {
+				await this.cancelAttempt(superseded, actor, 'destroy-supersede');
+				// the cancelled attempt's record moved the envelope (a cancelled
+				// start/stop settles through the existing failure-state law) —
+				// recompute the destroy's facts from the settled truth
+				envelope = this.assertBootstrapped();
+				fromState = envelope.entries[request.id]?.state ?? 'registered';
+				now = this.clock();
+			}
+		}
 		if (this.inFlight.has(request.id)) {
 			throw new EnvironmentLifecycleError('OP_IN_FLIGHT', `op '${opName}' on '${request.id}' overlaps an op already in flight on this environment — concurrent lifecycle ops on one environment are rejected fail-closed (await the in-flight op, then retry)`);
 		}
-		const attempt = this.performAccepted(opName, request.id, descriptor, executor, fromState, now, actor);
-		this.inFlight.set(request.id, attempt);
+		// The check-then-set below is synchronous (no await between), so
+		// exactly one op per environment is ever inside the accepted
+		// section; the caller awaits the in-flight op, then retries.
+		const port = mintCancellationPort();
+		const attempt = this.performAccepted(opName, request.id, descriptor, executor, fromState, now, actor, port);
+		this.inFlight.set(request.id, { promise: attempt, op: opName, port });
 		try {
 			return await attempt;
 		} finally {
@@ -318,9 +364,43 @@ export class EnvironmentLifecycleManager {
 		}
 	}
 
+	/**
+	 * DL-81 / P2-FIX-109 — cancels the in-flight lifecycle op on an
+	 * environment. COOPERATIVE, NEVER A PREEMPTIVE KILL: the cancellation
+	 * is minted on the attempt's port and the executor observes it at its
+	 * next effect checkpoint (pre-spawn, post-spawn/pre-confirm, between
+	 * provider-retry rounds), returning the typed OP_CANCELLED effect —
+	 * the manager then records the attempt with `result: 'cancelled'`
+	 * settling through the existing failure-state law. Provenance is
+	 * mandatory exactly as on every accepted attempt; typed
+	 * `OP_NOT_IN_FLIGHT` when nothing is in flight. Resolves to the
+	 * attempt's own outcome once it settles — an effect that completed
+	 * before observing the mint resolves to its own honest outcome (the
+	 * checkpoint miss-window law).
+	 */
+	async cancel(request: { readonly id: string; readonly actor?: unknown }): Promise<EnvironmentOpOutcome> {
+		const actor = requireActor('cancel', request.actor);
+		if (typeof request.id !== 'string' || request.id.length === 0) {
+			throw new EnvironmentLifecycleError('OP_INVALID', `op 'cancel' requires the environment id`);
+		}
+		this.descriptorFor(request.id);
+		this.assertBootstrapped();
+		const attempt = this.inFlight.get(request.id);
+		if (attempt === undefined) {
+			throw new EnvironmentLifecycleError('OP_NOT_IN_FLIGHT', `no lifecycle op is in flight on '${request.id}' — cancel targets the in-flight op (its executor observes the cooperative cancellation at its next effect checkpoint; never a preemptive kill)`);
+		}
+		return await this.cancelAttempt(attempt, actor, 'cancel');
+	}
+
+	/** Mints the cooperative cancellation on an in-flight attempt and awaits its settled outcome (the attempt records its own ledger line). */
+	private async cancelAttempt(attempt: InFlightAttempt, actor: ProvenanceActor, reason: string): Promise<EnvironmentOpOutcome> {
+		attempt.port.cancel(actor, reason);
+		return await attempt.promise;
+	}
+
 	/** The accepted-attempt body (one-per-environment, gated by perform). */
-	private async performAccepted(opName: EnvironmentOpName, id: string, descriptor: EnvironmentDescriptor, executor: EnvironmentExecutor, fromState: string, now: number, actor: ProvenanceActor): Promise<EnvironmentOpOutcome> {
-		const ctx: ExecutorOpContext = { actor, now };
+	private async performAccepted(opName: EnvironmentOpName, id: string, descriptor: EnvironmentDescriptor, executor: EnvironmentExecutor, fromState: string, now: number, actor: ProvenanceActor, port: CancellationPortMint): Promise<EnvironmentOpOutcome> {
+		const ctx: ExecutorOpContext = { actor, now, cancellation: port.port };
 		const base = {
 			schemaVersion: LIFECYCLE_SCHEMA_VERSION,
 			schema: 'flauz.environments-ops/v0',
@@ -370,14 +450,37 @@ export class EnvironmentLifecycleManager {
 		// the pre-F2B single-shot honest path BYTE-IDENTICALLY (the
 		// additivity law). Every attempt of an engaged window is recorded
 		// in the ops ledger; exhaustion resolves through the unchanged
-		// typed terminal failure path below.
+		// typed terminal failure path below. DL-81: the window observes
+		// the cancellation port between rounds — a cancelled op is never
+		// retried (the typed CANCELLED effect resolves the window).
 		const effect = await this.runExecutorOpBounded(executor, opName, descriptor, ctx, {
 			base,
 			inFlightState: transient ?? fromState,
 			executorKind: executor.executorKind,
-		});
+		}, port.port);
 
 		if (!effect.ok) {
+			if (readCancellationFacts(effect.error) !== null) {
+				// DL-81 / P2-FIX-109 — the cancelled attempt records
+				// `result: 'cancelled'` (distinct from 'error'): the typed
+				// OP_CANCELLED error carries the partial-effect facts and the
+				// cancelling actor's provenance; the envelope settles through
+				// the EXISTING failure-state law (a cancelled start lands
+				// `failed` — cancellation never fabricates completion, never a
+				// silent healthy state).
+				const toState = failureState(fromState, opName);
+				const message = effect.error.message.length > RECORDED_ERROR_MESSAGE_MAX
+					? `${effect.error.message.slice(0, RECORDED_ERROR_MESSAGE_MAX - 1)}…`
+					: effect.error.message;
+				const record: EnvironmentOpRecord = {
+					...base,
+					result: 'cancelled',
+					toState,
+					error: { code: effect.error.code, message },
+				};
+				await this.commit(record, toState, executor.executorKind);
+				return { ok: false, record, error: record.error! };
+			}
 			const toState = failureState(fromState, opName);
 			const message = effect.error.message.length > RECORDED_ERROR_MESSAGE_MAX
 				? `${effect.error.message.slice(0, RECORDED_ERROR_MESSAGE_MAX - 1)}…`
@@ -412,7 +515,7 @@ export class EnvironmentLifecycleManager {
 
 	// -- the bounded provider-retry window (TL2-F2B) ---------------------------------
 
-	private async runExecutorOpBounded(executor: EnvironmentExecutor, op: EnvironmentOpName, descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext, window: RetryWindowContext): Promise<ExecutorEffectResult> {
+	private async runExecutorOpBounded(executor: EnvironmentExecutor, op: EnvironmentOpName, descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext, window: RetryWindowContext, cancellation: ExecutorCancellationPort): Promise<ExecutorEffectResult> {
 		const maxAttempts = this.providerRetryMaxAttempts;
 		let ordinal = 1;
 		let waitAppliedMs = 0;
@@ -453,6 +556,13 @@ export class EnvironmentLifecycleManager {
 			}
 			const waitMs = providerRetryWaitMs(hint);
 			await this.providerRetryWait(waitMs);
+			// DL-81 / P2-FIX-109 — the between-provider-retry-rounds
+			// checkpoint: a cancellation minted during the inter-attempt
+			// wait is observed BEFORE the next round re-issues the effect
+			// — the provider-retry window NEVER retries a cancelled op.
+			if (cancellation.cancelled) {
+				return cancelledEffect(cancellation, 'provider-retry-window', `op '${op}' cancelled between retry attempts — no further provider calls issued`);
+			}
 			ordinal += 1;
 			waitAppliedMs = waitMs;
 		}

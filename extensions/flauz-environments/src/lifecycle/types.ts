@@ -123,6 +123,15 @@ export const LIFECYCLE_ERROR_CODES = [
 	// interleaved commits could otherwise resurrect a destroyed envelope and
 	// record an impossible ledger sequence (the interleaving law).
 	'OP_IN_FLIGHT',
+	// DL-81 / P2-FIX-109 (additive): the typed outcome code a cancelled op
+	// carries — the executor returns the typed OP_CANCELLED effect error at
+	// an observed cancellation checkpoint, and the manager records the
+	// attempt with `result: 'cancelled'` (distinct from 'error') while the
+	// two-armed outcome envelope stays unchanged ({ ok: false, error }).
+	'OP_CANCELLED',
+	// DL-81 / P2-FIX-109 (additive): `cancel(id, actor)` with nothing in
+	// flight on the environment is a typed fail-closed rejection.
+	'OP_NOT_IN_FLIGHT',
 ] as const;
 export type LifecycleErrorCode = (typeof LIFECYCLE_ERROR_CODES)[number];
 
@@ -173,9 +182,48 @@ export interface ProviderRetryHint {
  */
 export interface ExecutorEffectError extends EnvironmentOpError {
 	readonly providerRetryHint?: ProviderRetryHint;
+	/**
+	 * DL-81 / P2-FIX-109 — the EPHEMERAL cancellation facts a cancelled
+	 * effect carries (code 'OP_CANCELLED'). Exactly like the retry hint,
+	 * the structured facts NEVER reach the PIN-2 lines — the manager
+	 * records the pinned {code, message} payload; the facts are the
+	 * executor's typed partial-effect classification for the manager's
+	 * `result: 'cancelled'` recording path. A malformed or absent facts
+	 * payload is NEVER treated as a cancellation (fail-closed — the
+	 * readProviderRetryHint posture).
+	 */
+	readonly cancelledFacts?: ExecutorCancelledFacts;
 }
 
-/** One ops-ledger line: `flauz.environments-ops/v0` (the exact PIN-2 key set). */
+/**
+ * DL-81 / P2-FIX-109 — the structured cancellation facts of a cancelled
+ * executor effect: WHERE the cooperative cancellation was observed (the
+ * effect checkpoint), WHO requested it (the cancelling actor's provenance)
+ * and WHAT the cancelled op left behind (the partial-effect reconciliation
+ * facts). Ephemeral (executor -> manager); the pinned {code, message} error
+ * payload remains the ledger truth.
+ */
+export interface ExecutorCancelledFacts {
+	/** The effect checkpoint where the cancellation was observed ('pre-spawn' | 'pre-confirm' | 'provider-retry-window'). */
+	readonly checkpoint: string;
+	/** The provenance of the cancel request (mandatory — the manager validated it at mint time). */
+	readonly cancelledBy: ProvenanceActor;
+	/** What the cancelled op left behind (the partial-effect facts; names pids/containers defensively reaped). */
+	readonly partialEffects: string;
+}
+
+/**
+ * One ops-ledger line: `flauz.environments-ops/v0` (the exact PIN-2 key set).
+ *
+ * DL-81 / P2-FIX-109 (additive): the `result` vocabulary gains `cancelled`
+ * (distinct from `error`) — a lifecycle op whose executor effect observed a
+ * minted cancellation at one of its checkpoints records its attempt as
+ * `cancelled` with the typed `OP_CANCELLED` error payload carrying the
+ * partial-effect facts and the cancelling actor's provenance. Cancellation
+ * never fabricates completion: a cancelled start records `cancelled`, never
+ * an ok/started row, and its envelope settles through the existing
+ * failure-state law (never a silent healthy state).
+ */
 export interface EnvironmentOpRecord {
 	readonly schemaVersion: number;
 	readonly schema: string;
@@ -183,7 +231,7 @@ export interface EnvironmentOpRecord {
 	readonly actor: ProvenanceActor;
 	readonly op: EnvironmentOpName;
 	readonly environmentId: string;
-	readonly result: 'ok' | 'error';
+	readonly result: 'ok' | 'error' | 'cancelled';
 	readonly fromState: string;
 	readonly toState: string;
 	readonly error?: EnvironmentOpError;

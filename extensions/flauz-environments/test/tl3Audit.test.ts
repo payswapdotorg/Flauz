@@ -50,7 +50,10 @@ import {
         type ExecutorOpContext,
         type HashPort,
         type LocalEnvFsPort,
+        cancelledEffectError,
+        mintCancellationPort,
         type ProcessPort,
+        watchCancellation,
         LIFECYCLE_PATH,
         OPS_PATH,
 } from '../src/lifecycle/index.ts';
@@ -167,8 +170,21 @@ function gatedExecutor(kinds: readonly EnvironmentKind[]): { executor: Environme
                 const gate = gates.get(op);
                 if (gate !== undefined) {
                         // the gate STAYS armed in the map so controls.release() can find
-                        // and resolve it while this op is suspended on it
-                        await gate.promise;
+                        // and resolve it while this op is suspended on it.
+                        // DL-81 / P2-FIX-109: the cooperative cancellation port is
+                        // observed WHILE the effect is gated (mid-effect) — a minted
+                        // cancel returns the typed OP_CANCELLED effect instead of
+                        // completing (the deterministic port model; the real executors
+                        // observe at their pre-spawn / pre-confirm checkpoints).
+                        const watch = watchCancellation(ctx.cancellation);
+                        const winner = await Promise.race([
+                                gate.promise.then(() => ({ kind: 'gate' as const })),
+                                watch.promise.then(() => ({ kind: 'cancelled' as const })),
+                        ]);
+                        watch.dispose();
+                        if (winner.kind === 'cancelled') {
+                                return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-spawn', 'the gated effect never ran (observed the cooperative cancellation mid-effect)') };
+                        }
                 }
                 return { ok: true, detail: detail() as never };
         }
@@ -303,7 +319,7 @@ async function realRig(options: { ignoreTermination?: boolean; stopTimeoutMs?: n
                 executor,
                 manager,
                 cleanup: async () => {
-                        await executor.destroy((await registry.get('env-test-remote'))!, { actor: 'tool', now: Date.now() }).catch(() => undefined);
+                        await executor.destroy((await registry.get('env-test-remote'))!, { actor: 'tool', now: Date.now(), cancellation: mintCancellationPort().port }).catch(() => undefined);
                         await fs.rm(root, { recursive: true, force: true });
                 },
         };
@@ -511,7 +527,7 @@ test('tl3-audit item 2: attach to a non-running environment and snapshot of a de
 // Item 3 — DESTROY-DURING-OP (fail-closed interleavings on one environment)
 // ---------------------------------------------------------------------------
 
-test('tl3-audit item 3: destroy issued while a stop is in flight is rejected typed — no interleaved commit, no resurrection, the ledger stays machine-legal', async () => {
+test('tl3-audit item 3 (DL-81 / P2-FIX-109): destroy issued while a stop is in flight SUPERSEDES it — the stop lands cancelled, the destroy lands the terminal destroyed envelope, the ledger records both honestly in sequence', async () => {
         const { executor, controls } = gatedExecutor(['workspace-remote']);
         const rig = await bootMemRig({ executor, registration: workspaceRemoteRegistrationInput({ id: 'env-audit-race' }) });
         const id = 'env-audit-race';
@@ -521,29 +537,28 @@ test('tl3-audit item 3: destroy issued while a stop is in flight is rejected typ
         controls.gate('stop');
         const stopP: Promise<EnvironmentOpOutcome> = rig.manager.perform('stop', { id, actor: 'human' });
         await until(() => controls.calls.includes('stop'));
-        // destroy arrives while the stop is in flight: fail-closed typed rejection
-        const destroyP = rig.manager.perform('destroy', { id, actor: 'human' });
-        await rejects(() => destroyP, (err: unknown) => {
-                ok(err instanceof EnvironmentLifecycleError, 'the overlap rejection is the typed lifecycle error');
-                strictEqual((err as EnvironmentLifecycleError).code, 'OP_IN_FLIGHT');
-                return true;
-        });
-        strictEqual(opsOf(rig.manager, id).some(record => record.op === 'destroy'), false, 'the rejected destroy recorded nothing');
-        // the in-flight stop completes honestly
-        controls.release('stop');
+        // destroy arrives while the stop is in flight: the DL-81 destroy-supersede
+        // (terminal decisiveness) — NOT the pre-DL-81 OP_IN_FLIGHT rejection. The
+        // in-flight stop is cooperatively cancelled at its gated checkpoint and the
+        // destroy proceeds as the terminal op over the settled envelope.
+        const destroyP = rig.manager.perform('destroy', { id, actor: 'agent' });
         const stopOutcome = await stopP;
-        ok(stopOutcome.ok);
-        strictEqual(rig.manager.stateOf(id), 'stopped');
-        // and the destroy now runs legally to the terminal state
-        const destroy = await rig.manager.perform('destroy', { id, actor: 'human' });
-        ok(destroy.ok);
-        strictEqual(rig.manager.stateOf(id), 'destroyed');
-        // the ledger sequence is exactly the machine's (no interleaved rows)
-        deepStrictEqual(opsOf(rig.manager, id).map(record => [record.op, record.toState]), [
-                ['create', 'created'],
-                ['start', 'running'],
-                ['stop', 'stopped'],
-                ['destroy', 'destroyed'],
+        ok(!stopOutcome.ok, 'the cancelled stop resolves through the error arm (the two-armed outcome envelope is unchanged)');
+        strictEqual(stopOutcome.error.code, 'OP_CANCELLED', 'the typed cancellation error');
+        strictEqual(stopOutcome.record.result, 'cancelled', 'the ledger records the attempt as cancelled (distinct from error)');
+        strictEqual(stopOutcome.record.op, 'stop');
+        strictEqual(stopOutcome.record.actor, 'human', 'the attempt row keeps its issuing provenance');
+        strictEqual(stopOutcome.record.error?.message.includes("by actor 'agent' (destroy-supersede)"), true, 'the cancelling actor provenance + reason ride the typed error payload');
+        const destroyOutcome = await destroyP;
+        ok(destroyOutcome.ok, 'the destroy proceeds as the terminal op');
+        strictEqual(destroyOutcome.record.toState, 'destroyed');
+        strictEqual(rig.manager.stateOf(id), 'destroyed', 'the terminal destroyed envelope');
+        // the ledger sequence is exactly the machine-legal pair, recorded honestly
+        deepStrictEqual(opsOf(rig.manager, id).map(record => [record.op, record.result, record.toState]), [
+                ['create', 'ok', 'created'],
+                ['start', 'ok', 'running'],
+                ['stop', 'cancelled', 'failed'],
+                ['destroy', 'ok', 'destroyed'],
         ]);
 });
 
@@ -595,25 +610,30 @@ test('tl3-audit item 3: a snapshot issued while a destroy is in flight is reject
         strictEqual(rig.manager.stateOf(id), 'destroyed');
 });
 
-test('tl3-audit item 3: destroy issued while a start is in flight is the uniform typed rejection (never an interleaved commit)', async () => {
+test('tl3-audit item 3 (DL-81 / P2-FIX-109): destroy issued while a start is in flight supersedes it — the cancelled start + the terminal destroyed envelope, no interleaved rows', async () => {
         const { executor, controls } = gatedExecutor(['workspace-remote']);
         const rig = await bootMemRig({ executor, registration: workspaceRemoteRegistrationInput({ id: 'env-audit-race4' }) });
         const id = 'env-audit-race4';
         await rig.manager.perform('create', { id, actor: 'human' });
         controls.gate('start');
-        const startP = rig.manager.perform('start', { id, actor: 'human' });
+        const startP: Promise<EnvironmentOpOutcome> = rig.manager.perform('start', { id, actor: 'human' });
         await until(() => controls.calls.includes('start'));
-        const destroyP = rig.manager.perform('destroy', { id, actor: 'human' });
-        await rejects(() => destroyP, (err: unknown) => (err instanceof EnvironmentLifecycleError) && (err as EnvironmentLifecycleError).code === 'OP_IN_FLIGHT');
-        controls.release('start');
-        ok((await startP).ok);
-        strictEqual(rig.manager.stateOf(id), 'running');
-        const stop = await rig.manager.perform('stop', { id, actor: 'human' });
-        ok(stop.ok);
-        const destroy = await rig.manager.perform('destroy', { id, actor: 'human' });
-        ok(destroy.ok);
-        strictEqual(rig.manager.stateOf(id), 'destroyed');
-        deepStrictEqual(opsOf(rig.manager, id).map(record => record.op), ['create', 'start', 'stop', 'destroy']);
+        const destroyP = rig.manager.perform('destroy', { id, actor: 'agent' });
+        const startOutcome = await startP;
+        ok(!startOutcome.ok, 'the cancelled start resolves through the error arm');
+        strictEqual(startOutcome.error.code, 'OP_CANCELLED', 'the typed cancellation error');
+        strictEqual(startOutcome.record.result, 'cancelled', 'cancellation never fabricates completion — a cancelled start records cancelled, not started');
+        strictEqual(startOutcome.record.toState, 'failed', 'the cancelled start settles through the EXISTING failure-state law (never a silent healthy state)');
+        const destroyOutcome = await destroyP;
+        ok(destroyOutcome.ok, 'the destroy proceeds as the terminal op');
+        strictEqual(destroyOutcome.record.fromState, 'failed', 'the destroy proceeds from the state the cancelled attempt settled into');
+        strictEqual(destroyOutcome.record.toState, 'destroyed');
+        strictEqual(rig.manager.stateOf(id), 'destroyed', 'the terminal destroyed envelope holds');
+        deepStrictEqual(opsOf(rig.manager, id).map(record => [record.op, record.result, record.toState]), [
+                ['create', 'ok', 'created'],
+                ['start', 'cancelled', 'failed'],
+                ['destroy', 'ok', 'destroyed'],
+        ]);
 });
 
 // ---------------------------------------------------------------------------
@@ -860,7 +880,7 @@ test('tl3-audit item 5: docker teardown when the binary vanishes mid-destroy is 
         const registry = new EnvironmentRegistry({ root: ROOT, fs: fsPort, clock: time.clock });
         await registry.bootstrap();
         const descriptor = (await registry.register(containerRegistrationInput({ id: 'env-audit-docker2' }) as never)) as EnvironmentDescriptor;
-        const destroy = await executor.destroy(descriptor, { actor: 'human', now: time.now() });
+        const destroy = await executor.destroy(descriptor, { actor: 'human', now: time.now(), cancellation: mintCancellationPort().port });
         ok(!destroy.ok, 'a vanished binary must not fabricate teardown success');
         strictEqual(destroy.error.code, 'CLI_NOT_AVAILABLE');
 });

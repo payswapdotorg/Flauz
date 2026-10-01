@@ -26,12 +26,22 @@
  * with a timeout and full reaping; destroy reaps defensively then removes
  * the per-env state dir.
  *
+ * DL-81 / P2-FIX-109 — the cancellation port is observed at the start
+ * path's two effect checkpoints: PRE-SPAWN (after the state dir is created,
+ * before the harness launch) and POST-SPAWN/PRE-CONFIRM (the readiness race
+ * — while awaiting the harness's stdio `ready` line, a minted cancel wins
+ * the race and the UNCONFIRMED child is defensively reaped BEFORE the typed
+ * OP_CANCELLED result returns: no orphan child, never a preemptive kill of
+ * anything we did not spawn ourselves). A child spawned inside a checkpoint
+ * miss-window is covered by the superseding destroy's defensive reap.
+ *
  * Ports (vscode-free core): LocalEnvFsPort, ProcessPort (the node port
  * implements the ELECTRON_RUN_AS_NODE=1-when-Electron pattern), HashPort.
  */
 import { type Clock, type EnvironmentDescriptor, type EnvironmentKind, joinPath, serializeEnvelope } from '../api.ts';
 
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
+import { cancelledEffectError, observeCancellation, watchCancellation } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 
 // ---------------------------------------------------------------------------
@@ -101,6 +111,15 @@ export interface LocalProcessExecutorOptions {
 	readonly kinds?: readonly EnvironmentKind[];
 	/** DRILL FLAG: spawn the harness with --ignore-termination (SIGKILL-escalation drills). */
 	readonly ignoreTermination?: boolean;
+	/**
+	 * DRILL FLAG (DL-81 / P2-FIX-109): spawn the harness with
+	 * `--delay-ready-ms <n>` — a REAL slow start (the fixed harness delays
+	 * its stdio `ready` line for n ms after arming its signal handlers), so
+	 * cancellation drills can issue a destroy while a real child is genuinely
+	 * mid-effect (spawned, state written, readiness unconfirmed). Absent ->
+	 * no flag, the harness readies immediately (byte-identical start path).
+	 */
+	readonly readyDelayMs?: number;
 }
 
 interface SpawnedProcess {
@@ -162,6 +181,7 @@ export class LocalProcessExecutor implements EnvironmentExecutor {
 	private readonly startTimeoutMs: number;
 	private readonly heartbeatMs: number;
 	private readonly ignoreTermination: boolean;
+	private readonly readyDelayMs: number | undefined;
 	private readonly spawned = new Map<string, SpawnedProcess>();
 	private readonly leases = new Map<string, HeldLease>();
 	private leaseCounter = 0;
@@ -177,6 +197,7 @@ export class LocalProcessExecutor implements EnvironmentExecutor {
 		this.startTimeoutMs = options.startTimeoutMs ?? 5000;
 		this.heartbeatMs = options.heartbeatMs ?? 500;
 		this.ignoreTermination = options.ignoreTermination ?? false;
+		this.readyDelayMs = options.readyDelayMs;
 		this.kinds = options.kinds ?? ['workspace-remote'];
 	}
 
@@ -209,6 +230,12 @@ export class LocalProcessExecutor implements EnvironmentExecutor {
 		}
 		const stateDir = this.stateDirOf(descriptor.id);
 		await this.fs.mkdir(stateDir);
+		// DL-81 / P2-FIX-109 — the PRE-SPAWN effect checkpoint: a cancel observed
+		// here returns the typed OP_CANCELLED effect before any child exists.
+		const cancelledPreSpawn = observeCancellation(ctx, 'pre-spawn', `state dir created at ${stateDir}, no child spawned`);
+		if (cancelledPreSpawn !== undefined) {
+			return cancelledPreSpawn;
+		}
 		const harnessArgs = [
 			'--state-dir', stateDir,
 			'--id', descriptor.id,
@@ -217,17 +244,29 @@ export class LocalProcessExecutor implements EnvironmentExecutor {
 		if (this.ignoreTermination) {
 			harnessArgs.push('--ignore-termination');
 		}
+		if (this.readyDelayMs !== undefined) {
+			harnessArgs.push('--delay-ready-ms', String(this.readyDelayMs));
+		}
 		const handle = this.process.launchNodeProcess(this.harnessPath, harnessArgs, { env: { FLAUZ_ENV_ID: descriptor.id } });
 		handle.on('error', () => undefined); // surfaced via the readiness race below
 		const pid = handle.pid;
 		if (pid === undefined) {
 			return effectError('START_FAILED', `harness spawn for '${descriptor.id}' returned no pid (spawn error)`);
 		}
-		const ready = await this.awaitReady(handle, this.startTimeoutMs);
-		if (!ready.ok) {
+		// DL-81 / P2-FIX-109 — the POST-SPAWN/PRE-CONFIRM effect checkpoint:
+		// the readiness wait races the cooperative cancellation port. A minted
+		// cancel wins the race and the UNCONFIRMED child is defensively reaped
+		// (graceful-then-SIGKILL, exactly like stop) BEFORE the typed
+		// OP_CANCELLED result returns — no orphan child.
+		const ready = await this.awaitReadyCancellable(handle, ctx);
+		if (ready.cancelled) {
+			await this.terminateAndReap({ pid, handle, startedAt: ctx.now, exited: false });
+			return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-confirm', `child pid ${pid} spawned, readiness unconfirmed — defensively reaped before returning (no orphan child)`) };
+		}
+		if (!ready.result.ok) {
 			// never leave a half-started child behind
 			try { handle.kill('SIGKILL'); } catch { /* already gone */ }
-			return effectError('START_FAILED', `harness for '${descriptor.id}' did not report ready: ${ready.reason}`);
+			return effectError('START_FAILED', `harness for '${descriptor.id}' did not report ready: ${ready.result.reason}`);
 		}
 		this.spawned.set(descriptor.id, { pid, handle, startedAt: ctx.now, exited: false });
 		handle.on('close', () => {
@@ -384,6 +423,29 @@ export class LocalProcessExecutor implements EnvironmentExecutor {
 	}
 
 	// -- internals ----------------------------------------------------------------
+
+	/**
+	 * DL-81 / P2-FIX-109 — the POST-SPAWN/PRE-CONFIRM checkpoint: races the
+	 * readiness wait against the cooperative cancellation port (poll ticks;
+	 * the watcher is disposed when either side settles, so no event-loop
+	 * handle leaks). The caller performs the defensive reap when the
+	 * `cancelled` arm wins.
+	 */
+	private async awaitReadyCancellable(handle: ChildHandle, ctx: ExecutorOpContext): Promise<{ cancelled: true } | { cancelled: false; result: { ok: true } | { ok: false; reason: string } }> {
+		const ready = this.awaitReady(handle, this.startTimeoutMs);
+		const watch = watchCancellation(ctx.cancellation);
+		try {
+			const winner = await Promise.race([
+				ready.then(result => ({ kind: 'ready' as const, result })),
+				watch.promise.then(() => ({ kind: 'cancelled' as const })),
+			]);
+			return winner.kind === 'cancelled'
+				? { cancelled: true }
+				: { cancelled: false, result: winner.result };
+		} finally {
+			watch.dispose();
+		}
+	}
 
 	private async readStateFile(envId: string): Promise<EnvStateFile | undefined> {
 		const raw = await this.fs.readFileUtf8(this.stateFileOf(envId));
