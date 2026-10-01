@@ -19,7 +19,7 @@ Read:
 4. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`
 5. this file
 
-Then inspect current `main). Never trust historical branch state.
+Then inspect current `main`. Never trust historical branch state.
 
 ## Current inherited gap set
 
@@ -35,7 +35,7 @@ TL-A absorbs the remaining P2-FIX tail:
 
 P2-FIX-108 and P2-FIX-112 are already DONE.
 
-The inherited TL3 claims are historical ownership records. Unmerged branches are not product state. TL-A may recreate equivalent work from current `main) under the new registry ownership without importing another TL's branch.
+The inherited TL3 claims are historical ownership records. Unmerged branches are not product state. TL-A may recreate equivalent work from current `main` under the new registry ownership without importing another TL's branch.
 
 ## Work order
 
@@ -43,7 +43,7 @@ The inherited TL3 claims are historical ownership records. Unmerged branches are
 
 For each item:
 
-1. reproduce the finding on current `main);
+1. reproduce the finding on current `main`;
 2. record the current contract;
 3. resolve architecture questions first;
 4. implement the minimum complete fix;
