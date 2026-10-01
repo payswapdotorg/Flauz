@@ -34,6 +34,27 @@ export interface EvidenceItemInput {
 	sha256: string;
 }
 
+/**
+ * P2-FIX-115: the typed failure-time non-completable warning carried by a
+ * failed finishStep result whose failure leaves the graph no completable path
+ * (additive; absent while a retry path remains). The landed step-failed row
+ * is byte-identical to the pre-fix shape - the warning rides the RESULT, never
+ * the journal row.
+ */
+export interface NonCompletableWarning {
+	code: 'graph-non-completable';
+	reason: 'terminal-class' | 'attempts-exhausted';
+	graphId: string;
+	stepId: string;
+	attempt: number | null;
+	failureClass: string;
+	evidenceId: string | null;
+	message: string;
+}
+
+/** A failed finishStep result: the landed step-failed row (+ the additive P2-FIX-115 warning). */
+export type StepFailedResult = JournalRow & { nonCompletable?: NonCompletableWarning };
+
 export declare class OrchestrationStore {
 	constructor(root: string, options?: StoreOptions);
 
@@ -63,6 +84,8 @@ export declare class OrchestrationStore {
 	appendRowInternal(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): JournalRow;
 	/** Mint the ledger evidence row of one transition (null without taskPort/taskId). */
 	mintTransitionEvidence(candidate: JournalRow): Promise<string | null>;
+	/** P2-FIX-115: mint the failure-time evidence row of the non-completable signal (null without taskPort/taskId). */
+	mintNonCompletableEvidence(candidate: JournalRow, plan: { retry: false; reason: 'terminal-class' | 'attempts-exhausted' }, failureClass: string): Promise<string | null>;
 	/** The evidence-bearing transition append (preview -> mint -> append). */
 	appendEvidenceBearingRow(type: string, fields: { graphId: string; stepId?: string | null; actor: string; origin: string; attempt?: number | null; idempotencyKey?: string | null; ts?: number; payload: Record<string, unknown> }): Promise<JournalRow>;
 	/** Same, for a caller already holding the transition lock. */
@@ -101,7 +124,7 @@ export declare class OrchestrationStore {
 		evidence?: EvidenceItemInput[];
 		actor?: string;
 		origin: string;
-	}): Promise<JournalRow>;
+	}): Promise<StepFailedResult>;
 	finishStepLocked(input: {
 		graphId: string;
 		stepId: string;
@@ -115,7 +138,7 @@ export declare class OrchestrationStore {
 		evidence?: EvidenceItemInput[];
 		actor?: string;
 		origin: string;
-	}): Promise<JournalRow>;
+	}): Promise<StepFailedResult>;
 	retryStep(input: { graphId: string; stepId: string; actor?: string; origin: string }): Promise<JournalRow>;
 	retryStepLocked(input: { graphId: string; stepId: string; actor?: string; origin: string }): JournalRow;
 	/** Record one bounded provider-retry attempt row (TL2-F2): serialized by the transition lock, hash-chained, replay-validated. */

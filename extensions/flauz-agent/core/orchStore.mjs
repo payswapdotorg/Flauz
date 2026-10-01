@@ -505,6 +505,41 @@ export class OrchestrationStore {
 	}
 
 	/**
+	 * P2-FIX-115 (A-PROD-003-W2.2): mint the FAILURE-TIME evidence row of the
+	 * non-completable signal - the same minting path as mintTransitionEvidence
+	 * (kind 'note', uri referencing the LANDED step-failed rowId, sha256 over
+	 * the canonical signal facts), so the evidence ledger carries the
+	 * failure-time record instead of a completion-time rejection only. The
+	 * journal row stays EXACTLY as before (the payload law: the signal never
+	 * leaks into the step-failed row); returns null without a taskPort/taskId
+	 * (the journal row stays the primary record either way).
+	 */
+	async mintNonCompletableEvidence(candidate, plan, failureClass) {
+		const graph = this.requireGraph(candidate.graphId);
+		if (this.taskPort === null || graph.taskId === null) {
+			return null;
+		}
+		const facts = {
+			code: 'graph-non-completable',
+			graphId: candidate.graphId,
+			stepId: candidate.stepId,
+			attempt: candidate.attempt,
+			failureClass,
+			reason: plan.reason,
+		};
+		const minted = await this.taskPort.appendEvidence({
+			taskId: graph.taskId,
+			row: {
+				kind: 'note',
+				uri: `flauz-orch-noncompletable://${candidate.rowId}`,
+				sha256: contentHashOf(facts),
+				note: `P2-FIX-115 failure-time signal: step ${String(candidate.stepId)} failed (class '${failureClass}') with no retry possible (${plan.reason}) - this failure leaves the graph with no remaining path to completion; call failGraph, or widen the step's retry policy`,
+			},
+		});
+		return evidenceIdOfLedgerSeq(minted.seq);
+	}
+
+	/**
 	 * The evidence-bearing transition append: preview (no orphans) -> mint
 	 * (the ledger row) -> append (the payload gains the minted evidenceId).
 	 * Takes the transition lock.
@@ -754,6 +789,12 @@ export class OrchestrationStore {
 	 * follow-up step-retry-scheduled row is appended by retryStep()/the
 	 * runtime - crash between the two is recoverable (the runtime re-derives
 	 * the pending retry from the failed row's retryPlanned).
+	 *
+	 * P2-FIX-115: when the failure leaves no completable path (the retry
+	 * verdict refuses - terminal class or attempts exhausted), the result
+	 * CARRIES the typed `nonCompletable` warning and the evidence ledger
+	 * records the failure-time signal; the landed step-failed row is
+	 * byte-identical to the pre-fix shape.
 	 */
 	async finishStep(input) {
 		return this.withTransitionLock(() => this.finishStepLocked(input));
@@ -780,8 +821,19 @@ export class OrchestrationStore {
 		if (input.outcome === 'failed') {
 			const failureClass = input.failureClass ?? classifyFailure(input.error);
 			const policy = this.policyFor(graph, step);
-			const planned = input.retryPlanned ?? planRetry({ policy, attempt, failureClass, now: this.clock() }).retry;
-			return this.appendRowInternal('step-failed', {
+			// P2-FIX-115 (A-PROD-003-W2.2): the failure-time completable-path
+			// analysis REUSES the store's own retry verdict - the exact planRetry
+			// evaluation retryStep performs later (same policy, same attempt, same
+			// class). A refusal ({ retry: false }) means this step can never reach
+			// 'succeeded' through the store's API, so the graph can never satisfy
+			// the every-step-succeeded completion law: the earliest moment the
+			// product KNOWS the graph is doomed is NOW. The signal is ADDITIVE: the
+			// step-failed row keeps exactly the pre-fix payload, and the
+			// completion-time rejection law is unchanged (an earlier typed warning,
+			// never a behavior change to legal paths).
+			const plan = planRetry({ policy, attempt, failureClass, now: this.clock() });
+			const planned = input.retryPlanned ?? plan.retry;
+			const row = this.appendRowInternal('step-failed', {
 				graphId: input.graphId,
 				stepId: input.stepId,
 				actor: input.actor ?? 'agent',
@@ -793,6 +845,26 @@ export class OrchestrationStore {
 					retryPlanned: planned,
 				},
 			});
+			if (plan.retry === false) {
+				// the policy verdict is the ground truth even when the caller PINNED
+				// retryPlanned: a pinned 'true' cannot schedule the retry retryStep
+				// will refuse; a pinned 'false' cannot hide a still-open retry path.
+				const evidenceId = await this.mintNonCompletableEvidence(row, plan, failureClass);
+				return {
+					...row,
+					nonCompletable: {
+						code: 'graph-non-completable',
+						reason: plan.reason,
+						graphId: row.graphId,
+						stepId: row.stepId,
+						attempt: row.attempt,
+						failureClass,
+						evidenceId,
+						message: `step ${String(row.stepId)} failed (class '${failureClass}') and no retry is possible (${plan.reason}) - this failure leaves the graph with no remaining path to completion; call failGraph, or widen the step's retry policy`,
+					},
+				};
+			}
+			return row;
 		}
 		throw new OrchestrationError(`finishStep outcome must be 'succeeded' | 'failed' (got ${JSON.stringify(input.outcome)})`, 'invalid-params');
 	}
