@@ -38,6 +38,7 @@ import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { sha256Hex } from '../../../../extensions/flauz-workspace/src/api.ts';
 import { fenceTolerantParseBody, type AnswerParseOptions } from '../answerFence.ts';
+import { answerParseFailDetail, finishReasonDetail } from '../liveBudget.mjs';
 import type { DogfoodExercise, DogfoodHarness, ExerciseCheck, ExerciseReceipt, EvidenceItem } from '../harnessTypes.ts';
 
 /** The canonical evidence-ledger module (repo-relative, posix). */
@@ -434,19 +435,23 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                                 notes,
                         };
                 }
-                recorder.check('explore.model-call-ok', true, `the exploration turn streamed ${String(outcome.text.length)} chars through provider ${outcome.providerId} (decision ${outcome.decisionId}, ${String(outcome.attempts)} attempt(s), ${String(askDurationMs)} ms)`);
+                recorder.check('explore.model-call-ok', true, `the exploration turn streamed ${String(outcome.text.length)} chars through provider ${outcome.providerId} (decision ${outcome.decisionId}, ${String(outcome.attempts)} attempt(s), ${String(askDurationMs)} ms, ${finishReasonDetail(outcome.finishReason)})`);
 
                 // (2) parse the answer document (P2-FIX-118: live lanes parse through
                 // the fence-tolerant path; machine lanes keep the raw-JSON default)
                 const parsed = parseExploreAnswer(outcome.text, { fenceTolerant: harness.mode === 'live-provider' });
                 if (!parsed.ok) {
+                        // P2-FIX-121: the parse-failure receipt detail carries the finish
+                        // reason; a `length` finish appends the VISIBLE TRUNCATED marker --
+                        // the live exploration run's answer parses, or fails with a VISIBLE
+                        // truncation marker, never a bare raw-parse error again.
                         await harness.friction.friction({
                                 phase: 'explore-repo:parse-answer',
                                 kind: 'failed-task',
-                                detail: `the completion did not parse as the answer document: ${parsed.error}`,
+                                detail: `the completion did not parse as the answer document: ${answerParseFailDetail(parsed.error, outcome.finishReason)}`,
                                 recovery: '',
                         });
-                        recorder.check('explore.answer-parses', false, parsed.error);
+                        recorder.check('explore.answer-parses', false, answerParseFailDetail(parsed.error, outcome.finishReason));
                         return {
                                 schema: 'flauz.dogfood-exercise-receipt/v1',
                                 exerciseId: 'explore-repo',

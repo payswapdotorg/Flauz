@@ -21,13 +21,18 @@
 
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
+import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FRICTION_KINDS, FRICTION_SCHEMA, FrictionLog, isFrictionKind, parseFrictionLog, validateFrictionLine } from './frictionlog.mjs';
 import { answerSwitchFromPrompt } from './fake-provider.mjs';
-import { EXPLORE_ANSWER_SCHEMA, LEDGER_MODULE, parseExploreAnswer, parseImportStatement, scanLedgerConsumers, specifierResolvesTo, verifyConsumersMap, type ExploreAnswer, type GroundTruthConsumer } from './exercises/explore-repo.task.ts';
+import { answerParseFailDetail, consumeAskStream, DEFAULT_LIVE_MAX_TOKENS, finishReasonDetail, isTruncatedFinish, LIVE_MAX_TOKENS_ENV, parseLiveMaxTokens, type AskStreamEvent } from './liveBudget.mjs';
+import { createOpenAiCompatAdapter } from '../../../extensions/flauz-models/src/adapters/openAiCompat.ts';
+import { nodeHttpPort } from '../../../extensions/flauz-models/src/contract/nodePorts.ts';
+import { sha256Hex } from '../../../extensions/flauz-workspace/src/api.ts';
+import { EXPLORE_ANSWER_SCHEMA, EXPLORE_QUESTION, LEDGER_MODULE, parseExploreAnswer, parseImportStatement, scanLedgerConsumers, specifierResolvesTo, verifyConsumersMap, type ExploreAnswer, type GroundTruthConsumer } from './exercises/explore-repo.task.ts';
 import { extractFirstFencedJsonBlock, fenceTolerantParseBody, stripMarkdownJsonFence } from './answerFence.ts';
 import { SWITCH_ANSWER_SCHEMA, buildSwitchQuestion, healthyLaneOf, parseSwitchAnswer, plannedSwitchSequence, providerFailureDetail, readSwitchQuestionFacts, redactAskPromptForReport, recoveryAccount, summarizeSwitchRun, verifyPromptCarriesFacts, verifySwitchAnswer, type SwitchRunRecord } from './exercises/provider-switch.task.ts';
 
@@ -278,7 +283,7 @@ function fakeReceipt(switchNo: number, lane: SwitchRunRecord['receipt']['lane'])
 }
 
 function okAsk(switchNo: number): SwitchRunRecord['ask'] {
-        return { kind: 'ok', text: '{}', decisionId: `rd-${String(switchNo).padStart(6, '0')}`, providerId: 'flauz-dogfood-fake', modelId: 'dogfood-1', durationMs: 5, attempts: 1, wallClockBudgetMs: 15_000 };
+        return { kind: 'ok', text: '{}', decisionId: `rd-${String(switchNo).padStart(6, '0')}`, providerId: 'flauz-dogfood-fake', modelId: 'dogfood-1', durationMs: 5, attempts: 1, wallClockBudgetMs: 15_000, finishReason: 'stop' };
 }
 
 function failedAsk(switchNo: number): SwitchRunRecord['ask'] {
@@ -775,5 +780,185 @@ suite('P2-FIX-119: the provider-switch question carries the workspace facts in t
                 assert.ok(!redacted.includes('FLAUZ_DOGFOOD_FAKE_KEY'));
                 assert.ok(!redacted.includes('127.0.0.1:9'));
                 assert.ok(redacted.includes('total routing decisions recorded: 5'), 'the facts stay quotable after redaction');
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-121 — the live completion-budget knob (FLAUZ_DOGFOOD_LIVE_MAX_TOKENS)
+// ---------------------------------------------------------------------------
+
+suite('P2-FIX-121: the live completion-budget knob (FLAUZ_DOGFOOD_LIVE_MAX_TOKENS)', () => {
+
+        test('the knob name and the generous default are pinned exactly', () => {
+                assert.strictEqual(LIVE_MAX_TOKENS_ENV, 'FLAUZ_DOGFOOD_LIVE_MAX_TOKENS');
+                assert.strictEqual(DEFAULT_LIVE_MAX_TOKENS, 32_768);
+        });
+
+        test('absent (the empty raw value) resolves the generous default', () => {
+                const outcome = parseLiveMaxTokens('');
+                assert.ok(outcome.ok);
+                assert.strictEqual(outcome.source, 'default');
+                assert.strictEqual(outcome.tokens, 32_768);
+        });
+
+        test('a well-formed env value resolves it (positive safe integer, source env)', () => {
+                for (const raw of ['1', '4096', '20000', '32768', '9007199254740991']) {
+                        const outcome = parseLiveMaxTokens(raw);
+                        assert.ok(outcome.ok, raw);
+                        assert.strictEqual(outcome.source, 'env', raw);
+                        assert.strictEqual(outcome.tokens, Number(raw), raw);
+                }
+        });
+
+        test('malformed values FAIL CLOSED (never a silent default, never a coerced value)', () => {
+                for (const raw of ['0', '-1', '3.5', 'abc', '1e5', ' 4096', '4096 ', '0x10', ' ', '99999999999999999999', 'NaN', 'null', 'undefined']) {
+                        const outcome = parseLiveMaxTokens(raw);
+                        assert.ok(!outcome.ok, `expected fail-closed for ${JSON.stringify(raw)}`);
+                        assert.ok(outcome.error.includes('FLAUZ_DOGFOOD_LIVE_MAX_TOKENS'), `the error names the knob for ${JSON.stringify(raw)}`);
+                }
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-121 — the finish-reason surfacing (a length finish is a VISIBLE truncation)
+// ---------------------------------------------------------------------------
+
+/** A minimal TEST-side scripted completion lane (NOT the fake lane, whose shape is frozen): one OpenAI-shaped SSE completion whose final frame carries finish_reason 'length' over a long fenced JSON cut mid-structure (the W4 live probe class: the opening fence without the closing). Captures each request's max_tokens so the tests pin the ChatRequest.maxOutputTokens -> wire max_tokens mapping end to end. */
+async function startScriptedLengthLane(): Promise<{ readonly port: number; readonly calls: number; readonly lastMaxTokens: number | undefined; close(): void }> {
+        const truncatedBody = '```json\n{"schema":"flauz.dogfood-explore-answer/v1","question":"map every consumer of the evidence ledger","method":"deterministic full scan","consumers":[{"file":"extensions/flauz';
+        let calls = 0;
+        let lastMaxTokens: number | undefined;
+        const server = http.createServer((request, response) => {
+                let body = '';
+                request.on('data', (chunk: Buffer) => {
+                        body += chunk.toString();
+                });
+                request.on('end', () => {
+                        calls += 1;
+                        lastMaxTokens = undefined;
+                        try {
+                                const parsed = JSON.parse(body) as { max_tokens?: number };
+                                lastMaxTokens = parsed.max_tokens;
+                        } catch {
+                                // an unparsable body leaves the capture undefined
+                        }
+                        const id = 'chatcmpl-scripted-length';
+                        const created = 1_760_000_000;
+                        const model = 'dogfood-1';
+                        const frames = [
+                                `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}`,
+                                `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: truncatedBody.slice(0, 40) }, finish_reason: null }] })}`,
+                                `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: truncatedBody.slice(40) }, finish_reason: null }] })}`,
+                                `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'length' }] })}`,
+                                `data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [], usage: { prompt_tokens: 231, completion_tokens: 4095 } })}`,
+                                'data: [DONE]',
+                        ];
+                        response.writeHead(200, { 'content-type': 'text/event-stream' });
+                        response.end(`${frames.join('\n\n')}\n\n`);
+                });
+        });
+        return await new Promise(resolve => {
+                server.listen(0, '127.0.0.1', () => {
+                        const address = server.address();
+                        const port = address === null ? 0 : (address as { readonly port: number }).port;
+                        resolve({
+                                port,
+                                get calls() {
+                                        return calls;
+                                },
+                                get lastMaxTokens() {
+                                        return lastMaxTokens;
+                                },
+                                close: () => server.close(),
+                        });
+                });
+        });
+}
+
+suite('P2-FIX-121: the finish-reason surfacing (a length finish is a VISIBLE truncation, never a silent ok)', () => {
+
+        test('finishReasonDetail: the length finish renders the TRUNCATED marker; every other reason renders plainly', () => {
+                assert.ok(finishReasonDetail('length').includes('TRUNCATED'));
+                assert.ok(finishReasonDetail('length').includes('finish_reason: length'));
+                assert.strictEqual(finishReasonDetail('stop'), 'finish_reason: stop');
+                assert.strictEqual(finishReasonDetail('tool-calls'), 'finish_reason: tool-calls');
+                assert.strictEqual(finishReasonDetail('content-filter'), 'finish_reason: content-filter');
+                assert.strictEqual(finishReasonDetail('other'), 'finish_reason: other');
+                assert.ok(!finishReasonDetail('stop').includes('TRUNCATED'));
+                assert.ok(isTruncatedFinish('length'));
+                assert.ok(!isTruncatedFinish('stop'));
+                assert.ok(!isTruncatedFinish('other'));
+        });
+
+        test('answerParseFailDetail: the truncated parse failure carries the VISIBLE marker + the knob; the stop-finish parse failure carries the plain reason', () => {
+                const truncated = answerParseFailDetail('the completion is not valid JSON: Unexpected end of JSON input', 'length');
+                assert.ok(truncated.includes('TRUNCATED'), truncated);
+                assert.ok(truncated.includes('finish_reason: length'), truncated);
+                assert.ok(truncated.includes('FLAUZ_DOGFOOD_LIVE_MAX_TOKENS'), truncated);
+                const plain = answerParseFailDetail('the answer schema is "other/v1" but "flauz.dogfood-explore-answer/v1" was expected', 'stop');
+                assert.ok(!plain.includes('TRUNCATED'), plain);
+                assert.ok(plain.includes('finish_reason: stop'), plain);
+        });
+
+        test('consumeAskStream joins the text deltas and captures the terminal finish reason (defensive other when none arrives)', async () => {
+                async function* events(): AsyncGenerator<AskStreamEvent> {
+                        yield { type: 'text-delta', text: 'part-1 ' };
+                        yield { type: 'usage', usage: { estimatedInputTokens: 1, estimatedOutputTokens: 1 } };
+                        yield { type: 'text-delta', text: 'part-2' };
+                        yield { type: 'finish', finishReason: 'length', usage: { estimatedInputTokens: 1, estimatedOutputTokens: 2 }, provenance: { providerId: 'p', modelId: 'm' } };
+                }
+                const outcome = await consumeAskStream(events());
+                assert.strictEqual(outcome.text, 'part-1 part-2');
+                assert.strictEqual(outcome.finishReason, 'length');
+                async function* noFinish(): AsyncGenerator<AskStreamEvent> {
+                        yield { type: 'text-delta', text: 'x' };
+                }
+                const bare = await consumeAskStream(noFinish());
+                assert.strictEqual(bare.text, 'x');
+                assert.strictEqual(bare.finishReason, 'other');
+        });
+
+        test('FIXTURE-LEVEL: a scripted stream carrying finish_reason length produces the VISIBLE TRUNCATED marker in the receipt detail (the REAL adapter over a REAL local socket)', async () => {
+                const lane = await startScriptedLengthLane();
+                const adapter = createOpenAiCompatAdapter({
+                        config: {
+                                providerId: 'flauz-dogfood-scripted-length',
+                                vendor: 'flauz-dogfood',
+                                displayName: 'Flauz Dogfood (scripted length)',
+                                baseUrl: `http://127.0.0.1:${String(lane.port)}/v1`,
+                                credentialRef: 'env:FLAUZ_DOGFOOD_SCRIPTED_LENGTH_KEY',
+                                models: [{ modelId: 'dogfood-1', modelName: 'Scripted Length Model', family: 'dogfood', version: '1', contextWindowTokens: 32_000, maxOutputTokens: 4_096, inputModalities: ['text'], toolCalling: false }],
+                        },
+                        http: nodeHttpPort,
+                        secrets: { resolve: async () => 'scripted-local-wire-marker' },
+                        hash: { sha256Hex: contents => sha256Hex(contents) },
+                        clock: () => Date.now(),
+                });
+                try {
+                        // (1) the budgeted ask: the request carries maxOutputTokens and the wire
+                        //     body receives it as max_tokens (the seam P2-FIX-121 wires through)
+                        const budgeted = await consumeAskStream(adapter.stream({ modelId: 'dogfood-1', messages: [{ role: 'user', content: [{ kind: 'text', value: EXPLORE_QUESTION }] }], maxOutputTokens: 20_000 }));
+                        assert.strictEqual(lane.calls, 1);
+                        assert.strictEqual(lane.lastMaxTokens, 20_000);
+                        // (2) the scripted length finish surfaces through the REAL adapter's stream
+                        assert.strictEqual(budgeted.finishReason, 'length');
+                        // (3) the truncated text does not parse (the opening fence without the
+                        //     closing), and the receipt detail marks it TRUNCATED -- never a
+                        //     bare raw-parse error again
+                        const parsed = parseExploreAnswer(budgeted.text, { fenceTolerant: true });
+                        assert.ok(!parsed.ok);
+                        const detail = answerParseFailDetail(parsed.error, budgeted.finishReason);
+                        assert.ok(detail.includes('TRUNCATED'), detail);
+                        assert.ok(detail.includes('finish_reason: length'), detail);
+                        assert.ok(detail.includes('FLAUZ_DOGFOOD_LIVE_MAX_TOKENS'), detail);
+                        // (4) the un-budgeted request (the fake lanes' request shape): NO
+                        //     max_tokens on the wire -- unchanged by P2-FIX-121
+                        const unbudgeted = await consumeAskStream(adapter.stream({ modelId: 'dogfood-1', messages: [{ role: 'user', content: [{ kind: 'text', value: EXPLORE_QUESTION }] }] }));
+                        assert.strictEqual(lane.calls, 2);
+                        assert.strictEqual(lane.lastMaxTokens, undefined);
+                        assert.strictEqual(unbudgeted.finishReason, 'length');
+                } finally {
+                        lane.close();
+                }
         });
 });

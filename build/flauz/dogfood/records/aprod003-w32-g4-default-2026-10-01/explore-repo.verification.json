@@ -1,0 +1,232 @@
+{
+	"schema": "flauz.dogfood-explore-verification/v1",
+	"ledgerModule": "extensions/flauz-workspace/src/ledger.ts",
+	"verified": true,
+	"checked": [
+		{
+			"file": "extensions/flauz-workflow/src/commands.ts",
+			"line": 24,
+			"consumes": [
+				"hasKey"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/src/coordination.ts",
+			"line": 44,
+			"consumes": [
+				"hasKey",
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/src/envelope.ts",
+			"line": 47,
+			"consumes": [
+				"hasKey",
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/src/executable.ts",
+			"line": 42,
+			"consumes": [
+				"hasKey",
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/src/extension.ts",
+			"line": 32,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/agentos-battery.test.ts",
+			"line": 90,
+			"consumes": [
+				"EvidenceLedger",
+				"rowLine"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts",
+			"line": 141,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts",
+			"line": 97,
+			"consumes": [
+				"EvidenceLedger",
+				"rowLine"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts",
+			"line": 106,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/generateLedgerFixtures.ts",
+			"line": 36,
+			"consumes": [
+				"EvidenceLedger",
+				"rowHash"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/hardening.test.ts",
+			"line": 25,
+			"consumes": [
+				"EvidenceLedger",
+				"rowHash"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/helpers.ts",
+			"line": 15,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/recovery-matrix.test.ts",
+			"line": 33,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/session-battery.test.ts",
+			"line": 53,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/src/checkpoint.ts",
+			"line": 7,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/src/commands.ts",
+			"line": 11,
+			"consumes": [
+				"hasKey",
+				"validateRowInput",
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/src/extension.ts",
+			"line": 10,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/src/scmArtifactProvider.ts",
+			"line": 8,
+			"consumes": [
+				"evidenceIdOf"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/src/taskService.ts",
+			"line": 27,
+			"consumes": [
+				"hasKey"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/src/views.ts",
+			"line": 33,
+			"consumes": [
+				"evidenceIdOf"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts",
+			"line": 88,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/test/helpers.ts",
+			"line": 10,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workspace/test/ledger.test.ts",
+			"line": 12,
+			"consumes": [
+				"rowHash",
+				"rowLine"
+			],
+			"ok": true,
+			"problems": []
+		}
+	],
+	"missed": [],
+	"totals": {
+		"claimed": 23,
+		"real": 23,
+		"verifiedEntries": 23,
+		"problemEntries": 0,
+		"missedEntries": 0
+	}
+}

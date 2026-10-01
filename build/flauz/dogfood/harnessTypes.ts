@@ -17,6 +17,7 @@ import type { TaskService } from '../../../extensions/flauz-workspace/src/taskSe
 import type { EvidenceLedger } from '../../../extensions/flauz-workspace/src/ledger.ts';
 import type { MemoryStore } from '../../../extensions/flauz-memory/src/memory.ts';
 import type { OrchestrationStore } from '../../../extensions/flauz-agent/core/orchStore.mjs';
+import type { FinishReason } from '../../../extensions/flauz-models/src/contract/types.ts';
 import type { FrictionLog } from './frictionlog.mjs';
 
 /** The selectable provider lanes of the harness (the work order's vendor-neutral contract). */
@@ -48,6 +49,13 @@ export interface AskOk {
         readonly attempts: number;
         /** P2-FIX-117: the wall-clock budget that governed this ask (wired through AdapterConfig.requestTimeoutMs). */
         readonly wallClockBudgetMs: number;
+        /**
+         * P2-FIX-121: why the model stopped, from the adapter's terminal finish
+         * event (the fake lanes finish 'stop'; the live vendor streams its own
+         * reason). A `length` finish is the token-budget truncation class: the
+         * ask receipts mark it as a VISIBLE TRUNCATED, never a silent ok.
+         */
+        readonly finishReason: FinishReason;
 }
 
 /** A typed provider failure surfaced by the real adapter (the product's own error taxonomy). */

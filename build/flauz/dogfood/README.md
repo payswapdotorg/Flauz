@@ -1,4 +1,4 @@
-# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1)
+# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2)
 
 The W1 harness for A-PROD-003 (dogfooding): the driver machinery + the
 friction-log contract + the exercise lanes that the station then runs
@@ -58,6 +58,32 @@ docs/FLAUZ-PROGRAM/findings/) as a harness-side fix:
   parse (the honest failure); the raw-JSON machine-lane default is
   unchanged.
 
+**W3.2 (A-PROD-003-W3.2, branch flauz-tla/aprod003-w32-live-budget)**
+implements the REGISTERED W4 live finding P2-FIX-121 (finding doc in
+docs/FLAUZ-PROGRAM/findings/) as a harness-side fix:
+
+- **P2-FIX-121 (the live truncation budget):** the platform's default
+  completion budget (~4096 tokens) truncated the real 23-consumer
+  exploration map mid-JSON (`finish_reason: length` at
+  `completion_tokens: 4095`, the opening fence without the closing).
+  The driver's LIVE-lane ask request now sets an explicit completion
+  budget — the env-only, OPTIONAL knob
+  `FLAUZ_DOGFOOD_LIVE_MAX_TOKENS` (default **32 768** tokens, parsed
+  fail-closed: a malformed value exits 2) — wired through the
+  product's EXISTING request surface `ChatRequest.maxOutputTokens`,
+  the field the REAL openAiCompat adapter maps onto the wire body's
+  `max_tokens` (`buildOpenAiRequestBody`, extensions/flauz-models/src/
+  adapters/openAiCompat.ts). The **fake lanes' request shape is
+  UNCHANGED** (the knob lands on live-lane ask requests only — no
+  `max_tokens` field on fake/scripted-lane asks). The ask's ok-result
+  and the exercise receipts surface the **finish reason** (the
+  adapter's terminal `finish` event): every ok ask's detail carries
+  `finish_reason: <r>`, and a `length` finish renders as the VISIBLE
+  **`TRUNCATED`** marker in the receipt details (the run summary
+  records the budget block `liveCompletionBudget`). Acceptance: the
+  live exploration run's answer parses, or fails with a VISIBLE
+  truncation marker — never a bare raw-parse error again.
+
 ## Files
 
 | File | Role |
@@ -66,10 +92,11 @@ docs/FLAUZ-PROGRAM/findings/) as a harness-side fix:
 | `frictionlog.mjs` (+ `frictionlog.d.mts`) | The friction-log contract, schema `flauz.dogfood-friction/v1` (append-only JSONL; ask-measuring timing rows carry the optional `wallClockBudgetMs`, P2-FIX-117). The `.d.mts` is the hand-written declaration (the repo's `a2a.d.mts` zero-dependency discipline). |
 | `answerFence.ts` | P2-FIX-118 + P2-FIX-120: the fence-tolerant parse resolution — the W2.1 clean-pair strip (`stripMarkdownJsonFence`, UNCHANGED: one leading/trailing markdown fence pair around a JSON payload) plus the W3.1 extraction fallback (`extractFirstFencedJsonBlock`: the first COMPLETE fenced block from anywhere in the text; prose before/after allowed) composed by `fenceTolerantParseBody` (clean-pair first, then extraction; malformed JSON inside still fails; the raw path stays the machine-lane default). |
 | `fake-provider.mjs` (+ `fake-provider.d.mts`) | The fake/scripted provider lanes on a REAL local socket. The fake lane COMPUTES its exploration answer at request time (the ledger-consumer map from the real tree) and READS its provider-configuration answer from the prompt-carried facts (P2-FIX-119: the server-side computation path is retired). The scripted-failing lane answers every completion with HTTP 500 -> the REAL adapter's typed `PROVIDER_OVERLOADED`. The `.d.mts` is the hand-written declaration for the test suite. |
-| `harnessTypes.ts` | The harness/exercise contracts (typed against the real seam modules; the ask facade accepts an ask-time prompt builder, P2-FIX-119, and the ask outcomes carry `wallClockBudgetMs`, P2-FIX-117). |
+| `harnessTypes.ts` | The harness/exercise contracts (typed against the real seam modules; the ask facade accepts an ask-time prompt builder, P2-FIX-119, and the ask outcomes carry `wallClockBudgetMs`, P2-FIX-117, + `finishReason`, P2-FIX-121). |
+| `liveBudget.mjs` (+ `liveBudget.d.mts`) | P2-FIX-121: the live completion-budget knob (`FLAUZ_DOGFOOD_LIVE_MAX_TOKENS`, default 32 768, pure fail-closed parser `parseLiveMaxTokens`) + the finish-reason surfacing (`consumeAskStream` — the ask-stream consumption joining the text deltas AND capturing the terminal finish event's reason; `finishReasonDetail`/`answerParseFailDetail` — a `length` finish renders as the VISIBLE TRUNCATED marker). The `.d.mts` is the hand-written declaration (the frictionlog.d.mts zero-dependency discipline). |
 | `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise (live-lane answers parse through the P2-FIX-118 tolerant path). |
 | `exercises/provider-switch.task.ts` | EXERCISE 2 (provider switching + failure/recovery): the switch plan, the ask-time facts-carrying question builder (P2-FIX-119), the workspace-state verification (strict, unchanged), the friction policy, the exercise. |
-| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests). |
+| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests; + the W3.2 suites: P2-FIX-121 the knob's default/env/fail-closed parsing + the finish-reason surfacing incl. the fixture-level scripted stream carrying finish_reason `length` through the REAL adapter → the VISIBLE TRUNCATED marker in the receipt detail). |
 
 ## How to run
 
@@ -130,6 +157,25 @@ env-contract error.
   actually used as `wallClockBudgetMs`; the run summary records
   `wallClockBudget: { configuredMs, defaultMs, source, wiredThrough }`.
 
+- **the live-lane completion budget (P2-FIX-121, live-lane asks):** the
+  OPTIONAL env-only knob
+
+  ```sh
+  FLAUZ_DOGFOOD_LIVE_MAX_TOKENS=<positive-integer-tokens>
+  ```
+
+  sets the explicit completion budget on the LIVE lane's ask requests,
+  wired through the product's existing request surface
+  (`ChatRequest.maxOutputTokens` → the real openAiCompat adapter's wire
+  body `max_tokens`; the platform default ~4096 truncated the real
+  exploration map mid-JSON — finish_reason `length`). Absent → the
+  generous default 32 768 tokens. Malformed (non-positive-integer) →
+  FAIL CLOSED (exit 2). The fake lanes' request shape is UNCHANGED (the
+  knob lands on live-lane asks only); the run summary records
+  `liveCompletionBudget: { configuredTokens, defaultTokens, source,
+  wiredThrough }`. Every ok ask's receipt detail surfaces the finish
+  reason; a `length` finish renders as the VISIBLE `TRUNCATED` marker.
+
 ## The friction-log contract (schema `flauz.dogfood-friction/v1`)
 
 One append-only JSONL file per exercise run
@@ -187,7 +233,8 @@ the friction log (the typed provider-failure row WITH its recovery
 account = the recovery row).
 
 `run-summary.json` (schema `flauz.dogfood-run/v1`) carries the whole
-run: mode, the wall-clock budget block (P2-FIX-117),
+run: mode, the wall-clock budget block (P2-FIX-117), the live
+completion-budget block `liveCompletionBudget` (P2-FIX-121),
 per-exercise verdicts/assertions/evidence ids/friction
 census, and the local-lane wire census (`chatCalls`, `failCalls`,
 `exploreComputations`, `configPromptReads` — the provider-configuration
