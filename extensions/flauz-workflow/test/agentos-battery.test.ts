@@ -100,6 +100,11 @@ import { EnvironmentRegistry } from '../../flauz-environments/src/registry.ts';
 import { CloudHttpExecutor, EnvironmentLifecycleManager, PROVIDER_RETRY_ATTEMPT_PREFIX, SimulatedRemoteExecutor, parseProviderRetryAttemptMessage, type EnvironmentOpOutcome, type HttpPort, type LocalEnvFsPort, type RetryWaitPort } from '../../flauz-environments/src/lifecycle/index.ts';
 import { A2ABus } from '../../flauz-agent/core/a2a.mjs';
 import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../flauz-agent/core/leaseConflict.mjs';
+// P2-FIX-102 (type-level): the settled-race predicate narrows to the claim
+// contract's own result type, so the fulfilled arm's .value/.leaseId/.deadline
+// resolve against ClaimStepLeaseResult (the inline literal widened status to
+// string, which is not assignable to the contract's closed status union).
+import type { ClaimStepLeaseResult } from '../../flauz-agent/core/leaseConflict.mjs';
 import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';
 
 // ---------------------------------------------------------------------------
@@ -472,6 +477,8 @@ function opErrorCode(outcome: EnvironmentOpOutcome): string {
 interface EnvOpLine {
 	readonly op?: string;
 	readonly result?: string;
+	/** P2-FIX-102 (type-level): the post-op lifecycle state the ops ledger writes on terminal rows. */
+	readonly toState?: string;
 	readonly actor?: string;
 	readonly error?: { readonly code?: string; readonly message?: string };
 }
@@ -896,7 +903,10 @@ function batteryTaskPort(ws: BatteryWorkspace): { createTask(args: { title: stri
 			const appended = await ws.ledger.append(args.taskId, { kind: args.row.kind as EvidenceKind, uri: args.row.uri, sha256: args.row.sha256 });
 			return { evidenceId: appended.evidenceId, seq: appended.seq };
 		},
-		appendEvent: async args => ({ task: await ws.tasks.appendEvent(args.taskId, args.event as TaskEvent) }),
+		// P2-FIX-102 (type-level): a Record<string, unknown> never sufficiently
+		// overlaps the closed TaskEvent union; the double cast is the TS2352 remedy
+		// (the runtime appendEvent performs the closed-set validation).
+		appendEvent: async args => ({ task: await ws.tasks.appendEvent(args.taskId, args.event as unknown as TaskEvent) }),
 	};
 }
 
@@ -926,7 +936,7 @@ describe('INV-5 lease-conflict', () => {
 				claimStepLease(store, bus, { graphId: submitted.graphId, stepId: 'S-01', claimant: 'flauz.agent.worker-2', ttlMs: 60_000, origin: 'a2a:flauz.agent.worker-2' }),
 			]);
 			const acquiredRows = store.journalRows.filter(row => row.type === 'lease-acquired');
-			const winner = race.find((result): result is PromiseFulfilledResult<{ status: string; leaseId: string; holder: string; deadline: number; rowId: string; noticeId: string }> => result.status === 'fulfilled');
+			const winner = race.find((result): result is PromiseFulfilledResult<ClaimStepLeaseResult> => result.status === 'fulfilled');
 			const loser = race.find((result): result is PromiseRejectedResult => result.status === 'rejected');
 			recorder.check('inv5.exactly-one-winner', race.filter(result => result.status === 'fulfilled').length === 1 && loser !== undefined && acquiredRows.length === 1, `exactly one claimant acquired the lease (${race.map(result => result.status).join(' + ')}; lease-acquired rows: ${String(acquiredRows.length)})`);
 
@@ -1198,7 +1208,7 @@ describe('INV-7 evidence-provenance-integrity', () => {
  * fake commit).
  */
 class DyingFakeCdpTransport extends FakeCdpTransport {
-	protected postMessage(payload: Record<string, unknown>): void {
+	protected override postMessage(payload: Record<string, unknown>): void {
 		if (payload.method === 'Page.navigate') {
 			this.drop();
 			return;
@@ -1248,7 +1258,7 @@ describe('INV-8 partial-environment-browser-failure', () => {
 			const sessionId = (opened as OpenSessionResult).descriptor.sessionId;
 			const deadNavigation = await browser.navigate(sessionId, 'https://welcome.example.com/');
 			recorder.check('inv8.browser-death-typed', isNavigationOutcome(deadNavigation) && deadNavigation.error?.code === 'flauz.browser.transport-closed', `the mid-navigation transport death surfaces the typed error: ${JSON.stringify(deadNavigation.error ?? null)}`);
-			recorder.check('inv8.browser-death-no-fake-success', isNavigationOutcome(deadNavigation) && deadNavigation.committedUrl === undefined, `the dead navigation never commits a url (committedUrl ${JSON.stringify(deadNavigation.committedUrl ?? null)})`);
+			recorder.check('inv8.browser-death-no-fake-success', isNavigationOutcome(deadNavigation) && deadNavigation.committedUrl === undefined, `the dead navigation never commits a url (committedUrl ${JSON.stringify(isNavigationOutcome(deadNavigation) ? deadNavigation.committedUrl ?? null : null)})`);
 			await browser.dispose();
 
 			// ---- (c) the task-level marking: a workflow run whose tool leg wraps the dying leg ----

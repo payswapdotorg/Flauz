@@ -73,6 +73,19 @@ export interface BrowserHost {
 	onDrop(handler: (reason: string) => void): void;
 	/** True when the host currently holds a live transport connection. */
 	readonly connected: boolean;
+	/**
+	 * P2-FIX-106 (DL-79): the BROWSER-level transport — the scope the
+	 * popup/new-target gate is placed at (browser-scope
+	 * `Target.setAutoAttach` with `waitForDebuggerOnStart` + the
+	 * root-delivered `Target.attachedToTarget` holds; the only placement
+	 * real Chromium delivers `window.open` targets to — drill finding
+	 * F-DELIVERY). The gate's per-held-session commands (`Fetch.*`,
+	 * `Runtime.runIfWaitingForDebugger`) ride the same connection via
+	 * `scopeToSession`. Undefined when no browser-level scope is
+	 * available; the manager treats that as fail-closed (a session
+	 * without the browser-level gate never opens).
+	 */
+	rootTransport(): Promise<CdpTransport | undefined>;
 }
 
 // #endregion
@@ -179,6 +192,13 @@ export class CdpEndpointHost implements BrowserHost {
 		return true;
 	}
 
+	async rootTransport(): Promise<CdpTransport | undefined> {
+		// P2-FIX-106 (DL-79): the endpoint's single WebSocket IS the
+		// browser-level scope the popup gate is placed at.
+		const transport = this.transport;
+		return transport !== undefined && !transport.closed ? transport : undefined;
+	}
+
 	async close(): Promise<void> {
 		this.intentionalClose = true;
 		const transport = this.transport;
@@ -264,6 +284,9 @@ export class WorkbenchBrowserHost implements BrowserHost {
 	private readonly windowApi: WorkbenchBrowserWindowLike;
 	private readonly commandTimeoutMs: number | undefined;
 	private readonly tabs = new Map<string, WorkbenchBrowserTabLike>();
+	/** P2-FIX-106: the dedicated browser-level session (the popup gate's scope). */
+	private rootSession: WorkbenchCdpSessionTransport | undefined;
+	private rootTab: WorkbenchBrowserTabLike | undefined;
 	private counter = 0;
 	private closed = false;
 
@@ -354,6 +377,31 @@ export class WorkbenchBrowserHost implements BrowserHost {
 		return false;
 	}
 
+	async rootTransport(): Promise<CdpTransport | undefined> {
+		// P2-FIX-106 (DL-79): a dedicated browser-level BrowserCDPSession
+		// (a background tab): the workbench's BrowserCDPSession IS a
+		// browser-level endpoint (the root session serves
+		// Browser.*/Target.* — see attach()), which is the scope the
+		// popup gate is placed at. Minted once, cached; closed with the
+		// host. The gate's browser-scope Target.setAutoAttach lands on
+		// this session's root scope.
+		if (this.closed) {
+			return undefined;
+		}
+		if (this.rootSession !== undefined && !this.rootSession.closed) {
+			return this.rootSession;
+		}
+		try {
+			const tab = await this.windowApi.openBrowserTab('about:blank', { background: true });
+			const cdpSession = await tab.startCDPSession();
+			this.rootTab = tab;
+			this.rootSession = new WorkbenchCdpSessionTransport(cdpSession, { commandTimeoutMs: this.commandTimeoutMs });
+			return this.rootSession;
+		} catch {
+			return undefined; // the manager fails closed on a missing browser-level scope
+		}
+	}
+
 	async close(): Promise<void> {
 		this.closed = true;
 		for (const tab of [...this.tabs.values()]) {
@@ -364,6 +412,17 @@ export class WorkbenchBrowserHost implements BrowserHost {
 			}
 		}
 		this.tabs.clear();
+		// The browser-level root session (P2-FIX-106): best-effort close.
+		const rootTab = this.rootTab;
+		this.rootTab = undefined;
+		this.rootSession = undefined;
+		if (rootTab !== undefined) {
+			try {
+				await rootTab.close();
+			} catch {
+				// Best-effort.
+			}
+		}
 	}
 
 	onDrop(_handler: (reason: string) => void): void {

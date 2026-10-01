@@ -38,6 +38,11 @@ declare module 'node:child_process' {
 		write(data: string): boolean;
 		end(callback?: () => void): void;
 		on(event: 'data', listener: (chunk: { toString(encoding?: string): string }) => void): void;
+		// P2-FIX-102: after setEncoding('utf-8') the runtime delivers STRING
+		// chunks; the battery/drill listeners declare (chunk: string). The shim
+		// declares what the runtime actually provides (structural overload kept
+		// for the pre-setEncoding callers).
+		on(event: 'data', listener: (chunk: string) => void): void;
 		on(event: 'close', listener: (code: number | null) => void): void;
 		on(event: 'error', listener: (error: Error) => void): void;
 	}
@@ -89,7 +94,9 @@ declare module 'node:crypto' {
 }
 
 /** Minimal Buffer surface used by the node-side signer (extends Uint8Array like the real one). */
-declare const console: { log(...args: unknown[]): void };
+// P2-FIX-102: the battery/drill FAIL lines report through console.error - the
+// shim must declare what the runtime actually provides (log + error).
+declare const console: { log(...args: unknown[]): void; error(...args: unknown[]): void };
 
 declare class Buffer extends Uint8Array {
 	static from(input: string, encoding: string): Buffer;
@@ -105,6 +112,8 @@ declare module 'node:path' {
 	export function join(...segments: string[]): string;
 	export function dirname(p: string): string;
 	export function resolve(...segments: string[]): string;
+	// P2-FIX-102: the runtime drills resolve pinned-fixture basenames.
+	export function basename(p: string, suffix?: string): string;
 }
 
 declare module 'node:test' {
@@ -145,11 +154,23 @@ declare module 'node:module' {
 	}): void;
 }
 
+// P2-FIX-102: enriched to the exact surface the battery suites and runtime
+// drills use. The flauz-environments/flauz-browser shims already declare
+// these members; this file's declaration is the one the dedicated battery
+// programs resolve first, so the enrichment must live here.
 declare const process: {
 	platform: string;
 	execPath: string;
 	cwd(): string;
 	readonly env: Record<string, string | undefined>;
+	/** CLI argv (argv[0] execPath, argv[1] script; drills parse flags from argv[2]). */
+	readonly argv: string[];
+	/** Engine versions (node always present; electron only under an Electron host). */
+	readonly versions: { readonly node: string; readonly electron?: string };
+	/** Terminate the process; never returns (drill catch arms exit(1)/exit(2)). */
+	exit(code?: number): never;
+	/** Signal a process (signal 0 = liveness probe). */
+	kill(pid: number, signal?: string | number): boolean;
 };
 
 declare class TextEncoder {
