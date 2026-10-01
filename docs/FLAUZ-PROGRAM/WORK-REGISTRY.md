@@ -894,7 +894,7 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 | P2-FIX-106 | TL-A | ACTIVE | Browser popup-gate placement + Fetch pre-use observation |
 | P2-FIX-107 | TL-A | ACTIVE | At-record URL query-value redaction with continuity-export compatibility |
 | P2-FIX-109 | TL-A | ACTIVE | Executor cancellation port and partial-effect reconciliation |
-| P2-FIX-110 | TL-A | ACTIVE | Explicit remotePidAlive UNVERIFIABLE outcome |
+| P2-FIX-110 | TL-A | DONE | remotePidAlive UNVERIFIABLE landed (PR #91 5ca57a719b9e) |
 | P2-FIX-111 | TL-A | ACTIVE | Restoration-family vocabulary convergence |
 | P2-FIX-113 | TL-A | DONE | Keyed/signed hash-chain decision — closed by DL-83 bounded deferral (explicit trigger recorded) |
 
@@ -908,9 +908,13 @@ Pinned base: `3928b0eeeba0c7d640147e605111da547fd6bbe3` (main at claim time — 
 - **P2-FIX-106** (popup-gate placement redesign) — **CLAIMED, decision recorded (DL-79)** — branch `flauz-p2fix/p2-fix-106` — dispatch Wave 1 slot 1: the browser-level placement + Fetch-domain pre-use observation implementation; the real-Chromium drill pins (F-DELIVERY/F-POPUP-URL/F-OPENER-BLOCK) flip from FINDING-pinned to assertion-pinned in the same change.
 - **P2-FIX-107** (URL redaction control point) — **CLAIMED, decision recorded (DL-80)** — branch `flauz-p2fix/p2-fix-107` — dispatch Wave 1 slot 2: the two-layer law's at-record layer (secret-shaped query-param VALUE redaction at the browser persistence boundaries; continuity export untouched).
 - **P2-FIX-109** (executor cancellation ports) — **CLAIMED, decision recorded (DL-81 below)** — branch `flauz-p2fix/p2-fix-109` — the cooperative cancellation port + destroy-supersede law + partial-effect reconciliation; dispatch after the decision-record wave lands.
-- **P2-FIX-110** (remotePidAlive unverifiable window) — **CLAIMED** — branch `flauz-p2fix/p2-fix-110` — dispatch Wave 1 slot 3: the typed `UNVERIFIABLE` outcome at the ssh executor seam, fail-closed consumers.
+- **P2-FIX-110** (remotePidAlive unverifiable window) — **DONE:** PR #91, squash-merged `5ca57a719b9e` (see the TL-A landing record below).
 - **P2-FIX-111** (edge-matrix vs plan-family vocabulary asymmetry) — **CLAIMED, decision recorded (DL-82 below)** — branch `flauz-p2fix/p2-fix-111` — the restrict-the-matrix convergence (matrix + tests + fixtures as one DL-R2-shaped change); dispatch after the decision-record wave lands.
 - **P2-FIX-113** (unkeyed hash chains) — **CLOSED BY DECISION (DL-83 below):** the bounded deferral is recorded with its explicit trigger (the beta/production security gate requiring whole-tail-adversary tamper-evidence); no implementation this wave — the decision IS the deliverable (the P2-FIX-112 precedent).
+
+#### TL-A landing record — P2-FIX-110 DONE (2026-10-01)
+
+- **P2-FIX-110 (remotePidAlive typed UNVERIFIABLE liveness outcome) — DONE:** PR #91, squash-merged `5ca57a719b9e`. Worker lane delivery (chat `18b742cc`, GLM-5.3/Full-Stack), worker head `ff5f2d2d0ef2` (single commit on the pinned base `3928b0eeeba`, no rebase). Harvest: sha256-verified 4/4 + tree self-check; bundle verified (contains `ff5f2d2d0ef2`, requires `3928b0eeeba`). STATION re-verification (independent, clean worktree on the reconstructed branch): environments suite **261/257/0/4** (the worker receipt reproduced exactly); **fails-on-base reproduced** — the new test file on pristine base sources fails 5/5 (the stop/probe/destroy/start/grace-window fabrications the finding names); `tsc --noEmit` exit 0; GATE-FROZEN instruments byte-identical (zero diff under `build/`); secrets scan clean. Diff: 2 files +247/−11 — the exported `RemotePidLiveness` vocabulary (`ALIVE | NOT_ALIVE | UNVERIFIABLE`) at the ssh executor seam, all five consumers fail closed on `UNVERIFIABLE`, five regression tests + one rig helper. Honest residues carried: the `terminateOwned` seam's kill-invocation spawn-result class is adjacent and untouched (recorded for routing); the live-binary drills remain design-gated skips (pre-existing posture). Evidence level local-real (the fake-CLI seam harness — the finding's own class).
 
 Claim discipline (mirrored): minimal diff per finding acceptance; gate-frozen instruments byte-identical; evidence at the honestly-achieved level; individual landing PRs; every completion claim records tests, evidence, PR and SHA in the registry in the same merge wave.
 
