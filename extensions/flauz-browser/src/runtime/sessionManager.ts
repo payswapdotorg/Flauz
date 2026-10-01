@@ -107,6 +107,7 @@ import {
 	buildSessionJournalRecord,
 	journalActorOf,
 } from './journal.ts';
+import { redactSecretShapedQueryValues } from './urlRedaction.ts';
 
 // #region Public result shapes
 
@@ -178,7 +179,18 @@ export interface PopupGateEvent {
 	/** The tab whose page created the target. */
 	readonly sourceTabId: string;
 	readonly targetId: string;
-	/** The target's URL at attach time (page-derived; treat as untrusted). */
+	/**
+	 * The target's URL at attach time (page-derived; treat as untrusted).
+	 * P2-FIX-107 / DL-80 (the two-layer redaction law's AT-RECORD layer): the
+	 * url persisted on the RECORD (the popup-gate audit log + subscribers) is
+	 * the at-record redacted form -- URL structure and param NAMES preserved,
+	 * secret-shaped query-param VALUES redacted (the flauz-resources
+	 * SECRET_SHAPED_PATTERNS class, imported). The gate's RUNTIME decisions
+	 * (deny/close, allow/release) ran on the REAL URL -- only the RECORD is
+	 * redacted; the verdict and its evidence row keep their structure verbatim
+	 * (DL-80 scope guard: secret-shaped fragments inside verdict notes are the
+	 * resources-lane detector's beat where they surface).
+	 */
 	readonly url: string;
 	readonly decision: 'allow' | 'deny';
 	readonly verdict: PolicyVerdict;
@@ -724,10 +736,15 @@ export class BrowserSessionManager {
 	}
 
 	private recordPopupGateEvent(event: PopupGateEvent): void {
-		this.popupGateLog.push(event);
+		// P2-FIX-107 / DL-80: the at-record normalization at the popup-gate
+		// write boundary -- every record this audit surface persists (and every
+		// subscriber it broadcasts to) carries the URL with its structure and
+		// param names intact and secret-shaped query-param VALUES redacted.
+		const record: PopupGateEvent = { ...event, url: redactSecretShapedQueryValues(event.url) };
+		this.popupGateLog.push(record);
 		for (const handler of [...this.popupGateHandlers]) {
 			try {
-				handler(event);
+				handler(record);
 			} catch {
 				// Listener errors never break the gate.
 			}
