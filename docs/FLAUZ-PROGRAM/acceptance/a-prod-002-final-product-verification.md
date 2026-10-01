@@ -44,19 +44,20 @@ promoted, and every level is labeled per the evidence law
   auth-failure (typed AUTH_FAILED 401 under the invalidated real credential
   carriers) · retry (bounded-typed-exhaustion, 3×TIMEOUT) · provenance
   (responseId + requestHash + usage + modelEcho captured, redaction swept).
-- **On the verified final main `d022ec4c91e` (this wave): 3/4 PASS live** —
-  routing · auth-failure · retry all PASS with identical receipts; the
-  **provenance row returns 429 RATE_LIMITED** on five spaced retries across
-  ~70 minutes (the known environmental burst class, typed retryable by the
-  drill itself — no product defect; the TLA-1B runbook note predicted
-  exactly this class). The drill's code is byte-identical between the two
-  mains (no `extensions/flauz-models/**` change in any landing between
-  `393a0fd07c0` and `d022ec4c91e`: 102/106/107/109/110/111/114 touch
-  flauz-resources/flauz-browser/flauz-environments/build/flauz/lab + the
-  LAB modules only), so the morning's 4/4 receipt carries over as evidence
-  for the same instrument on this main. The station re-runs the row when
-  the quota window clears; the honest state is recorded here rather than a
-  wording-promoted PASS.
+- **On the final main: 4/4 PASS live (completed).** The first re-run
+  attempt series (five spaced retries across ~90 minutes) hit
+  **429 RATE_LIMITED on the provenance row** — the known environmental
+  burst class, typed retryable by the drill itself (no product defect; the
+  TLA-1B runbook note predicted exactly this class; routing · auth-failure
+  · retry were PASS live throughout). The quota window then cleared and
+  the re-run on `3fb0c4fd22` (the evidence-artifact head;
+  `extensions/flauz-models/**` unchanged from `d022ec4c91e` — the interim
+  commit touched docs only) returned **routing PASS · auth-failure PASS ·
+  retry PASS · provenance PASS** — responseId + requestHash + usage +
+  modelEcho captured, redaction swept. The morning's 4/4 on
+  `393a0fd07c0` and this 4/4 close the ring on both mains; the interim
+  429 series stays recorded here as the honest environmental incident
+  trail, never a wording-promoted PASS.
 
 ## Environment + operational notes (the honest incident record)
 
@@ -84,7 +85,7 @@ promoted, and every level is labeled per the evidence law
 honestly-achieved level per dimension** — runtime-real for the end-to-end
 journey (the browser/environment/resource legs on real Chromium), local-real
 for the gate/battery family, live-provider for the provisioned-credential
-rung (4/4 pre-verified + 3/4 re-verified live with the environmental 429 on
-the provenance row, recorded honestly above). No simulated result is
+rung (4/4 pre-verified + 4/4 re-verified live on the final main — the
+interim 429 series recorded honestly above). No simulated result is
 promoted anywhere in this artifact. The program's next phase is A-PROD-003
 (dogfooding), which turns real-work friction into registered findings.
