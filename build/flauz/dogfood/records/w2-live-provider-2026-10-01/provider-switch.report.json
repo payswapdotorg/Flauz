@@ -1,0 +1,102 @@
+{
+	"schema": "flauz.dogfood-switch-report/v1",
+	"exerciseId": "provider-switch",
+	"mode": "live-provider",
+	"plan": [
+		{
+			"switchNo": 1,
+			"lane": "healthy",
+			"concreteLane": "live",
+			"expect": "ok"
+		},
+		{
+			"switchNo": 2,
+			"lane": "scripted-failing",
+			"concreteLane": "scripted-failing",
+			"expect": "typed-provider-failure"
+		},
+		{
+			"switchNo": 3,
+			"lane": "healthy",
+			"concreteLane": "live",
+			"expect": "ok"
+		}
+	],
+	"switches": [
+		{
+			"switchNo": 1,
+			"lane": "live",
+			"providerId": "flauz-dogfood-live",
+			"enabledLanes": [
+				"flauz-dogfood-live"
+			],
+			"providersFileSha256": "a03c5c912bbf5f6c2e79ad24b11cb9c77bc21977efbbaa4f23a2bcca58e65554",
+			"evidenceId": "E-000005",
+			"ask": {
+				"kind": "ok",
+				"decisionId": "rd-000004",
+				"attempts": 1,
+				"durationMs": 1128,
+				"text": "```json\n{\n  \"schema\": \"flauz.dogfood-switch-answer/v1\",\n  \"enabledDogfoodProviders\": [],\n  \"routingDecisionCount\": 0,\n  \"lastDecisionId\": \"rd-000000\"\n}\n```"
+			},
+			"answerProblems": [
+				"the completion is not valid JSON: Unexpected token '`', \"```json\n{\n\"... is not valid JSON"
+			],
+			"atMs": 1790859015129,
+			"durationMs": 1146
+		},
+		{
+			"switchNo": 2,
+			"lane": "scripted-failing",
+			"providerId": "flauz-dogfood-failing",
+			"enabledLanes": [
+				"flauz-dogfood-failing"
+			],
+			"providersFileSha256": "c1f578e668cf398246bf30652e30ca73c95bd3183520f13d83c43fc221fb281f",
+			"evidenceId": "E-000006",
+			"ask": {
+				"kind": "provider-failure",
+				"decisionId": "rd-000006",
+				"code": "PROVIDER_OVERLOADED",
+				"retryClass": "short-backoff",
+				"retryable": true,
+				"status": 500,
+				"attempts": 3,
+				"message": "dogfood scripted provider failure: this lane is armed to fail (the typed PROVIDER_OVERLOADED window over the real adapter wire)"
+			},
+			"answerProblems": [],
+			"atMs": 1790859015154,
+			"durationMs": 24
+		},
+		{
+			"switchNo": 3,
+			"lane": "live",
+			"providerId": "flauz-dogfood-live",
+			"enabledLanes": [
+				"flauz-dogfood-live"
+			],
+			"providersFileSha256": "d80074076136cb90316f1e7875b5821643c0db794eb66cfa9db860402bc35297",
+			"evidenceId": "E-000007",
+			"ask": {
+				"kind": "ok",
+				"decisionId": "rd-000008",
+				"attempts": 1,
+				"durationMs": 1179,
+				"text": "```json\n{\n  \"schema\": \"flauz.dogfood-switch-answer/v1\",\n  \"enabledDogfoodProviders\": [],\n  \"routingDecisionCount\": 0,\n  \"lastDecisionId\": null\n}\n```"
+			},
+			"answerProblems": [
+				"the completion is not valid JSON: Unexpected token '`', \"```json\n{\n\"... is not valid JSON"
+			],
+			"atMs": 1790859016342,
+			"durationMs": 1187
+		}
+	],
+	"summary": {
+		"ok": false,
+		"problems": [
+			"switch 1's answer did not verify: the completion is not valid JSON: Unexpected token '`', \"```json\n{\n\"... is not valid JSON",
+			"switch 3's answer did not verify: the completion is not valid JSON: Unexpected token '`', \"```json\n{\n\"... is not valid JSON"
+		],
+		"recoveryMs": 1188
+	}
+}

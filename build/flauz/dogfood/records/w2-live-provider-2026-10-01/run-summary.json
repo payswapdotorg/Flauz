@@ -1,0 +1,79 @@
+{
+	"schema": "flauz.dogfood-run/v1",
+	"wo": "A-PROD-003-W1",
+	"runId": "dogfood-2026-10-01T12-49-28-890Z",
+	"mode": "live-provider",
+	"modelIntelligence": "live-provider",
+	"startedAt": "2026-10-01T12:49:28.898Z",
+	"durationMs": 47453,
+	"workspaceRoot": "/tmp/flauz-dogfood-GcF1E0",
+	"repoRoot": "/tmp/verifydog",
+	"recordsDir": "/tmp/dogfood-w2-records",
+	"exercises": [
+		{
+			"exerciseId": "explore-repo",
+			"title": "repository exploration: map every consumer of the evidence ledger",
+			"dimensions": [
+				"repository exploration",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "FAIL",
+			"assertions": {
+				"pass": 0,
+				"fail": 1
+			},
+			"evidenceIds": [],
+			"frictionLogPath": "/tmp/dogfood-w2-records/explore-repo.friction.jsonl",
+			"frictionRows": {
+				"friction": 1,
+				"timing": 1,
+				"recovery": 0
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": []
+		},
+		{
+			"exerciseId": "provider-switch",
+			"title": "provider switching: fake -> scripted-failing -> fake with typed failure + recovery",
+			"dimensions": [
+				"provider switching",
+				"failure/recovery",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "FAIL",
+			"assertions": {
+				"pass": 5,
+				"fail": 1
+			},
+			"evidenceIds": [
+				"E-000008"
+			],
+			"frictionLogPath": "/tmp/dogfood-w2-records/provider-switch.friction.jsonl",
+			"frictionRows": {
+				"friction": 1,
+				"timing": 5,
+				"recovery": 1
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the typed failure classes are the product's real code paths (the adapter's error taxonomy + the product's bounded-retry bound); the failing wire itself is the harness's scripted lane",
+				"model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)"
+			]
+		}
+	],
+	"localLaneCensus": {
+		"chatCalls": 0,
+		"failCalls": 3,
+		"exploreComputations": 0,
+		"configComputations": 0,
+		"note": "the local wire census (the live lane, when selected, talks to the vendor directly and never appears here)"
+	}
+}

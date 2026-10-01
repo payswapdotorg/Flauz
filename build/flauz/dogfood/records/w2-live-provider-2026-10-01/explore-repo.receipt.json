@@ -1,0 +1,31 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "explore-repo",
+	"title": "repository exploration: map every consumer of the evidence ledger",
+	"dimensions": [
+		"repository exploration",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "FAIL",
+	"checks": [
+		{
+			"id": "explore.model-call-ok",
+			"ok": false,
+			"detail": "the exploration turn failed: request exceeded its wall-clock budget (flauz-dogfood-live)"
+		}
+	],
+	"evidenceIds": [],
+	"evidenceItems": [],
+	"frictionLogPath": "/tmp/dogfood-w2-records/explore-repo.friction.jsonl",
+	"frictionRows": {
+		"friction": 1,
+		"timing": 1,
+		"recovery": 0
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": []
+}

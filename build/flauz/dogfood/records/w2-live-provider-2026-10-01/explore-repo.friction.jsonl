@@ -1,0 +1,2 @@
+{"schema":"flauz.dogfood-friction/v1","type":"timing","ts":1790859013967,"phase":"explore-repo:model-call","durationMs":45030}
+{"schema":"flauz.dogfood-friction/v1","type":"friction","ts":1790859013971,"phase":"explore-repo:model-call","kind":"provider-failure","detail":"the exploration turn failed with the typed provider failure TIMEOUT (short-backoff, 3 attempts): request exceeded its wall-clock budget (flauz-dogfood-live)","recovery":""}

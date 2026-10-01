@@ -1,0 +1,68 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "provider-switch",
+	"title": "provider switching: fake -> scripted-failing -> fake with typed failure + recovery",
+	"dimensions": [
+		"provider switching",
+		"failure/recovery",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "FAIL",
+	"checks": [
+		{
+			"id": "switch.sequence-executed",
+			"ok": true,
+			"detail": "the planned sequence healthy->scripted-failing->healthy executed (live -> scripted-failing -> live)"
+		},
+		{
+			"id": "switch.failure-typed",
+			"ok": true,
+			"detail": "the scripted-failing lane surfaced the TYPED provider failure PROVIDER_OVERLOADED (retryable=true, retryClass=short-backoff, httpStatus=500) after 3 bounded-retry attempt(s): dogfood scripted provider failure: this lane is armed to fail (the typed PROVIDER_OVERLOADED window over the real adapter wire)"
+		},
+		{
+			"id": "switch.recovery-occurred",
+			"ok": true,
+			"detail": "the lane was switched back to the healthy provider (live, switch 3) and the same call type succeeded there; the failing lane stayed disabled in the workspace providers file; recovery measured 1188 ms from failure detection"
+		},
+		{
+			"id": "switch.evidence-per-switch",
+			"ok": true,
+			"detail": "one evidence row per switch: #1=E-000005, #2=E-000006, #3=E-000007"
+		},
+		{
+			"id": "switch.answers-verified",
+			"ok": false,
+			"detail": "every healthy-lane answer matched the workspace providers file + the routing-decision ledger"
+		},
+		{
+			"id": "switch.report-evidence-minted",
+			"ok": true,
+			"detail": "the switch report is hash-pinned into the evidence ledger (E-000008)"
+		}
+	],
+	"evidenceIds": [
+		"E-000008"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-002/provider-switch-report.json",
+			"sha256": "aa4988f26c3f42794b1bbb62a2459c940c60ffb516297e4f6412697595dc9a8a"
+		}
+	],
+	"frictionLogPath": "/tmp/dogfood-w2-records/provider-switch.friction.jsonl",
+	"frictionRows": {
+		"friction": 1,
+		"timing": 5,
+		"recovery": 1
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"the typed failure classes are the product's real code paths (the adapter's error taxonomy + the product's bounded-retry bound); the failing wire itself is the harness's scripted lane",
+		"model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)"
+	]
+}

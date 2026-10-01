@@ -905,6 +905,9 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 | P2-FIX-114 | TL-A | DONE | DL-84 demotion landed (PR #106 415c3192e9) — both the LAB-001 contracts AND the racing LAB-002 delivery relocated to build/flauz/lab |
 | P2-FIX-115 | TL-A | REGISTERED | Dogfood: the graph-completion law's late error (no early typed signal at finishStep(failed)) — finding doc in findings/ |
 | P2-FIX-116 | TL-A | REGISTERED | Dogfood: provider-lane switch durable in three places, no linking event row — finding doc in findings/ |
+| P2-FIX-117 | TL-A | REGISTERED | Dogfood W2 (live): long-form live generation exceeds the request wall-clock budget (typed TIMEOUT at 45s) — finding doc in findings/ |
+| P2-FIX-118 | TL-A | REGISTERED | Dogfood W2 (live): real-model answers arrive markdown-fenced; answer contracts parse raw JSON only — finding doc in findings/ |
+| P2-FIX-119 | TL-A | REGISTERED | Dogfood W2 (live): the provider-switch verification question is unanswerable by a bare live model (harness-design) — finding doc in findings/ |
 
 Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
 
@@ -1007,6 +1010,15 @@ Implementation routing: the P2-FIX-114 worker order pins this law; the worker im
 - **Honest evidence levels:** the seams local-real; the model intelligence in the worker sandbox fixture-level (computed-at-request-time and driver-verified — never promoted by wording). **W2 — the station-side LIVE-PROVIDER real-task run — is the next wave** (the A-PROD-002 station-execution precedent: workers are credential-free by law).
 - **THE FIRST DOGFOOD FINDINGS REGISTERED (the A3 law honored — findings before implementation):** P2-FIX-115 (the graph-completion law's late error — no early typed signal at finishStep(failed)) and P2-FIX-116 (the provider-lane switch's three-place durability with no linking event row) — finding docs in findings/, both REGISTERED with candidate acceptance shapes; implementation is routed to a later wave by priority (both feed the A-PROD-004 diagnostics/observability planning).
 - **Uncovered dimensions disclosed plainly (the W2+ waves own them):** browser work, environments, multi-agent delegation, approvals/takeover beyond the mission-graph approval act, implementation/tests as dogfooded work, workspace continuity across restart.
+
+#### TL-A run record — A-PROD-003-W2 (the station-side live-provider dogfood run) (2026-10-01)
+
+- **W2 RUN (live-provider, station-side):** the dogfood driver on current main, live lane = the real glm-4-plus through the provisioned z.ai endpoint via the station's transparent header-injecting gateway (`live_header_proxy.py` — station ops tooling, never on main; the live-provider drill's merge-under-adapter-headers methodology, honestly recorded). **The machinery is live-capable:** the adapter/fabric/routing/switch seams all functioned against the real vendor (live answers ~1.1s; the typed PROVIDER_OVERLOADED failure + recovery exercised cleanly — 1188 ms recovery; the friction log + per-switch evidence rows minted). **THE RUN'S REAL PRODUCT: three dogfood findings** (the A3 law honored — registered BEFORE any implementation):
+  - **P2-FIX-117** — the exploration exercise's live generation (the real 23-consumer map) ran 45,030 ms and died at the typed TIMEOUT wall-clock budget: real long-form workloads exceed the default request budget class.
+  - **P2-FIX-118** — the live model answered with CORRECT-shaped JSON wrapped in a markdown fence; the answer contract's raw-JSON parse rejected it ("Unexpected token '`'"): the classic real-model integration behavior every fixture lane masks.
+  - **P2-FIX-119** — the provider-switch verification question is unanswerable by a bare live model (no tool/file access; the fake lane's server-side god-view leaked into the exercise design) — harness-design finding, the fix is the harness's.
+- **Evidence:** the full W2 record set banked at `build/flauz/dogfood/records/w2-live-provider-2026-10-01/` (both friction logs, both receipts, the switch report with the verbatim fenced answer, the run summary: mode live-provider, modelIntelligence live-provider, 47,453 ms). The friction-log contract's first REAL rows (W1's fake-lane run produced zero friction rows by honesty — nothing failed there; W2's live run produced the program's first live-model friction evidence).
+- **Routing:** the 117/118/119 fixes are the next dogfood wave's WO (harness realism for live lanes); the 115/116 product findings stay registered for the priority wave. A-PROD-003 remains ACTIVE (the uncovered dimensions: browser work, environments, multi-agent delegation, approvals/takeover, implementation/tests as dogfooded work, workspace continuity).
 
 ### Phase A — Product Completion / Productionization
 
