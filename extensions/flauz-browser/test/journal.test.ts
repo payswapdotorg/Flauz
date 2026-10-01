@@ -35,6 +35,7 @@ import {
 	BROWSER_SESSION_JOURNAL_EVENTS,
 	BROWSER_SESSION_JOURNAL_PATH,
 	BROWSER_SESSION_JOURNAL_SCHEMA_ID,
+	BROWSER_SESSION_JOURNAL_SCHEMA_VERSION,
 	BrowserSessionJournalError,
 	FailingSessionJournal,
 	FileSystemSessionJournal,
@@ -128,11 +129,12 @@ function fixtureDescriptor(initiator: 'agent' | 'human'): BrowserSessionDescript
 
 // #region The pinned contract: constants + canonical bytes
 
-test('the journal contract constants are pinned (schema id/version/path/actors/events)', () => {
+test('the journal contract constants are pinned (schema id/version/path/actors/events; P2-FIX-105 adds navigated)', () => {
 	assert.equal(BROWSER_SESSION_JOURNAL_SCHEMA_ID, 'flauz.browser-session-journal/v0');
+	assert.equal(BROWSER_SESSION_JOURNAL_SCHEMA_VERSION, 0, 'the envelope STAYS v0: the additive event + optional navigation field is the compatible evolution for pinned v0 readers (see the module docblock)');
 	assert.equal(BROWSER_SESSION_JOURNAL_PATH, '.flauz/browser-sessions.jsonl');
 	assert.deepEqual(BROWSER_SESSION_JOURNAL_ACTORS, ['agent', 'human', 'tool']);
-	assert.deepEqual(BROWSER_SESSION_JOURNAL_EVENTS, ['opened', 'state-changed', 'closed', 'failed']);
+	assert.deepEqual(BROWSER_SESSION_JOURNAL_EVENTS, ['opened', 'state-changed', 'closed', 'failed', 'navigated']);
 });
 
 test('sessionJournalLine emits CANONICAL bytes + exactly one newline (sorted keys, no whitespace)', () => {
@@ -326,16 +328,21 @@ test('FileSystemSessionJournal appends canonical lines to <root>/.flauz/browser-
 
 // #region The fixture matrix (test/fixtures/browser-session-journal)
 
-test('FIXTURE valid.jsonl: every line validates against the pinned contract (all four events; the tool actor is legal)', () => {
+test('FIXTURE valid.jsonl: every line validates against the pinned contract (the four PIN-1 lifecycle events; the tool actor is legal)', () => {
 	const lines = fixtureLines('valid.jsonl');
-	assert.ok(lines.length >= 4, 'the sample covers the event enum');
+	assert.ok(lines.length >= 4, 'the sample covers the lifecycle event enum');
 	const events: string[] = [];
 	for (const line of lines) {
 		const validation = validateSessionJournalLine(line);
 		assert.equal(validation.ok, true, line);
 		events.push(validation.ok ? validation.record.event : '');
 	}
-	for (const event of BROWSER_SESSION_JOURNAL_EVENTS) {
+	// The pinned fixture predates P2-FIX-105 and covers the four PIN-1
+	// LIFECYCLE events (byte form unchanged by the additive navigation
+	// event); the 'navigated' row shape is pinned by the navigation tests
+	// below, not by this fixture (the fixtures are consumed READ-ONLY by
+	// other lanes and are never modified).
+	for (const event of ['opened', 'state-changed', 'closed', 'failed'] as const) {
 		assert.ok(events.includes(event), `the sample covers the '${event}' event`);
 	}
 	const actors = new Set(lines.map(line => (JSON.parse(line) as { actor: string }).actor));
@@ -375,6 +382,244 @@ test('FIXTURE invalid-non-canonical.jsonl: rejected (bytes must be the canonical
 			assert.match(validation.error.message, /not canonical/);
 		}
 	}
+});
+
+// #endregion
+
+// #region P2-FIX-105 — navigation events as durable on-disk session evidence
+
+/**
+ * THE TARGETED REGRESSION TEST (P2-FIX-105): the acceptance journey scene
+ * `open -> navigate(allowed) -> navigate(denied) -> close` journals FOUR
+ * records — the two navigation rows in addition to opened/closed: the ALLOW
+ * row with its committed URL, and the DENY row recording that ZERO wire
+ * commands were sent (the J3 fail-closed row). On the pre-fix base this test
+ * FAILS at the census assertion (the journal carries exactly 2 rows:
+ * opened + closed — the finding).
+ */
+test('open -> navigate(allowed) -> navigate(denied) -> close journals FOUR records (allow row + committed URL; deny row + zero wire commands)', async () => {
+	const journalRig = rig();
+	const opened = await journalRig.manager.open({ initiator: 'agent', agentId: 'worker-1' });
+	const sessionId = opened.descriptor.sessionId;
+
+	const allowed = await journalRig.manager.navigate(sessionId, 'https://docs.example.com/x');
+	assert.ok(isNavigationOutcome(allowed));
+	assert.equal(allowed.verdict.decision, 'allow');
+	assert.equal(allowed.committedUrl, 'https://docs.example.com/x');
+
+	const denied = await journalRig.manager.navigate(sessionId, 'https://evil.org/pay');
+	assert.ok(isNavigationOutcome(denied));
+	assert.equal(denied.verdict.decision, 'deny');
+	assert.equal(denied.sent, false, 'the deny path sends ZERO wire commands');
+
+	await journalRig.manager.close(sessionId);
+
+	// THE JOURNAL CENSUS IS 4 (was 2 on the base — the failing evidence):
+	assert.equal(journalRig.journal.records.length, 4, 'opened + navigated(allow) + navigated(deny) + closed');
+	assert.deepEqual(journalRig.journal.records.map(record => record.event), ['opened', 'navigated', 'navigated', 'closed']);
+
+	// The ALLOW row: decision + requested URL + COMMITTED URL + sent.
+	const allowRow = journalRig.journal.records[1];
+	assert.ok(allowRow !== undefined);
+	assert.equal(allowRow.actor, 'agent');
+	assert.equal(allowRow.descriptor.sessionId, sessionId);
+	assert.deepEqual(allowRow.navigation, {
+		decision: 'allow',
+		requestedUrl: 'https://docs.example.com/x',
+		committedUrl: 'https://docs.example.com/x',
+		sent: true,
+	});
+	assert.equal(allowRow.descriptor.tabs.find(tab => tab.tabId === allowed.tabId)?.url, 'https://docs.example.com/x', 'the snapshot shows the post-commit state');
+
+	// The DENY row (the J3 fail-closed row): decision + requested URL +
+	// sent:false + NO committed URL — written from the decision path.
+	const denyRow = journalRig.journal.records[2];
+	assert.ok(denyRow !== undefined);
+	assert.equal(denyRow.actor, 'agent');
+	assert.equal(denyRow.descriptor.sessionId, sessionId);
+	assert.deepEqual(denyRow.navigation, {
+		decision: 'deny',
+		requestedUrl: 'https://evil.org/pay',
+		sent: false,
+	});
+	assert.equal('committedUrl' in (denyRow.navigation ?? {}), false, 'a deny row never claims a commit');
+	assert.equal(denyRow.descriptor.tabs.find(tab => tab.tabId === denied.tabId)?.url, 'https://docs.example.com/x', 'the deny mutated nothing: the tab still shows the previously committed URL');
+
+	// The J3 fact cross-checked at the unit level: exactly ONE
+	// Page.navigate hit the (fake) wire — the denied navigation sent ZERO.
+	const wireDrives = journalRig.transports.flatMap(transport => transport.pageNavigateCommands());
+	assert.equal(wireDrives.length, 1);
+	assert.equal(wireDrives[0]?.params?.url, 'https://docs.example.com/x');
+
+	// Every row is a canonical, contract-valid line (including both
+	// navigation rows — the append path re-validates byte-strictly).
+	for (const line of journalRig.journal.lines) {
+		assert.equal(validateSessionJournalLine(line).ok, true, line);
+	}
+	await journalRig.manager.dispose();
+});
+
+test('the navigated record contract: navigation facts ride ONLY navigated rows (typed errors, never silent)', () => {
+	const descriptor = fixtureDescriptor('agent');
+	const allowNavigation = { decision: 'allow', requestedUrl: 'https://docs.example.com/x', committedUrl: 'https://docs.example.com/x', sent: true } as const;
+	const record = buildSessionJournalRecord('agent', 'navigated', descriptor, 1760000000000, allowNavigation);
+	assert.deepEqual(record.navigation, allowNavigation);
+	// the byte form: SEVEN sorted keys, navigation between event and schema:
+	const line = sessionJournalLine(record);
+	assert.ok(line.startsWith('{"actor":'));
+	assert.deepEqual(Object.keys(JSON.parse(line)).sort(), ['actor', 'descriptor', 'event', 'navigation', 'schema', 'schemaVersion', 'ts']);
+	assert.equal(validateSessionJournalLine(line).ok, true, 'a canonical navigated line round-trips');
+	// the J3 deny row: sent:false and NO committedUrl in the BYTES:
+	const denyRecord = buildSessionJournalRecord('agent', 'navigated', descriptor, 1760000000001, { decision: 'deny', requestedUrl: 'https://evil.org/pay', sent: false });
+	const denyLine = sessionJournalLine(denyRecord);
+	assert.ok(!denyLine.includes('committedUrl'), 'a deny row carries no committedUrl key at all');
+	assert.ok(denyLine.includes('"sent":false'));
+	assert.equal(validateSessionJournalLine(denyLine).ok, true);
+	// an allow row WITHOUT a committed URL is legal (operational failures:
+	// commit timeout / transport loss / wedged replacement — honest facts):
+	const allowNoCommit = buildSessionJournalRecord('agent', 'navigated', descriptor, 1760000000002, { decision: 'allow', requestedUrl: 'https://docs.example.com/x', sent: true });
+	assert.equal(allowNoCommit.navigation?.committedUrl, undefined, 'an allow row without a commit is an honest operational fact, not a deviation');
+	assert.equal(validateSessionJournalLine(sessionJournalLine(allowNoCommit)).ok, true);
+	// the fail-closed deviations (malformed inputs cast to the contract
+	// type — the runtime validation is the guard, mirroring untrusted JSON):
+	assert.throws(() => buildSessionJournalRecord('agent', 'navigated', descriptor, 5), (err: unknown) => err instanceof BrowserSessionJournalError && /must carry its navigation facts/.test(err.message), 'a navigated row without facts');
+	assert.throws(() => buildSessionJournalRecord('agent', 'opened', descriptor, 5, allowNavigation), (err: unknown) => err instanceof BrowserSessionJournalError && /ONLY 'navigated'/.test(err.message), 'a lifecycle row cannot carry navigation facts');
+	assert.throws(() => buildSessionJournalRecord('agent', 'navigated', descriptor, 5, { decision: 'deny', requestedUrl: 'https://evil.org/pay', sent: true }), (err: unknown) => err instanceof BrowserSessionJournalError && /J3 fail-closed/.test(err.message), 'a deny row claiming a sent command');
+	assert.throws(() => buildSessionJournalRecord('agent', 'navigated', descriptor, 5, { decision: 'deny', requestedUrl: 'https://evil.org/pay', sent: false, committedUrl: 'https://evil.org/pay' }), (err: unknown) => err instanceof BrowserSessionJournalError && /J3 fail-closed/.test(err.message), 'a deny row claiming a commit');
+	assert.throws(() => buildSessionJournalRecord('agent', 'navigated', descriptor, 5, { decision: 'block', requestedUrl: 'https://evil.org/pay', sent: false } as unknown as Parameters<typeof buildSessionJournalRecord>[4]), (err: unknown) => err instanceof BrowserSessionJournalError && /decision/.test(err.message));
+	assert.throws(() => buildSessionJournalRecord('agent', 'navigated', descriptor, 5, { decision: 'deny', requestedUrl: 42, sent: false } as unknown as Parameters<typeof buildSessionJournalRecord>[4]), (err: unknown) => err instanceof BrowserSessionJournalError && /requestedUrl/.test(err.message));
+	assert.throws(() => buildSessionJournalRecord('agent', 'navigated', descriptor, 5, { decision: 'deny', requestedUrl: 'https://evil.org/pay', sent: 'no' } as unknown as Parameters<typeof buildSessionJournalRecord>[4]), (err: unknown) => err instanceof BrowserSessionJournalError && /sent/.test(err.message));
+});
+
+test('validateSessionJournalLine: the navigated row shape is enforced on the read side (key set + invariants + canonicality)', () => {
+	const descriptor = fixtureDescriptor('human');
+	const record = buildSessionJournalRecord('human', 'navigated', descriptor, 1760000000000, { decision: 'allow', requestedUrl: 'https://docs.example.com/x', committedUrl: 'https://docs.example.com/x', sent: true });
+	const line = sessionJournalLine(record);
+	// canonical navigated line -> ok, with the navigation facts read back:
+	const ok = validateSessionJournalLine(line);
+	assert.equal(ok.ok, true);
+	if (ok.ok) {
+		assert.deepEqual(ok.record.navigation, { decision: 'allow', requestedUrl: 'https://docs.example.com/x', committedUrl: 'https://docs.example.com/x', sent: true });
+	}
+	// a navigated row WITHOUT the navigation key -> key-set deviation:
+	const missingFacts = line.replace(',"navigation":{"committedUrl":"https://docs.example.com/x","decision":"allow","requestedUrl":"https://docs.example.com/x","sent":true}', '');
+	assert.equal(validateSessionJournalLine(missingFacts + '\n').ok, false, 'a navigated row missing its facts never validates');
+	// a LIFECYCLE row carrying a navigation key -> key-set deviation:
+	const lifecycle = buildSessionJournalRecord('human', 'closed', descriptor, 1760000000001);
+	const polluted = JSON.parse(sessionJournalLine(lifecycle));
+	polluted.navigation = { decision: 'allow', requestedUrl: 'https://docs.example.com/x', sent: true };
+	const pollutedLine = `${JSON.stringify(polluted)}\n`;
+	const pollutedValidation = validateSessionJournalLine(pollutedLine);
+	assert.equal(pollutedValidation.ok, false, 'a lifecycle row cannot carry navigation facts');
+	if (!pollutedValidation.ok) {
+		assert.match(pollutedValidation.error.message, /key set/);
+	}
+	// a NON-CANONICAL navigated line (keys in schema order) -> rejected:
+	const reordered = JSON.stringify({ schemaVersion: 0, schema: BROWSER_SESSION_JOURNAL_SCHEMA_ID, ts: 1760000000000, actor: 'human', event: 'navigated', navigation: { sent: true, requestedUrl: 'https://docs.example.com/x', decision: 'allow', committedUrl: 'https://docs.example.com/x' }, descriptor });
+	const reorderedValidation = validateSessionJournalLine(`${reordered}\n`);
+	assert.equal(reorderedValidation.ok, false, 'byte form is the contract');
+	if (!reorderedValidation.ok) {
+		assert.match(reorderedValidation.error.message, /not canonical/);
+	}
+	// a deny row violating the J3 invariant on the READ side -> rejected:
+	const denyViolation = buildSessionJournalRecord('human', 'navigated', descriptor, 1760000000002, { decision: 'deny', requestedUrl: 'https://evil.org/pay', sent: false });
+	const parsed = JSON.parse(sessionJournalLine(denyViolation));
+	parsed.navigation.sent = true; // the forged J3 violation
+	const forged = validateSessionJournalLine(`${JSON.stringify(parsed)}\n`);
+	assert.equal(forged.ok, false, 'a deny row claiming a sent command cannot be evidence');
+	if (!forged.ok) {
+		assert.match(forged.error.message, /J3 fail-closed/);
+	}
+});
+
+test('lifecycle rows are BYTE-IDENTICAL to the pre-P2-FIX-105 form (six keys; reader compatibility)', () => {
+	const descriptor = fixtureDescriptor('agent');
+	for (const event of ['opened', 'state-changed', 'closed', 'failed'] as const) {
+		const record = buildSessionJournalRecord('agent', event, descriptor, 1760000000000);
+		const line = sessionJournalLine(record);
+		assert.deepEqual(Object.keys(JSON.parse(line)).sort(), ['actor', 'descriptor', 'event', 'schema', 'schemaVersion', 'ts'], `${event} keeps the six pinned envelope keys`);
+		assert.ok(!line.includes('navigation'), `${event} carries no navigation facts`);
+		assert.equal(validateSessionJournalLine(line).ok, true);
+	}
+});
+
+test('open(startUrl allowed) journals opened THEN navigated; a DENIED startUrl stays the fail-closed failed row (no navigated row)', async () => {
+	// allowed startUrl: 'opened' first (the forensic birth certificate),
+	// then the startUrl navigation row:
+	const allowedRig = rig();
+	const opened = await allowedRig.manager.open({ initiator: 'agent', agentId: 'worker-1', startUrl: 'https://docs.example.com/start' });
+	assert.equal(opened.descriptor.state, 'active');
+	assert.deepEqual(allowedRig.journal.records.map(record => record.event), ['opened', 'navigated']);
+	assert.deepEqual(allowedRig.journal.records[1]?.navigation, { decision: 'allow', requestedUrl: 'https://docs.example.com/start', committedUrl: 'https://docs.example.com/start', sent: true });
+	await allowedRig.manager.close(opened.descriptor.sessionId);
+	assert.deepEqual(allowedRig.journal.records.map(record => record.event), ['opened', 'navigated', 'closed']);
+	await allowedRig.manager.dispose();
+
+	// denied startUrl: the gate fails the session BEFORE the pipeline —
+	// the durable trace is the 'failed' row (descriptor.error carries the
+	// policy deny); no navigation ran, so no navigation row exists:
+	const deniedRig = rig();
+	const failed = await deniedRig.manager.open({ initiator: 'agent', agentId: 'worker-1', startUrl: 'https://evil.org/pay' });
+	assert.equal(failed.descriptor.state, 'failed');
+	assert.deepEqual(deniedRig.journal.records.map(record => record.event), ['failed']);
+	assert.equal(deniedRig.journal.records[0]?.descriptor.error?.code, 'flauz.browser.policy.deny');
+	await deniedRig.manager.dispose();
+});
+
+test('resetTab journals its about:blank navigation (a forced reset IS a pipeline navigation)', async () => {
+	const journalRig = rig();
+	const opened = await journalRig.manager.open({ initiator: 'agent', agentId: 'worker-1', startUrl: 'https://docs.example.com/x' });
+	const reset = await journalRig.manager.resetTab(opened.descriptor.sessionId);
+	assert.ok(isNavigationOutcome(reset));
+	assert.deepEqual(journalRig.journal.records.map(record => record.event), ['opened', 'navigated', 'navigated']);
+	assert.deepEqual(journalRig.journal.records[2]?.navigation, { decision: 'allow', requestedUrl: 'about:blank', committedUrl: 'about:blank', sent: true });
+	await journalRig.manager.dispose();
+});
+
+test('a navigation journal write failure is CAPTURED, never silent — the outcome itself stays truthful (journalErrors audit surface)', async () => {
+	// A journal that succeeds for 'opened' and breaks on every later
+	// append (scripted mid-flight failure on the navigation path):
+	class BreakAfterFirstAppend implements SessionJournalPort {
+		readonly records: SessionJournalRecord[] = [];
+		async append(record: SessionJournalRecord): Promise<void> {
+			if (this.records.length >= 1) {
+				throw new BrowserSessionJournalError('journal broke mid-flight (scripted)');
+			}
+			this.records.push(record);
+		}
+	}
+	const state = new FakeBrowserState();
+	const journal = new BreakAfterFirstAppend();
+	const host = new CdpEndpointHost('ws://127.0.0.1:9222/devtools/browser/fake', {
+		transportFactory: () => new FakeCdpTransport({ state, commandTimeoutMs: 500 }),
+	});
+	const manager = new BrowserSessionManager({
+		engine: () => BrowserPolicyEngine.fromPolicyText(JOURNAL_POLICY),
+		host,
+		workspaceRoot: WORKSPACE_ROOT,
+		journal,
+		commandTimeoutMs: 150,
+		navigationTimeoutMs: 300,
+	});
+	const opened = await manager.open({ initiator: 'agent', agentId: 'worker-1' });
+	assert.equal(opened.descriptor.state, 'active', 'the open journaled fine (first append succeeds)');
+	// the allowed navigation STILL COMMITS (its outcome is truthful) and
+	// the journal failure is captured, never silent, never a fabricated
+	// navigation failure:
+	const allowed = await manager.navigate(opened.descriptor.sessionId, 'https://docs.example.com/x');
+	assert.ok(isNavigationOutcome(allowed));
+	assert.equal(allowed.committedUrl, 'https://docs.example.com/x');
+	// the denied navigation STILL records its deny verdict to the caller:
+	const denied = await manager.navigate(opened.descriptor.sessionId, 'https://evil.org/pay');
+	assert.ok(isNavigationOutcome(denied));
+	assert.equal(denied.verdict.decision, 'deny');
+	assert.equal(denied.sent, false);
+	const errors = manager.journalErrors();
+	assert.equal(errors.length, 2, 'both navigation-path journal failures are captured');
+	assert.equal(errors[0]?.code, 'flauz.browser.journal');
+	assert.match(errors[0]?.message ?? '', /journal navigated event/);
+	assert.match(errors[1]?.message ?? '', /journal navigated event/);
+	await manager.dispose();
 });
 
 // #endregion

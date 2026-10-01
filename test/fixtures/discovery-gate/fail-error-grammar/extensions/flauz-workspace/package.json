@@ -1,0 +1,48 @@
+{
+	"name": "flauz-workspace",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{ "id": "flauz", "title": "Flauz", "icon": "media/flauz.svg" }
+			]
+		},
+		"views": {
+			"flauz": [
+				{ "id": "flauz.home", "name": "Home" },
+				{ "id": "flauz.tasks", "name": "Tasks" }
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.home",
+				"contents": "Flauz turns your workspace into an agent-centric environment: tasks with human gates, hash-chained evidence, environments, browser policy and workflows — all in .flauz/.\nOpen a folder to see its Flauz state.\n[Open Folder](command:workbench.action.files.openFolder)\nNo folder yet? Learn what Flauz tracks: [View Tasks](command:flauz.focusView.tasks) · [View Environments](command:flauz.focusView.environments)"
+			},
+			{
+				"view": "flauz.tasks",
+				"contents": "No Flauz tasks yet.\nAsk the Flauz agent in Chat to plan your first task — every task lives in .flauz/tasks.json with its evidence trail attached here.\n[Open Chat](command:workbench.action.chat.open)\n[Refresh Flauz Tasks](command:flauz.workspace.refreshTasks)"
+			}
+		],
+		"commands": [
+			{ "command": "flauz.focusView", "title": "Focus Flauz View", "category": "Flauz" },
+			{ "command": "flauz.focusView.home", "title": "Focus Flauz Home", "category": "Flauz" },
+			{ "command": "flauz.focusView.tasks", "title": "Focus Flauz Tasks", "category": "Flauz" },
+			{ "command": "flauz.workspace.refreshHome", "title": "Refresh Flauz Home", "category": "Flauz" },
+			{ "command": "flauz.workspace.refreshTasks", "title": "Refresh Flauz Tasks", "category": "Flauz" },
+			{ "command": "flauz.workspace.revealTask", "title": "Reveal Flauz Task", "category": "Flauz" },
+			{ "command": "flauz.workspace.openEvidence", "title": "Open Evidence", "category": "Flauz" },
+			{ "command": "flauz.workspace.openGuide", "title": "Open Flauz Guide", "category": "Flauz" }
+		],
+		"menus": {
+			"view/title": [
+				{ "command": "flauz.workspace.refreshHome", "when": "view == flauz.home", "group": "navigation" },
+				{ "command": "flauz.workspace.refreshTasks", "when": "view == flauz.tasks", "group": "navigation" }
+			],
+			"view/item/context": [
+				{ "command": "flauz.workspace.openGuide", "when": "viewItem == flauzError", "group": "navigation" }
+			]
+		}
+	}
+}

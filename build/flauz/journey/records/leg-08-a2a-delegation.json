@@ -1,0 +1,59 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 8,
+	"slug": "a2a-delegation",
+	"name": "delegate to another agent (A2A)",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 8,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg8.routing-decision-recorded",
+			"ok": true,
+			"detail": "the routing decision row records WHY flauz.agent.worker-1 (reason capability-match)"
+		},
+		{
+			"id": "leg8.delegation-receipt-linked",
+			"ok": true,
+			"detail": "the delegation-sent receipt links decision row R-000006 + bus message M-000001"
+		},
+		{
+			"id": "leg8.result-attribution",
+			"ok": true,
+			"detail": "the result-received row carries the delegate attribution origin a2a:flauz.agent.worker-1"
+		},
+		{
+			"id": "leg8.bus-round-trip",
+			"ok": true,
+			"detail": "the typed A2A round-trip landed on the shared on-disk bus journal (task-delegation M-000001 + result-report M-000002)"
+		},
+		{
+			"id": "leg8.delegated-step-succeeded",
+			"ok": true,
+			"detail": "the delegated step S-02 succeeded with runner flauz.agent.worker-1"
+		},
+		{
+			"id": "leg8.evidence-attribution",
+			"ok": true,
+			"detail": "the delegate's reported evidence E-000006 resolves to a ledger row attributed to T-001"
+		},
+		{
+			"id": "leg8.no-ledger-clobbering",
+			"ok": true,
+			"detail": "the shared ledger grew by exactly the worker's one row (5 -> 6, seqs unique)"
+		},
+		{
+			"id": "leg8.chain-intact",
+			"ok": true,
+			"detail": "the ledger hash chain verifies after the delegation round-trip (rows 6)"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.630Z",
+	"durationMs": 9,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

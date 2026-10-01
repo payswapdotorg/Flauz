@@ -1,0 +1,39 @@
+{
+	"schema": "flauz.p2-002-journey-receipt/v1",
+	"wo": "P2-002",
+	"worker": "A",
+	"leg": 3,
+	"slug": "agent-session",
+	"name": "start agent session",
+	"verdict": "PASS",
+	"evidenceLevel": "runtime-real",
+	"assertions": {
+		"pass": 4,
+		"fail": 0
+	},
+	"checks": [
+		{
+			"id": "leg3.claim-attribution",
+			"ok": true,
+			"detail": "the session claim row carries holder flauz.agent.primary with actor attribution"
+		},
+		{
+			"id": "leg3.session-claim-state",
+			"ok": true,
+			"detail": "the session claim is active in the graph state (holder flauz.agent.primary)"
+		},
+		{
+			"id": "leg3.session-memory-attribution",
+			"ok": true,
+			"detail": "the session-tier memory record is attributed to task T-001 + agent flauz.agent.primary"
+		},
+		{
+			"id": "leg3.session-memory-persisted",
+			"ok": true,
+			"detail": "the session journal on disk carries the record MEM-S-000001"
+		}
+	],
+	"startedAt": "2026-09-30T05:26:19.251Z",
+	"durationMs": 8,
+	"command": "node --experimental-strip-types build/flauz/journey/journey.drill.ts"
+}

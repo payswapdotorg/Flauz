@@ -17,6 +17,8 @@
  * / FileSystemPort / Clock) so the two extensions read as one fabric.
  */
 
+/// <reference path="../ambient.d.ts" />
+
 /** One HTTP request through the port. */
 export interface HttpPortRequest {
 	readonly method: 'GET' | 'POST' | 'DELETE';

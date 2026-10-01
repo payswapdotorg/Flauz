@@ -1,5 +1,13 @@
 # TL2 Agent OS Surge — 2026-09-28
 
+> **Status: COMPLETE (reconciled 2026-09-29, P2-001).** All three secondments
+> merged — TL2-S1 (PR #26 `dabe2ebc`), TL2-S2 (PR #28 `04fa8f95`), TL2-S3
+> (PR #30) — and the completion rule below is demonstrated by the Agent OS
+> runtime census (8 PASS / 0 FAIL / 0 SKIP, `agentos-battery.mjs --surge-rung`
+> ALL-GREEN at main, PR #47 `e222680a`; recorded in `WORK-REGISTRY.md`).
+> The text below is the historical surge record, preserved as written; the
+> active program phase is `PRODUCT-PHASE.md`.
+
 ## Purpose
 
 TL2 is currently the unfinished architectural center of Flauz. TL1's substrate/service seam, TL3's browser/environment/resource/continuity layer, and TL4's runtime verification infrastructure are now mature enough to provide targeted assistance without creating a new permanent TL.

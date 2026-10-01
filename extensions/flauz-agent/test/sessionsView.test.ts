@@ -15,6 +15,7 @@ import type * as vscode from 'vscode';
 import {
 	SESSIONS_VIEW_ID,
 	VIEW_COMMAND_IDS,
+	TAKEOVER_ROW_COMMAND,
 	AgentSessionsTreeProvider,
 	bridgeStatusRows,
 	registerAgentSessionsView,
@@ -22,6 +23,7 @@ import {
 	type SessionsTreeElement,
 	type SessionsViewApi,
 } from '../src/sessionsView.ts';
+import type { TakeoverStepSnapshot } from '../src/takeover.ts';
 import type { Task } from '../src/types.ts';
 
 const COLLAPSIBLE = { None: 0, Collapsed: 1, Expanded: 2 } as const;
@@ -219,4 +221,89 @@ test('registration: view + both commands register; focus delegates to the built-
 
 test('VIEW_COMMAND_IDS pins the two shell commands', () => {
 	deepStrictEqual([...VIEW_COMMAND_IDS], ['flauz.focusView.agentSessions', 'flauz.agent.refreshSessions']);
+});
+
+test('P2-FIX-204: TAKEOVER_ROW_COMMAND pins the affordance command (extension.ts registers it next to the bridge commands)', () => {
+	strictEqual(TAKEOVER_ROW_COMMAND, 'flauz.agent.takeoverStep');
+});
+
+/** A takeover snapshot double (the port's probe contract). */
+function takeoverSnapshot(state: TakeoverStepSnapshot['state']): TakeoverStepSnapshot {
+	return { state, graphId: 'G-001', stepId: 'S-01', stepTitle: 'stuck work' };
+}
+
+test('P2-FIX-204: a stuck step renders the Take over affordance row under the active task', async () => {
+	const api = createApiDouble();
+	const task = makeTask();
+	const provider = new AgentSessionsTreeProvider(api, () => ({
+		...HEALTHY,
+		activeTask: async () => task,
+		takeoverStep: async () => takeoverSnapshot('stuck'),
+	}), () => task.timing.updatedAt);
+	const rows = await provider.getChildren();
+	strictEqual(rows.length, 6, 'four status rows + the task row + the takeover row');
+	const last = rows[5]!;
+	strictEqual(last.kind, 'takeover');
+	const item = provider.getTreeItem(last);
+	strictEqual(item.label, 'Take Over Step S-01…');
+	strictEqual(item.description, 'stuck on the approval gate — finish it by hand (human gate)');
+	strictEqual(iconId(item), 'person');
+	strictEqual(item.contextValue, 'flauzSessionTakeover');
+	strictEqual(item.command?.command, TAKEOVER_ROW_COMMAND);
+	strictEqual(item.command?.title, 'Take Over Step…');
+	deepStrictEqual(item.command?.arguments, [{ taskId: 'T-001' }]);
+	ok(tooltipText(item)?.includes('stuck on a pending approval gate'));
+	ok(tooltipText(item)?.includes('human-only transitions'));
+	ok(tooltipText(item)?.includes('evidence row into the shared ledger'));
+	strictEqual(item.accessibilityInformation?.label, 'Take Over Step S-01, stuck work: stuck on the approval gate, finish it by hand (human gate)');
+});
+
+test('P2-FIX-204: the taken-over state renders legibly (icon + description, the agent may not run it)', async () => {
+	const api = createApiDouble();
+	const task = makeTask();
+	const provider = new AgentSessionsTreeProvider(api, () => ({
+		...HEALTHY,
+		activeTask: async () => task,
+		takeoverStep: async () => takeoverSnapshot('taken-over'),
+	}), () => task.timing.updatedAt);
+	const rows = await provider.getChildren();
+	const last = rows[5]!;
+	strictEqual(last.kind, 'takeover');
+	const item = provider.getTreeItem(last);
+	strictEqual(item.label, 'Step S-01 taken over');
+	strictEqual(item.description, 'held for the human — the agent may not run it');
+	strictEqual(iconId(item), 'person');
+	ok(tooltipText(item)?.includes('human-only transitions, never auto-advanced'));
+	strictEqual(item.accessibilityInformation?.label, 'Step S-01 taken over, held for the human — the agent may not run it');
+});
+
+test('P2-FIX-204: takeover-pending renders the acceptance hold; no probe -> no row; probe failure keeps the observed rows', async () => {
+	const api = createApiDouble();
+	const task = makeTask();
+	const pending = new AgentSessionsTreeProvider(api, () => ({
+		...HEALTHY,
+		activeTask: async () => task,
+		takeoverStep: async () => takeoverSnapshot('takeover-pending'),
+	}), () => task.timing.updatedAt);
+	const pendingRows = await pending.getChildren();
+	strictEqual(pendingRows.length, 6);
+	const pendingItem = pending.getTreeItem(pendingRows[5]!);
+	strictEqual(pendingItem.label, 'Step S-01 takeover requested');
+	strictEqual(pendingItem.description, 'waiting for your acceptance (human gate)');
+
+	// No probe wired (the pre-P2-FIX-204 wiring): the tree is exactly what it was.
+	const untouched = new AgentSessionsTreeProvider(api, () => ({ ...HEALTHY, activeTask: async () => task }));
+	strictEqual((await untouched.getChildren()).length, 5, 'the takeover row is additive — it never displaces the observed rows');
+
+	// A failing probe is last-known-good: the observed rows stay, nothing blanks.
+	const failing = new AgentSessionsTreeProvider(api, () => ({
+		...HEALTHY,
+		activeTask: async () => task,
+		takeoverStep: async () => {
+			throw new Error('orchestration journal unreadable');
+		},
+	}));
+	const failingRows = await failing.getChildren();
+	strictEqual(failingRows.length, 5, 'a probe failure keeps the four status rows + the task row');
+	ok(failingRows.every(row => row.kind !== 'error'), 'the probe failure is not surfaced as a tree error row (additive state only)');
 });

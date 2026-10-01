@@ -86,6 +86,10 @@ interface ImportMeta {
 // streaming HTTP port (fetch/ReadableStream/AbortSignal/TextDecoder), sha256
 // hashing, base64 (node:buffer) and the node:http fixture servers the adapter
 // tests drive. Every declaration below stays narrow on purpose.
+// P2-FIX-101: the three declarations the SRC surface itself needs
+// ('node:buffer', AbortSignal, TextDecoder) moved to src/ambient.d.ts so
+// they travel with the compiled sources (sibling-extension tsconfigs);
+// only the TEST-surface needs stay here.
 // ---------------------------------------------------------------------------
 
 declare module 'node:fs' {
@@ -102,12 +106,6 @@ declare module 'node:crypto' {
 		digest(encoding: 'hex'): string;
 	}
 	export function createHash(algorithm: 'sha256'): ShimHash;
-}
-
-declare module 'node:buffer' {
-	export const Buffer: {
-		from(input: Uint8Array | string, encoding?: 'base64' | 'utf-8'): { toString(encoding: 'base64' | 'utf-8'): string };
-	};
 }
 
 declare module 'node:http' {
@@ -137,25 +135,10 @@ declare module 'node:assert' {
 	export function rejects(promiseOrFn: unknown, matcher?: RegExp | ((error: unknown) => boolean), message?: string): Promise<void>;
 }
 
-/** AbortSignal surface used by the HTTP port (Node >= 20.3). */
-declare class AbortSignal {
-	readonly aborted: boolean;
-	addEventListener(type: 'abort', listener: () => void): void;
-	removeEventListener(type: 'abort', listener: () => void): void;
-	static timeout(milliseconds: number): AbortSignal;
-	static any(signals: readonly AbortSignal[]): AbortSignal;
-}
-
 /** AbortController surface used by the bridge + tests. */
 declare class AbortController {
 	readonly signal: AbortSignal;
 	abort(reason?: unknown): void;
-}
-
-/** Stream-aware UTF-8 decoding (global in Node). */
-declare class TextDecoder {
-	constructor(label?: string);
-	decode(data?: Uint8Array, options?: { stream?: boolean }): string;
 }
 
 /** Stream-aware UTF-8 encoding (global in Node). */

@@ -12,6 +12,8 @@
  * modules and in the canned fixture data only.
  */
 
+/// <reference path="../ambient.d.ts" />
+
 import { Buffer } from 'node:buffer';
 import { ProviderError, isProviderError } from '../contract/errors.ts';
 import { HttpPortAbortError, type Clock, type HashPort, type HttpPort, type HttpPortResponse, type SecretResolverPort } from '../contract/ports.ts';
