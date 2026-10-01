@@ -11,5 +11,8 @@
 		"../flauz-browser/shims/**/*.d.ts",
 		"../flauz-environments/shims/**/*.d.ts",
 		"vscode-dts/vscode.d.ts"
-	]
+	],
+	// P2-FIX-102: the base exclude lists exactly these subjects (an extends
+	// config inherits it) — override or the receipt compiles nothing it names.
+	"exclude": []
 }
