@@ -8,28 +8,24 @@ Before doing product work, read:
 
 1. `FLAUZ-START-HERE.md`
 2. `docs/FLAUZ-PROGRAM/SOURCE-OF-TRUTH.md`
-3. `docs/FLAUZ-PROGRAM/PRODUCT-PHASE.md`
-4. `docs/FLAUZ-PROGRAM/CURRENT-STATE.md`
-5. `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`
-6. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`
-7. your active TL handoff:
-   - TL1 -> `docs/FLAUZ-PROGRAM/TL1-PRODUCT-HANDOFF.md`
-   - TL2 -> `docs/FLAUZ-PROGRAM/TL2-PRODUCT-HANDOFF.md`
-   - TL3 -> `docs/FLAUZ-PROGRAM/TL3-PRODUCT-HANDOFF.md`
-   - TL4 -> `docs/FLAUZ-PROGRAM/TL4-PRODUCT-HANDOFF.md`
+3. `docs/FLAUZ-PROGRAM/MASTER-ROADMAP.md`
+4. `docs/FLAUZ-PROGRAM/ARCHITECTURE-LOCK.md`
+5. `docs/FLAUZ-PROGRAM/WORK-REGISTRY.md`
+6. the active TL handoff:
+   - TL-A -> `docs/FLAUZ-PROGRAM/TL-A-PRODUCTIZATION-HANDOFF.md`
+   - TL-B -> `docs/FLAUZ-PROGRAM/TL-B-ENGINEERING-LAB-HANDOFF.md`
 
-The older `TL1-HANDOFF.md` through `TL4-HANDOFF.md` files are historical completion records for this phase.
+The older Product Acceptance, Discovery and Productization documents are historical evidence, not active routing.
 
 ## Active phase routing
 
-Current phase: **Product Acceptance, Discovery and Productization**.
+Current phase: **Two-TL Product Completion and Engineering Lab**.
 
-- P2-001 -> TL1: control-plane reconciliation
-- P2-002 -> TL4: full-product acceptance
-- P2-003 -> TL4: user discovery audit
-- P2-FIX-* -> route by domain; the finding names its single owning TL
+- TL-A -> remaining acceptance gaps, product completion, dogfooding, beta, production and post-production reliability
+- TL-B -> Engineering Lab, workload learning, task worlds, Agent Bodies, organization search, model occupancy, capability search and closed-loop calibration
+- cross-TL work -> stable contract first; do not block either TL on an unfinished implementation
 
-Do not invent parallel work outside these registry items.
+The master roadmap and work registry are authoritative. Do not invent parallel work outside registered items.
 
 ## Branch rules
 
@@ -41,12 +37,12 @@ Do not invent parallel work outside these registry items.
 
 ## Ownership / non-interference
 
-- TL1 owns Code OSS substrate, upstream sync, product build/release, service seam, fork-critical controls and control-plane documents.
-- TL2 owns Agent OS, models/providers, orchestration, memory, approvals, workflows, A2A and execution semantics.
-- TL3 owns browser, environments, providers, resources and continuity.
-- TL4 owns product IA/UX, accessibility, E2E acceptance, compatibility, performance and release quality.
-
-Inspect other TL domains freely. Do not modify another TL's owned implementation or acceptance artifacts. Create and route a `P2-FIX-###` finding instead.
+- TL-A owns product completion and productionization across the existing Flauz product surfaces.
+- TL-B owns the Engineering Lab vertical and its contracts, simulation, search, console and calibration.
+- Both TLs may inspect the whole repository.
+- Neither TL may silently patch the other TL's active implementation.
+- Shared contracts are updated before cross-TL integration.
+- Do not cherry-pick another TL's worker branch.
 
 ## Autonomous operation
 
