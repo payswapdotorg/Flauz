@@ -982,10 +982,10 @@ No implementation dispatches for P2-FIX-113; the finding closes with this record
 
 | ID | Owner | Status | Dependency |
 |---|---|---|---|
-| LAB-001 | TL-B | ACTIVE | stable Flauz contracts |
-| LAB-002 | TL-B | TODO | LAB-001 |
+| LAB-001 | TL-B | DONE | stable Flauz contracts (landing record below) |
+| LAB-002 | TL-B | ACTIVE | LAB-001 landed; workload/task-type learning wave open |
 | LAB-003 | TL-B | TODO | LAB-001 + LAB-002 |
-| LAB-004 | TL-B | TODO | LAB-001 |
+| LAB-004 | TL-B | ACTIVE | LAB-001 landed; Agent Body library wave open |
 | LAB-005 | TL-B | TODO | LAB-004 |
 | LAB-006 | TL-B | TODO | LAB-004 + stable Tool/Capability contracts |
 | LAB-007 | TL-B | TODO | LAB-003 + LAB-005/006 |
@@ -993,6 +993,13 @@ No implementation dispatches for P2-FIX-113; the finding closes with this record
 | LAB-009 | TL-B | TODO | LAB-001 + LAB-005 |
 | LAB-010 | TL-B | TODO | LAB-001 + AgentTask/Workflow stable seam |
 | LAB-011 | TL-B | TODO | LAB-005..010 |
+
+#### TL-B landing record — LAB-001 DONE (2026-10-01)
+
+- **LAB-001 (contracts and run model) — DONE:** versioned contract module `src/vs/platform/lab/common/labContracts.ts` (`LAB_CONTRACTS_VERSION = '1.0.0'`, zero-dependency by law) + `src/vs/platform/lab/test/common/labContracts.test.ts`, landed from current `main` on branch `feat/tlb-lab-001-contracts` (squash-merged; merge SHA recorded in the PR). All 13 roadmap contracts present (WorkloadProfile, TaskTypeDescriptor, TaskScenario, LabScenario, LabRun, WorldModelVersion, AgentBodyDescriptor, OrganizationCandidate, CapabilityRequirement, EvaluationReport, CalibrationRecord, LabRecommendation, ExperimentLink) plus LabScope (workspace/tenant scoping law), LadderLevel/LabEvidenceLevel, the LabExecutionPort seam (fixture|flauz; the Lab never bypasses Agent OS) and the LabRun status machine with pure guards.
+- **Evidence (honest, scoped):** strict scoped tsc over the two files CLEAN (types: node+mocha, repo tsconfig law observed for ambient suite/test); mocha tdd execution at the integration station **9/9 passing** (station real execution, not pod-authored-only); determinism-law grep = the law comment only (zero code hits); zero imports in the module; tab-indentation law verified post-conversion. Worker pod evidence (its own tsc 5.5.4 scoped check) is recorded as worker-side sanity, not station evidence. The tests are scoped-contract tests; full-repo battery integration remains a later-wave gate when the Lab module grows a service surface.
+- **Remaining risk (registered):** (a) the module is types+pure guards only — no runtime persistence or service wiring yet (by LAB-001 scope); (b) `labRunStatusTransitions` arrays are mutable by type (Record<LabRunStatus, LabRunStatus[]>) — a future wave may freeze them if a mutation incident ever appears; (c) numeric-range constraints (0..1, sum~1, clamp) are documented contracts, runtime-validated only by the two shipped guards; (d) WorldModelVersion is world-scoped (no LabScope) by design — first divergence from the record-scoping default, revisit if worlds ever persist per-tenant.
+- **Worker delivery lane:** B1 worker dispatched from inside the replay (session lab001, chat `d88b0e8b`), files harvested through the transcript CodeMirror lane after the sandbox pod released (the download/LAB-001 handoff copies became unreachable — the transcript lane is now the sanctioned recovery path); leading 4-space → tab restoration applied mechanically by TL per repo `.editorconfig`. Registry wave: LAB-002 + LAB-004 flipped ACTIVE (the parallel next wave per the dependency DAG).
 
 ### Independence / ownership law
 
