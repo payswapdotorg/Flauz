@@ -137,7 +137,7 @@ expect "premium-ux-gate --help"                        0 node "$S/premium-ux-gat
 D="$ROOT/build/flauz/discovery/p2-003-discovery-gate.mjs"
 expect "discovery-gate clean fixture PASS"            0 node "$D" --root "$F/discovery-gate/clean" --require
 expect "discovery-gate real tree PASS (known gaps pinned)" 0 node "$D" --root "$ROOT" --require
-expect "discovery-gate real tree --strict FAIL (enforce pinned gaps)" 1 node "$D" --root "$ROOT" --require --strict
+expect "discovery-gate real tree --strict PASS (post-closure enforcement)" 0 node "$D" --root "$ROOT" --require --strict
 expect "discovery-gate missing view FAIL"              1 node "$D" --root "$F/discovery-gate/fail-missing-view" --require
 expect "discovery-gate welcome no-link FAIL"          1 node "$D" --root "$F/discovery-gate/fail-welcome-link" --require
 expect "discovery-gate error-grammar FAIL"            1 node "$D" --root "$F/discovery-gate/fail-error-grammar" --require
