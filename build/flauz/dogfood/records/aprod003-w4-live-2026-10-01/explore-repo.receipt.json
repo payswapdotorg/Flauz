@@ -1,0 +1,36 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "explore-repo",
+	"title": "repository exploration: map every consumer of the evidence ledger",
+	"dimensions": [
+		"repository exploration",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "FAIL",
+	"checks": [
+		{
+			"id": "explore.model-call-ok",
+			"ok": true,
+			"detail": "the exploration turn streamed 13393 chars through provider flauz-dogfood-live (decision rd-000002, 1 attempt(s), 61348 ms)"
+		},
+		{
+			"id": "explore.answer-parses",
+			"ok": false,
+			"detail": "the completion is not valid JSON: Unexpected token '`', \"```json\n{\n\"... is not valid JSON"
+		}
+	],
+	"evidenceIds": [],
+	"evidenceItems": [],
+	"frictionLogPath": "/tmp/dogfood-w4-records/explore-repo.friction.jsonl",
+	"frictionRows": {
+		"friction": 1,
+		"timing": 1,
+		"recovery": 0
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": []
+}
