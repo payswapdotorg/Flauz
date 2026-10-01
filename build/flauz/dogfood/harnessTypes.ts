@@ -46,6 +46,8 @@ export interface AskOk {
         readonly modelId: string;
         readonly durationMs: number;
         readonly attempts: number;
+        /** P2-FIX-117: the wall-clock budget that governed this ask (wired through AdapterConfig.requestTimeoutMs). */
+        readonly wallClockBudgetMs: number;
 }
 
 /** A typed provider failure surfaced by the real adapter (the product's own error taxonomy). */
@@ -62,9 +64,28 @@ export interface AskProviderFailure {
         readonly modelId: string;
         readonly durationMs: number;
         readonly attempts: number;
+        /** P2-FIX-117: the wall-clock budget that governed this ask (wired through AdapterConfig.requestTimeoutMs). */
+        readonly wallClockBudgetMs: number;
 }
 
 export type AskOutcome = AskOk | AskProviderFailure;
+
+/**
+ * The context handed to an ask-time prompt builder: the ask's durable
+ * routing decision has already been minted when the builder runs
+ * (P2-FIX-119 -- facts embedded at ask time include it).
+ */
+export interface AskPromptContext {
+        readonly decisionId: string;
+}
+
+/**
+ * One ask prompt: either the literal text, or a builder invoked INSIDE
+ * the ask window -- after the durable routing decision, right before
+ * the request ships (P2-FIX-119: the provider-switch question embeds
+ * the workspace facts at ask time).
+ */
+export type AskPrompt = string | ((context: AskPromptContext) => string | Promise<string>);
 
 /**
  * The Model Fabric facade the exercises drive: `selectLane` performs the
@@ -75,7 +96,7 @@ export type AskOutcome = AskOk | AskProviderFailure;
  */
 export interface ProviderLaneFacade {
         selectLane(lane: ProviderLaneId): Promise<LaneSwitchReceipt>;
-        ask(prompt: string): Promise<AskOutcome>;
+        ask(prompt: AskPrompt): Promise<AskOutcome>;
 }
 
 /** The harness context an exercise runs against (all REAL product seams; one workspace root per run). */

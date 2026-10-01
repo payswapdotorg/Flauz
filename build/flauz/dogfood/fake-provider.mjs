@@ -20,8 +20,14 @@
  *                          driver verifies the answer, never trusts
  *                          it);
  *                        - the provider-configuration question reads
- *                          the workspace's real providers file +
- *                          routing-decision ledger;
+ *                          the workspace facts FROM THE PROMPT
+ *                          (P2-FIX-119: the exercise carries the
+ *                          facts in the prompt, both lanes answer
+ *                          from them -- the retired server-side
+ *                          workspace read was the god-view the W2
+ *                          run exposed); the fake lane extracts them
+ *                          with its own independent parser (pinned by
+ *                          the round-trip tests);
  *                        - anything else gets a deterministic echo.
  *   scripted-failing   POST /fail/chat/completions  -- ALWAYS HTTP 500
  *   lane              with an OpenAI-shaped error body: the REAL
@@ -202,31 +208,79 @@ export async function computeLedgerConsumerMap(repoRoot, ledgerModule = CANONICA
         return consumers;
 }
 
-/** The fake lane's live read of the workspace's model state (the providers file + the decision ledger). */
-async function computeWorkspaceModelsState(workspaceRoot) {
-        const state = { providersFileSchema: '', enabledDogfoodProviders: [], routingDecisionCount: 0, lastDecisionId: '' };
-        try {
-                const raw = JSON.parse(await nodeFs.readFile(nodePath.join(workspaceRoot, '.flauz', 'models', 'providers.json'), { encoding: 'utf-8' }));
-                state.providersFileSchema = typeof raw.schema === 'string' ? raw.schema : '';
-                if (Array.isArray(raw.providers)) {
-                        state.enabledDogfoodProviders = raw.providers
-                                .filter(entry => entry !== null && typeof entry === 'object' && entry.providerId !== undefined
-                                        && String(entry.providerId).startsWith('flauz-dogfood') && entry.enabled === true)
-                                .map(entry => String(entry.providerId))
-                                .sort();
+/**
+ * P2-FIX-119: THE FAKE LANE'S PROMPT-FACTS READ for the
+ * provider-configuration question. The exercise embeds the workspace
+ * facts in the prompt at ask time; this is the bare-model simulation:
+ * read + faithfully report what the prompt carries -- NEVER a fresh
+ * read of the workspace state (the server-side computation path is
+ * retired; the god-view is gone). String-ops implementation,
+ * independent of the exercise's builder; the round-trip tests pin the
+ * two sides together.
+ *
+ * @param {string} prompt the ask prompt (the question with the embedded facts)
+ * @returns {{ ok: true, answer: { enabledDogfoodProviders: string[], routingDecisionCount: number, lastDecisionId: string } } | { ok: false, error: string }}
+ */
+export function answerSwitchFromPrompt(prompt) {
+        const section = (beginMarker, endMarker) => {
+                const beginIdx = prompt.indexOf(beginMarker);
+                if (beginIdx < 0) {
+                        return null;
                 }
-        } catch {
-                // absent file: the honest empty state
+                const contentStart = prompt.indexOf('\n', beginIdx) + 1;
+                const endIdx = prompt.indexOf(endMarker, contentStart);
+                if (endIdx < 0) {
+                        return null;
+                }
+                return prompt.slice(contentStart, endIdx);
+        };
+        const providersSection = section('=== WORKSPACE FACT: providers file', '=== END providers file ===');
+        if (providersSection === null) {
+                return { ok: false, error: 'the prompt carries no providers-file facts section (P2-FIX-119: the question must embed the workspace facts)' };
         }
-        try {
-                const text = await nodeFs.readFile(nodePath.join(workspaceRoot, '.flauz', 'models', 'routing-decisions.jsonl'), { encoding: 'utf-8' });
-                const ids = text.split('\n').filter(line => line.length > 0).map(line => JSON.parse(line)).filter(row => typeof row.decisionId === 'string').map(row => row.decisionId);
-                state.routingDecisionCount = ids.length;
-                state.lastDecisionId = ids.length === 0 ? '' : ids[ids.length - 1];
-        } catch {
-                // absent ledger: zero decisions so far
+        const enabled = [];
+        if (!providersSection.trim().startsWith('(the providers file is absent')) {
+                let parsed;
+                try {
+                        parsed = JSON.parse(providersSection);
+                } catch (err) {
+                        return { ok: false, error: `the prompt-embedded providers file does not parse: ${err instanceof Error ? err.message : String(err)}` };
+                }
+                if (Array.isArray(parsed.providers)) {
+                        for (const entry of parsed.providers) {
+                                if (entry !== null && typeof entry === 'object' && entry.providerId !== undefined
+                                        && String(entry.providerId).startsWith('flauz-dogfood') && entry.enabled === true) {
+                                        enabled.push(String(entry.providerId));
+                                }
+                        }
+                }
         }
-        return state;
+        enabled.sort();
+        const decisionsSection = section('=== WORKSPACE FACT: routing-decision ledger', '=== END routing-decision ledger ===');
+        if (decisionsSection === null) {
+                return { ok: false, error: 'the prompt carries no routing-decision facts section (P2-FIX-119: the question must embed the workspace facts)' };
+        }
+        const countMatch = /total routing decisions recorded:\s*(\d+)/.exec(decisionsSection);
+        if (countMatch === null) {
+                return { ok: false, error: 'the prompt-embedded routing-decision facts carry no total count' };
+        }
+        const routingDecisionCount = Number(countMatch[1]);
+        let lastDecisionId = '';
+        for (const line of decisionsSection.split('\n')) {
+                const trimmed = line.trim();
+                if (trimmed.length === 0 || trimmed.startsWith('(')) {
+                        continue;
+                }
+                try {
+                        const row = JSON.parse(trimmed);
+                        if (row !== null && typeof row === 'object' && typeof row.decisionId === 'string') {
+                                lastDecisionId = row.decisionId;
+                        }
+                } catch {
+                        // not a JSON row (e.g. the section header lines) -- keep walking
+                }
+        }
+        return { ok: true, answer: { enabledDogfoodProviders: enabled, routingDecisionCount, lastDecisionId } };
 }
 
 /** One OpenAI-shaped SSE completion body (the wire shape the REAL adapter parses). */
@@ -273,18 +327,22 @@ function lastUserPrompt(body) {
 /**
  * Boots the two local lanes on one REAL socket. The scripted-failing
  * lane's failure mode is fixed (HTTP 500 -> the adapter's typed
- * PROVIDER_OVERLOADED); the fake lane computes its answers live.
+ * PROVIDER_OVERLOADED); the fake lane computes its exploration answer
+ * live and reads its provider-configuration answer from the prompt's
+ * embedded facts (P2-FIX-119). `options.workspaceRoot` is accepted for
+ * contract stability (the driver always passes it) but is no longer
+ * read server-side: the retired workspace read WAS the P2-FIX-119
+ * god-view.
  *
  * @param {{ repoRoot: string, workspaceRoot: string, port?: number }} options
- * @returns {Promise<{ port: number, chatCalls: number, failCalls: number, exploreComputations: number, configComputations: number, close: () => void }>}
+ * @returns {Promise<{ port: number, chatCalls: number, failCalls: number, exploreComputations: number, configPromptReads: number, close: () => void }>}
  */
 export function startFakeProvider(options) {
         const repoRoot = options.repoRoot;
-        const workspaceRoot = options.workspaceRoot;
         let chatCalls = 0;
         let failCalls = 0;
         let exploreComputations = 0;
-        let configComputations = 0;
+        let configPromptReads = 0;
         const server = http.createServer((request, response) => {
                 const url = request.url ?? '/';
                 const method = request.method ?? 'GET';
@@ -340,19 +398,24 @@ export function startFakeProvider(options) {
                                         return;
                                 }
                                 if (lower.includes('provider-lane configuration')) {
-                                        configComputations += 1;
-                                        computeWorkspaceModelsState(workspaceRoot).then(state => {
-                                                const answer = {
+                                        // P2-FIX-119: the fake lane answers FROM THE PROMPT-CARRIED FACTS
+                                        // (the exercise embeds the workspace facts at ask time; the retired
+                                        // server-side workspace read was the god-view the W2 run exposed).
+                                        configPromptReads += 1;
+                                        const outcome = answerSwitchFromPrompt(prompt);
+                                        const answer = outcome.ok
+                                                ? {
                                                         schema: 'flauz.dogfood-switch-answer/v1',
-                                                        question: 'report the current provider-lane configuration of this flauz workspace (enabled dogfood lanes + the routing-decision count)',
-                                                        method: 'live read of the workspace providers file + the routing-decision ledger (computed at request time)',
-                                                        ...state,
+                                                        question: 'report the current provider-lane configuration of this flauz workspace from the prompt-carried facts',
+                                                        method: 'read of the prompt-carried workspace facts (P2-FIX-119: both lanes answer from the prompt; the server-side computation path is retired)',
+                                                        ...outcome.answer,
+                                                }
+                                                : {
+                                                        schema: 'flauz.dogfood-switch-answer-error/v1',
+                                                        error: outcome.error,
                                                 };
-                                                response.writeHead(200, { 'content-type': 'text/event-stream' });
-                                                response.end(openAiSseBody(model, JSON.stringify(answer)));
-                                        }, err => {
-                                                respond(500, JSON.stringify({ error: { message: `dogfood fake provider config read failed: ${err instanceof Error ? err.message : String(err)}` } }));
-                                        });
+                                        response.writeHead(200, { 'content-type': 'text/event-stream' });
+                                        response.end(openAiSseBody(model, JSON.stringify(answer)));
                                         return;
                                 }
                                 response.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -382,8 +445,8 @@ export function startFakeProvider(options) {
                                 get exploreComputations() {
                                         return exploreComputations;
                                 },
-                                get configComputations() {
-                                        return configComputations;
+                                get configPromptReads() {
+                                        return configPromptReads;
                                 },
                                 close: () => server.close(),
                         });

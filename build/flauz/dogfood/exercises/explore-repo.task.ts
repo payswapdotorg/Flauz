@@ -37,6 +37,7 @@
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { sha256Hex } from '../../../../extensions/flauz-workspace/src/api.ts';
+import { type AnswerParseOptions, stripMarkdownJsonFence } from '../answerFence.ts';
 import type { DogfoodExercise, DogfoodHarness, ExerciseCheck, ExerciseReceipt, EvidenceItem } from '../harnessTypes.ts';
 
 /** The canonical evidence-ledger module (repo-relative, posix). */
@@ -212,15 +213,25 @@ export interface ExploreAnswer {
         readonly consumers: readonly ConsumerEntry[];
 }
 
-export type ParseAnswerOutcome = { readonly ok: true; readonly answer: ExploreAnswer } | { readonly ok: false; readonly error: string };
+export type ParseAnswerOutcome = { readonly ok: true; readonly answer: ExploreAnswer; readonly fenceStripped: boolean } | { readonly ok: false; readonly error: string };
 
-/** Parses the streamed completion text as the answer document (typed failure on anything else). */
-export function parseExploreAnswer(text: string): ParseAnswerOutcome {
+/**
+ * Parses the streamed completion text as the answer document (typed
+ * failure on anything else).
+ *
+ * P2-FIX-118: with `options.fenceTolerant` (the LIVE lanes) a leading/
+ * trailing markdown fence pair around the JSON payload is stripped
+ * before the raw parse; malformed JSON inside the fence still FAILS.
+ * The default (machine lanes) parses raw JSON only -- unchanged.
+ */
+export function parseExploreAnswer(text: string, options?: AnswerParseOptions): ParseAnswerOutcome {
+        const strip = options?.fenceTolerant === true ? stripMarkdownJsonFence(text) : { fenced: false, body: text };
         let parsed: unknown;
         try {
-                parsed = JSON.parse(text);
+                parsed = JSON.parse(strip.body);
         } catch (err) {
-                return { ok: false, error: `the completion is not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+                const reason = err instanceof Error ? err.message : String(err);
+                return { ok: false, error: strip.fenced ? `the completion is not valid JSON inside the stripped markdown fence: ${reason}` : `the completion is not valid JSON: ${reason}` };
         }
         if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
                 return { ok: false, error: 'the answer document is not a JSON object' };
@@ -249,7 +260,7 @@ export function parseExploreAnswer(text: string): ParseAnswerOutcome {
                 }
                 consumers.push({ file: row.file, line: row.line, consumes: (row.consumes as unknown[]).map(String) });
         }
-        return { ok: true, answer: { schema: EXPLORE_ANSWER_SCHEMA, consumers } };
+        return { ok: true, answer: { schema: EXPLORE_ANSWER_SCHEMA, consumers }, fenceStripped: strip.fenced };
 }
 
 /** One checked map entry (the receipt's per-entry row). */
@@ -394,7 +405,7 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                 const askStartedAt = Date.now();
                 const outcome = await harness.provider.ask(EXPLORE_QUESTION);
                 const askDurationMs = Date.now() - askStartedAt;
-                await harness.friction.timing({ phase: 'explore-repo:model-call', durationMs: askDurationMs });
+                await harness.friction.timing({ phase: 'explore-repo:model-call', durationMs: askDurationMs, wallClockBudgetMs: outcome.wallClockBudgetMs });
                 if (outcome.kind !== 'ok') {
                         await harness.friction.friction({
                                 phase: 'explore-repo:model-call',
@@ -420,8 +431,9 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                 }
                 recorder.check('explore.model-call-ok', true, `the exploration turn streamed ${String(outcome.text.length)} chars through provider ${outcome.providerId} (decision ${outcome.decisionId}, ${String(outcome.attempts)} attempt(s), ${String(askDurationMs)} ms)`);
 
-                // (2) parse the answer document
-                const parsed = parseExploreAnswer(outcome.text);
+                // (2) parse the answer document (P2-FIX-118: live lanes parse through
+                // the fence-tolerant path; machine lanes keep the raw-JSON default)
+                const parsed = parseExploreAnswer(outcome.text, { fenceTolerant: harness.mode === 'live-provider' });
                 if (!parsed.ok) {
                         await harness.friction.friction({
                                 phase: 'explore-repo:parse-answer',

@@ -31,6 +31,7 @@
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { sha256Hex } from '../../../../extensions/flauz-workspace/src/api.ts';
+import { type AnswerParseOptions, stripMarkdownJsonFence } from '../answerFence.ts';
 import type { AskOutcome, AskProviderFailure, DogfoodExercise, DogfoodHarness, DogfoodMode, ExerciseCheck, ExerciseReceipt, EvidenceItem, LaneSwitchReceipt } from '../harnessTypes.ts';
 
 /** The answer document's pinned schema id. */
@@ -86,14 +87,25 @@ export interface SwitchAnswer {
         readonly lastDecisionId: string;
 }
 
-export type ParseSwitchOutcome = { readonly ok: true; readonly answer: SwitchAnswer } | { readonly ok: false; readonly error: string };
+export type ParseSwitchOutcome = { readonly ok: true; readonly answer: SwitchAnswer; readonly fenceStripped: boolean } | { readonly ok: false; readonly error: string };
 
-export function parseSwitchAnswer(text: string): ParseSwitchOutcome {
+/**
+ * Parses the provider-switch answer document.
+ *
+ * P2-FIX-118: with `options.fenceTolerant` (the LIVE lanes) a leading/
+ * trailing markdown fence pair around the JSON payload is stripped
+ * before the raw parse (strip-fence-then-parse); malformed JSON inside
+ * the fence still FAILS. The default (machine lanes) parses raw JSON
+ * only -- unchanged, the W1/W2 evidence path.
+ */
+export function parseSwitchAnswer(text: string, options?: AnswerParseOptions): ParseSwitchOutcome {
+        const strip = options?.fenceTolerant === true ? stripMarkdownJsonFence(text) : { fenced: false, body: text };
         let parsed: unknown;
         try {
-                parsed = JSON.parse(text);
+                parsed = JSON.parse(strip.body);
         } catch (err) {
-                return { ok: false, error: `the completion is not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+                const reason = err instanceof Error ? err.message : String(err);
+                return { ok: false, error: strip.fenced ? `the completion is not valid JSON inside the stripped markdown fence: ${reason}` : `the completion is not valid JSON: ${reason}` };
         }
         if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
                 return { ok: false, error: 'the answer document is not a JSON object' };
@@ -119,6 +131,7 @@ export function parseSwitchAnswer(text: string): ParseSwitchOutcome {
                         routingDecisionCount: record.routingDecisionCount,
                         lastDecisionId: record.lastDecisionId,
                 },
+                fenceStripped: strip.fenced,
         };
 }
 
@@ -165,6 +178,140 @@ export async function verifySwitchAnswer(answer: SwitchAnswer, workspaceRoot: st
 }
 
 // ---------------------------------------------------------------------------
+// P2-FIX-119: the workspace facts carried IN the prompt (embedded at ask time)
+// ---------------------------------------------------------------------------
+
+/**
+ * The W2 live run proved the bare-model question unanswerable: a chat
+ * completion with no tool/file access cannot see the providers file or
+ * the routing-decision ledger, so the verification failed for the WRONG
+ * reason (the fake lane only "knew" the configuration because it
+ * computed answers server-side from the real files -- a god-view the
+ * exercise design leaked).
+ *
+ * The fix is harness-only: the exercise carries the workspace facts IN
+ * the prompt (the verbatim providers file content + the
+ * routing-decision tail, embedded AT ASK TIME -- after the ask's own
+ * durable routing decision, right before the request ships) and asks
+ * the model to report them faithfully. BOTH lanes now answer from the
+ * prompt-carried facts; the fake lane's server-side computation path
+ * for this question is retired. The verification below stays strict
+ * (the answer is still checked against the workspace's real state
+ * files, never trusted).
+ */
+
+/** The embedded-facts section markers (the fake lane parses these -- pinned by the round-trip tests). */
+export const SWITCH_FACTS_PROVIDERS_BEGIN = '=== WORKSPACE FACT: providers file (.flauz/models/providers.json), verbatim ===';
+export const SWITCH_FACTS_PROVIDERS_END = '=== END providers file ===';
+export const SWITCH_FACTS_DECISIONS_BEGIN = '=== WORKSPACE FACT: routing-decision ledger (.flauz/models/routing-decisions.jsonl) ===';
+export const SWITCH_FACTS_DECISIONS_END = '=== END routing-decision ledger ===';
+
+/** How many routing-decision rows the prompt tail carries (the oldest-first tail window). */
+export const DECISION_TAIL_WINDOW = 3;
+
+/** The workspace facts the prompt carries (captured at ask time). */
+export interface SwitchQuestionFacts {
+        readonly providersFileContent: string;
+        readonly routingDecisionCount: number;
+        readonly lastDecisionId: string;
+        readonly decisionTail: readonly string[];
+}
+
+/** Reads the workspace facts the question embeds (the same files the verification reads). */
+export async function readSwitchQuestionFacts(workspaceRoot: string): Promise<SwitchQuestionFacts> {
+        let providersFileContent = '';
+        try {
+                providersFileContent = await nodeFs.readFile(nodePath.join(workspaceRoot, '.flauz', 'models', 'providers.json'), { encoding: 'utf-8' });
+        } catch {
+                // absent file: the honest empty state (embedded as such)
+        }
+        let decisionLines: string[] = [];
+        try {
+                const text = await nodeFs.readFile(nodePath.join(workspaceRoot, '.flauz', 'models', 'routing-decisions.jsonl'), { encoding: 'utf-8' });
+                decisionLines = text.split('\n').filter(line => line.length > 0);
+        } catch {
+                // absent ledger: zero decisions so far
+        }
+        const tail = decisionLines.slice(-DECISION_TAIL_WINDOW);
+        let lastDecisionId = '';
+        for (const line of [...tail].reverse()) {
+                try {
+                        const row = JSON.parse(line) as { decisionId?: unknown };
+                        if (typeof row.decisionId === 'string') {
+                                lastDecisionId = row.decisionId;
+                                break;
+                        }
+                } catch {
+                        // not a JSON row: keep walking the tail backwards
+                }
+        }
+        return { providersFileContent, routingDecisionCount: decisionLines.length, lastDecisionId, decisionTail: tail };
+}
+
+/** The honest placeholder when the providers file is absent (the empty state is a fact too). */
+const PROVIDERS_ABSENT_NOTE = '(the providers file is absent -- the honest empty state: no dogfood provider lane is enabled)';
+
+/** The honest placeholder when the routing-decision ledger is empty. */
+const DECISIONS_EMPTY_NOTE = '(the routing-decision ledger is empty -- no routing decisions recorded)';
+
+/**
+ * Builds the full provider-switch question with the workspace facts
+ * embedded (called AT ASK TIME so the facts include the ask's own
+ * routing decision -- the verification then reads exactly the same
+ * state, and a faithful report verifies).
+ */
+export async function buildSwitchQuestion(workspaceRoot: string): Promise<string> {
+        const facts = await readSwitchQuestionFacts(workspaceRoot);
+        return [
+                SWITCH_QUESTION,
+                '',
+                'You are a bare chat completion with NO tool or file access, so the workspace facts you must report are embedded below, captured at ask time (P2-FIX-119: the exercise carries the facts in the prompt; both lanes answer from the prompt-carried facts).',
+                '',
+                SWITCH_FACTS_PROVIDERS_BEGIN,
+                facts.providersFileContent.length > 0 ? facts.providersFileContent : PROVIDERS_ABSENT_NOTE,
+                SWITCH_FACTS_PROVIDERS_END,
+                '',
+                SWITCH_FACTS_DECISIONS_BEGIN,
+                `total routing decisions recorded: ${String(facts.routingDecisionCount)}`,
+                `routing-decision tail (the last up to ${String(DECISION_TAIL_WINDOW)} rows, verbatim, oldest first):`,
+                ...(facts.decisionTail.length > 0 ? [...facts.decisionTail] : [DECISIONS_EMPTY_NOTE]),
+                SWITCH_FACTS_DECISIONS_END,
+                '',
+                'Report the facts above faithfully: enabledDogfoodProviders = every provider entry whose providerId starts with "flauz-dogfood" and whose "enabled" is true in the providers file above; routingDecisionCount = the total routing decisions recorded; lastDecisionId = the decisionId of the LAST tail row ("" when the ledger is empty).',
+                `Answer with exactly one JSON document of shape { "schema": "${SWITCH_ANSWER_SCHEMA}", "enabledDogfoodProviders": [...], "routingDecisionCount": N, "lastDecisionId": "rd-NNNNNN" } and nothing else.`,
+        ].join('\n');
+}
+
+/** Checks that an ask prompt actually carries the workspace facts (checked, not trusted; the G6 receipt). */
+export async function verifyPromptCarriesFacts(prompt: string, workspaceRoot: string): Promise<{ readonly ok: boolean; readonly problems: readonly string[] }> {
+        const problems: string[] = [];
+        const facts = await readSwitchQuestionFacts(workspaceRoot);
+        if (!prompt.includes(SWITCH_FACTS_PROVIDERS_BEGIN) || !prompt.includes(SWITCH_FACTS_PROVIDERS_END)) {
+                problems.push('the ask prompt carries no providers-file facts section');
+        } else if (facts.providersFileContent.length > 0 && !prompt.includes(facts.providersFileContent)) {
+                problems.push('the ask prompt does not embed the workspace providers file verbatim');
+        }
+        if (!prompt.includes(SWITCH_FACTS_DECISIONS_BEGIN) || !prompt.includes(SWITCH_FACTS_DECISIONS_END)) {
+                problems.push('the ask prompt carries no routing-decision facts section');
+        } else {
+                if (!prompt.includes(`total routing decisions recorded: ${String(facts.routingDecisionCount)}`)) {
+                        problems.push(`the ask prompt states a stale routing-decision count (the ledger carries ${String(facts.routingDecisionCount)})`);
+                }
+                if (facts.lastDecisionId.length > 0 && !prompt.includes(facts.lastDecisionId)) {
+                        problems.push(`the ask prompt tail does not carry the current routing-decision head ${facts.lastDecisionId}`);
+                }
+        }
+        return { ok: problems.length === 0, problems };
+}
+
+/** Redacts report-copy secrets posture: credentialRef and baseUrl VALUES never ride a receipt (the G6 receipt quotes the redacted ask). */
+export function redactAskPromptForReport(prompt: string): string {
+        return prompt
+                .replace(/("credentialRef"\s*:\s*)"[^"\n]*"/g, '$1"<redacted>"')
+                .replace(/("baseUrl"\s*:\s*)"[^"\n]*"/g, '$1"<redacted>"');
+}
+
+// ---------------------------------------------------------------------------
 // The run summary (pure, testable)
 // ---------------------------------------------------------------------------
 
@@ -174,9 +321,17 @@ export interface SwitchRunRecord {
         readonly lane: 'healthy' | 'scripted-failing';
         readonly receipt: LaneSwitchReceipt;
         readonly ask: AskOutcome;
+        readonly askPrompt: string;
+        readonly promptFacts: PromptFactsCheck;
         readonly answerProblems: readonly string[];
         readonly atMs: number;
         readonly durationMs: number;
+}
+
+/** The ask-time prompt-facts check (P2-FIX-119: the facts are checked, not trusted). */
+export interface PromptFactsCheck {
+        readonly ok: boolean;
+        readonly problems: readonly string[];
 }
 
 export interface SwitchRunSummary {
@@ -219,8 +374,8 @@ export function summarizeSwitchRun(plan: readonly SwitchStepPlan[], records: rea
                 }
         }
         for (const record of records) {
-                if (record.ask.kind === 'ok' && record.answerProblems.length > 0) {
-                        problems.push(`switch ${String(record.switchNo)}'s answer did not verify: ${record.answerProblems.join('; ')}`);
+                if (record.answerProblems.length > 0) {
+                        problems.push(`switch ${String(record.switchNo)}'s answer/prompt verification reported problems: ${record.answerProblems.join('; ')}`);
                 }
         }
         const recoveryMs = typedFailure !== undefined && recovery !== undefined ? Math.max(0, recovery.atMs - typedFailure.atMs) : 0;
@@ -269,14 +424,23 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                         const switchStartedAt = Date.now();
                         const receipt = await harness.provider.selectLane(step.concreteLane);
                         const askStartedAt = Date.now();
-                        const ask = await harness.provider.ask(SWITCH_QUESTION);
+                        // P2-FIX-119: the question is BUILT AT ASK TIME (inside the ask window,
+                        // after the ask's own durable routing decision) so the embedded facts
+                        // are exactly the state the strict verification will read.
+                        let askPrompt = '';
+                        const ask = await harness.provider.ask(async () => {
+                                askPrompt = await buildSwitchQuestion(harness.root);
+                                return askPrompt;
+                        });
                         const atMs = Date.now();
                         const durationMs = atMs - switchStartedAt;
-                        await harness.friction.timing({ phase: `provider-switch:switch-${String(step.switchNo)}`, durationMs });
+                        await harness.friction.timing({ phase: `provider-switch:switch-${String(step.switchNo)}`, durationMs, wallClockBudgetMs: ask.wallClockBudgetMs });
 
                         const answerProblems: string[] = [];
                         if (ask.kind === 'ok') {
-                                const parsed = parseSwitchAnswer(ask.text);
+                                // P2-FIX-118: the LIVE lanes get the fence-tolerant parse
+                                // (strip-fence-then-parse); machine lanes keep the raw-JSON default.
+                                const parsed = parseSwitchAnswer(ask.text, { fenceTolerant: harness.mode === 'live-provider' });
                                 if (!parsed.ok) {
                                         answerProblems.push(parsed.error);
                                 } else {
@@ -286,10 +450,13 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                         } else if (step.expect === 'ok') {
                                 answerProblems.push(`the healthy lane failed unexpectedly: ${ask.code} ${ask.message}`);
                         }
-                        records.push({ switchNo: step.switchNo, lane: step.lane, receipt, ask, answerProblems, atMs, durationMs });
+                        // P2-FIX-119 receipt: the ask prompt must actually carry the workspace facts
+                        const promptFacts = await verifyPromptCarriesFacts(askPrompt, harness.root);
+                        answerProblems.push(...promptFacts.problems);
+                        records.push({ switchNo: step.switchNo, lane: step.lane, receipt, ask, askPrompt, promptFacts, answerProblems, atMs, durationMs });
                         if (ask.kind === 'provider-failure') {
                                 failureDetectedAtMs = atMs;
-                                await harness.friction.timing({ phase: 'provider-switch:failure-window', durationMs: atMs - askStartedAt });
+                                await harness.friction.timing({ phase: 'provider-switch:failure-window', durationMs: atMs - askStartedAt, wallClockBudgetMs: ask.wallClockBudgetMs });
                         }
                 }
 
@@ -330,7 +497,7 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                 recorder.check('switch.failure-typed', typedOk, typedAsk !== undefined && typedAsk.kind === 'provider-failure' ? providerFailureDetail(typedAsk) : 'no typed provider failure occurred');
                 recorder.check('switch.recovery-occurred', summary.recovery !== undefined && summary.recovery.ask.kind === 'ok', summary.recovery === undefined ? 'no recovery switch succeeded' : recoveryAccount(summary.recovery.switchNo, summary.recovery.receipt.lane, summary.recoveryMs));
                 recorder.check('switch.evidence-per-switch', records.every(record => record.receipt.evidenceId.length > 0), `one evidence row per switch: ${records.map(record => `#${String(record.switchNo)}=${record.receipt.evidenceId}`).join(', ')}`);
-                recorder.check('switch.answers-verified', records.every(record => record.ask.kind !== 'ok' || record.answerProblems.length === 0), 'every healthy-lane answer matched the workspace providers file + the routing-decision ledger');
+                recorder.check('switch.answers-verified', records.every(record => record.answerProblems.length === 0), 'every healthy-lane answer matched the workspace providers file + the routing-decision ledger, and every ask prompt carried the workspace facts (P2-FIX-118 fence-tolerant parse on live lanes; P2-FIX-119 prompt-carried facts)');
 
                 // the report artifact (the exercise's durable receipt)
                 const reportUri = `.flauz/artifacts/${harness.taskId}/provider-switch-report.json`;
@@ -347,8 +514,10 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                                 providersFileSha256: record.receipt.providersFileSha256,
                                 evidenceId: record.receipt.evidenceId,
                                 ask: record.ask.kind === 'ok'
-                                        ? { kind: 'ok', decisionId: record.ask.decisionId, attempts: record.ask.attempts, durationMs: record.ask.durationMs, text: record.ask.text }
-                                        : { kind: 'provider-failure', decisionId: record.ask.decisionId, code: record.ask.code, retryClass: record.ask.retryClass, retryable: record.ask.retryable, status: record.ask.status, attempts: record.ask.attempts, message: record.ask.message },
+                                        ? { kind: 'ok', decisionId: record.ask.decisionId, attempts: record.ask.attempts, durationMs: record.ask.durationMs, wallClockBudgetMs: record.ask.wallClockBudgetMs, fenceStripped: harness.mode === 'live-provider' && stripMarkdownJsonFence(record.ask.text).fenced, text: record.ask.text }
+                                        : { kind: 'provider-failure', decisionId: record.ask.decisionId, code: record.ask.code, retryClass: record.ask.retryClass, retryable: record.ask.retryable, status: record.ask.status, attempts: record.ask.attempts, wallClockBudgetMs: record.ask.wallClockBudgetMs, message: record.ask.message },
+                                askPromptRedacted: redactAskPromptForReport(record.askPrompt),
+                                promptFacts: record.promptFacts,
                                 answerProblems: record.answerProblems,
                                 atMs: record.atMs,
                                 durationMs: record.durationMs,
@@ -365,6 +534,8 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
 
                 notes.push('the typed failure classes are the product\'s real code paths (the adapter\'s error taxonomy + the product\'s bounded-retry bound); the failing wire itself is the harness\'s scripted lane');
                 notes.push(`model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)`);
+                notes.push('P2-FIX-119: both lanes answer from the prompt-carried workspace facts (providers file content + routing-decision tail, embedded at ask time); the fake lane\'s server-side computation path for this question is retired; the verification stays strict (checked against the real state files)');
+                notes.push('P2-FIX-118: live-lane answers parse through the fence-tolerant path (strip-fence-then-parse; malformed JSON inside a fence still fails); machine lanes keep the raw-JSON default');
 
                 const failCount = recorder.checks.filter(check => !check.ok).length;
                 const frictionRows = await harness.friction.readAll();

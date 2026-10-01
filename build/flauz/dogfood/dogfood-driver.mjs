@@ -44,6 +44,15 @@
  * append-only) + per-exercise receipts + a run summary (schema
  * flauz.dogfood-run/v1) under --out (default <root>/.flauz/dogfood-records).
  *
+ * W2.1 (A-PROD-003-W2.1): the three REGISTERED W2 dogfood findings are
+ * fixed harness-side here -- P2-FIX-117 (the FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS
+ * env knob wired through AdapterConfig.requestTimeoutMs; ask-measuring
+ * timing rows + the run summary record the budget actually used; the typed
+ * TIMEOUT / bounded-retry semantics unchanged), P2-FIX-118 (the live lanes
+ * parse answers through the fence-tolerant strip-fence-then-parse path),
+ * and P2-FIX-119 (the provider-switch question carries the workspace facts
+ * in the prompt, built at ask time; both lanes answer from the prompt).
+ *
  * Usage:
  *   node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs \
  *        [--repo <dir>] [--out <dir>] [--exercise <id>]
@@ -89,6 +98,17 @@ const LIVE_BASE_URL = process.env['FLAUZ_LIVE_PROVIDER_BASE_URL'] ?? '';
 const LIVE_API_KEY = process.env['FLAUZ_LIVE_PROVIDER_API_KEY'] ?? '';
 const LIVE_MODEL = process.env['FLAUZ_LIVE_PROVIDER_MODEL'] ?? '';
 const LIVE_CREDENTIAL_REF = 'env:FLAUZ_LIVE_PROVIDER_API_KEY';
+
+// P2-FIX-117 (the budget env knob): env-only, OPTIONAL, fail-closed on a
+// malformed value. Wired through the product's EXISTING wall-clock budget
+// surface for the ask -- AdapterConfig.requestTimeoutMs
+// (extensions/flauz-models/src/adapters/common.ts), the same field the real
+// openAiCompat adapter turns into the request `timeoutMs` whose expiry maps
+// onto the TYPED TIMEOUT ("request exceeded its wall-clock budget") with
+// the bounded-retry semantics UNCHANGED. The default (knob absent) keeps the
+// W1 value exactly: 15_000 ms, unchanged for the fake lanes.
+const WALL_CLOCK_BUDGET_ENV = 'FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS';
+const DEFAULT_WALL_CLOCK_BUDGET_MS = 15_000;
 
 const FAKE_PROVIDER_ID = 'flauz-dogfood-fake';
 const FAILING_PROVIDER_ID = 'flauz-dogfood-failing';
@@ -216,6 +236,7 @@ function makeProviderFacade(seams) {
                 adapter: undefined,
                 router: undefined,
                 currentTaskId: '',
+                requestTimeoutMs: DEFAULT_WALL_CLOCK_BUDGET_MS,
         };
 
         function laneConfiguration(lane, mode, providerPort) {
@@ -306,6 +327,7 @@ function makeProviderFacade(seams) {
                 state.currentProviderId = config.providerId;
                 state.currentModelId = config.models[0].modelId;
                 state.router = router;
+                state.requestTimeoutMs = seams.wallClockBudgetMs;
                 state.adapter = createOpenAiCompatAdapter({
                         config: {
                                 providerId: config.providerId,
@@ -314,7 +336,10 @@ function makeProviderFacade(seams) {
                                 baseUrl: config.baseUrl,
                                 credentialRef: config.credentialRef,
                                 models: config.models,
-                                requestTimeoutMs: 15_000,
+                                // P2-FIX-117: the ask wall-clock budget, wired through the
+                                // product's existing budget surface (AdapterConfig.requestTimeoutMs);
+                                // the typed TIMEOUT + bounded-retry semantics are the product's own.
+                                requestTimeoutMs: seams.wallClockBudgetMs,
                         },
                         http: nodeHttpPort,
                         secrets,
@@ -333,7 +358,7 @@ function makeProviderFacade(seams) {
                 };
         }
 
-        async function ask(prompt) {
+        async function ask(input) {
                 if (state.adapter === undefined || state.router === undefined) {
                         // the session's default provider lane materializes on first use (the
                         // product's own materialize-on-first-use pattern; the healthy lane of
@@ -347,6 +372,10 @@ function makeProviderFacade(seams) {
                 if (decision.selected === null || decision.selected.providerId !== state.currentProviderId) {
                         throw new Error(`${DRIVER_TAG}: the routing decision ${decision.decisionId} drifted off the selected lane ${state.currentProviderId} (${decision.explanation})`);
                 }
+                // P2-FIX-119: a prompt BUILDER runs at ask time -- after the ask's own
+                // durable routing decision (so the embedded workspace facts include it)
+                // and right before the request ships. Literal prompts are unchanged.
+                const prompt = typeof input === 'function' ? await input({ decisionId: decision.decisionId }) : input;
                 const maxAttempts = resolveProviderRetryBound(null);
                 let attempts = 0;
                 for (;;) {
@@ -366,6 +395,7 @@ function makeProviderFacade(seams) {
                                         modelId: state.currentModelId,
                                         durationMs: Date.now() - startedAt,
                                         attempts,
+                                        wallClockBudgetMs: state.requestTimeoutMs,
                                 };
                         } catch (err) {
                                 if (isProviderError(err)) {
@@ -386,6 +416,7 @@ function makeProviderFacade(seams) {
                                                 modelId: state.currentModelId,
                                                 durationMs: Date.now() - startedAt,
                                                 attempts,
+                                                wallClockBudgetMs: state.requestTimeoutMs,
                                         };
                                 }
                                 throw err;
@@ -533,6 +564,24 @@ function resolveMode() {
         return 'fake-lane';
 }
 
+/**
+ * P2-FIX-117: resolves the ask wall-clock budget from the env-only knob
+ * (FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS). Absent -> the default (15_000 ms,
+ * the W1 behavior unchanged for the fake lanes). Present but malformed ->
+ * FAIL CLOSED (exit 2, the harness's env-contract discipline).
+ */
+function resolveWallClockBudget() {
+        const raw = process.env[WALL_CLOCK_BUDGET_ENV] ?? '';
+        if (raw === '') {
+                return { ms: DEFAULT_WALL_CLOCK_BUDGET_MS, source: 'default' };
+        }
+        if (!/^[0-9]+$/.test(raw) || !Number.isSafeInteger(Number(raw)) || Number(raw) < 1) {
+                console.error(`${DRIVER_TAG}: FAIL-CLOSED -- ${WALL_CLOCK_BUDGET_ENV} must be a positive integer of milliseconds (got ${JSON.stringify(raw)})`);
+                process.exit(2);
+        }
+        return { ms: Number(raw), source: 'env' };
+}
+
 async function main() {
         const args = process.argv.slice(2);
         const argMap = new Map();
@@ -547,6 +596,7 @@ async function main() {
 
         const repoRoot = nodePath.resolve(argMap.get('--repo') ?? repoRootFromHere());
         const mode = resolveMode();
+        const wallClockBudget = resolveWallClockBudget();
         const runId = `dogfood-${new Date().toISOString().replace(/[:.]/g, '-')}`;
         const root = await nodeFsPromises.mkdtemp(nodePath.join(os.tmpdir(), 'flauz-dogfood-'));
         const outDir = nodePath.resolve(argMap.get('--out') ?? nodePath.join(root, '.flauz', 'dogfood-records'));
@@ -565,6 +615,7 @@ async function main() {
         }
 
         log(`mode=${mode} (model intelligence: ${mode === 'live-provider' ? 'live-provider (the env contract)' : 'fixture (the fake/scripted lane -- claimed at fixture level, never promoted)'})`);
+        log(`ask wall-clock budget ${String(wallClockBudget.ms)} ms (${wallClockBudget.source === 'env' ? `env:${WALL_CLOCK_BUDGET_ENV}` : `default; ${WALL_CLOCK_BUDGET_ENV} absent`}) wired through AdapterConfig.requestTimeoutMs (P2-FIX-117; the typed TIMEOUT + bounded-retry semantics unchanged)`);
         log(`workspace root ${root}; repo ${repoRoot}; records ${outDir}`);
 
         const fakeProvider = await startFakeProvider({ repoRoot, workspaceRoot: root });
@@ -603,6 +654,7 @@ async function main() {
                 memory,
                 store,
                 providerPort: fakeProvider.port,
+                wallClockBudgetMs: wallClockBudget.ms,
         };
         const provider = makeProviderFacade(seams);
 
@@ -624,6 +676,12 @@ async function main() {
                 modelIntelligence: mode === 'live-provider' ? 'live-provider' : 'fixture (the fake/scripted lanes; never wording-promoted)',
                 startedAt: new Date(startedAt).toISOString(),
                 durationMs,
+                wallClockBudget: {
+                        configuredMs: wallClockBudget.ms,
+                        defaultMs: DEFAULT_WALL_CLOCK_BUDGET_MS,
+                        source: wallClockBudget.source === 'env' ? `env:${WALL_CLOCK_BUDGET_ENV}` : 'default',
+                        wiredThrough: 'AdapterConfig.requestTimeoutMs (the product request wall-clock budget surface; the typed TIMEOUT + bounded-retry semantics unchanged)',
+                },
                 workspaceRoot: root,
                 repoRoot,
                 recordsDir: outDir,
@@ -643,8 +701,8 @@ async function main() {
                         chatCalls: fakeProvider.chatCalls,
                         failCalls: fakeProvider.failCalls,
                         exploreComputations: fakeProvider.exploreComputations,
-                        configComputations: fakeProvider.configComputations,
-                        note: 'the local wire census (the live lane, when selected, talks to the vendor directly and never appears here)',
+                        configPromptReads: fakeProvider.configPromptReads,
+                        note: 'the local wire census (the live lane, when selected, talks to the vendor directly and never appears here); the provider-configuration answers are read from the prompt-carried workspace facts (P2-FIX-119: the server-side computation path is retired for that question)',
                 },
         };
         await writeJson(nodePath.join(outDir, 'run-summary.json'), summary);
