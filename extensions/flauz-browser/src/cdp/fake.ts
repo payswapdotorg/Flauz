@@ -42,7 +42,11 @@
  *     (hasAutoAttach); `openPopupFrom` simulates a page opening a popup and
  *     delivers `Target.attachedToTarget` to auto-attached sessions (the
  *     popup-gate drill surface); `failCommand` scripts per-method command
- *     failures (fail-closed drills).
+ *     failures (fail-closed drills). The held-target release is modeled with
+ *     the REAL CDP method (`Runtime.runIfWaitingForDebugger`); `Runtime.run`
+ *     is deliberately NOT modeled — real Chromium rejects it with "wasn't
+ *     found" (drill finding F-RELEASE-CMD), so the fake fails any regression
+ *     to the wrong release command exactly like the real browser.
  */
 
 import { CdpTransportBase, type CdpParams, type CdpTransport } from './transport.ts';
@@ -475,7 +479,13 @@ export class FakeCdpTransport extends CdpTransportBase {
 				}
 				return { result: {} };
 			}
-			case 'Runtime.run': {
+			case 'Runtime.runIfWaitingForDebugger': {
+				// The REAL CDP release command (real Chromium rejects
+				// `Runtime.run` with "'Runtime.run' wasn't found" — pinned by
+				// the real-Chromium drill as finding F-RELEASE-CMD, fixed in
+				// the runtime by TL3-P2: the gate allow-path releases held
+				// targets with THIS method; `Runtime.run` stays unmodeled so
+				// any regression to it fails like the real browser).
 				this.requireSessionTarget(sessionId);
 				return { result: {} };
 			}

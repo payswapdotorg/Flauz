@@ -290,3 +290,58 @@ test('the recovery verdict re-checks recovered tab URLs against the CURRENT poli
 	assert.equal(transports[1]?.pageNavigateCommands().length, 0);
 	await manager.dispose();
 });
+
+// TL3-P2 (partition A product-readiness audit) — F-RECOVERY-DOMAINS
+// regression. On real Chromium the recovery re-attach re-applied hardening +
+// the popup gate but never re-sent the DOMAIN ENABLES (`Page.enable` et al. —
+// `activateLiveTab` ran them only at mint time), and real Chromium delivers
+// Page events only to sessions with the domain enabled: the post-recovery
+// commit OBSERVATION timed out and the security-relevant post-commit
+// reconciliation was silently skipped after every recovery (pinned on the
+// real wire by the real-chromium drill, 3.1e-4b). The fake cannot catch the
+// event-suppression itself (it emits Page events regardless), so the
+// regression pin is the WIRE CONTRACT: the fresh transport must carry the
+// domain-enable frames for the recovered tab's session — mint-time activation
+// parity. This test fails on the untouched base (no enables on recovery) and
+// passes only with the re-enable.
+test('F-RECOVERY-DOMAINS regression: recovery re-attach re-sends the domain enables on the FRESH transport (mint-time activation parity)', async () => {
+	const rigInstance = rig(ALLOW_EXAMPLE);
+	const sessionId = await openNavigatedSession(rigInstance);
+	const recoveredTabId = rigInstance.manager.getSession(sessionId)?.tabs[0]?.tabId ?? '';
+	const recoveredTargetId = rigInstance.manager.getSession(sessionId)?.tabs[0]?.targetId ?? '';
+
+	rigInstance.transports[0]?.drop();
+	const verdict = await rigInstance.manager.awaitRecovery();
+	assert.equal(verdict?.reconnected, true);
+	assert.equal(verdict?.sessions[0]?.recoveredTabIds.length, 1, 'the tab was re-attached');
+
+	// THE regression pin — the wire contract on the FRESH transport: every
+	// domain enable re-sent, session-scoped to the re-attached tab:
+	const fresh = rigInstance.transports[1];
+	assert.ok(fresh !== undefined, 'a fresh transport was dialed for the reconnect');
+	for (const method of ['Page.enable', 'Runtime.enable', 'Network.enable', 'Log.enable'] as const) {
+		const enables = fresh.commandsOf(method);
+		assert.equal(enables.length, 1, `${method} re-sent exactly once on the recovery transport`);
+		assert.ok(enables[0]?.sessionId !== undefined, `${method} is session-scoped (the re-attached tab's session)`);
+	}
+	// mint-time parity: the fresh session's activation frames match the mint
+	// sequence (domains -> hardening -> gate), so post-recovery navigations
+	// observe their commits exactly like fresh tabs:
+	assert.ok(fresh.commandsOf('Browser.setDownloadBehavior').length >= 1, 're-hardening still present (download deny)');
+	assert.ok(fresh.commandsOf('Target.setAutoAttach').length >= 1, 'popup gate still re-attached');
+	assert.ok(fresh.commandsOf('Page.enable')[0] !== undefined
+		&& fresh.commandsOf('Browser.setDownloadBehavior')[0] !== undefined
+		&& fresh.commandsOf('Page.enable')[0]!.seq < fresh.commandsOf('Browser.setDownloadBehavior')[0]!.seq,
+		'domain enables precede the hardening (mint-time activation order preserved)');
+
+	// and the post-recovery navigation observes its committed URL (no commit-timeout):
+	const outcome = await rigInstance.manager.navigate(sessionId, 'https://docs.example.com/post-recovery');
+	assert.ok(isNavigationOutcome(outcome));
+	assert.equal(outcome.error, undefined, 'the commit observation does not time out (domains enabled on the fresh session)');
+	assert.equal(outcome.committedUrl, 'https://docs.example.com/post-recovery');
+	assert.ok(rigInstance.transports[1]?.pageNavigateCommands().some(command => command.params.url === 'https://docs.example.com/post-recovery'));
+	// ownership bookkeeping is untouched by the re-enable (the recovered tab keeps its identity):
+	const descriptor = rigInstance.manager.getSession(sessionId);
+	assert.equal(descriptor?.tabs.find(tab => tab.tabId === recoveredTabId)?.targetId, recoveredTargetId);
+	await rigInstance.manager.dispose();
+});

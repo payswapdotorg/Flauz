@@ -235,3 +235,37 @@ test('the marker discipline: gate rows carry the boundary marker constant exactl
 	assert.ok(isUntrustedContentNote(note));
 	await gateRig.manager.dispose();
 });
+
+// TL3-P2 (partition A product-readiness audit) — F-RELEASE-CMD regression.
+// Real Chromium rejects `Runtime.run` with "'Runtime.run' wasn't found" (the
+// real release command is `Runtime.runIfWaitingForDebugger` — pinned on the
+// real wire by the real-chromium drill, 3.1d-6d). On the untouched base the
+// gate allow-path sent `Runtime.run`: against a real browser the release is
+// REJECTED, the allow path catches, and every policy-ALLOWED popup is closed
+// instead of attached. The fake now models the real wire (it accepts only
+// `Runtime.runIfWaitingForDebugger`), so this test fails on the base runtime
+// and passes only with the fixed release command.
+test('F-RELEASE-CMD regression: the gate allow-path releases with the REAL CDP command Runtime.runIfWaitingForDebugger (never Runtime.run)', async () => {
+	const gateRig = rig();
+	const opened = await gateRig.manager.open({ initiator: 'agent', agentId: 'worker-1', startUrl: 'https://docs.example.com/page' });
+	const sourceTargetId = opened.descriptor.tabs[0]?.targetId ?? '';
+
+	gateRig.transports[0]?.openPopupFrom(sourceTargetId, 'https://docs.example.com/popup');
+	await gateRig.manager.awaitPopupGate();
+
+	// The allowed popup ATTACHED (a rejected release would have closed it):
+	const events = gateRig.manager.popupGateEvents();
+	assert.equal(events.length, 1);
+	assert.equal(events[0]?.decision, 'allow', 'the policy allowed the popup');
+	assert.equal(events[0]?.attachedTabId !== undefined, true, 'the popup became a session tab (the release was accepted)');
+	assert.equal(events[0]?.attachError, undefined, 'no attach error: the release command is a real CDP method');
+	assert.equal(gateRig.state.hasTarget((events[0]?.targetId ?? '')), true, 'the popup target still exists (not closed by a failed release)');
+
+	// THE regression pin — the wire evidence (the fake mirrors real Chromium):
+	const release = gateRig.transports[0]?.commandsOf('Runtime.runIfWaitingForDebugger') ?? [];
+	assert.equal(release.length, 1, 'exactly one release command, on the popup session');
+	assert.ok(release[0]?.sessionId !== undefined, 'session-scoped (the popup session attached by the gate)');
+	const wrongCommand = gateRig.transports[0]?.commandsOf('Runtime.run') ?? [];
+	assert.equal(wrongCommand.length, 0, '`Runtime.run` is NOT a real CDP method (real Chromium: "wasn\'t found") — it is never sent');
+	await gateRig.manager.dispose();
+});

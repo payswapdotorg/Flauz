@@ -31,24 +31,39 @@
  * REAL-CHROMIUM FINDINGS PINNED BY THIS DRILL (asserted, not papered over —
  * if Chromium's behavior changes, these assertions FAIL and force a re-look;
  * that is the drift-canary property):
- *   F-DELIVERY: `Target.setAutoAttach` on a PAGE session (the popup gate's
- *     placement, sessionManager.ts attachTargetGate) does NOT deliver
+ *   F-DELIVERY (OPEN): `Target.setAutoAttach` on a PAGE session (the popup
+ *     gate's placement, sessionManager.ts attachTargetGate) does NOT deliver
  *     window.open popups on real Chromium — popups are browser-level targets
  *     and free-run past the page-level gate. FakeCdpTransport models popup
  *     delivery to the opener target's sessions; real Chromium does not.
- *   F-POPUP-URL: at browser-level attach (waitForDebuggerOnStart), a
+ *     The fix is the TL-adjudicated browser-level gate-placement redesign
+ *     (see INTEGRATION-GAP.md "What remains").
+ *   F-POPUP-URL (OPEN): at browser-level attach (waitForDebuggerOnStart), a
  *     window.open popup arrives with `targetInfo.url` EMPTY — the pending
  *     navigation URL is NOT available at gate time. FakeCdpTransport pins
- *     the full URL in the attach event; real Chromium provides none.
- *   F-RELEASE-CMD: `Runtime.run` is NOT a real CDP method (real Chromium
- *     answers "'Runtime.run' wasn't found"); the real release command is
- *     `Runtime.runIfWaitingForDebugger`. The runtime's gate allow-path
- *     (sessionManager.ts) sends `Runtime.run` — accepted by the fake,
- *     rejected by real Chromium.
- *   F-OPENER-BLOCK: `window.open` BLOCKS the opener's JS while the popup is
- *     held (waitForDebuggerOnStart): the call returns only after the popup is
- *     released — and never returns if the held popup is closed without being
- *     released (the deny-path shape).
+ *     the full URL in the attach event; real Chromium provides none. Part
+ *     of the same redesign decision (the URL-observation strategy).
+ *   F-RELEASE-CMD (FIXED — TL3-P2): `Runtime.run` is NOT a real CDP method
+ *     (real Chromium answers "'Runtime.run' wasn't found"); the real
+ *     release command is `Runtime.runIfWaitingForDebugger`. The runtime's
+ *     gate allow-path now sends `Runtime.runIfWaitingForDebugger` (pinned at
+ *     unit level by test/popup-gate.test.ts with the fake modeling the real
+ *     wire; assertion 3.1d-6d below keeps pinning the motivating real-wire
+ *     fact).
+ *   F-OPENER-BLOCK (OPEN): `window.open` BLOCKS the opener's JS while the
+ *     popup is held (waitForDebuggerOnStart): the call returns only after
+ *     the popup is released — and never returns if the held popup is closed
+ *     without being released (the deny-path shape). Timing shape of the
+ *     same redesign.
+ *   F-RECOVERY-DOMAINS (FIXED — TL3-P2): the recovery re-attach did not
+ *     re-send the domain enables (`Page.enable` et al.), so on real Chromium
+ *     the post-recovery commit observation timed out and the
+ *     security-relevant post-commit reconciliation was skipped after every
+ *     transport drop. The recovery re-attach now runs the FULL mint-time
+ *     activation (domain enables + hardening + gate — pinned at unit level
+ *     by test/recovery.test.ts); 3.1e-4b below asserts the FIXED behavior on
+ *     the real wire (the flipped assertion FAILS on the untouched base —
+ *     that is the regression pin).
  * The mechanics that DO hold on real Chromium are pinned as passing
  * assertions: browser-level auto-attach DOES intercept popups
  * (waitingForDebugger=true), `Target.closeTarget` on a held (never-run)
@@ -590,7 +605,7 @@ async function main(): Promise<void> {
 		() => '',
 		error => error instanceof Error ? error.message : String(error),
 	);
-	drillAssert(releaseRejected.includes('wasn\'t found'), '3.1d-6d FINDING F-RELEASE-CMD (pinned): \'Runtime.run\' is NOT a real CDP method (rejected with wasn\'t found) — the runtime\'s release command diverges from real Chromium (correct: Runtime.runIfWaitingForDebugger)', JSON.stringify(releaseRejected));
+	drillAssert(releaseRejected.includes('wasn\'t found'), '3.1d-6d (real-wire fact, F-RELEASE-CMD): \'Runtime.run\' is NOT a real CDP method (rejected with wasn\'t found) — the runtime\'s gate allow-path now sends the REAL release command Runtime.runIfWaitingForDebugger (TL3-P2 fix; pinned at unit level by test/popup-gate.test.ts with the fake modeling the real wire)', JSON.stringify(releaseRejected));
 	await observer.send('Runtime.runIfWaitingForDebugger', {}, allowedAttach.sessionId);
 	const allowedOutcome = await Promise.race([allowedCall.promise, sleep(2500).then(() => ({ value: undefined as string | undefined, error: 'TIMEOUT: window.open never returned after release' }))]);
 	drillAssert(allowedOutcome.value === 'opened', '3.1d-7 (primitive): the allow-path release works — Runtime.runIfWaitingForDebugger releases the held popup and the window.open call returns', JSON.stringify(allowedOutcome));
@@ -638,7 +653,7 @@ async function main(): Promise<void> {
 	await observer.send('Target.setAutoAttach', { autoAttach: false }).catch(() => undefined);
 	await observer.send('Target.closeTarget', { targetId: openerTarget.targetId }).catch(() => undefined);
 	await observer.send('Target.closeTarget', { targetId: allowedAttach.targetInfo.targetId }).catch(() => undefined);
-	info('popup-gate FINDINGS pinned: page-level auto-attach does not see window.open popups (F-DELIVERY); popup URL at attach is empty (F-POPUP-URL); Runtime.run is not a real method (F-RELEASE-CMD); window.open blocks the opener while held (F-OPENER-BLOCK). The browser-level primitives (intercept+hold, close-before-use, runIfWaitingForDebugger release) all hold on real Chromium — recorded for the TL as the product-side gate-placement decision');
+	info('popup-gate record: page-level auto-attach does not see window.open popups (F-DELIVERY, OPEN — TL-adjudicated gate-placement redesign); popup URL at attach is empty (F-POPUP-URL, OPEN); window.open blocks the opener while held (F-OPENER-BLOCK, OPEN). FIXED by TL3-P2: the release-command divergence (F-RELEASE-CMD — the gate allow-path now sends Runtime.runIfWaitingForDebugger). The browser-level primitives (intercept+hold, close-before-use, runIfWaitingForDebugger release) all hold on real Chromium — the redesign\'s foundation, recorded for the TL as the product-side gate-placement decision');
 
 	// ================= 3.1e — recovery on a real transport =================
 	console.log('REAL-CHROMIUM drill: --- 3.1e recovery on a real transport ---');
@@ -660,20 +675,27 @@ async function main(): Promise<void> {
 		JSON.stringify(agentReport),
 	);
 	const recoveryWire = transports[1];
+	const reEnabledDomains = recoveryWire !== undefined
+		&& countFrames(recoveryWire, 'Page.enable') > 0
+		&& countFrames(recoveryWire, 'Runtime.enable') > 0
+		&& countFrames(recoveryWire, 'Network.enable') > 0
+		&& countFrames(recoveryWire, 'Log.enable') > 0;
+	drillAssert(reEnabledDomains, '3.1e-3c (TL3-P2 fix, F-RECOVERY-DOMAINS): wire evidence — the domain-enable frames are re-sent on the FRESH recovery transport (full mint-time activation parity)', recoveryWire === undefined ? 'no recovery transport' : `Page.enable=${countFrames(recoveryWire, 'Page.enable')} Runtime.enable=${countFrames(recoveryWire, 'Runtime.enable')} Network.enable=${countFrames(recoveryWire, 'Network.enable')} Log.enable=${countFrames(recoveryWire, 'Log.enable')}`);
 	const reHardened = recoveryWire !== undefined && countFrames(recoveryWire, 'Browser.setDownloadBehavior') > 0 && countFrames(recoveryWire, 'Emulation.setUserAgentOverride') > 0;
 	drillAssert(reHardened, '3.1e-3: wire evidence — re-hardening frames on the FRESH transport (Browser.setDownloadBehavior + Emulation.setUserAgentOverride re-sent to the real browser)', recoveryWire === undefined ? 'no recovery transport' : `download=${countFrames(recoveryWire, 'Browser.setDownloadBehavior')} ua=${countFrames(recoveryWire, 'Emulation.setUserAgentOverride')}`);
 	const agentUaAfterRecovery = await observerEvaluate(agentObserverSession, 'navigator.userAgent');
 	drillAssert(agentUaAfterRecovery === flauzAgentUserAgent(baseUa), '3.1e-3b: the agent tab still carries the FlauzAgent UA against the real browser after recovery (re-applied override, real navigator.userAgent)', JSON.stringify(agentUaAfterRecovery));
 	const pageB = `${origin}/page-b`;
 	const navB = await manager.navigate(agent.descriptor.sessionId, pageB);
-	// F-RECOVERY-DOMAINS (pinned finding): the Page.navigate IS sent on the fresh
-	// transport (wire evidence below), but the post-recovery commit OBSERVATION
-	// times out on real Chromium: the recovery path re-applies hardening + gate
-	// but never re-sends the domain enables (Page.enable et al. — activateLiveTab
-	// runs them only at mint time), and real Chromium delivers Page events only
-	// to sessions with the domain enabled. FakeCdpTransport does not model
-	// domain-enable state (it emits Page events regardless), so the unit suites
-	// and the fake drill cannot catch this — pinned here for the TL.
+	// TL3-P2 fix verification (drill finding F-RECOVERY-DOMAINS, fixed): the
+	// recovery re-attach now runs the FULL mint-time activation on the fresh
+	// session — domain enables first (3.1e-3c), then hardening, then the popup
+	// gate — so Page events flow to the fresh session and the post-recovery
+	// commit OBSERVATION works exactly like a fresh tab's. On the untouched
+	// base this assertion FAILED (the commit wait timed out with
+	// flauz.browser.navigation.commit-timeout and the security-relevant
+	// post-commit reconciliation was silently skipped after recovery); the
+	// flipped assertion is the real-wire regression pin for the fix.
 	const recoveryNavigateFrames = countFrames(transports[1], 'Page.navigate');
 	drillAssert(
 		isNavigationOutcome(navB) && navB.sent === true && recoveryNavigateFrames > 0,
@@ -681,9 +703,9 @@ async function main(): Promise<void> {
 		JSON.stringify(isNavigationOutcome(navB) ? { sent: navB.sent, frames: recoveryNavigateFrames, error: navB.error } : navB),
 	);
 	drillAssert(
-		isNavigationOutcome(navB) && navB.error !== undefined && navB.error.code === 'flauz.browser.navigation.commit-timeout',
-		'3.1e-4b FINDING F-RECOVERY-DOMAINS (pinned): the post-recovery commit OBSERVATION times out on real Chromium — the recovery re-attach does not re-enable the Page domain on the fresh session, so Page.frameNavigated never flows and the security-relevant post-commit reconciliation is skipped after recovery (the fake cannot catch this: it emits Page events without domain enables)',
-		JSON.stringify(isNavigationOutcome(navB) ? navB.error : navB),
+		isNavigationOutcome(navB) && navB.error === undefined && navB.committedUrl === pageB,
+		'3.1e-4b (TL3-P2 fix, F-RECOVERY-DOMAINS): the post-recovery commit OBSERVATION works on real Chromium — Page.enable re-sent on the fresh session, Page.frameNavigated flows, the committed URL is reconciled (no commit-timeout; the post-commit reconciliation is no longer skipped after recovery)',
+		JSON.stringify(isNavigationOutcome(navB) ? { committed: navB.committedUrl, error: navB.error } : navB),
 	);
 
 	// Hot-swap the policy to DENY the loopback host, kill the socket again: the
@@ -718,7 +740,7 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 	console.log('REAL-CHROMIUM drill: GREEN (real runtime against real Chromium: transport E2E, UA discipline, download deny, popup-gate shapes + pinned findings, recovery)');
-	console.log('REAL-CHROMIUM drill: pinned FINDINGS: F-DELIVERY (page-level auto-attach misses window.open popups), F-POPUP-URL (empty url at attach), F-RELEASE-CMD (Runtime.run not a real method), F-OPENER-BLOCK (window.open blocks the opener while held), F-RECOVERY-DOMAINS (recovery re-attach does not re-enable Page domain — commit observation times out after recovery)');
+	console.log('REAL-CHROMIUM drill: pinned record: F-DELIVERY (page-level auto-attach misses window.open popups — OPEN, TL-adjudicated gate-placement redesign), F-POPUP-URL (empty url at attach — OPEN, same redesign), F-OPENER-BLOCK (window.open blocks the opener while held — OPEN, same redesign); FIXED by TL3-P2: F-RELEASE-CMD (release command now Runtime.runIfWaitingForDebugger), F-RECOVERY-DOMAINS (recovery re-attach re-enables the domains — post-recovery commit observation works)');
 }
 
 void main().catch(error => {

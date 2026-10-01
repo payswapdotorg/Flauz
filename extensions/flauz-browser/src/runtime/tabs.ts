@@ -121,6 +121,22 @@ export interface ForcedResetOutcome extends NavigationOutcome {
 
 const DOMAIN_ENABLE_COMMANDS = ['Page.enable', 'Runtime.enable', 'Network.enable', 'Log.enable'] as const;
 
+/**
+ * Enables the Page/Runtime/Network/Log domains on a tab's session-scoped
+ * transport. MINT-TIME ACTIVATION STEP 1 (see `activateLiveTab`); since the
+ * TL3-P2 fix for drill finding F-RECOVERY-DOMAINS the RECOVERY re-attach runs
+ * the SAME step on the fresh session: real Chromium delivers Page events
+ * (`Page.frameNavigated` — the commit-observation source of the navigation
+ * pipeline's post-commit reconciliation) only to sessions with the domain
+ * enabled, so a re-attached tab that skips this step silently loses commit
+ * observation after every transport drop.
+ */
+export async function enableTabDomains(transport: CdpTransport): Promise<void> {
+	for (const command of DOMAIN_ENABLE_COMMANDS) {
+		await transport.send(command);
+	}
+}
+
 /** The Page.frameNavigated params slice the pipeline consumes. */
 interface FrameNavigatedParams {
 	frame?: { id?: string; url?: string; loaderId?: string };
@@ -135,9 +151,7 @@ interface FrameNavigatedParams {
  * recorder.
  */
 export async function activateLiveTab(deps: TabPipelineDeps, session: BrowserSessionDescriptor, transport: CdpTransport, targetId: string, startUrl: string): Promise<LiveTab> {
-	for (const command of DOMAIN_ENABLE_COMMANDS) {
-		await transport.send(command);
-	}
+	await enableTabDomains(transport);
 	await applySessionHardening(transport, session);
 	const record: BrowserTabRecord = {
 		tabId: mintTabId(),
