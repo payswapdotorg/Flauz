@@ -900,6 +900,20 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 
 Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
 
+#### TL-A claim record — the inherited P2-FIX tail (2026-10-01)
+
+Pinned base: `3928b0eeeba0c7d640147e605111da547fd6bbe3` (main at claim time — the two-TL program-establishment head). One dedicated branch per implemented finding, cut from the pinned base only. All implementation dispatches through the replay worker lane per the standing operator directive (workers only; the station implements nothing — decision records and registry text are the station's control-plane deliverables per the DL-78/112 precedents). Station independently re-verifies every delivery on clean main-derived state before landing (the two-TL successor of the TL4-retest handshake). Historical TL1/TL3 claim branches are NOT imported; equivalent work is recreated from current `main`.
+
+- **P2-FIX-102** (vacuous dedicated battery/session tsconfigs) — **CLAIMED, gate surveyed:** station drift survey on the pinned base (worktree, `"exclude": []` flip applied to `tsconfig.agentos-battery.json` + `tsconfig.session-battery.json`, tsc 5.9.3): the flip surfaces **76 drift entries — 46 agentos + 30 session** (the historical 80 minus the four `LeaseConflictFacts` entries P2-FIX-103 already cleared). Work = the flip + clearing the drift family (shim gaps: node `versions`/`kill`/`exit`, console `error`; declaration drift: `EnvOpLine.toState`, `ClaimStepLeaseResult` narrowing, `committedUrl` on the navigation union; instrument-side strictness: `override` modifiers, definite-assignment) so both dedicated typechecks exit 0 with their subjects in the program. TL1's held branch `a5908655` is historical provenance, not imported.
+- **P2-FIX-106** (popup-gate placement redesign) — **CLAIMED, decision recorded (DL-79)** — branch `flauz-p2fix/p2-fix-106` — dispatch Wave 1 slot 1: the browser-level placement + Fetch-domain pre-use observation implementation; the real-Chromium drill pins (F-DELIVERY/F-POPUP-URL/F-OPENER-BLOCK) flip from FINDING-pinned to assertion-pinned in the same change.
+- **P2-FIX-107** (URL redaction control point) — **CLAIMED, decision recorded (DL-80)** — branch `flauz-p2fix/p2-fix-107` — dispatch Wave 1 slot 2: the two-layer law's at-record layer (secret-shaped query-param VALUE redaction at the browser persistence boundaries; continuity export untouched).
+- **P2-FIX-109** (executor cancellation ports) — **CLAIMED, decision REQUIRED FIRST:** no standing law settles the cancellation-port + partial-effect-reconciliation semantics (the finding's own contract sketch is the input). TL-A records the decision (DL-81) on survey of the four executor kinds BEFORE any implementation dispatch; the D1 `OP_IN_FLIGHT` guard stays the interim posture until then.
+- **P2-FIX-110** (remotePidAlive unverifiable window) — **CLAIMED** — branch `flauz-p2fix/p2-fix-110` — dispatch Wave 1 slot 3: the typed `UNVERIFIABLE` outcome at the ssh executor seam, fail-closed consumers.
+- **P2-FIX-111** (edge-matrix vs plan-family vocabulary asymmetry) — **CLAIMED, convergence decision REQUIRED FIRST:** per the routing law minting plan families stays with the owning lanes; the TL-A convergence decision (DL-82) settles restrict-the-matrix vs the joint family-minting wave BEFORE dispatch.
+- **P2-FIX-113** (unkeyed hash chains) — **CLAIMED, decision REQUIRED FIRST:** the keyed/signed-chain decision (DL-83) either adopts the signed-checkpoint hook with an explicit key-holding boundary or records the bounded deferral with its trigger condition.
+
+Claim discipline (mirrored): minimal diff per finding acceptance; gate-frozen instruments byte-identical; evidence at the honestly-achieved level; individual landing PRs; every completion claim records tests, evidence, PR and SHA in the registry in the same merge wave.
+
 ### Phase A — Product Completion / Productionization
 
 | ID | Owner | Status | Dependency |
