@@ -1,0 +1,70 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "provider-switch",
+	"title": "provider switching: fake -> scripted-failing -> fake with typed failure + recovery",
+	"dimensions": [
+		"provider switching",
+		"failure/recovery",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "switch.sequence-executed",
+			"ok": true,
+			"detail": "the planned sequence healthy->scripted-failing->healthy executed (fake -> scripted-failing -> fake)"
+		},
+		{
+			"id": "switch.failure-typed",
+			"ok": true,
+			"detail": "the scripted-failing lane surfaced the TYPED provider failure PROVIDER_OVERLOADED (retryable=true, retryClass=short-backoff, httpStatus=500) after 3 bounded-retry attempt(s): dogfood scripted provider failure: this lane is armed to fail (the typed PROVIDER_OVERLOADED window over the real adapter wire)"
+		},
+		{
+			"id": "switch.recovery-occurred",
+			"ok": true,
+			"detail": "the lane was switched back to the healthy provider (fake, switch 3) and the same call type succeeded there; the failing lane stayed disabled in the workspace providers file; recovery measured 20 ms from failure detection"
+		},
+		{
+			"id": "switch.evidence-per-switch",
+			"ok": true,
+			"detail": "one evidence row per switch: #1=E-000008, #2=E-000009, #3=E-000010"
+		},
+		{
+			"id": "switch.answers-verified",
+			"ok": true,
+			"detail": "every healthy-lane answer matched the workspace providers file + the routing-decision ledger, and every ask prompt carried the workspace facts (P2-FIX-118 fence-tolerant parse on live lanes; P2-FIX-119 prompt-carried facts)"
+		},
+		{
+			"id": "switch.report-evidence-minted",
+			"ok": true,
+			"detail": "the switch report is hash-pinned into the evidence ledger (E-000011)"
+		}
+	],
+	"evidenceIds": [
+		"E-000011"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-002/provider-switch-report.json",
+			"sha256": "3084c95db931da9125003a77fe3a70648fc2fc352154355cecee42d3843cf02f"
+		}
+	],
+	"frictionLogPath": "/home/z/flauz/build/flauz/dogfood/records/aprod003-w21-g4g7-default-2026-10-01/provider-switch.friction.jsonl",
+	"frictionRows": {
+		"friction": 1,
+		"timing": 5,
+		"recovery": 1
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"the typed failure classes are the product's real code paths (the adapter's error taxonomy + the product's bounded-retry bound); the failing wire itself is the harness's scripted lane",
+		"model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)",
+		"P2-FIX-119: both lanes answer from the prompt-carried workspace facts (providers file content + routing-decision tail, embedded at ask time); the fake lane's server-side computation path for this question is retired; the verification stays strict (checked against the real state files)",
+		"P2-FIX-118: live-lane answers parse through the fence-tolerant path (strip-fence-then-parse; malformed JSON inside a fence still fails); machine lanes keep the raw-JSON default"
+	]
+}
