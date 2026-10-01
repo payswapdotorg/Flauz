@@ -284,10 +284,14 @@ test('lineage walks the produced / restored-from / snapshot-of chain (cycle-safe
 	assert.deepEqual(t.graph.lineage(session2).map(r => r.id), [session2, session1]);
 	// a produced edge does not contribute from the producer side
 	assert.deepEqual(t.graph.lineage(TASK).map(r => r.id), [TASK]);
-	// cycle safety: mutual restored-from edges must not hang
-	await t.graph.addEdge({ kind: 'restored-from', from: session1, to: session2 }, AGENT);
-	const cyclic = t.graph.lineage(session1);
-	assert.equal(cyclic.length, 2);
+	// cycle safety: lineage is defensive, but mutual restored-from edges are
+	// FORBIDDEN at append (C2: ancestry kinds stay acyclic per kind)
+	await assert.rejects(
+		() => t.graph.addEdge({ kind: 'restored-from', from: session1, to: session2 }, AGENT),
+		(err: unknown) => err instanceof ResourceGraphError && err.code === 'FLAUZ_RESOURCES_EDGE_ILLEGAL' && /closes a 'restored-from' cycle/.test(err.message),
+	);
+	// and the graph state is unchanged by the rejected edge
+	assert.deepEqual(t.graph.lineage(session1).map(r => r.id), [session1]);
 	await t.cleanup();
 });
 

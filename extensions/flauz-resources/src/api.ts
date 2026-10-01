@@ -270,6 +270,20 @@ export const EDGE_LEGALITY: Readonly<Record<EdgeKind, EdgeLegality>> = {
 	'derived-from': { from: '*', to: '*' },
 };
 
+/**
+ * Edge kinds whose directed relation carries ANCESTRY semantics and must
+ * therefore stay ACYCLIC per kind (C2): `produced` (producer precedes
+ * product), `restored-from` (origin precedes the restored copy),
+ * `snapshot-of` (original precedes the snapshot), `derived-from` (source
+ * precedes the derivative). A cycle within ONE kind (X snapshot-of Y while
+ * Y snapshot-of X) is mutual ancestry -- temporally impossible nonsense.
+ * Cross-kind round trips are lawful (the designed restore flow: a snapshot
+ * `snapshot-of` a session, the session later `restored-from` that snapshot),
+ * so the invariant is enforced per kind, not across kinds. `depends-on` and
+ * `bound-to` carry no ancestry semantics and are unrestricted in v0.
+ */
+export const ACYCLIC_EDGE_KINDS: readonly EdgeKind[] = ['produced', 'restored-from', 'snapshot-of', 'derived-from'];
+
 // ---------------------------------------------------------------------------
 // Envelope
 // ---------------------------------------------------------------------------
@@ -761,6 +775,110 @@ export function edgeLegalityError(edgeKind: EdgeKind, fromKind: ResourceKind, to
 	const fromList = legality.from === '*' ? 'any' : legality.from.join('|');
 	const toList = legality.to === '*' ? 'any' : legality.to.join('|');
 	return `flauz.resources/v0: edge '${edgeKind}' is not legal for endpoint kinds ${fromKind} -> ${toKind} (legal: from [${fromList}] to [${toList}])`;
+}
+
+// ---------------------------------------------------------------------------
+// Ancestry-cycle invariants (C2: no forbidden cycles on append or at load)
+// ---------------------------------------------------------------------------
+
+/**
+ * True when adding `from -> to` of an ancestry kind would close a directed
+ * cycle among the EXISTING edges of the SAME kind (i.e. `from` is already
+ * reachable from `to`). Self-edges report true (they are 1-cycles).
+ */
+export function edgeClosesCycle(kind: EdgeKind, from: string, to: string, edges: readonly { kind: EdgeKind; from: string; to: string }[]): boolean {
+	if (!(ACYCLIC_EDGE_KINDS as readonly string[]).includes(kind)) {
+		return false;
+	}
+	if (from === to) {
+		return true;
+	}
+	const adjacency = new Map<string, string[]>();
+	for (const edge of edges) {
+		if (edge.kind !== kind) {
+			continue;
+		}
+		const list = adjacency.get(edge.from) ?? [];
+		list.push(edge.to);
+		adjacency.set(edge.from, list);
+	}
+	const queue: string[] = [to];
+	const seen = new Set<string>([to]);
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		if (current === from) {
+			return true;
+		}
+		for (const next of adjacency.get(current) ?? []) {
+			if (!seen.has(next)) {
+				seen.add(next);
+				queue.push(next);
+			}
+		}
+	}
+	return false;
+}
+
+/**
+ * Finds the first directed cycle among the ancestry-kind edges (deterministic:
+ * kinds in ACYCLIC_EDGE_KINDS order, start nodes and neighbors sorted by id).
+ * Returns the offending kind + the cyclic path, or undefined when acyclic.
+ */
+export function findEdgeCycle(edges: readonly { kind: EdgeKind; from: string; to: string }[]): { kind: EdgeKind; path: string[] } | undefined {
+	for (const kind of ACYCLIC_EDGE_KINDS) {
+		const adjacency = new Map<string, string[]>();
+		for (const edge of edges) {
+			if (edge.kind !== kind) {
+				continue;
+			}
+			const list = adjacency.get(edge.from) ?? [];
+			list.push(edge.to);
+			adjacency.set(edge.from, list);
+		}
+		for (const list of adjacency.values()) {
+			list.sort();
+		}
+		const WHITE = 0, GRAY = 1, BLACK = 2;
+		const color = new Map<string, number>();
+		const parent = new Map<string, string>();
+		for (const start of [...adjacency.keys()].sort()) {
+			if ((color.get(start) ?? WHITE) !== WHITE) {
+				continue;
+			}
+			const stack: string[] = [start];
+			color.set(start, GRAY);
+			while (stack.length > 0) {
+				const node = stack[stack.length - 1] as string;
+				let advanced = false;
+				for (const next of adjacency.get(node) ?? []) {
+					const nextColor = color.get(next) ?? WHITE;
+					if (nextColor === GRAY) {
+						// back edge -> cycle: walk parents from `node` up to `next`
+						const path: string[] = [next];
+						let walker: string | undefined = node;
+						while (walker !== undefined && walker !== next) {
+							path.unshift(walker);
+							walker = parent.get(walker);
+						}
+						path.push(next);
+						return { kind, path };
+					}
+					if (nextColor === WHITE) {
+						color.set(next, GRAY);
+						parent.set(next, node);
+						stack.push(next);
+						advanced = true;
+						break;
+					}
+				}
+				if (!advanced) {
+					color.set(node, BLACK);
+					stack.pop();
+				}
+			}
+		}
+	}
+	return undefined;
 }
 
 // ---------------------------------------------------------------------------

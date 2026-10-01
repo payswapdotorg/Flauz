@@ -19,6 +19,22 @@
  * seq contiguity, and digest-chain continuity; a truncated or tampered tail is
  * a verdict, not a silent success.
  *
+ * Per-row hash chaining (DL-77 hardening, the flauz-workspace `prev`
+ * discipline): every record additionally carries `prev` -- the sha256 of the
+ * PREVIOUS record's canonical line (null on the genesis record). A record
+ * whose content (op, refId, actor, note, ...) is mutated in place no longer
+ * matches the successor's `prev`, so an in-place edit anywhere in the history
+ * is detected -- not just digest/seq/truncation tampering. Together with the
+ * state digests this covers: reorder, delete, truncate, digest edit, seq edit
+ * and content edit of every non-final record; the final record's metadata
+ * remains covered by its digests (the unkeyed-tail limit shared with the
+ * sibling evidence ledger's pre-signature posture).
+ *
+ * Serialized-append discipline (DL-77): appends ride the ledger's transition
+ * lock -- concurrent appends queue instead of racing on seq minting or
+ * interlosing lines; the existing bytes are fully re-validated before every
+ * extension, and the file is only ever extended (never rewritten in place).
+ *
  * Every graph mutation (ResourceGraph) appends here -- the ledger and the
  * envelope are written through the same FileSystemPort with atomic
  * tmp+rename persistence for the envelope and appends for the log.
@@ -26,6 +42,7 @@
 import {
 	OPS_PATH,
 	OPS_SCHEMA_ID,
+	SCHEMA_ID,
 	FLAUZ_DIR,
 	canonicalJson,
 	isActor,
@@ -52,6 +69,8 @@ export type ResourceOp = (typeof RESOURCE_OPS)[number];
  * One ops-log line. The actor fields are carried FLAT (op, ref id, actor,
  * actorId, timestamp, before/after digests -- the pinned record shape); the
  * optional session/task context of the mutation provenance rides along.
+ * `prev` is the per-row hash chain: sha256 of the previous record's canonical
+ * line, null on the genesis record (DL-77 tamper detection).
  */
 export interface ResourceOpRecord {
 	readonly seq: number;
@@ -65,6 +84,7 @@ export interface ResourceOpRecord {
 	readonly cause?: string;
 	readonly beforeDigest: string;
 	readonly afterDigest: string;
+	readonly prev: string | null;
 	readonly note?: string;
 }
 
@@ -95,8 +115,11 @@ export interface ProvenanceLedgerOptions {
 	readonly clock?: Clock;
 }
 
-const REQUIRED_KEYS = ['seq', 'ts', 'op', 'refId', 'actor', 'beforeDigest', 'afterDigest'] as const;
+const REQUIRED_KEYS = ['seq', 'ts', 'op', 'refId', 'actor', 'beforeDigest', 'afterDigest', 'prev'] as const;
 const OPTIONAL_KEYS = ['actorId', 'sessionId', 'taskId', 'cause', 'note'] as const;
+
+/** The digest of the canonical EMPTY envelope (the only graph state a 0-record ledger can honestly cover). */
+const EMPTY_ENVELOPE_DIGEST = sha256Hex(canonicalJson({ $schema: SCHEMA_ID, nodes: [], edges: [], surfaces: [] }));
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -109,6 +132,11 @@ function opsError(message: string): Error {
 /** Canonical stored line for a record (no trailing newline). */
 export function opLine(record: ResourceOpRecord): string {
 	return canonicalJson(record);
+}
+
+/** sha256 over the canonical stored line of a record -- the per-row chain link value. */
+export function opRecordHash(record: ResourceOpRecord): string {
+	return sha256Hex(opLine(record));
 }
 
 /** Strict parse of a single ops record (throws with a descriptive message). */
@@ -153,6 +181,9 @@ export function parseOpRecord(value: unknown, where: string): ResourceOpRecord {
 	if (!isSha256Hex(value.afterDigest)) {
 		throw opsError(`${where}: afterDigest must be 64 lowercase hex chars`);
 	}
+	if (value.prev !== null && !isSha256Hex(value.prev)) {
+		throw opsError(`${where}: prev must be null (the genesis record) or 64 lowercase hex chars (the previous record's line hash)`);
+	}
 	for (const key of ['actorId', 'sessionId', 'taskId', 'note'] as const) {
 		if (hasKey(value, key) && !isNonEmptyString(value[key])) {
 			throw opsError(`${where}: ${key} must be a non-empty string when present`);
@@ -168,6 +199,8 @@ export class ProvenanceLedger {
 	private readonly root: string;
 	private readonly fs: FileSystemPort;
 	private readonly clock: Clock;
+	/** The DL-77 serialized-append discipline: appends are STRICTLY serial. */
+	private appendLock: Promise<unknown> = Promise.resolve();
 
 	constructor(options: ProvenanceLedgerOptions) {
 		this.root = options.root;
@@ -177,6 +210,22 @@ export class ProvenanceLedger {
 
 	private ledgerPath(): string {
 		return joinPath(this.root, OPS_PATH);
+	}
+
+	/** Runs `operation` strictly serially against every other append (DL-77). */
+	private runSerial<T>(operation: () => Promise<T>): Promise<T> {
+		const prior = this.appendLock;
+		let release: () => void = () => undefined;
+		this.appendLock = new Promise<void>(resolve => {
+			release = resolve;
+		});
+		return prior.then(async () => {
+			try {
+				return await operation();
+			} finally {
+				release();
+			}
+		});
 	}
 
 	/** Creates the .flauz dir + empty ops file if absent. Idempotent. */
@@ -192,29 +241,33 @@ export class ProvenanceLedger {
 		return await this.fs.readFileUtf8(this.ledgerPath()) !== undefined;
 	}
 
-	/** Appends one mutation record; mints seq (last + 1) and ts from the clock. */
+	/** Appends one mutation record; mints seq (last + 1), the prev chain link and ts from the clock. */
 	async append(input: OpAppendInput): Promise<ResourceOpRecord> {
-		const records = await this.readAll();
-		const seq = records.length === 0 ? 1 : ((records[records.length - 1] as ResourceOpRecord).seq + 1);
-		const record: ResourceOpRecord = {
-			seq,
-			ts: this.clock(),
-			op: input.op,
-			refId: input.refId,
-			actor: input.provenance.actor,
-			beforeDigest: input.beforeDigest,
-			afterDigest: input.afterDigest,
-			...(input.provenance.actorId !== undefined ? { actorId: input.provenance.actorId } : {}),
-			...(input.provenance.sessionId !== undefined ? { sessionId: input.provenance.sessionId } : {}),
-			...(input.provenance.taskId !== undefined ? { taskId: input.provenance.taskId } : {}),
-			...(input.provenance.cause !== undefined ? { cause: input.provenance.cause } : {}),
-			...(input.note !== undefined ? { note: input.note } : {}),
-		};
-		// parse our own record first: the fail-closed actor rule applies to the
-		// ledger writer too (a malformed record must never reach the file).
-		parseOpRecord(record, `pending op seq ${seq}`);
-		await this.fs.appendFile(this.ledgerPath(), `${opLine(record)}\n`);
-		return record;
+		return await this.runSerial(async () => {
+			const records = await this.readAll();
+			const seq = records.length === 0 ? 1 : ((records[records.length - 1] as ResourceOpRecord).seq + 1);
+			const prev = records.length === 0 ? null : opRecordHash(records[records.length - 1] as ResourceOpRecord);
+			const record: ResourceOpRecord = {
+				seq,
+				ts: this.clock(),
+				op: input.op,
+				refId: input.refId,
+				actor: input.provenance.actor,
+				beforeDigest: input.beforeDigest,
+				afterDigest: input.afterDigest,
+				prev,
+				...(input.provenance.actorId !== undefined ? { actorId: input.provenance.actorId } : {}),
+				...(input.provenance.sessionId !== undefined ? { sessionId: input.provenance.sessionId } : {}),
+				...(input.provenance.taskId !== undefined ? { taskId: input.provenance.taskId } : {}),
+				...(input.provenance.cause !== undefined ? { cause: input.provenance.cause } : {}),
+				...(input.note !== undefined ? { note: input.note } : {}),
+			};
+			// parse our own record first: the fail-closed actor rule applies to the
+			// ledger writer too (a malformed record must never reach the file).
+			parseOpRecord(record, `pending op seq ${seq}`);
+			await this.fs.appendFile(this.ledgerPath(), `${opLine(record)}\n`);
+			return record;
+		});
 	}
 
 	/** Strict parse of all stored records (throws with the offending line number). */
@@ -222,6 +275,9 @@ export class ProvenanceLedger {
 		const text = await this.fs.readFileUtf8(this.ledgerPath());
 		if (text === undefined || text === '') {
 			return [];
+		}
+		if (!text.endsWith('\n')) {
+			throw opsError('ops ledger is torn: the file does not end with a newline (canonical JSONL carries exactly one trailing newline per record; an interrupted append never parses silently)');
 		}
 		const lines = text.split('\n');
 		if (lines[lines.length - 1] === '') {
@@ -246,9 +302,13 @@ export class ProvenanceLedger {
 
 	/**
 	 * Verifies the chain: per-record schema (actor mandatory), seq contiguity,
-	 * and digest continuity (record N's beforeDigest === record N-1's
-	 * afterDigest). When `headDigest` is supplied (the digest of the currently
-	 * persisted graph envelope), the final record's afterDigest must equal it.
+	 * digest continuity (record N's beforeDigest === record N-1's
+	 * afterDigest) and the per-row prev chain (record N's prev === sha256 of
+	 * record N-1's canonical line; the genesis record carries null). When
+	 * `headDigest` is supplied (the digest of the currently persisted graph
+	 * envelope), the final record's afterDigest must equal it -- and an
+	 * EMPTY ledger must correspond to the empty envelope (a non-empty graph
+	 * with a 0-record ledger is erased history, not a fresh workspace).
 	 */
 	async verifyChain(headDigest?: string): Promise<OpsVerifyReport> {
 		let records: readonly ResourceOpRecord[];
@@ -268,14 +328,27 @@ export class ProvenanceLedger {
 			if (expectedBefore !== undefined && record.beforeDigest !== expectedBefore) {
 				problems.push({ line, message: `beforeDigest does not match the previous record's afterDigest (chain break: expected ${expectedBefore}, got ${record.beforeDigest})` });
 			}
+			if (index === 0) {
+				if (record.prev !== null) {
+					problems.push({ line, message: `the genesis record must carry prev === null (got ${JSON.stringify(record.prev)}) -- a non-null prev implies deleted history before it` });
+				}
+			} else {
+				const expectedPrev = opRecordHash(records[index - 1] as ResourceOpRecord);
+				if (record.prev !== expectedPrev) {
+					problems.push({ line, message: `prev does not match the previous record's line hash (in-place content tamper: expected ${expectedPrev}, got ${String(record.prev)})` });
+				}
+			}
 			expectedSeq = record.seq + 1;
 			expectedBefore = record.afterDigest;
 		}
 		if (headDigest !== undefined) {
 			if (records.length === 0) {
-				// no mutations recorded yet: the head digest must be the empty
-				// envelope digest only if the graph was never mutated through
-				// the ledger -- covered by callers, not a chain property.
+				if (headDigest !== EMPTY_ENVELOPE_DIGEST) {
+					problems.push({
+						line: 0,
+						message: `the ops ledger is empty but the graph envelope is non-empty (history erased: the empty ledger only covers the empty envelope digest ${EMPTY_ENVELOPE_DIGEST}, got ${headDigest})`,
+					});
+				}
 			} else {
 				const last = records[records.length - 1] as ResourceOpRecord;
 				if (last.afterDigest !== headDigest) {

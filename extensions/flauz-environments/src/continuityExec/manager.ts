@@ -24,9 +24,13 @@
  *     - untrusted restore target         -> TRUST_POSTURE_REJECTED (fail-closed,
  *                                            the message NAMES the posture)
  *     - non-empty target without force   -> RESTORE_TARGET_NOT_EMPTY
- *     - per-surface restore failures     -> RESTORE_SURFACE_FAILED (the surface
- *                                            is `skipped`; the prior target
- *                                            state survives untouched)
+ *     - per-surface restore failures     -> RESTORE_SURFACE_FAILED (ALL-OR-
+ *                                            NOTHING: every carried surface is
+ *                                            fully validated BEFORE any byte
+ *                                            is written; a write-phase failure
+ *                                            rolls the target back to its prior
+ *                                            state — no partially-restored
+ *                                            workspaces, ever)
  *     - secret in a carried payload      -> EXPORT_SECRET_DETECTED (fail-closed
  *                                            defense-in-depth; the bundle is
  *                                            never committed)
@@ -35,8 +39,14 @@
  * Atomicity: bundles are staged in `<bundleId>.staging/` and committed by a
  * single directory rename (the manifest is written last inside the staging
  * dir; a dir without a parseable manifest is inert — listed as incomplete by
- * `status`, never restorable). Restores write per-file tmp+rename; a failed
- * surface leaves the prior target state untouched.
+ * `status`, never restorable). RESTORE is all-or-nothing: Phase 1 validates
+ * every carried surface and resolves the complete write plan (no writes);
+ * Phase 2 snapshots the prior target state; Phase 3 writes per-file
+ * tmp+rename and, on ANY failure, rolls every already-written path back to
+ * its prior bytes (removing files the prior state did not carry) before the
+ * typed failure is recorded. Ops are STRICTLY SERIAL (the DL-77 transition
+ * lock): concurrent export/restore/verify calls queue, so no two ops ever
+ * interleave their ledger appends or their target writes.
  *
  * v0 boundary (documented): restore re-hydrates the CURRENT workspace root's
  * `.flauz/` state. `targetEnvironmentId` is a provenance/trust attribute of
@@ -54,6 +64,7 @@ import {
 	isContinuityBundleId,
 	PROVENANCE_ACTORS,
 	type ContinuityBundleManifest,
+	type ContinuityOpAppendInput,
 	type ContinuityOpDetails,
 	type ContinuityOpError,
 	type ContinuityOpRecord,
@@ -200,6 +211,8 @@ export class ContinuityManager {
 	private readonly registry: EnvironmentRegistry | undefined;
 	private readonly ledger: ContinuityOpsLedger;
 	private readonly bundlesDir: string;
+	/** The DL-77 serialized-op discipline: export/restore/verify are STRICTLY serial. */
+	private opLock: Promise<unknown> = Promise.resolve();
 
 	constructor(options: ContinuityManagerOptions) {
 		this.root = options.root;
@@ -209,6 +222,22 @@ export class ContinuityManager {
 		this.registry = options.registry;
 		this.ledger = new ContinuityOpsLedger({ root: options.root, fs: options.fs, clock: this.clock });
 		this.bundlesDir = joinPath(options.root, CONTINUITY_BUNDLES_DIR);
+	}
+
+	/** Runs `operation` strictly serially against every other continuity op (DL-77). */
+	private runSerial<T>(operation: () => Promise<T>): Promise<T> {
+		const prior = this.opLock;
+		let release: () => void = () => undefined;
+		this.opLock = new Promise<void>(resolve => {
+			release = resolve;
+		});
+		return prior.then(async () => {
+			try {
+				return await operation();
+			} finally {
+				release();
+			}
+		});
 	}
 
 	get opsLedgerPath(): string {
@@ -240,12 +269,11 @@ export class ContinuityManager {
 
 	// -- the ops ledger commit path ------------------------------------------------
 
-	private async appendRecord(record: ContinuityOpRecord): Promise<ContinuityOpRecord> {
-		await this.ledger.append(record);
-		return record;
+	private async appendRecord(record: ContinuityOpAppendInput): Promise<ContinuityOpRecord> {
+		return await this.ledger.append(record);
 	}
 
-	private baseRecord(actor: ProvenanceActor, op: ContinuityOpRecord['op'], bundleId: string, ts: number): Omit<ContinuityOpRecord, 'result'> {
+	private baseRecord(actor: ProvenanceActor, op: ContinuityOpRecord['op'], bundleId: string, ts: number): Omit<ContinuityOpRecord, 'prev' | 'result'> {
 		return {
 			schemaVersion: CONTINUITY_SCHEMA_VERSION,
 			schema: CONTINUITY_OPS_SCHEMA_ID,
@@ -308,66 +336,70 @@ export class ContinuityManager {
 		if (!isContinuityBundleId(bundleId)) {
 			throw new ContinuityError('BUNDLE_ID_INVALID', `the id factory minted a malformed bundle id (${JSON.stringify(bundleId)}) — expected 'flauz:continuity:<16-hex>'`);
 		}
-		const ts = this.clock();
+		// ops are STRICTLY SERIAL (DL-77): no two exports/restores/verifies
+		// ever interleave their ledger appends or their workspace reads/writes.
+		return await this.runSerial(async () => {
+			const ts = this.clock();
 
-		// environment resolution is a RECORDED failure (auditable)
-		if (environmentId !== undefined) {
-			const resolved = await this.resolveEnvironment(environmentId, 'source');
-			if (!resolved.ok) {
-				const record = await this.appendRecord({ ...this.baseRecord(actor, 'export', bundleId, ts), result: 'error', error: resolved.error });
-				return { ok: false, record, error: resolved.error };
+			// environment resolution is a RECORDED failure (auditable)
+			if (environmentId !== undefined) {
+				const resolved = await this.resolveEnvironment(environmentId, 'source');
+				if (!resolved.ok) {
+					const record = await this.appendRecord({ ...this.baseRecord(actor, 'export', bundleId, ts), result: 'error', error: resolved.error });
+					return { ok: false, record, error: resolved.error };
+				}
 			}
-		}
 
-		const stagingDir = joinPath(this.bundlesDir, `${bundleId}.staging`);
-		const finalDir = joinPath(this.bundlesDir, bundleId);
-		const fail = async (error: ContinuityOpError): Promise<ExportOutcome> => {
-			await this.rmBestEffort(stagingDir);
-			const record = await this.appendRecord({ ...this.baseRecord(actor, 'export', bundleId, ts), result: 'error', error });
-			return { ok: false, record, error };
-		};
-
-		try {
-			await this.fs.mkdir(joinPath(stagingDir, 'surfaces'));
-			const surfaces: Record<string, ContinuityBundleManifest['surfaces'][string]> = {};
-			for (const spec of CONTINUITY_SURFACES) {
-				surfaces[spec.id] = await this.exportSurface(spec, stagingDir);
-			}
-			const manifest: ContinuityBundleManifest = {
-				schemaVersion: CONTINUITY_SCHEMA_VERSION,
-				schema: 'flauz.continuity-bundle/v0',
-				bundleId,
-				createdAt: ts,
-				actor,
-				...(environmentId !== undefined ? { sourceEnvironmentId: environmentId } : {}),
-				surfaces,
-				...(request.switchPlanRef !== undefined ? { switchPlanRef: request.switchPlanRef as string } : {}),
+			const stagingDir = joinPath(this.bundlesDir, `${bundleId}.staging`);
+			const finalDir = joinPath(this.bundlesDir, bundleId);
+			const fail = async (error: ContinuityOpError): Promise<ExportOutcome> => {
+				await this.rmBestEffort(stagingDir);
+				const record = await this.appendRecord({ ...this.baseRecord(actor, 'export', bundleId, ts), result: 'error', error });
+				return { ok: false, record, error };
 			};
-			// strict round-trip: a manifest that would not re-parse never reaches the disk
-			parseBundleManifest(serializeBundleManifest(manifest));
-			// commit point: manifest last, then the single directory rename
-			await this.fs.writeFile(joinPath(stagingDir, BUNDLE_MANIFEST_NAME), serializeBundleManifest(manifest));
+
 			try {
-				await this.fs.rename(stagingDir, finalDir);
-			} catch (err) {
-				return await fail({
-					code: 'BUNDLE_EXISTS',
-					message: `bundle '${bundleId}' already exists or the commit rename failed: ${err instanceof Error ? err.message : String(err)}`,
+				await this.fs.mkdir(joinPath(stagingDir, 'surfaces'));
+				const surfaces: Record<string, ContinuityBundleManifest['surfaces'][string]> = {};
+				for (const spec of CONTINUITY_SURFACES) {
+					surfaces[spec.id] = await this.exportSurface(spec, stagingDir);
+				}
+				const manifest: ContinuityBundleManifest = {
+					schemaVersion: CONTINUITY_SCHEMA_VERSION,
+					schema: 'flauz.continuity-bundle/v0',
+					bundleId,
+					createdAt: ts,
+					actor,
+					...(environmentId !== undefined ? { sourceEnvironmentId: environmentId } : {}),
+					surfaces,
+					...(request.switchPlanRef !== undefined ? { switchPlanRef: request.switchPlanRef as string } : {}),
+				};
+				// strict round-trip: a manifest that would not re-parse never reaches the disk
+				parseBundleManifest(serializeBundleManifest(manifest));
+				// commit point: manifest last, then the single directory rename
+				await this.fs.writeFile(joinPath(stagingDir, BUNDLE_MANIFEST_NAME), serializeBundleManifest(manifest));
+				try {
+					await this.fs.rename(stagingDir, finalDir);
+				} catch (err) {
+					return await fail({
+						code: 'BUNDLE_EXISTS',
+						message: `bundle '${bundleId}' already exists or the commit rename failed: ${err instanceof Error ? err.message : String(err)}`,
+					});
+				}
+				const counts = ContinuityManager.manifestCounts(manifest);
+				const record = await this.appendRecord({
+					...this.baseRecord(actor, 'export', bundleId, ts),
+					result: 'ok',
+					details: counts.details,
 				});
+				return { ok: true, record, manifest };
+			} catch (err) {
+				if (err instanceof ContinuityError) {
+					return await fail({ code: err.code, message: err.message.length > 300 ? `${err.message.slice(0, 299)}…` : err.message });
+				}
+				return await fail(recordError(`export of '${bundleId}' failed: ${err instanceof Error ? err.message : String(err)}`));
 			}
-			const counts = ContinuityManager.manifestCounts(manifest);
-			const record = await this.appendRecord({
-				...this.baseRecord(actor, 'export', bundleId, ts),
-				result: 'ok',
-				details: counts.details,
-			});
-			return { ok: true, record, manifest };
-		} catch (err) {
-			if (err instanceof ContinuityError) {
-				return await fail({ code: err.code, message: err.message.length > 300 ? `${err.message.slice(0, 299)}…` : err.message });
-			}
-			return await fail(recordError(`export of '${bundleId}' failed: ${err instanceof Error ? err.message : String(err)}`));
-		}
+		});
 	}
 
 	/** Exports ONE surface of the closed table (never throws raw — typed ContinuityError). */
@@ -516,11 +548,17 @@ export class ContinuityManager {
 	// -- restore ---------------------------------------------------------------------
 
 	/**
-	 * DESTRUCTIVE-CLASS: re-hydrates state files from a bundle, atomically
-	 * (tmp+rename per file; a failed surface is `skipped` and the prior
-	 * target state survives untouched). Requires `force` to overwrite
-	 * non-empty existing state; fails closed on untrusted target
-	 * environments; every surface outcome is typed.
+	 * DESTRUCTIVE-CLASS: re-hydrates state files from a bundle, ALL-OR-
+	 * NOTHING. Phase 1 validates every carried surface and resolves the
+	 * complete write plan (artifact presence + content hashes + byte sizes)
+	 * BEFORE a single byte is written; Phase 2 snapshots the prior target
+	 * state of every planned path; Phase 3 writes per-file tmp+rename and,
+	 * on ANY failure, rolls every already-written path back to its prior
+	 * bytes (removing files the prior state did not carry). A failed
+	 * restore therefore leaves NO partially-restored state. Requires
+	 * `force` to overwrite non-empty existing state; fails closed on
+	 * untrusted target environments; every surface outcome is typed.
+	 * Ops are serialized (DL-77): concurrent restores queue.
 	 */
 	async restore(request: RestoreRequest): Promise<RestoreOutcome> {
 		const actor = requireActor('restore', request.actor);
@@ -535,63 +573,130 @@ export class ContinuityManager {
 			}
 			targetEnvironmentId = request.targetEnvironmentId;
 		}
-		const { manifest, bundleDir } = await this.loadBundle(request.bundleId as string);
-		const bundleId = manifest.bundleId;
-		const ts = this.clock();
-		const counts = ContinuityManager.manifestCounts(manifest);
-		const details: ContinuityOpDetails = {
-			...counts.details,
-			...(targetEnvironmentId !== undefined ? { toEnvironmentId: targetEnvironmentId } : {}),
-		};
-		const fail = async (error: ContinuityOpError): Promise<RestoreOutcome> => {
-			const record = await this.appendRecord({ ...this.baseRecord(actor, 'restore', bundleId, ts), result: 'error', details, error });
-			return { ok: false, record, error, surfaces: [] };
-		};
+		return await this.runSerial(async () => {
+			const { manifest, bundleDir } = await this.loadBundle(request.bundleId as string);
+			const bundleId = manifest.bundleId;
+			const ts = this.clock();
+			const counts = ContinuityManager.manifestCounts(manifest);
+			const details: ContinuityOpDetails = {
+				...counts.details,
+				...(targetEnvironmentId !== undefined ? { toEnvironmentId: targetEnvironmentId } : {}),
+			};
+			const fail = async (error: ContinuityOpError, surfaces: readonly RestoreSurfaceResult[]): Promise<RestoreOutcome> => {
+				const record = await this.appendRecord({ ...this.baseRecord(actor, 'restore', bundleId, ts), result: 'error', details, error });
+				return { ok: false, record, error, surfaces };
+			};
 
-		// trust gate: fail-closed for untrusted target environments
-		if (targetEnvironmentId !== undefined) {
-			const resolved = await this.resolveEnvironment(targetEnvironmentId, 'target');
-			if (!resolved.ok) {
-				return await fail(resolved.error);
+			// trust gate: fail-closed for untrusted target environments
+			if (targetEnvironmentId !== undefined) {
+				const resolved = await this.resolveEnvironment(targetEnvironmentId, 'target');
+				if (!resolved.ok) {
+					return await fail(resolved.error, []);
+				}
+				if (resolved.posture === 'untrusted') {
+					return await fail({
+						code: 'TRUST_POSTURE_REJECTED',
+						message: `the target environment '${targetEnvironmentId}' has trust posture 'untrusted' — restore is rejected fail-closed (re-register with a trusted posture or review the descriptor; SECURITY-MODEL 3.4)`,
+					}, []);
+				}
 			}
-			if (resolved.posture === 'untrusted') {
-				return await fail({
-					code: 'TRUST_POSTURE_REJECTED',
-					message: `the target environment '${targetEnvironmentId}' has trust posture 'untrusted' — restore is rejected fail-closed (re-register with a trusted posture or review the descriptor; SECURITY-MODEL 3.4)`,
-				});
-			}
-		}
 
-		// pre-flight: overwriting non-empty existing state requires force
-		if (!force) {
-			const occupied: string[] = [];
+			// pre-flight: overwriting non-empty existing state requires force
+			if (!force) {
+				const occupied: string[] = [];
+				for (const spec of CONTINUITY_SURFACES) {
+					const entry = manifest.surfaces[spec.id];
+					if (entry === undefined || entry.status !== 'carried' || spec.path === null) {
+						continue;
+					}
+					const workspacePath = joinPath(this.root, spec.path);
+					if (await this.pathIsNonEmpty(workspacePath, spec.kind)) {
+						occupied.push(spec.id);
+					}
+				}
+				if (occupied.length > 0) {
+					return await fail({
+						code: 'RESTORE_TARGET_NOT_EMPTY',
+						message: `the target already holds non-empty state for ${occupied.length} carried surface(s): ${occupied.sort().join(', ')} — pass force: true to overwrite (restore is destructive-class; the requirement is explicit)`,
+					}, []);
+				}
+			}
+
+			// Phase 1: validate EVERY carried surface + resolve the full write plan (no writes yet).
+			const writePlan: Array<{ targetPath: string; contents: string }> = [];
+			const validationFailures: Array<{ surface: string; reason: string }> = [];
+			const carriedIds: string[] = [];
 			for (const spec of CONTINUITY_SURFACES) {
 				const entry = manifest.surfaces[spec.id];
-				if (entry === undefined || entry.status !== 'carried' || spec.path === null) {
+				if (entry === undefined) {
+					validationFailures.push({ surface: spec.id, reason: 'surface missing from the manifest (closed-table violation)' });
 					continue;
 				}
-				const workspacePath = joinPath(this.root, spec.path);
-				if (await this.pathIsNonEmpty(workspacePath, spec.kind)) {
-					occupied.push(spec.id);
+				if (entry.status === 'lost' || entry.status === 'redacted') {
+					continue;
+				}
+				carriedIds.push(spec.id);
+				try {
+					writePlan.push(...(await this.planSurfaceWrites(spec, carriedEntryOf(spec.id, entry), bundleDir)));
+				} catch (err) {
+					validationFailures.push({ surface: spec.id, reason: err instanceof ContinuityError ? `${err.code}: ${err.message}` : (err instanceof Error ? err.message : String(err)) });
 				}
 			}
-			if (occupied.length > 0) {
-				return await fail({
-					code: 'RESTORE_TARGET_NOT_EMPTY',
-					message: `the target already holds non-empty state for ${occupied.length} carried surface(s): ${occupied.sort().join(', ')} — pass force: true to overwrite (restore is destructive-class; the requirement is explicit)`,
+			if (validationFailures.length > 0) {
+				const surfaces = this.restoreOutcomes(manifest, carriedIds, carriedId => {
+					const failed = validationFailures.find(failure => failure.surface === carriedId);
+					return failed !== undefined
+						? `restore failed, nothing written — ${failed.reason}`
+						: 'not attempted — restore is all-or-nothing and another surface failed pre-write validation';
 				});
+				return await fail({
+					code: 'RESTORE_SURFACE_FAILED',
+					message: `${validationFailures.length} surface(s) failed pre-write validation (all-or-nothing: NOTHING was written): ${validationFailures.map(failure => failure.surface).sort().join(', ')}`,
+				}, surfaces);
 			}
-		}
 
-		// per-surface restore (all-or-nothing PER SURFACE)
+			// Phase 2: snapshot the prior state of every planned target path (rollback material).
+			const prior = new Map<string, string | undefined>();
+			for (const write of writePlan) {
+				prior.set(write.targetPath, await this.fs.readFileUtf8(write.targetPath));
+			}
+
+			// Phase 3: write everything (tmp+rename per file); roll back on ANY failure.
+			const written: string[] = [];
+			const createdDirs: string[] = [];
+			try {
+				for (const write of writePlan) {
+					await this.writeTracked(write.targetPath, write.contents, createdDirs);
+					written.push(write.targetPath);
+				}
+			} catch (err) {
+				const reason = err instanceof ContinuityError ? `${err.code}: ${err.message}` : (err instanceof Error ? err.message : String(err));
+				let rollbackNote = `rolled back to the prior target state (${written.length} file(s) reverted)`;
+				try {
+					await this.rollbackWrites(written, prior, createdDirs);
+				} catch (rollErr) {
+					rollbackNote = `ROLLBACK INCOMPLETE (${rollErr instanceof Error ? rollErr.message : String(rollErr)}) — inspect the target state before retrying`;
+				}
+				const surfaces = this.restoreOutcomes(manifest, carriedIds, () => `restore failed mid-write and was ${rollbackNote} — ${reason}`);
+				return await fail({
+					code: 'RESTORE_SURFACE_FAILED',
+					message: `the write phase failed after ${written.length} file(s) (${reason}); all-or-nothing: ${rollbackNote}`,
+				}, surfaces);
+			}
+
+			const surfaces = this.restoreOutcomes(manifest, carriedIds, () => undefined);
+			const record = await this.appendRecord({ ...this.baseRecord(actor, 'restore', bundleId, ts), result: 'ok', details });
+			return { ok: true, record, surfaces };
+		});
+	}
+
+	/** Builds the per-surface restore results (lost/redacted typed; carried annotated by `noteFor`). */
+	private restoreOutcomes(manifest: ContinuityBundleManifest, carriedIds: readonly string[], noteFor: (carriedId: string) => string | undefined): RestoreSurfaceResult[] {
 		const surfaces: RestoreSurfaceResult[] = [];
-		const skipped: string[] = [];
 		for (const spec of CONTINUITY_SURFACES) {
 			const entry = manifest.surfaces[spec.id];
 			if (entry === undefined) {
-				// cannot happen post-parse (closed table) — defensive
 				surfaces.push({ surface: spec.id, outcome: 'skipped', note: 'surface missing from the manifest (closed-table violation)' });
-				skipped.push(spec.id);
 				continue;
 			}
 			if (entry.status === 'lost') {
@@ -602,28 +707,23 @@ export class ContinuityManager {
 				surfaces.push({ surface: spec.id, outcome: 'redacted', note: 'the payload was never copied into the bundle (the secret-redaction law) — re-acquire via the SCM surface or the source environment' });
 				continue;
 			}
-			try {
-				await this.restoreSurface(spec, carriedEntryOf(spec.id, entry), bundleDir);
-				surfaces.push({ surface: spec.id, outcome: 'carried', note: `restored to ${spec.path}` });
-			} catch (err) {
-				const reason = err instanceof ContinuityError ? `${err.code}: ${err.message}` : (err instanceof Error ? err.message : String(err));
-				surfaces.push({ surface: spec.id, outcome: 'skipped', note: `restore failed, prior target state untouched — ${reason}` });
-				skipped.push(spec.id);
+			const note = noteFor(spec.id);
+			if (note !== undefined) {
+				surfaces.push({ surface: spec.id, outcome: 'skipped', note });
+				continue;
 			}
+			surfaces.push({ surface: spec.id, outcome: 'carried', note: `restored to ${spec.path}` });
 		}
-		if (skipped.length > 0) {
-			const error: ContinuityOpError = {
-				code: 'RESTORE_SURFACE_FAILED',
-				message: `${skipped.length} surface(s) failed to restore (skipped; prior state untouched): ${skipped.sort().join(', ')}`,
-			};
-			const record = await this.appendRecord({ ...this.baseRecord(actor, 'restore', bundleId, ts), result: 'error', details, error });
-			return { ok: false, record, error, surfaces };
-		}
-		const record = await this.appendRecord({ ...this.baseRecord(actor, 'restore', bundleId, ts), result: 'ok', details });
-		return { ok: true, record, surfaces };
+		return surfaces;
 	}
 
-	private async restoreSurface(spec: ContinuitySurfaceSpec, entry: { artifactPath: string; sha256: string; bytes: number }, bundleDir: string): Promise<void> {
+	/**
+	 * Phase 1 of the all-or-nothing restore: verifies a carried surface's
+	 * artifacts COMPLETELY (presence + content hashes + byte sizes, every
+	 * file of a directory tree) and returns the resolved writes WITHOUT
+	 * touching the workspace.
+	 */
+	private async planSurfaceWrites(spec: ContinuitySurfaceSpec, entry: { artifactPath: string; sha256: string; bytes: number }, bundleDir: string): Promise<readonly { targetPath: string; contents: string }[]> {
 		if (spec.path === null || spec.kind === null || spec.artifactName === null) {
 			throw new ContinuityError('BUNDLE_CORRUPT', `surface '${spec.id}' is carried by the bundle but has no workspace materialization (closed-table violation)`);
 		}
@@ -640,15 +740,15 @@ export class ContinuityManager {
 			if (contents.length !== entry.bytes) {
 				throw new ContinuityError('BUNDLE_CORRUPT', `byte-size mismatch for surface '${spec.id}': manifest ${entry.bytes}, artifact ${contents.length}`);
 			}
-			await this.writeAtomic(workspacePath, contents);
-			return;
+			return [{ targetPath: workspacePath, contents }];
 		}
-		// directory surface: per-file verify + tmp+rename
+		// directory surface: verify EVERY file of the tree before any write
 		const tree = await this.loadTreeManifest(bundleDir, entry.artifactPath);
 		const totalBytes = tree.files.reduce((total, file) => total + file.bytes, 0);
 		if (totalBytes !== entry.bytes) {
 			throw new ContinuityError('BUNDLE_CORRUPT', `byte-size mismatch for surface '${spec.id}': manifest ${entry.bytes}, tree ${totalBytes}`);
 		}
+		const writes: Array<{ targetPath: string; contents: string }> = [];
 		for (const file of tree.files) {
 			const contents = await this.fs.readFileUtf8(joinPath(bundleDir, entry.artifactPath, file.path));
 			if (contents === undefined) {
@@ -657,11 +757,9 @@ export class ContinuityManager {
 			if (sha256Hex(contents) !== file.sha256 || contents.length !== file.bytes) {
 				throw new ContinuityError('BUNDLE_CORRUPT', `hash mismatch for surface '${spec.id}/${file.path}' (tampered or truncated bundle — restore refused)`);
 			}
-			const target = joinPath(workspacePath, file.path);
-			const parent = file.path.includes('/') ? joinPath(workspacePath, ...file.path.split('/').slice(0, -1)) : workspacePath;
-			await this.fs.mkdir(parent);
-			await this.writeAtomic(target, contents);
+			writes.push({ targetPath: joinPath(workspacePath, file.path), contents });
 		}
+		return writes;
 	}
 
 	private async writeAtomic(path: string, contents: string): Promise<void> {
@@ -670,6 +768,51 @@ export class ContinuityManager {
 		const tmp = `${path}.tmp`;
 		await this.fs.writeFile(tmp, contents);
 		await this.fs.rename(tmp, path);
+	}
+
+	/** The ancestor directory chain of `path` (shallow -> deep), for rollback tracking. */
+	private static ancestorsOf(path: string): string[] {
+		const parts = path.split('/');
+		const result: string[] = [];
+		for (let i = 2; i <= parts.length - 1; i++) {
+			result.push(parts.slice(0, i).join('/'));
+		}
+		return result;
+	}
+
+	/** Atomic write that records every directory it had to CREATE (rollback material). */
+	private async writeTracked(path: string, contents: string, createdDirs: string[]): Promise<void> {
+		for (const dir of ContinuityManager.ancestorsOf(path)) {
+			if ((await this.fs.readdir(dir)) === undefined) {
+				createdDirs.push(dir);
+			}
+		}
+		await this.writeAtomic(path, contents);
+	}
+
+	/**
+	 * Rolls a failed write phase back to the prior target state: files that
+	 * existed before get their prior bytes back (atomically); files the
+	 * prior state did not carry are removed; directories the write phase
+	 * created are removed deepest-first.
+	 */
+	private async rollbackWrites(written: readonly string[], prior: ReadonlyMap<string, string | undefined>, createdDirs: readonly string[]): Promise<void> {
+		for (const path of [...written].reverse()) {
+			const contents = prior.get(path);
+			if (contents === undefined) {
+				await this.fs.rm(path);
+			} else {
+				await this.writeAtomic(path, contents);
+			}
+		}
+		const byDepth = [...createdDirs].sort((a, b) => {
+			const depthA = a.split('/').length;
+			const depthB = b.split('/').length;
+			return depthA !== depthB ? (depthA > depthB ? -1 : 1) : (a > b ? -1 : a < b ? 1 : 0);
+		});
+		for (const dir of byDepth) {
+			await this.fs.rm(dir);
+		}
 	}
 
 	private async pathIsNonEmpty(path: string, kind: 'file' | 'directory' | null): Promise<boolean> {
@@ -690,81 +833,83 @@ export class ContinuityManager {
 	 */
 	async verify(request: VerifyRequest): Promise<VerifyOutcome> {
 		const actor = requireActor('verify', request.actor);
-		const { manifest, bundleDir } = await this.loadBundle(request.bundleId as string);
-		const bundleId = manifest.bundleId;
-		const ts = this.clock();
-		const counts = ContinuityManager.manifestCounts(manifest);
-		const surfaces: VerifySurfaceResult[] = [];
-		const mismatched: string[] = [];
-		for (const spec of CONTINUITY_SURFACES) {
-			const entry = manifest.surfaces[spec.id];
-			if (entry === undefined) {
-				surfaces.push({ surface: spec.id, verdict: 'mismatch', note: 'surface missing from the manifest (closed-table violation)' });
-				mismatched.push(spec.id);
-				continue;
-			}
-			if (entry.status === 'lost') {
-				surfaces.push({ surface: spec.id, verdict: 'lost', note: entry.note });
-				continue;
-			}
-			if (entry.status === 'redacted') {
-				// the path hash is re-derivable from the closed table — verify it
-				const expected = sha256Hex(spec.path ?? '');
-				const okHash = entry.sha256 === expected;
-				surfaces.push({
-					surface: spec.id,
-					verdict: okHash ? 'redacted' : 'mismatch',
-					note: okHash ? 'presence + path hash verified (the payload was never copied)' : `path-hash mismatch: manifest ${entry.sha256}, re-derived ${expected}`,
-				});
-				if (!okHash) {
+		return await this.runSerial(async () => {
+			const { manifest, bundleDir } = await this.loadBundle(request.bundleId as string);
+			const bundleId = manifest.bundleId;
+			const ts = this.clock();
+			const counts = ContinuityManager.manifestCounts(manifest);
+			const surfaces: VerifySurfaceResult[] = [];
+			const mismatched: string[] = [];
+			for (const spec of CONTINUITY_SURFACES) {
+				const entry = manifest.surfaces[spec.id];
+				if (entry === undefined) {
+					surfaces.push({ surface: spec.id, verdict: 'mismatch', note: 'surface missing from the manifest (closed-table violation)' });
+					mismatched.push(spec.id);
+					continue;
+				}
+				if (entry.status === 'lost') {
+					surfaces.push({ surface: spec.id, verdict: 'lost', note: entry.note });
+					continue;
+				}
+				if (entry.status === 'redacted') {
+					// the path hash is re-derivable from the closed table — verify it
+					const expected = sha256Hex(spec.path ?? '');
+					const okHash = entry.sha256 === expected;
+					surfaces.push({
+						surface: spec.id,
+						verdict: okHash ? 'redacted' : 'mismatch',
+						note: okHash ? 'presence + path hash verified (the payload was never copied)' : `path-hash mismatch: manifest ${entry.sha256}, re-derived ${expected}`,
+					});
+					if (!okHash) {
+						mismatched.push(spec.id);
+					}
+					continue;
+				}
+				try {
+					if (spec.kind === 'file') {
+						const carried = carriedEntryOf(spec.id, entry);
+						const contents = await this.fs.readFileUtf8(joinPath(bundleDir, carried.artifactPath));
+						if (contents === undefined) {
+							throw new ContinuityError('BUNDLE_CORRUPT', 'artifact missing');
+						}
+						const actual = sha256Hex(contents);
+						if (actual !== carried.sha256 || contents.length !== carried.bytes) {
+							throw new ContinuityError('BUNDLE_CORRUPT', `hash mismatch (manifest ${carried.sha256}/${carried.bytes}, artifact ${actual}/${contents.length})`);
+						}
+						surfaces.push({ surface: spec.id, verdict: 'verified', note: `sha256 ${carried.sha256} over ${carried.bytes} byte(s)` });
+					} else {
+						const carried = carriedEntryOf(spec.id, entry);
+						const tree = await this.loadTreeManifest(bundleDir, carried.artifactPath);
+						let totalBytes = 0;
+						for (const file of tree.files) {
+							const contents = await this.fs.readFileUtf8(joinPath(bundleDir, carried.artifactPath, file.path));
+							if (contents === undefined || sha256Hex(contents) !== file.sha256 || contents.length !== file.bytes) {
+								throw new ContinuityError('BUNDLE_CORRUPT', `hash mismatch at '${file.path}'`);
+							}
+							totalBytes += contents.length;
+						}
+						if (totalBytes !== carried.bytes) {
+							throw new ContinuityError('BUNDLE_CORRUPT', `byte-size mismatch (manifest ${carried.bytes}, tree ${totalBytes})`);
+						}
+						surfaces.push({ surface: spec.id, verdict: 'verified', note: `${tree.files.length} file(s), ${totalBytes} byte(s) verified` });
+					}
+				} catch (err) {
+					const reason = err instanceof Error ? err.message : String(err);
+					surfaces.push({ surface: spec.id, verdict: 'mismatch', note: reason });
 					mismatched.push(spec.id);
 				}
-				continue;
 			}
-			try {
-				if (spec.kind === 'file') {
-					const carried = carriedEntryOf(spec.id, entry);
-					const contents = await this.fs.readFileUtf8(joinPath(bundleDir, carried.artifactPath));
-					if (contents === undefined) {
-						throw new ContinuityError('BUNDLE_CORRUPT', 'artifact missing');
-					}
-					const actual = sha256Hex(contents);
-					if (actual !== carried.sha256 || contents.length !== carried.bytes) {
-						throw new ContinuityError('BUNDLE_CORRUPT', `hash mismatch (manifest ${carried.sha256}/${carried.bytes}, artifact ${actual}/${contents.length})`);
-					}
-					surfaces.push({ surface: spec.id, verdict: 'verified', note: `sha256 ${carried.sha256} over ${carried.bytes} byte(s)` });
-				} else {
-					const carried = carriedEntryOf(spec.id, entry);
-					const tree = await this.loadTreeManifest(bundleDir, carried.artifactPath);
-					let totalBytes = 0;
-					for (const file of tree.files) {
-						const contents = await this.fs.readFileUtf8(joinPath(bundleDir, carried.artifactPath, file.path));
-						if (contents === undefined || sha256Hex(contents) !== file.sha256 || contents.length !== file.bytes) {
-							throw new ContinuityError('BUNDLE_CORRUPT', `hash mismatch at '${file.path}'`);
-						}
-						totalBytes += contents.length;
-					}
-					if (totalBytes !== carried.bytes) {
-						throw new ContinuityError('BUNDLE_CORRUPT', `byte-size mismatch (manifest ${carried.bytes}, tree ${totalBytes})`);
-					}
-					surfaces.push({ surface: spec.id, verdict: 'verified', note: `${tree.files.length} file(s), ${totalBytes} byte(s) verified` });
-				}
-			} catch (err) {
-				const reason = err instanceof Error ? err.message : String(err);
-				surfaces.push({ surface: spec.id, verdict: 'mismatch', note: reason });
-				mismatched.push(spec.id);
+			if (mismatched.length > 0) {
+				const error: ContinuityOpError = {
+					code: 'VERIFY_FAILED',
+					message: `${mismatched.length} surface(s) failed integrity verification: ${mismatched.sort().join(', ')}`,
+				};
+				const record = await this.appendRecord({ ...this.baseRecord(actor, 'verify', bundleId, ts), result: 'error', details: counts.details, error });
+				return { ok: false, record, error, surfaces };
 			}
-		}
-		if (mismatched.length > 0) {
-			const error: ContinuityOpError = {
-				code: 'VERIFY_FAILED',
-				message: `${mismatched.length} surface(s) failed integrity verification: ${mismatched.sort().join(', ')}`,
-			};
-			const record = await this.appendRecord({ ...this.baseRecord(actor, 'verify', bundleId, ts), result: 'error', details: counts.details, error });
-			return { ok: false, record, error, surfaces };
-		}
-		const record = await this.appendRecord({ ...this.baseRecord(actor, 'verify', bundleId, ts), result: 'ok', details: counts.details });
-		return { ok: true, record, surfaces };
+			const record = await this.appendRecord({ ...this.baseRecord(actor, 'verify', bundleId, ts), result: 'ok', details: counts.details });
+			return { ok: true, record, surfaces };
+		});
 	}
 
 	// -- status (read-only; never appends a ledger line) ----------------------------

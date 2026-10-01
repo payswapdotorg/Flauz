@@ -35,6 +35,7 @@ export {
 	type ContinuityBundleManifest,
 	type ContinuityErrorCode,
 	type ContinuityOpDetails,
+	type ContinuityOpAppendInput,
 	type ContinuityOpError,
 	type ContinuityOpName,
 	type ContinuityOpRecord,
@@ -63,6 +64,7 @@ export {
 export {
 	ContinuityOpsLedger,
 	bundleManifestPath,
+	continuityOpRecordHash,
 	parseBundleManifest,
 	parseContinuityOpLine,
 	parseContinuityOpRecord,

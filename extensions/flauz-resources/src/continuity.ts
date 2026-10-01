@@ -14,7 +14,8 @@
  *   - environment refs: the environment id + lifecycle state summary (the
  *     flauz-environments registry descriptor id; the registry file is read
  *     read-only when present) + a plan re-execution hint;
- *   - file/directory/artifact refs: path + content hash.
+ *   - file/directory/artifact/evidence refs: path + content hash (evidence
+ *     refs carry artifact surfaces per the INTEGRATION-GAP contract row 4).
  *
  * `restore(refId)` returns the plan AND records a `restored-from` edge on
  * successful restoration: the origin is the explicit `fromRefId` or, by
@@ -138,6 +139,7 @@ const FAMILY_BY_KIND: Partial<Record<string, RestorationFamily>> = {
 	'file': 'file-artifact',
 	'directory': 'file-artifact',
 	'artifact': 'file-artifact',
+	'evidence': 'file-artifact',
 };
 
 function currentSurface(graph: ResourceGraph, refId: string, family: Surface['kind']): Surface | undefined {
@@ -220,7 +222,7 @@ export class ContinuityService {
 		}
 		const family = FAMILY_BY_KIND[ref.kind];
 		if (family === undefined) {
-			throw restoreError(`restoration rejected: kind '${ref.kind}' has no v0 restoration family (restorable: file, directory, artifact, browser-session, environment)`);
+			throw restoreError(`restoration rejected: kind '${ref.kind}' has no v0 restoration family (restorable: file, directory, artifact, evidence, browser-session, environment)`);
 		}
 		const plan = await this.buildPlan(ref, family);
 		assertNoSecretShapedValues(plan, `restorationPlan(${refId})`);

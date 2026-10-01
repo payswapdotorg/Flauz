@@ -13,7 +13,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { GRAPH_PATH, OPS_PATH, type ResourceProvenance } from '../src/api.ts';
 import { verifyWorkspace } from '../src/graph.ts';
-import { ProvenanceLedger, envelopeDigest, opLine, parseOpRecord, type OpAppendInput, type ResourceOpRecord } from '../src/provenance.ts';
+import { ProvenanceLedger, envelopeDigest, opLine, opRecordHash, parseOpRecord, type OpAppendInput, type ResourceOpRecord } from '../src/provenance.ts';
 import { AGENT, HUMAN, TOOL, bootGraph, fixedClock, runtimeSecretFixture, steppingClock } from './helpers.ts';
 
 const FILE = 'flauz:file:4d5e6f708192a3b4';
@@ -70,7 +70,7 @@ test('before/after digests are the sha256 of the canonical envelope states', asy
 
 test('a missing actor is a schema rejection in the ops parser (fail-closed provenance)', () => {
 	const base = {
-		ts: 1730000000000, op: 'add-ref', refId: FILE,
+		ts: 1730000000000, op: 'add-ref', refId: FILE, prev: null as string | null,
 		beforeDigest: '0'.repeat(64), afterDigest: '1'.repeat(64),
 	};
 	assert.throws(() => parseOpRecord(base, 'x'), /actor is MISSING.*MANDATORY/);
@@ -79,17 +79,22 @@ test('a missing actor is a schema rejection in the ops parser (fail-closed prove
 	assert.throws(() => parseOpRecord({ ...base, seq: 0, actor: 'agent' }, 'x'), /seq must be a positive integer/);
 	assert.throws(() => parseOpRecord({ ...base, seq: 1, actor: 'agent', beforeDigest: 'xyz' }, 'x'), /beforeDigest/);
 	assert.throws(() => parseOpRecord({ ...base, seq: 1, actor: 'agent', ts: 0 }, 'x'), /ts must be a positive integer/);
+	assert.throws(() => parseOpRecord({ ...base, seq: 1, actor: 'agent', prev: 'not-hex' }, 'x'), /prev must be null/);
 	assert.equal(parseOpRecord({ ...base, seq: 1, actor: 'human' }, 'x').actor, 'human');
 });
 
-test('opLine is canonical JSON (sorted keys, compact)', () => {
-	const record: ResourceOpRecord = {
+test('opLine is canonical JSON (sorted keys, compact) and carries the prev chain link', () => {
+	const genesis: ResourceOpRecord = {
 		seq: 1, ts: 5, op: 'add-ref', refId: FILE, actor: 'agent',
-		beforeDigest: '0'.repeat(64), afterDigest: '1'.repeat(64),
+		beforeDigest: '0'.repeat(64), afterDigest: '1'.repeat(64), prev: null,
 	};
-	const line = opLine(record);
+	const line = opLine(genesis);
 	assert.ok(line.startsWith('{"actor":"agent",'), 'keys sorted: actor first');
-	assert.equal(line, `{"actor":"agent","afterDigest":"${'1'.repeat(64)}","beforeDigest":"${'0'.repeat(64)}","op":"add-ref","refId":"${FILE}","seq":1,"ts":5}`);
+	assert.equal(line, `{"actor":"agent","afterDigest":"${'1'.repeat(64)}","beforeDigest":"${'0'.repeat(64)}","op":"add-ref","prev":null,"refId":"${FILE}","seq":1,"ts":5}`);
+	// the chain link value is the sha256 of the canonical line (including its own prev)
+	assert.equal(opRecordHash(genesis), opRecordHash(JSON.parse(opLine(genesis)) as ResourceOpRecord));
+	const chained: ResourceOpRecord = { ...genesis, seq: 2, prev: opRecordHash(genesis) };
+	assert.equal(opLine(chained).includes(`"prev":"${opRecordHash(genesis)}"`), true, 'the successor carries the predecessor line hash');
 });
 
 test('the ledger writer refuses to append a record with an invalid actor (nothing is written)', async () => {

@@ -471,7 +471,7 @@ test('restore: trust gate — untrusted target environments are rejected fail-cl
 	strictEqual(trusted.record.details!.toEnvironmentId, 'env-target-box');
 });
 
-test('restore: a tampered artifact is skipped — RESTORE_SURFACE_FAILED, prior target state untouched', async () => {
+test('restore: ALL-OR-NOTHING — a tampered artifact fails the whole restore BEFORE any write', async () => {
 	const { manager, fs } = await bootHarness();
 	const exported = await manager.export({ actor: 'human' });
 	ok(exported.ok);
@@ -486,14 +486,21 @@ test('restore: a tampered artifact is skipped — RESTORE_SURFACE_FAILED, prior 
 	const failed = await manager.restore({ bundleId, actor: 'human' });
 	ok(!failed.ok, 'the op fails when any surface fails');
 	strictEqual(failed.error.code, 'RESTORE_SURFACE_FAILED');
+	ok(failed.error.message.includes('NOTHING was written'), 'the error names the all-or-nothing law');
 	const tasksResult = failed.surfaces.find(surface => surface.surface === 'flauz-tasks-envelope')!;
 	strictEqual(tasksResult.outcome, 'skipped');
 	ok(tasksResult.note !== undefined && tasksResult.note.includes('hash mismatch'), 'the skip reason names the mismatch');
 	strictEqual(fs.files().get(`${ROOT}/.flauz/tasks.json`), undefined, 'no partial write of the tampered surface');
-	// the OTHER surfaces still restored (all-or-nothing PER SURFACE)
+	// the OTHER surfaces were NOT written either (all-or-nothing, not per-surface)
 	const registryResult = failed.surfaces.find(surface => surface.surface === 'flauz-environments-registry')!;
-	strictEqual(registryResult.outcome, 'carried', 'independent surfaces still restore');
-	strictEqual(fs.files().get(`${ROOT}/.flauz/environments.json`), SEED_STATE[`${ROOT}/.flauz/environments.json`]!);
+	strictEqual(registryResult.outcome, 'skipped', 'independent surfaces are not attempted when any surface fails validation');
+	ok(registryResult.note !== undefined && registryResult.note.includes('all-or-nothing'), 'the note explains the all-or-nothing abort');
+	strictEqual(fs.files().get(`${ROOT}/.flauz/environments.json`), undefined, 'NOTHING was written (the target keeps its prior state)');
+	strictEqual(fs.files().get(`${ROOT}/.flauz/workflows/index.json`), undefined, 'no directory-surface file was written either');
+	// the failed attempt is ledger-recorded with the prev chain intact
+	const records = ContinuityOpsLedger.parseLedger(fs.files().get(`${ROOT}/.flauz/continuity-ops.jsonl`)!);
+	strictEqual(records[records.length - 1]!.result, 'error');
+	strictEqual(records[records.length - 1]!.error!.code, 'RESTORE_SURFACE_FAILED');
 });
 
 test('restore: pre-flight rejections — unknown bundle / bad id shape (nothing recorded)', async () => {
