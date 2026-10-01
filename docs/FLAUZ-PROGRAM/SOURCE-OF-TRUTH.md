@@ -3,9 +3,9 @@
 Repository: payswapdotorg/Flauz
 Product branch: main
 Integrated head: `main` (resolve the live SHA with `git rev-parse main`)
-Verification date: 2026-09-29
+Verification date: 2026-10-01
 
-This repository is the sole operational source of truth for the Flauz engineering program. Chat history, prior model outputs, external lab notes, and stale status snapshots are not authoritative.
+This repository is the sole operational source of truth for the Flauz engineering program. Chat history, prior model outputs, external lab notes and stale status snapshots are not authoritative.
 
 ## Canonical authority
 
@@ -43,15 +43,15 @@ Every material change to Flauz must leave the repository internally self-describ
 
 The control plane is updated in the same merge wave as the work it describes.
 
-## Current reconciliation — 2026-09-29
+## Current reconciliation — 2026-10-01
 
-- `main` is the canonical product head; resolve its live SHA rather than copying a historical SHA.
-- All registered TL1/TL2/TL3/TL4 foundation items are DONE.
-- AO-H1..AO-H4, TL3-H1/TL3-H2, TL4-H1/TL4-H2, PLATFORM-H1/PLATFORM-H2 and TL2-H1 are DONE.
-- The Agent OS runtime census is 8 PASS / 0 FAIL / 0 SKIP.
-- There are no open pull requests at phase creation.
-- The active program is now the Product Acceptance, Discovery and Productization phase defined by `PRODUCT-PHASE.md`.
-- There is no CopilotKit or OpenMuse runtime dependency. Any future AG-UI integration remains an additive projection behind the native Flauz service boundary.
+- P2-001, P2-002 and P2-003 are complete.
+- The original acceptance/discovery wave is historical evidence.
+- P2-FIX-108 and P2-FIX-112 are complete.
+- The remaining P2-FIX tail is now absorbed by TL-A under the Two-TL program.
+- TL-B owns the new Engineering Lab vertical and may proceed independently using stable Flauz contracts and fixtures.
+- There are no open pull requests at the latest verified repository state.
+- The current roadmap is `docs/FLAUZ-PROGRAM/MASTER-ROADMAP.md`.
 
 ## Completion law
 
@@ -80,12 +80,8 @@ A new TL, worker, or architect must be able to recover the program without prior
 
 ## Active handoff map
 
-- TL1 -> `TL1-PRODUCT-HANDOFF.md` — control-plane reconciliation and substrate support.
-- TL2 -> `TL2-PRODUCT-HANDOFF.md` — Agent OS finding/fix lane.
-- TL3 -> `TL3-PRODUCT-HANDOFF.md` — Browser/Environment finding/fix lane.
-- TL4 -> `TL4-PRODUCT-HANDOFF.md` — product acceptance and discovery.
-
-The older `TL1-HANDOFF.md` through `TL4-HANDOFF.md` files are historical completion records.
+- TL-A -> `TL-A-PRODUCTIZATION-HANDOFF.md` — product completion, production and operations.
+- TL-B -> `TL-B-ENGINEERING-LAB-HANDOFF.md` — Engineering Lab and adaptive optimization.
 
 ## Program structure
 
