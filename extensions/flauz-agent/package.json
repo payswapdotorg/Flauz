@@ -96,11 +96,13 @@
                 "commands": [
                         {
                                 "command": "flauz.showTasks",
-                                "title": "Show Flauz Tasks"
+                                "title": "Show Flauz Tasks",
+                                "category": "Flauz"
                         },
                         {
                                 "command": "flauz.verifyLedger",
-                                "title": "Verify Flauz Evidence Ledger"
+                                "title": "Verify Flauz Evidence Ledger",
+                                "category": "Flauz"
                         },
                         {
                                 "command": "flauz.focusView.agentSessions",
