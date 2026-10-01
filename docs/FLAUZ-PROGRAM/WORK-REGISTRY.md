@@ -895,7 +895,7 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 | P2-FIX-107 | TL-A | DONE | At-record query-value redaction landed (PR #93 7ba8ccb4eee) |
 | P2-FIX-109 | TL-A | DONE | Cooperative cancellation port + destroy-supersede landed (PR #99 4c1502b211e) |
 | P2-FIX-110 | TL-A | DONE | remotePidAlive UNVERIFIABLE landed (PR #91 5ca57a719b9e) |
-| P2-FIX-111 | TL-A | ACTIVE | Restoration-family vocabulary convergence |
+| P2-FIX-111 | TL-A | DONE | Restrict-the-matrix convergence landed (PR #102 67669114f2f) |
 | P2-FIX-113 | TL-A | DONE | Keyed/signed hash-chain decision — closed by DL-83 bounded deferral (explicit trigger recorded) |
 
 Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
@@ -909,7 +909,7 @@ Pinned base: `3928b0eeeba0c7d640147e605111da547fd6bbe3` (main at claim time — 
 - **P2-FIX-107** (URL redaction control point) — **DONE:** PR #93, squash-merged `7ba8ccb4eee5` (see the TL-A landing record below).
 - **P2-FIX-109** (executor cancellation ports) — **DONE:** PR #99 (see the TL-A landing record below).
 - **P2-FIX-110** (remotePidAlive unverifiable window) — **DONE:** PR #91, squash-merged `5ca57a719b9e` (see the TL-A landing record below).
-- **P2-FIX-111** (edge-matrix vs plan-family vocabulary asymmetry) — **CLAIMED, decision recorded (DL-82 below)** — branch `flauz-p2fix/p2-fix-111` — the restrict-the-matrix convergence (matrix + tests + fixtures as one DL-R2-shaped change); dispatch after the decision-record wave lands.
+- **P2-FIX-111** (edge-matrix vs plan-family vocabulary asymmetry) — **DONE:** PR #102 (see the TL-A landing record below).
 - **P2-FIX-113** (unkeyed hash chains) — **CLOSED BY DECISION (DL-83 below):** the bounded deferral is recorded with its explicit trigger (the beta/production security gate requiring whole-tail-adversary tamper-evidence); no implementation this wave — the decision IS the deliverable (the P2-FIX-112 precedent).
 
 #### TL-A landing record — P2-FIX-107 DONE (2026-10-01)
@@ -967,11 +967,17 @@ No implementation dispatches for P2-FIX-113; the finding closes with this record
 
 - **P2-FIX-113 (unkeyed hash chains) — DONE by decision record DL-83 above:** no product code, no API change (documentation-only closure, the P2-FIX-112 precedent). The bounded deferral carries the explicit trigger (the beta/production security gate requiring whole-tail-adversary tamper-evidence), the adoption sketch (the signed-checkpoint hook per the DL-20 pattern) and the key-holding boundary requirement (out-of-band relative to the ledger files). The residual classes stay documented in the provenance ledger headers and the tamper-evidence battery — never claimed fixed by this closure.
 
+#### TL-A landing record — P2-FIX-111 DONE (2026-10-01)
+
+- **P2-FIX-111 (the DL-82 restrict-the-matrix convergence) — DONE:** PR #102, squash-merged `67669114f2f`. Worker lane delivery (chat `c43644cb`, GLM-5.3/Full-Stack), worker head `5a9ea5007a2b` (single commit on the pinned base `3928b0eeeba`, no rebase); the additive merge over origin/main `b4768563d82` (the full tail + LAB-001) resolved with ZERO conflicts. Harvest via the direct HTTP files API (browser-free): 7/7 artifacts, sha256 chain 6/6 + TREE-SELF-CHECK verified, bundle↔mirror byte-identical 4/4, `git bundle verify` ok. STATION re-verification (independent, clean worktree): resources suite **116/116/0/0** (the worker receipt reproduced exactly); **fails-on-base reproduced** — the four-file change's test side on pristine base sources fails **5/5** (the four DL-82 regression legs + the bad-matrix fixture leg); `tsc --noEmit` exit 0; GATE-FROZEN instruments byte-identical (zero `build/` diff); secrets scan clean (one disclosed false positive: the `task-kind` fixture filename substring-matches `sk-`); the read-only consumer survey reproduced — no cross-extension consumer of the restoration edge kinds. The delivery: 4 files +288/−3 — `RESTORABLE_KINDS` converged to `file, directory, artifact, evidence, browser-session, environment`; `task`/`agent-session`/`workflow` leave the restorable from-kinds; the new `dl82Convergence.test.ts` (4 regression + 4 guard legs); bad fixture 69; fixtures README note. `continuity.ts` untouched (the closed-set message was already the shrunk set — now pinned by a guard test); NO restoration family minted (the owning lanes keep that authority — DL-82's exact prohibition). STATION RESIDUE landed in the same PR: `build/flauz/canaries/R-RES.md` A2 coverage claim 68→69 + the DL-82 range note (build/** is outside the worker partition; the A2 floor + all-rejected enforcement stays green with 69 files). Honest operational notes: the worker's chat record carries a null assistant message (the DOM report never landed in the chat; the staged delivery is the completion signal per the WO law — detected by the browser-free completion poller at 10:21 UTC, harvested by the successor station session after an interruption); the morning's podless-zombie 111 dispatches (chat `766fc616` dead, phantoms voided) are closed by this landing. Evidence level local-real (real `node --test` over the real matrix + continuity service; the real-family restore leg through `file-artifact`).
+
+**A-PROD-001 is COMPLETE with this landing: the inherited P2-FIX tail is 7/7** (102/106/107/109/110/111 implemented + landed; 113 closed by the DL-83 bounded-deferral decision record). The next wave (A-PROD-002 final verification) re-runs the full acceptance machinery on this final main and lands the formal evidence artifact.
+
 ### Phase A — Product Completion / Productionization
 
 | ID | Owner | Status | Dependency |
 |---|---|---|---|
-| A-PROD-001 | TL-A | ACTIVE | inherited P2-FIX tail |
+| A-PROD-001 | TL-A | DONE | inherited P2-FIX tail 7/7 closed (102/106/107/109/110/111 landed; 113 closed by DL-83 decision) |
 | A-PROD-002 | TL-A | TODO | A-PROD-001 |
 | A-PROD-003 | TL-A | ACTIVE | current integrated product; independent of TL-B |
 | A-PROD-004 | TL-A | TODO | A-PROD-001 + dogfood evidence |
