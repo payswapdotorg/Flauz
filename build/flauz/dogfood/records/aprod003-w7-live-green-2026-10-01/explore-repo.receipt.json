@@ -1,0 +1,85 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "explore-repo",
+	"title": "repository exploration: map every consumer of the evidence ledger",
+	"dimensions": [
+		"repository exploration",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "explore.model-call-ok",
+			"ok": true,
+			"detail": "the exploration turn streamed 917 chars through provider flauz-dogfood-live (decision rd-000002, 1 attempt(s), 4434 ms, finish_reason: stop)"
+		},
+		{
+			"id": "explore.answer-parses",
+			"ok": true,
+			"detail": "the answer document carries 5 claimed consumers"
+		},
+		{
+			"id": "explore.excerpt-embedded",
+			"ok": true,
+			"detail": "the ask prompt embeds the excerpt verbatim (64 files, 262 import rows, 5 ledger consumers among them)"
+		},
+		{
+			"id": "explore.map-sound",
+			"ok": true,
+			"detail": "every claimed entry re-reads within the excerpt (the claimed file:line is an excerpt row that really imports the ledger module) (5/5 sound)"
+		},
+		{
+			"id": "explore.map-complete",
+			"ok": true,
+			"detail": "the map misses 0 of the 5 excerpt consumers"
+		},
+		{
+			"id": "explore.map-100-percent",
+			"ok": true,
+			"detail": "claimed 5 vs excerpt 5; verified=true"
+		},
+		{
+			"id": "explore.evidence-minted",
+			"ok": true,
+			"detail": "the answer + excerpt + verification artifacts are hash-pinned into the evidence ledger (E-000003, E-000004, E-000005)"
+		}
+	],
+	"evidenceIds": [
+		"E-000003",
+		"E-000004",
+		"E-000005"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-answer.json",
+			"sha256": "f82a58e2a9415df0d806be81c7c11854afc1fb338c38546efc85a441900f3196"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-excerpt.json",
+			"sha256": "48b73ec411dd50a26fe1d9f1982428c33ce49b4cbe82ce7ce85a5fa947f22842"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-verification.json",
+			"sha256": "3a24f8865d41be86e7040118f164bd6f07bfb0311070832829fe12276c18f3af"
+		}
+	],
+	"frictionLogPath": "/tmp/dogfood-w7-records/explore-repo.friction.jsonl",
+	"frictionRows": {
+		"friction": 0,
+		"timing": 2,
+		"recovery": 0
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"P2-FIX-122: the live (bare-model) lane answered the EXCERPT-mode question -- the deterministic tree excerpt (seed 1220, 64 files) embedded in the prompt at ask time; the verification is scoped to the excerpt (every claimed entry re-reads within it, every excerpt consumer claimed) -- the same 100% bar, a real capability test instead of an unanswerable full-tree ask",
+		"the excerpt is banked as evidence (a hash-pinned artifact + embedded in the verification receipt): a reviewer can check the model's answer against the excerpt by hand; the full-tree question stays the fake lane's (its server-side computation is the machinery ground truth), and the agent-with-tools lane is deferred to the tools dogfood wave",
+		"model intelligence: live-provider (the excerpt lane; claimed live only by the station's live run -- never by the worker); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)"
+	]
+}
