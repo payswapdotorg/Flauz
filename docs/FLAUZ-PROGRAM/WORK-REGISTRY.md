@@ -902,7 +902,7 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 
 | Item | Owner | Status | Purpose |
 |---|---|---|---|
-| P2-FIX-114 | TL-A | ACTIVE | LAB-001 fork-critical placement violation — DL-84 demotion to build/flauz/lab (decision recorded; finding doc in findings/) |
+| P2-FIX-114 | TL-A | DONE | DL-84 demotion landed (PR #106 415c3192e9) — both the LAB-001 contracts AND the racing LAB-002 delivery relocated to build/flauz/lab |
 
 Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
 
@@ -990,6 +990,13 @@ P2-FIX-114's finding records the fork-critical regression on main: PR #101 (TL-B
 - **Ownership honesty:** the violating landing is TL-B's (their lane, their worker); the finding, this adjudication and the demotion are TL-A's (the resident watch + landing-gate owner). TL-B's in-flight waves (LAB-002/LAB-004) rebase onto the demotion mechanically — the import path change (`src/vs/platform/lab` -> `build/flauz/lab`) is the only rebase consequence; recorded here as the cross-TL coordination note (the versioned-contract law unchanged — the contracts' content and version are untouched).
 
 Implementation routing: the P2-FIX-114 worker order pins this law; the worker implements on branch `flauz-p2fix/p2-fix-114` at the claim-time pinned base `a5a454bd5e`; the station independently re-verifies every receipt before landing.
+
+#### TL-A landing record — P2-FIX-114 DONE (2026-10-01)
+
+- **P2-FIX-114 (the DL-84 restrict-to-additive demotion) — DONE:** PR #106, squash-merged `415c3192e9`. Worker lane delivery (chat `ad2b79f7`, GLM-5.3/Full-Stack), worker head `115c9f8f071` on the pinned base `896c5641cb` (the DL-84 decision head) — the verbatim `git mv` of `labContracts.{ts,test.ts}`, ZERO content edits (two 100%-similarity renames, zero content hunks; blob identity across the move). Harvest: 5/5, sha256 chain 4/4 + TREE-SELF-CHECK. STATION re-verification (independent worktree): the worker's full gate table reproduced — G1 guard FAIL->PASS EMPTY vs `origin/upstream/main`; G2 compat-battery 1886/1887 -> **1887/1887**; G3 verify-fixtures 1 deviation -> **ALL 231 AS EXPECTED**; G4 the isolated mocha+tsx runner 9/9 at the new path; G5 scoped tsc exit 0 (the honest flag-discrepancy disclosure adjudicated: the literal `--types node` exits TS2593 at BOTH paths — path-independent, no move regression; the repo's governance record for these files is `node,mocha`).
+- **THE CROSS-LANDING (the racing LAB-002 wave):** TL-B's LAB-002 (PR #105, 11:07:33 UTC) landed 1,296 lines under `src/vs/platform/lab/` five minutes AFTER DL-84 (11:02:45) — their worker branched pre-decision. The merge resolved via git's own rename-aware conflict suggestion: both `workloadLearning.{ts,test.ts}` placed at `build/flauz/lab/` — the DL-84 law applied to the racing delivery (the 109/110 cross-landing-fix precedent; the sibling and depth-identical relative imports survive unchanged). Merged tree vs pre-merge main: exactly 4 pure renames, 0 insertions/deletions. The merged-tree gate set: guard PASS EMPTY · compat **1887/1887** · fixtures **231/231** · **24 tests passing** (labContracts 9 + workloadLearning 15 — both waves' receipts reproduced on one tree) · scoped tsc 0.
+- **Honest operational notes:** the first 114 dispatch STOPPED honestly at §0 (the WO lacked the repo-clone URL — a station WO-authoring defect; the honest stop delivery is banked, the WO patched with §2.1, re-dispatched, and completed ~30 min later). **THE LAB-004 WARNING (cross-TL coordination):** TL-B's registry note stages LAB-004 as its own PR — it MUST branch from the post-demotion main and place its files under `build/flauz/lab/` (or seek its own adjudication BEFORE merging); landing into `src/vs/platform/lab` again will re-red the compat-battery fork-critical row exactly as LAB-002 did.
+- **A-PROD-002 state after this landing:** journey 14/14 runtime-real · compat 1887/1887 · fixtures 231/231 · verify-product 31 · discovery 23/0 KNOWN-GAP · packaging-parity 9/36/0 · activation/ia/premium-ux/budget/security/security-runtime GREEN — the full battery family is GREEN on the final main; the live-provider drill is 3/4 with the provenance row 429-rate-limited (environmental; re-run pending) and 4/4 pre-verified on `393a0fd07c0` (TLA-1B). The formal evidence artifact is the next registry wave.
 
 ### Phase A — Product Completion / Productionization
 
