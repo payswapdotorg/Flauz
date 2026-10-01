@@ -10,15 +10,25 @@
  *   - Per-session hardening on every tab activation (src/runtime/hardening.ts):
  *     downloads denied for EVERY session; agent sessions carry the FlauzAgent
  *     user-agent token. Fail-closed.
- *   - Popup / new-target gate (item 3.3): every live tab auto-attaches to the
- *     page targets it creates (Target.setAutoAttach, flatten,
- *     waitForDebuggerOnStart) and gates each new target's URL through the
- *     policy engine with the SESSION's initiator class BEFORE the target is
- *     used: denied => the target is closed immediately + an evidence row;
- *     allowed => the target is released (Runtime.runIfWaitingForDebugger —
- *     the REAL CDP release method; `Runtime.run` is not a real method, fixed
- *     by the TL3-P2 audit after drill finding F-RELEASE-CMD) and attached as
- *     a tab of the SAME session. This closes the window.open/target=_blank
+ *   - Popup / new-target gate (item 3.3; P2-FIX-106 / DL-79 browser-level
+ *     placement): the gate sits on BROWSER-level auto-attach
+ *     (Target.setAutoAttach, flatten, waitForDebuggerOnStart, at the
+ *     browser scope — the only placement real Chromium delivers
+ *     window.open targets to; drill finding F-DELIVERY). A held target is
+ *     attributed by targetInfo.openerId; a session opener's popup has its
+ *     pending destination observed PRE-USE through the Fetch domain (the
+ *     FIRST Fetch.requestPaused carries the URL — targetInfo.url is EMPTY
+ *     at attach on real Chromium, an accepted fact, not worked around;
+ *     drill finding F-POPUP-URL) and policy-checked with the OPENER
+ *     session's initiator class: denied => Fetch.failRequest (abort BEFORE
+ *     the wire — zero committed loads, zero bytes to the denied host) +
+ *     Target.closeTarget (destroyed before use) + an evidence row;
+ *     allowed => Fetch.disable + the target attaches as a tab of the SAME
+ *     session. No-URL popups (window.open() with no destination) and
+ *     non-session openers are released immediately on opener attribution
+ *     (no indefinite hold is lawful — drill finding F-OPENER-BLOCK). The
+ *     per-tab page-session auto-attach stays for tab-scoped session work
+ *     (the DL-79 scope guard). This closes the window.open/target=_blank
  *     bypass of the navigation gate.
  *   - Credential isolation (item 3.5): tabs belong to exactly one
  *     session/partition — cross-partition tab use is a TYPED error
@@ -45,11 +55,14 @@
  *   - Broken transport -> the session is `failed`, never an open; a denied
  *     startUrl fails the session BEFORE any host interaction.
  *   - Recovery NEVER bypasses policy: after a transport drop the manager
- *     reconnects (fresh transport), reconciles the tab list vs the
- *     descriptors (restoring what exists, marking lost tabs), re-applies the
- *     per-session hardening + popup gate to every re-attached tab, re-checks
- *     the reconciled state against the CURRENT policy, and every further
- *     navigation is gated against the current engine again.
+ *     reconnects (fresh transport), re-arms the BROWSER-level popup gate on
+ *     the fresh connection (P2-FIX-106: a reconnection that cannot re-arm
+ *     the gate never resumes sessions half-governed), reconciles the tab
+ *     list vs the descriptors (restoring what exists, marking lost tabs),
+ *     re-applies the per-session hardening + the per-tab auto-attach to
+ *     every re-attached tab, re-checks the reconciled state against the
+ *     CURRENT policy, and every further navigation is gated against the
+ *     current engine again.
  *
  * HUMAN vs AGENT SEPARATION (README "Semantics" item 3, pinned BOTH
  * directions in session-manager.test.ts): the session's `initiator` selects
@@ -67,7 +80,7 @@ import {
 	toEvidenceRow,
 	verdictSummary,
 } from '../policy.ts';
-import type { CdpParams } from '../cdp/transport.ts';
+import { type CdpParams, type CdpSubscription, type CdpTransport, scopeToSession } from '../cdp/transport.ts';
 import type { BrowserHost, HostTabHandle } from './host.ts';
 import {
 	type BrowserSessionDescriptor,
@@ -166,21 +179,27 @@ interface RecoverySessionReportDraft {
 	policyViolations: EvidenceRowInput[];
 }
 
-// #region Popup / new-target gate (TL3-002 item 3.3)
+// #region Popup / new-target gate (TL3-002 item 3.3; P2-FIX-106 DL-79 browser-level placement)
 
 /**
- * One popup-gate decision: the policy verdict for a target created by a
- * session tab (window.open / target=_blank), evaluated with the SESSION's
- * initiator class BEFORE the target was used. The evidence row carries the
- * untrusted-content boundary marker (the popup URL is page-derived).
+ * One popup-gate decision (P2-FIX-106 / DL-79): the policy verdict for a
+ * target created by a session tab (window.open / target=_blank), with the
+ * pending destination OBSERVED PRE-USE at FIRST-REQUEST time (the first
+ * `Fetch.requestPaused` on the released hold — `targetInfo.url` is EMPTY at
+ * attach on real Chromium, a pinned fact the gate accepts rather than works
+ * around) and evaluated with the OPENER session's initiator class. The
+ * evidence row carries the untrusted-content boundary marker (the observed
+ * URL is page-derived).
  */
 export interface PopupGateEvent {
 	readonly sessionId: string;
-	/** The tab whose page created the target. */
+	/** The tab whose page created the target (the openerId's owner). */
 	readonly sourceTabId: string;
 	readonly targetId: string;
 	/**
-	 * The target's URL at attach time (page-derived; treat as untrusted).
+	 * The observed destination (== {@link observedUrl}; the legacy field
+	 * now carries the OBSERVED URL per DL-79 — empty-at-attach is
+	 * documented on {@link observedUrl}). Page-derived; treat as untrusted.
 	 * P2-FIX-107 / DL-80 (the two-layer redaction law's AT-RECORD layer): the
 	 * url persisted on the RECORD (the popup-gate audit log + subscribers) is
 	 * the at-record redacted form -- URL structure and param NAMES preserved,
@@ -192,6 +211,16 @@ export interface PopupGateEvent {
 	 * resources-lane detector's beat where they surface).
 	 */
 	readonly url: string;
+	/**
+	 * P2-FIX-106 (additive, DL-79): the URL observed at FIRST-request time
+	 * (the first `Fetch.requestPaused` on the held target) — the gate's
+	 * URL input. EMPTY at attach on real Chromium (drill finding
+	 * F-POPUP-URL): the pending destination is simply not available at
+	 * gate-arm time.
+	 */
+	readonly observedUrl: string;
+	/** P2-FIX-106 (additive, DL-79): the opener target id (provenance attribution at attach). */
+	readonly openerId: string;
 	readonly decision: 'allow' | 'deny';
 	readonly verdict: PolicyVerdict;
 	readonly evidenceRow: EvidenceRowInput;
@@ -202,6 +231,7 @@ export interface PopupGateEvent {
 	readonly attachError?: string;
 	/** allow path: the logical tab id of the attached popup tab. */
 	readonly attachedTabId?: string;
+	/** FIRST-REQUEST time (P2-FIX-106: evidence timing moved from attach-time to first-request-time). */
 	readonly at: string;
 }
 
@@ -231,6 +261,15 @@ export interface BrowserSessionManagerOptions {
 	readonly navigationTimeoutMs?: number;
 	/** Capture ring buffer size (default 500). */
 	readonly bufferLimit?: number;
+	/**
+	 * P2-FIX-106 (DL-79 decisiveness): the bounded no-request observation
+	 * window. The held popup is released immediately on opener
+	 * attribution (arming Fetch first); a popup WITH a destination sees
+	 * its first request pause within milliseconds, while a no-destination
+	 * popup (`window.open()`) fires no request ever — the window expiring
+	 * disarms interception (no indefinite hold is lawful). Default 1500ms.
+	 */
+	readonly noUrlPopupWindowMs?: number;
 }
 
 interface SessionEntry {
@@ -245,9 +284,23 @@ interface TargetOwnership {
 	readonly tabId: string;
 }
 
+/** The held popup's identity at the browser-level gate (P2-FIX-106 / DL-79). */
+interface HeldPopup {
+	readonly targetId: string;
+	readonly heldSessionId: string;
+	readonly openerId: string;
+}
+
+/** The first `Fetch.requestPaused` on a held popup: the gate's URL input (P2-FIX-106 / DL-79). */
+interface PausedRequest {
+	readonly requestId: string;
+	readonly url: string;
+}
+
 const DEFAULT_COMMAND_TIMEOUT_MS = 5_000;
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 15_000;
 const DEFAULT_BUFFER_LIMIT = 500;
+const DEFAULT_NO_URL_POPUP_WINDOW_MS = 1_500;
 
 /**
  * The manager. Construct once per host; `dispose()` closes every session and
@@ -264,8 +317,10 @@ export class BrowserSessionManager {
 	private readonly entries = new Map<string, SessionEntry>();
 	private readonly recoveryHandlers: Array<(verdict: RecoveryVerdict) => void> = [];
 	private readonly deps: TabPipelineDeps;
-	/** Popup-gate subscriptions per live tab id (disposed when the tab leaves the live map). */
-	private readonly targetGates = new Map<string, { dispose(): void }>();
+	/** The BROWSER-level popup gate (P2-FIX-106): subscription + transport per live connection. */
+	private browserGate: { transport: CdpTransport; subscription: CdpSubscription } | undefined;
+	/** The bounded no-request observation window (DL-79 decisiveness). */
+	private readonly noUrlPopupWindowMs: number;
 	/** Popup-gate audit log (forensic surface; surfaced via popupGateEvents()). */
 	private readonly popupGateLog: PopupGateEvent[] = [];
 	private readonly popupGateHandlers: Array<(event: PopupGateEvent) => void> = [];
@@ -290,6 +345,7 @@ export class BrowserSessionManager {
 			: options.taskId === undefined
 				? () => undefined
 				: () => options.taskId as string;
+		this.noUrlPopupWindowMs = options.noUrlPopupWindowMs ?? DEFAULT_NO_URL_POPUP_WINDOW_MS;
 		this.deps = {
 			engine: () => this.engineProvider(),
 			workspaceRoot: this.workspaceRoot,
@@ -447,6 +503,16 @@ export class BrowserSessionManager {
 			return this.failOpen(descriptor, 'flauz.browser.host.unavailable', err instanceof Error ? err.message : String(err));
 		}
 
+		// P2-FIX-106 (DL-79): arm the BROWSER-level popup gate on the live
+		// connection BEFORE any tab exists (a popup can arrive with the
+		// first tab). Fail-closed: a session without the browser-level
+		// gate never opens.
+		try {
+			await this.attachBrowserGate();
+		} catch (err) {
+			return this.failOpen(descriptor, 'flauz.browser.popup-gate', `browser-level popup gate could not be armed: ${err instanceof Error ? err.message : String(err)}`);
+		}
+
 		const entry: SessionEntry = { descriptor, live: new Map() };
 		this.entries.set(sessionId, entry);
 
@@ -492,7 +558,6 @@ export class BrowserSessionManager {
 				tab.record.state = 'failed';
 				tab.record.error = descriptor.error;
 				this.releaseTargetOwnership(tab.record.targetId);
-				this.disposeTargetGate(tab.record.tabId);
 				void this.host.closeTab(tab.record.targetId).catch(() => undefined);
 			}
 			entry.live.clear();
@@ -506,20 +571,24 @@ export class BrowserSessionManager {
 	/**
 	 * Mints a live tab: creates the host target, activates it (domain
 	 * enables + TL3-002 per-session hardening — downloads denied, agent UA
-	 * override — both fail-closed) and attaches the popup gate. A failure at
-	 * any step closes the target browser-level immediately: never a
-	 * half-open, ungoverned target.
+	 * override — both fail-closed) and re-asserts the per-tab page-session
+	 * auto-attach (tab-scoped session work — the DL-79 scope guard). A
+	 * failure at any step closes the target browser-level immediately:
+	 * never a half-open, ungoverned target. (The BROWSER-level popup gate
+	 * holds + releases the minted target itself — P2-FIX-106: a
+	 * browser-scope auto-attach intercepts runtime-minted tabs too; the
+	 * gate releases them on opener attribution — no opener, not ours to
+	 * gate.)
 	 */
 	private async mintTab(entry: SessionEntry, url: string): Promise<LiveTab> {
 		const handle: HostTabHandle = await this.host.createTab(url);
 		let live: LiveTab;
 		try {
 			live = await activateLiveTab(this.deps, entry.descriptor, handle.transport, handle.targetId, url);
-			await this.attachTargetGate(entry, live);
+			await this.enableTabScopedAutoAttach(live.transport);
 		} catch (err) {
-			// FAIL-CLOSED: a target whose activation or gate attach failed is
-			// closed browser-level immediately (the gate cleans up its own
-			// subscription on failure).
+			// FAIL-CLOSED: a target whose activation or auto-attach failed
+			// is closed browser-level immediately.
 			try {
 				await this.host.closeTab(handle.targetId);
 			} catch {
@@ -553,7 +622,6 @@ export class BrowserSessionManager {
 			for (const tab of entry.live.values()) {
 				tab.recorder.detach();
 				this.releaseTargetOwnership(tab.record.targetId);
-				this.disposeTargetGate(tab.record.tabId);
 				try {
 					await this.host.closeTab(tab.record.targetId);
 				} catch {
@@ -751,29 +819,40 @@ export class BrowserSessionManager {
 		}
 	}
 
-	private disposeTargetGate(tabId: string): void {
-		this.targetGates.get(tabId)?.dispose();
-		this.targetGates.delete(tabId);
+	private disposeBrowserGate(): void {
+		this.browserGate?.subscription.dispose();
+		this.browserGate = undefined;
 	}
 
 	/**
-	 * Auto-attaches the tab to the page targets it creates
-	 * (Target.setAutoAttach, flatten, waitForDebuggerOnStart so a new
-	 * target is gated BEFORE it runs). The handler subscribes BEFORE the
-	 * command (no attach window). FAIL-CLOSED: when the command fails, the
-	 * subscription is disposed and the error propagates (the caller fails
-	 * the tab/session — an ungated tab is never accepted).
+	 * P2-FIX-106 (DL-79) — arms the popup/new-target gate at BROWSER level:
+	 * `Target.setAutoAttach` with `waitForDebuggerOnStart` at the browser
+	 * scope, the only placement real Chromium delivers `window.open`
+	 * targets to (drill finding F-DELIVERY: page-session auto-attach
+	 * receives NOTHING for browser-level popups). The handler subscribes
+	 * BEFORE the command (no attach window). FAIL-CLOSED: when the command
+	 * fails, the subscription is disposed and the error propagates (the
+	 * caller fails the open/recovery — an ungated session is never
+	 * accepted). Idempotent per connection; the recovery reconnect re-arms
+	 * on the fresh transport.
 	 */
-	private async attachTargetGate(entry: SessionEntry, tab: LiveTab): Promise<void> {
-		this.disposeTargetGate(tab.record.tabId); // idempotent re-attach (recovery)
-		const subscription = tab.transport.on('Target.attachedToTarget', params => {
-			this.queueGateWork(() => this.handleAttachedTarget(entry, tab, params));
+	private async attachBrowserGate(): Promise<void> {
+		const root = await this.host.rootTransport();
+		if (root === undefined || root.closed) {
+			throw new Error('no browser-level transport available for the popup gate (DL-79 browser-scope placement)');
+		}
+		if (this.browserGate !== undefined && this.browserGate.transport === root) {
+			return; // already armed on this connection
+		}
+		this.disposeBrowserGate();
+		const subscription = root.on('Target.attachedToTarget', params => {
+			this.queueGateWork(() => this.handleBrowserAttachedTarget(root, params));
 		});
-		this.targetGates.set(tab.record.tabId, subscription);
+		this.browserGate = { transport: root, subscription };
 		try {
-			await tab.transport.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page' }] });
+			await root.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page' }] });
 		} catch (err) {
-			this.disposeTargetGate(tab.record.tabId);
+			this.disposeBrowserGate();
 			throw err;
 		}
 	}
@@ -783,47 +862,211 @@ export class BrowserSessionManager {
 	}
 
 	/**
-	 * The gate itself: BEFORE a new target created by a session tab is
-	 * used, its URL is policy-checked with the SESSION's initiator class.
-	 * DENY => the target is closed immediately + an evidence row. ALLOW =>
-	 * the (waiting) target is released via Runtime.runIfWaitingForDebugger
-	 * (the REAL CDP release command — `Runtime.run` is not a real method;
-	 * the TL3-P2 fix for drill finding F-RELEASE-CMD) and attached as a
-	 * tab of the SAME session (ownership, hardening, and its own gate —
-	 * nested popups are gated too). Closing failures on denied targets
-	 * fail the SESSION (fail-closed: an ungovernable target never
-	 * persists).
+	 * Page-session auto-attach per live tab — UNCHANGED placement per the
+	 * DL-79 scope guard ("page-session auto-attach stays for tab-scoped
+	 * session work"): the command keeps its landed shape (flatten +
+	 * waitForDebuggerOnStart, page filter) on every minted/re-attached tab.
+	 * The POPUP GATE no longer rides here (it moved to browser level —
+	 * real Chromium delivers no window.open targets at page scope; drill
+	 * finding F-DELIVERY, pinned).
 	 */
-	private async handleAttachedTarget(entry: SessionEntry, sourceTab: LiveTab, params: CdpParams): Promise<void> {
+	private async enableTabScopedAutoAttach(transport: CdpTransport): Promise<void> {
+		await transport.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page' }] });
+	}
+
+	/** Releases a held (waitForDebuggerOnStart) target — the not-ours-to-gate path. */
+	private async releaseHeldTarget(root: CdpTransport, heldSessionId: string): Promise<void> {
+		await scopeToSession(root, heldSessionId).send('Runtime.runIfWaitingForDebugger');
+	}
+
+	/**
+	 * The browser-level gate (P2-FIX-106 / DL-79): every held
+	 * (waitForDebuggerOnStart) target delivered at browser scope. OPENER
+	 * ATTRIBUTION first — `targetInfo.openerId` names the opener: a target
+	 * with NO opener (the runtime's own minted tabs, browser-internal
+	 * targets) or a NON-SESSION opener is NOT the runtime's to gate and is
+	 * released immediately (also what unblocks the runtime's own
+	 * createTab targets, which the browser-scope auto-attach holds).
+	 * Explicit `Target.attachToTarget` echoes (not waiting) are ignored —
+	 * they are not holds.
+	 */
+	private async handleBrowserAttachedTarget(root: CdpTransport, params: CdpParams): Promise<void> {
+		let owner: { entry: SessionEntry; sourceTab: LiveTab } | undefined;
 		try {
-			const targetInfo = (params.targetInfo ?? undefined) as { targetId?: unknown; url?: unknown } | undefined;
+			const targetInfo = (params.targetInfo ?? undefined) as { targetId?: unknown; openerId?: unknown } | undefined;
+			const heldSessionId = typeof params.sessionId === 'string' ? params.sessionId : undefined;
 			const targetId = typeof targetInfo?.targetId === 'string' ? targetInfo.targetId : undefined;
-			if (targetId === undefined) {
-				return; // no target identity: nothing to gate or close
+			if (targetId === undefined || heldSessionId === undefined) {
+				return; // no target identity: nothing to gate or release
+			}
+			if (params.waitingForDebugger !== true) {
+				return; // an explicit attachToTarget echo, not a gate hold
+			}
+			const openerId = typeof targetInfo?.openerId === 'string' ? targetInfo.openerId : undefined;
+			const ownership = openerId === undefined ? undefined : this.targetOwnership.get(openerId);
+			const entry = ownership === undefined ? undefined : this.entries.get(ownership.sessionId);
+			const sourceTab = ownership === undefined ? undefined : entry?.live.get(ownership.tabId);
+			if (entry === undefined || sourceTab === undefined || openerId === undefined) {
+				// No opener, a dead opener, or a NON-SESSION opener: not
+				// the runtime's to gate — release immediately (DL-79).
+				await this.releaseHeldTarget(root, heldSessionId);
+				return;
 			}
 			const descriptor = entry.descriptor;
 			if (descriptor.state !== 'active' && descriptor.state !== 'suspended') {
-				return; // a dying session gates nothing (its tabs are being torn down)
+				// A dying session gates nothing (its tabs are being torn down) — release.
+				await this.releaseHeldTarget(root, heldSessionId);
+				return;
 			}
-			const url = typeof targetInfo?.url === 'string' ? targetInfo.url : '';
+			owner = { entry, sourceTab };
+			await this.gateHeldPopup(root, entry, sourceTab, { targetId, heldSessionId, openerId });
+		} catch (err) {
+			// The gate itself must never throw into the transport fan-out; a
+			// gate failure fails the OPENER's session (fail-closed). An
+			// unowned hold (the runtime's own mint target) has no session to
+			// fail here — its mint flow shares the same transport and fails
+			// closed on the same breakage through its own surfaces.
+			if (owner === undefined) {
+				return;
+			}
+			const descriptor = owner.entry.descriptor;
+			descriptor.state = 'failed';
+			descriptor.error = {
+				code: 'flauz.browser.popup-gate',
+				message: `popup gate error on target handling: ${err instanceof Error ? err.message : String(err)}; session failed (fail-closed)`,
+				at: isoAt(this.clock),
+			};
+			await this.journalEventBestEffort(descriptor, 'failed');
+		}
+	}
+
+	/**
+	 * P2-FIX-106 (DL-79) — Fetch-domain PRE-USE URL observation on the held
+	 * popup. `targetInfo.url` is EMPTY at attach on real Chromium (drill
+	 * finding F-POPUP-URL — accepted as a real-Chromium fact, not worked
+	 * around), and a debugger-held target starts NO request, so the pending
+	 * destination is observed at the network layer: interception is armed
+	 * on the held session FIRST (`Fetch.enable`), the hold is then released
+	 * (`Runtime.runIfWaitingForDebugger` — arming first matters: released
+	 * before arming, the destination would slip past ungated; the FIRST
+	 * `Fetch.requestPaused` pauses BEFORE the wire and carries the request
+	 * URL — the gate's URL input; real-Chromium-verified sequencing).
+	 * DECISIVENESS IS LAW (drill finding F-OPENER-BLOCK: a held popup blocks
+	 * the opener's JS): the release happens immediately on opener
+	 * attribution (no indefinite hold), and the verdict is reached on the
+	 * FIRST paused request and acted on immediately. The bounded no-request
+	 * window ({@link BrowserSessionManagerOptions.noUrlPopupWindowMs})
+	 * covers the no-destination popup (`window.open()` — no request ever
+	 * pauses; real-Chromium-pinned): when it expires, interception is
+	 * disarmed (nothing may wedge the released popup at the network layer)
+	 * and no gate event is recorded (no destination was gated).
+	 */
+	private async gateHeldPopup(root: CdpTransport, entry: SessionEntry, sourceTab: LiveTab, held: HeldPopup): Promise<void> {
+		const descriptor = entry.descriptor;
+		const heldTransport = scopeToSession(root, held.heldSessionId);
+
+		// Subscribe BEFORE arming (the lost-event race discipline).
+		let settlePaused: ((pause: PausedRequest) => void) | undefined;
+		const pausedPromise = new Promise<PausedRequest>(resolve => {
+			settlePaused = resolve;
+		});
+		const pauseSubscription = heldTransport.on('Fetch.requestPaused', params => {
+			const requestId = typeof params.requestId === 'string' ? params.requestId : undefined;
+			const request = params.request as { url?: unknown } | undefined;
+			const url = typeof request?.url === 'string' ? request.url : undefined;
+			if (requestId === undefined || url === undefined || settlePaused === undefined) {
+				return;
+			}
+			const settle = settlePaused;
+			settlePaused = undefined; // only the FIRST paused request is the gate's input
+			settle({ requestId, url });
+		});
+		let noUrlTimer: { unref(): void } | undefined;
+		const noUrlWindow = new Promise<undefined>(resolve => {
+			const timer = setTimeout(() => resolve(undefined), this.noUrlPopupWindowMs);
+			timer.unref();
+			noUrlTimer = timer;
+		});
+		try {
+			await heldTransport.send('Fetch.enable', {});
+			await heldTransport.send('Runtime.runIfWaitingForDebugger');
+		} catch (err) {
+			pauseSubscription.dispose();
+			if (noUrlTimer !== undefined) {
+				clearTimeout(noUrlTimer);
+			}
+			// FAIL-CLOSED: a popup whose destination cannot be observed
+			// pre-use must never be used — close it for safety (best-effort)
+			// and fail the opener's session (an ungovernable target never
+			// persists).
+			try {
+				await this.host.closeTab(held.targetId);
+			} catch {
+				// The session failure below is the fail-closed act.
+			}
+			descriptor.state = 'failed';
+			descriptor.error = {
+				code: 'flauz.browser.popup-gate',
+				message: `popup gate could not observe held target ${held.targetId} (Fetch arm/release failed: ${err instanceof Error ? err.message : String(err)}); session failed (fail-closed)`,
+				at: isoAt(this.clock),
+			};
+			await this.journalEventBestEffort(descriptor, 'failed');
+			return;
+		}
+		const paused = await Promise.race([pausedPromise, noUrlWindow]);
+		pauseSubscription.dispose();
+		if (noUrlTimer !== undefined) {
+			clearTimeout(noUrlTimer);
+		}
+		if (paused === undefined) {
+			// No-URL popup (window.open() with no destination — no request
+			// ever pauses): already released at arming (decisiveness);
+			// disarm interception so nothing can wedge at the network layer
+			// and stop listening. No gate event: no destination was gated.
+			try {
+				await heldTransport.send('Fetch.disable');
+			} catch {
+				// The popup is released; a broken transport surfaces through
+				// its own failure paths (drop recovery / command timeouts).
+			}
+			return;
+		}
+
+		// The FIRST paused request carries the pending destination — the
+		// gate's URL input. Evidence timing is FIRST-REQUEST time (DL-79:
+		// moved from attach-time), and the verdict is computed with the
+		// OPENER session's initiator class.
+		const firstRequestTs = this.clock();
 			const engine = this.engineProvider();
 			const verdict = engine.evaluate({
-				url,
+			url: paused.url,
 				initiator: toEngineInitiator(descriptor.initiator),
 				partition: descriptor.partition,
 				workspaceRoot: this.workspaceRoot,
-				ts: this.clock(),
+			ts: firstRequestTs,
 			}).final;
 			const taskId = this.taskIdProvider(descriptor.sessionId);
-			// The popup URL is page-derived: the evidence row carries the
+		// The observed URL is page-derived: the evidence row carries the
 			// untrusted-content boundary marker (a MARKER, not sanitization).
 			const evidenceRow: EvidenceRowInput = { ...toEvidenceRow(verdict, taskId), note: untrustedContentNote(verdictSummary(verdict)) };
+		const at = isoAt(() => firstRequestTs);
 
 			if (verdict.decision === 'deny') {
+			// DENY (DL-79): abort the paused request BEFORE the wire
+			// (Fetch.failRequest — zero committed loads, zero bytes to the
+			// denied host; a failed abort is not fatal: the request is
+			// PAUSED, zero bytes sent, and the close below is the hard
+			// guarantee) + destroy the target before use
+			// (Target.closeTarget) + the DENY event.
+			try {
+				await heldTransport.send('Fetch.failRequest', { requestId: paused.requestId, errorReason: 'BlockedByClient' });
+			} catch {
+				// Zero bytes left the pause point; the close destroys the target before use.
+			}
 				let closed = true;
 				let closeError: string | undefined;
 				try {
-					await this.host.closeTab(targetId);
+				await this.host.closeTab(held.targetId);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					if (/no such target/i.test(message)) {
@@ -836,21 +1079,23 @@ export class BrowserSessionManager {
 				this.recordPopupGateEvent({
 					sessionId: descriptor.sessionId,
 					sourceTabId: sourceTab.record.tabId,
-					targetId,
-					url,
+				targetId: held.targetId,
+				url: paused.url,
+				observedUrl: paused.url,
+				openerId: held.openerId,
 					decision: 'deny',
 					verdict,
 					evidenceRow,
 					...(closeError === undefined ? {} : { closeError }),
 					closed,
-					at: isoAt(this.clock),
+				at,
 				});
 				if (!closed) {
 					// FAIL-CLOSED: a denied target we cannot close must not persist.
 					descriptor.state = 'failed';
 					descriptor.error = {
 						code: 'flauz.browser.popup-gate',
-						message: `popup gate could not close denied target ${targetId} (${closeError ?? 'unknown error'}); session failed (fail-closed)`,
+					message: `popup gate could not close denied target ${held.targetId} (${closeError ?? 'unknown error'}); session failed (fail-closed)`,
 						at: isoAt(this.clock),
 					};
 					await this.journalEventBestEffort(descriptor, 'failed');
@@ -858,43 +1103,42 @@ export class BrowserSessionManager {
 				return;
 			}
 
-			// ALLOW: release the waiting target and attach it as a tab of
-			// this session (BEFORE this point the target was never used). The
-			// release command is `Runtime.runIfWaitingForDebugger` — the REAL
-			// CDP method (real Chromium answers `Runtime.run` with
-			// "'Runtime.run' wasn't found": drill finding F-RELEASE-CMD, fixed
-			// here by the TL3-P2 partition A audit — with the wrong command
-			// every policy-ALLOWED popup hit this catch path and was closed on
-			// a real browser).
+		// ALLOW (DL-79): disarm interception (the paused destination
+		// resumes and commits) + the ALLOW event, then attach the target
+		// as a tab of the SAME session per the landed contract (the
+		// target was never used before the verdict; the hold was released
+		// at arming).
 			try {
-				const handle = await this.host.attachTab(targetId);
-				await handle.transport.send('Runtime.runIfWaitingForDebugger');
-				const live = await activateLiveTab(this.deps, descriptor, handle.transport, targetId, url);
-				await this.attachTargetGate(entry, live);
+			await heldTransport.send('Fetch.disable');
+			const handle = await this.host.attachTab(held.targetId);
+			const live = await activateLiveTab(this.deps, descriptor, handle.transport, held.targetId, paused.url);
+			await this.enableTabScopedAutoAttach(live.transport);
 				this.registerTargetOwnership(descriptor, live.record);
 				descriptor.tabs.push(live.record);
 				entry.live.set(live.record.tabId, live);
 				this.recordPopupGateEvent({
 					sessionId: descriptor.sessionId,
 					sourceTabId: sourceTab.record.tabId,
-					targetId,
-					url,
+				targetId: held.targetId,
+				url: paused.url,
+				observedUrl: paused.url,
+				openerId: held.openerId,
 					decision: 'allow',
 					verdict,
 					evidenceRow,
 					attachedTabId: live.record.tabId,
-					at: isoAt(this.clock),
+				at,
 				});
 			} catch (err) {
-				// The policy allowed the target but the attach failed: close
-				// it for safety (an ungoverned allowed target must not run
-				// untracked) and record the truth; a close failure fails the
-				// session (same fail-closed rule as the deny path).
+			// The policy allowed the target but the disarm/attach failed:
+			// close it for safety (an ungoverned allowed target must not
+			// run untracked) and record the truth; a close failure fails
+			// the session (same fail-closed rule as the deny path).
 				const attachError = err instanceof Error ? err.message : String(err);
 				let closed = false;
 				let closeError: string | undefined;
 				try {
-					await this.host.closeTab(targetId);
+				await this.host.closeTab(held.targetId);
 					closed = true;
 				} catch (closeErr) {
 					const message = closeErr instanceof Error ? closeErr.message : String(closeErr);
@@ -907,39 +1151,29 @@ export class BrowserSessionManager {
 				this.recordPopupGateEvent({
 					sessionId: descriptor.sessionId,
 					sourceTabId: sourceTab.record.tabId,
-					targetId,
-					url,
+				targetId: held.targetId,
+				url: paused.url,
+				observedUrl: paused.url,
+				openerId: held.openerId,
 					decision: 'allow',
 					verdict,
 					evidenceRow,
 					attachError,
 					...(closeError === undefined ? {} : { closeError }),
 					closed,
-					at: isoAt(this.clock),
+				at,
 				});
 				if (!closed) {
 					descriptor.state = 'failed';
 					descriptor.error = {
 						code: 'flauz.browser.popup-gate',
-						message: `popup gate could not attach or close allowed target ${targetId} (attach: ${attachError}; close: ${closeError ?? 'unknown error'}); session failed (fail-closed)`,
+					message: `popup gate could not attach or close allowed target ${held.targetId} (attach: ${attachError}; close: ${closeError ?? 'unknown error'}); session failed (fail-closed)`,
 						at: isoAt(this.clock),
 					};
 					await this.journalEventBestEffort(descriptor, 'failed');
 				}
 			}
-		} catch (err) {
-			// The gate itself must never throw into the transport fan-out; a
-			// gate failure is recorded as a session failure (fail-closed).
-			const descriptor = entry.descriptor;
-			descriptor.state = 'failed';
-			descriptor.error = {
-				code: 'flauz.browser.popup-gate',
-				message: `popup gate error on target handling: ${err instanceof Error ? err.message : String(err)}; session failed (fail-closed)`,
-				at: isoAt(this.clock),
-			};
-			await this.journalEventBestEffort(descriptor, 'failed');
 		}
-	}
 
 	// #endregion
 
@@ -982,7 +1216,6 @@ export class BrowserSessionManager {
 		}
 		tab.recorder.detach();
 		this.releaseTargetOwnership(tab.record.targetId);
-		this.disposeTargetGate(tab.record.tabId);
 		entry.live.delete(tab.record.tabId);
 		tab.record.state = 'failed';
 		tab.record.error = { code: reason, message: 'tab replaced: command timeout on a live transport', at: isoAt(this.clock) };
@@ -995,8 +1228,8 @@ export class BrowserSessionManager {
 	 * Transport-drop recovery: suspend live sessions, reconnect (fresh
 	 * transport), reconcile the tab list vs the descriptors (restore what
 	 * exists, mark lost tabs), re-apply the FULL mint-time activation to
-	 * every re-attached tab (domain enables + per-session hardening +
-	 * popup gate — the domain re-enable is the TL3-P2 fix for drill
+	 * every re-attached tab (domain enables + per-session hardening + the
+	 * per-tab auto-attach — the domain re-enable is the TL3-P2 fix for drill
 	 * finding F-RECOVERY-DOMAINS: without it, post-recovery commit
 	 * observation timed out on real Chromium and the post-commit
 	 * reconciliation was skipped), and re-check the reconciled state
@@ -1024,21 +1257,41 @@ export class BrowserSessionManager {
 				}
 			}
 			let reconnected = false;
+			let browserGateArmed = false;
 			try {
 				await this.host.open();
 				reconnected = true;
 			} catch {
 				reconnected = false;
 			}
+			if (reconnected) {
+				// P2-FIX-106 (DL-79): re-arm the BROWSER-level popup gate
+				// on the FRESH connection before any tab is re-attached — a
+				// reconnection that cannot re-arm the gate never resumes
+				// sessions half-governed (fail-closed below).
+				try {
+					await this.attachBrowserGate();
+					browserGateArmed = true;
+				} catch {
+					browserGateArmed = false;
+				}
+			}
 			const reports: RecoverySessionReportDraft[] = [];
-			if (!reconnected) {
-				// Fail-closed: sessions never stay half-open after a failed reconnect.
+			const reconnectFailure: { code: string; message: string } | undefined = !reconnected
+				? { code: 'flauz.browser.transport-drop', message: `transport dropped (${reason}) and reconnect failed` }
+				: browserGateArmed
+					? undefined
+					: { code: 'flauz.browser.popup-gate', message: `transport dropped (${reason}) and the browser-level popup gate could not be re-armed on reconnect (P2-FIX-106/DL-79)` };
+			if (reconnectFailure !== undefined) {
+				// Fail-closed: sessions never stay half-open after a failed
+				// reconnect — or after a reconnect that cannot re-arm the
+				// browser-level popup gate (P2-FIX-106).
 				for (const entry of this.entries.values()) {
 					if (entry.descriptor.state !== 'suspended') {
 						continue;
 					}
 					entry.descriptor.state = 'failed';
-					entry.descriptor.error = { code: 'flauz.browser.transport-drop', message: `transport dropped (${reason}) and reconnect failed`, at: isoAt(this.clock) };
+					entry.descriptor.error = { code: reconnectFailure.code, message: reconnectFailure.message, at: isoAt(this.clock) };
 					const lostTabIds: string[] = [];
 					for (const tab of entry.live.values()) {
 						tab.record.state = 'failed';
@@ -1088,10 +1341,12 @@ export class BrowserSessionManager {
 							// domain enabled, so without the re-enable every
 							// post-recovery commit observation timed out and the
 							// post-commit reconciliation was skipped), then the
-							// per-session hardening, then the popup gate.
+							// per-session hardening, then the per-tab auto-attach
+							// (the popup gate itself re-arms at BROWSER level on the
+							// fresh connection — P2-FIX-106).
 							await enableTabDomains(handle.transport);
 							await applySessionHardening(handle.transport, entry.descriptor);
-							await this.attachTargetGate(entry, tab);
+							await this.enableTabScopedAutoAttach(tab.transport);
 							tab.recorder.attach(handle.transport);
 							record.url = info.url;
 							record.state = 'active';
@@ -1133,7 +1388,6 @@ export class BrowserSessionManager {
 	private markTabLost(entry: SessionEntry, tab: LiveTab, report: RecoverySessionReportDraft, code: string = 'flauz.browser.tab.lost', message: string = 'target gone after transport drop'): void {
 		tab.recorder.detach();
 		this.releaseTargetOwnership(tab.record.targetId);
-		this.disposeTargetGate(tab.record.tabId);
 		entry.live.delete(tab.record.tabId);
 		tab.record.state = 'lost';
 		tab.record.error = { code, message, at: isoAt(this.clock) };
@@ -1147,6 +1401,7 @@ export class BrowserSessionManager {
 		for (const sessionId of [...this.entries.keys()]) {
 			await this.close(sessionId);
 		}
+		this.disposeBrowserGate();
 		await this.host.close();
 	}
 }
