@@ -903,8 +903,8 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 | Item | Owner | Status | Purpose |
 |---|---|---|---|
 | P2-FIX-114 | TL-A | DONE | DL-84 demotion landed (PR #106 415c3192e9) — both the LAB-001 contracts AND the racing LAB-002 delivery relocated to build/flauz/lab |
-| P2-FIX-115 | TL-A | REGISTERED | Dogfood: the graph-completion law's late error (no early typed signal at finishStep(failed)) — finding doc in findings/ |
-| P2-FIX-116 | TL-A | REGISTERED | Dogfood: provider-lane switch durable in three places, no linking event row — finding doc in findings/ |
+| P2-FIX-115 | TL-A | DONE | The typed non-completable warning at finishStep(failed) failure time (PR #123) |
+| P2-FIX-116 | TL-A | DONE | The one linking event row referencing the three switch artifacts (PR #123) |
 | P2-FIX-117 | TL-A | DONE | Budget knob FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS wired through AdapterConfig.requestTimeoutMs (PR #116) |
 | P2-FIX-118 | TL-A | DONE | answerFence.ts strip-fence-then-parse for live lanes (PR #116) |
 | P2-FIX-119 | TL-A | DONE | The exercise carries the workspace facts in the prompt; both lanes answer from prompt-carried facts (PR #116) |
@@ -1048,6 +1048,12 @@ Implementation routing: the P2-FIX-114 worker order pins this law; the worker im
 - **THE W5 FULL-FIX LIVE RUN — THE MACHINERY IS NOW FULLY LIVE-CAPABLE:** with all four realism fixes (300 s wall clock + fence extraction + 32768-token budget + prompt facts), `explore.answer-parses` **TRUE** (the W2/W3/W4 parse failures are CLOSED — the answer document parses, the finish_reason surfaced in the receipt: 1,130 chars, 3,978 ms); `provider-switch` **6/6 PASS live** (again). **The honest knowledge boundary:** the exploration exercise's map checks failed with definitive evidence — the live model produced seven PLAUSIBLE-BUT-HALLUCINATED consumers (**0/7 sound, 23/23 real missed**): the exercise demands repo-wide static analysis a bare live model cannot perform (no file access). **P2-FIX-122 REGISTERED** (the 119 class's deeper sibling): the exercise-design wave owns the fix (the bare-model lane reframed to an embedded-excerpt question; the full-tree question deferred to the agent-with-tools dogfood wave; the fake lane unchanged).
 - **Evidence:** the full W5 record set banked at `build/flauz/dogfood/records/aprod003-w5-live-2026-10-01/` (the receipt with the surfaced finish_reason, the verification receipt with the 0/7+23-missed detail, both friction logs, the switch report, the run summary).
 - **The dogfood-realism arc is CLOSED:** W2 (three findings) -> W2.1 (117/118/119 fixed) -> W3 (120 found) -> W3.1 (120 fixed) -> W4 (121 found) -> W3.2 (121 fixed) -> W5 (the machinery verified end-to-end live; 122 registered — the remaining gap is the exercise-design wave, not the machinery).
+
+#### TL-A landing record — A-PROD-003-W2.2 DONE (2026-10-01)
+
+- **A-PROD-003-W2.2 (P2-FIX-115/116 — the first two dogfood PRODUCT findings, implemented) — DONE:** PR #123, squash-merged `a7d2e0f07a`. Worker lane delivery (chat `f074fa51`), worker head `32d788f6dee` (single commit on the pinned base `7467b4da672` = main at dispatch). Harvest: **18/18** chain, the full receipts directory carried. The delivery: 6 files +979/−5 across the two owned partitions — **115** (flauz-agent): the typed non-completable warning AT failure time (the attempts-exhausted refusal as the second typed reason; retryable failures silent; the step-failed journal row byte-identical; the completion-time rejection law unchanged; the legal path unchanged; the no-taskPort honest degradation) with 8 tests; **116** (flauz-models): the ONE linking event row referencing the three artifacts (before/after provider ids, the policy delta, the decision id; append-only; drifted switches fail closed; BAD_TARGET) with 5 tests.
+- STATION re-verification (independent worktree): flauz-agent **292/292** (284 base + 8 — the worker receipt exact); flauz-models **144/144**; guard **PASS EMPTY**; compat-battery **1887/1887**; verify-fixtures **231/231**; **the dogfood harness RUN GREEN** (the harness consumes the 116-changed switch path — no regression; its per-switch evidence rows now complement the product's event row).
+- **THE A3 LOOP'S FIRST FULL PRODUCT CYCLE COMPLETE:** dogfood friction (the W1 harness build) -> registered findings (PR #111) -> product implementation -> landing — the roadmap's dogfooding law exercised end-to-end.
 
 ### Phase A — Product Completion / Productionization
 
