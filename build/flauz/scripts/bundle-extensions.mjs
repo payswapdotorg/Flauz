@@ -83,6 +83,25 @@ function discover(root) {
 		.map(n => ({ name: n, dir: path.join(extRoot, n) }));
 }
 
+// P2-FIX-108: the flauzPackagedAssets packaging contract. A manifest may
+// declare asset paths (relative to the extension root) that the packaged
+// tree must ship alongside dist/ -- flauz-environments' fixtures/ harness is
+// the motivating case (the bundled dist/extension.js resolves
+// ../fixtures/env-agent.ts relative to the extension root). Shape law: an
+// array of non-empty relative strings without '..' segments; anything else
+// is a contract error.
+function readPackagedAssets(pkg) {
+	const declared = pkg.flauzPackagedAssets;
+	if (declared === undefined) { return { assets: null }; }
+	if (!Array.isArray(declared)) { return { error: 'must be an array of relative asset paths' }; }
+	for (const asset of declared) {
+		if (typeof asset !== 'string' || asset.length === 0) { return { error: 'entries must be non-empty strings' }; }
+		if (path.isAbsolute(asset)) { return { error: `packaged asset '${asset}' must be relative to the extension root, not absolute` }; }
+		if (asset.split('/').includes('..')) { return { error: `packaged asset '${asset}' must not contain '..' segments (it cannot escape the extension root)` }; }
+	}
+	return { assets: declared };
+}
+
 function main() {
 	const opts = parseArgs(process.argv.slice(2));
 	const found = discover(opts.root);
@@ -101,6 +120,22 @@ function main() {
 				missing++;
 			} else {
 				console.log(`ok       ${ext.name}: ${main} (${fs.statSync(target).size} bytes)`);
+			}
+			// P2-FIX-108: the same loop verifies the flauzPackagedAssets
+			// contract -- every declared asset must ship next to dist/.
+			const packaged = readPackagedAssets(pkg);
+			if (packaged.error !== undefined) {
+				console.error(`MISSING  ${ext.name}: malformed flauzPackagedAssets - ${packaged.error}`);
+				missing++;
+			} else if (packaged.assets !== null) {
+				for (const asset of packaged.assets) {
+					if (fs.existsSync(path.join(ext.dir, asset))) {
+						console.log(`ok       ${ext.name}: packaged asset ${asset} (flauzPackagedAssets)`);
+					} else {
+						console.error(`MISSING  ${ext.name}: packaged asset ${asset} (flauzPackagedAssets)`);
+						missing++;
+					}
+				}
 			}
 		}
 		if (missing > 0) {
@@ -145,6 +180,28 @@ function main() {
 		if (res.status !== 0) {
 			console.error(`bundle-extensions: FAILED ${ext.name} (esbuild exit ${res.status})`);
 			failures++;
+		}
+	}
+	// P2-FIX-108: the packaging-contract gate -- a bundle is not complete
+	// while a manifest-declared packaged asset (flauzPackagedAssets) is
+	// absent from the tree that ships dist/. The declared assets are
+	// source-committed at the extension root (exactly where the bundled
+	// entry resolves them from dist/), so the build refuses to declare the
+	// bundle complete without them.
+	for (const ext of found) {
+		const pkg = JSON.parse(fs.readFileSync(path.join(ext.dir, 'package.json'), 'utf8'));
+		const packaged = readPackagedAssets(pkg);
+		if (packaged.error !== undefined) {
+			console.error(`bundle-extensions: FAILED ${ext.name} packaging contract: malformed flauzPackagedAssets - ${packaged.error}`);
+			failures++;
+			continue;
+		}
+		if (packaged.assets === null) { continue; }
+		for (const asset of packaged.assets) {
+			if (!fs.existsSync(path.join(ext.dir, asset))) {
+				console.error(`bundle-extensions: FAILED ${ext.name} packaging contract: packaged asset '${asset}' (flauzPackagedAssets) is absent — the packaged tree must ship it alongside dist/`);
+				failures++;
+			}
 		}
 	}
 	if (failures > 0) {

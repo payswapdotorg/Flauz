@@ -40,6 +40,7 @@
 		"onCommand:flauz.env.resolve"
 	],
 	"main": "./dist/extension.js",
+	"flauzPackagedAssets": ["fixtures"],
 	"enabledApiProposals": [
 		"resolvers"
 	],

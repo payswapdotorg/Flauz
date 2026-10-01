@@ -15,7 +15,9 @@
 // posture implications), coverage (unregistered extension, vanished surface),
 // SKIP semantics (empty tree, --require flip, stale registry), --registry
 // override, usage errors, --help, --no-fail, and the real-repo pin (the
-// committed registry must classify the live seven-extension tree CLEAN).
+// committed registry must classify the live seven-extension tree CLEAN),
+// plus the PP6 packaged-asset presence family (P2-FIX-108: declared
+// flauzPackagedAssets must ship; absent or malformed -> exit 1).
 //
 // Exit-code contract: 0 clean/SKIP ; 1 drift/violation ; 2 usage error.
 
@@ -73,7 +75,9 @@ test('clean fixture --json: verdict CLEAN, counts, perExtension shape', () => {
 	assert.equal(report.tool, 'packaging-parity');
 	assert.equal(report.verdict, 'CLEAN');
 	assert.equal(report.counts.rows, 5);
-	assert.equal(report.counts.pass, 5);
+	// P2-FIX-108: the PP6 PASS row (flauz-demo's declared fixtures/ ships)
+	// is a pass line in the message stream too, on top of the 5 registry rows.
+	assert.equal(report.counts.pass, 6);
 	assert.equal(report.counts.drift, 0);
 	assert.equal(report.counts.fail, 0);
 	assert.equal(report.manifests, 1);
@@ -261,4 +265,33 @@ test('real repo: committed registry vs live tree -> exit 0 CLEAN with the nine e
 	for (const name of ['flauz-agent', 'flauz-browser', 'flauz-environments', 'flauz-execution', 'flauz-memory', 'flauz-models', 'flauz-resources', 'flauz-workflow', 'flauz-workspace']) {
 		assert.match(r.out, new RegExp(`extensions/${name}\\s+packaging=web-blocked`));
 	}
+});
+
+// ---------------------------------------------------------------------------------------------
+// case family 9: PP6 packaged-asset presence (P2-FIX-108) - manifest-declared
+// ---------------------------------------------------------------------------------------------
+
+test('PP6 clean: flauz-demo ships its declared fixtures/ -> exit 0 with a PP6 PASS row', () => {
+	const r = runTool(['--root', fixture('clean'), '--require']);
+	assert.equal(r.status, 0, `exit ${r.status}\n${r.out}\n${r.err}`);
+	assert.match(r.out, /PASS  PP6 flauz-demo: packaged assets present \(1 declared\)/);
+});
+
+test('PP6 absent asset: the declared fixtures/ removed from the tree -> exit 1, FAIL names it', () => {
+	const dir = copyFixture('clean');
+	fs.rmSync(path.join(dir, 'extensions', 'flauz-demo', 'fixtures'), { recursive: true, force: true });
+	const r = runTool(['--root', dir]);
+	assert.equal(r.status, 1, `exit ${r.status}\n${r.out}\n${r.err}`);
+	assert.match(r.out, /FAIL  PP6 flauz-demo: packaged asset 'fixtures' declared but absent from the packaged tree/);
+});
+
+test('PP6 malformed declaration: flauzPackagedAssets escaping the extension root -> exit 1', () => {
+	const dir = copyFixture('clean');
+	const manifestPath = path.join(dir, 'extensions', 'flauz-demo', 'package.json');
+	const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+	manifest.flauzPackagedAssets = ['../escape'];
+	fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, '\t') + '\n');
+	const r = runTool(['--root', dir]);
+	assert.equal(r.status, 1, `exit ${r.status}\n${r.out}\n${r.err}`);
+	assert.match(r.out, /FAIL  PP6 flauz-demo: malformed flauzPackagedAssets/);
 });

@@ -283,6 +283,7 @@ expect "packaging-parity posture-mismatch FAIL"       1 node "$S/packaging-parit
 expect "packaging-parity coverage-gap FAIL"           1 node "$S/packaging-parity.mjs" --root "$PP/drifted/coverage-gap"
 expect "packaging-parity surface-vanished FAIL"       1 node "$S/packaging-parity.mjs" --root "$PP/drifted/surface-vanished"
 expect "packaging-parity malformed-row FAIL"          1 node "$S/packaging-parity.mjs" --root "$PP/drifted/malformed-row"
+expect "packaging-parity packaged-asset-missing FAIL" 1 node "$S/packaging-parity.mjs" --root "$PP/drifted/packaged-asset-missing"
 expect "packaging-parity --no-fail reports only"      0 node "$S/packaging-parity.mjs" --root "$PP/drifted/key-value" --no-fail
 expect "packaging-parity empty dir SKIP"              0 node "$S/packaging-parity.mjs" --root "$PP/empty"
 expect "packaging-parity empty dir --require FAIL"    1 node "$S/packaging-parity.mjs" --root "$PP/empty" --require
