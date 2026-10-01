@@ -182,6 +182,22 @@ Teams should converge on these contract families rather than sharing implementat
 
 Contract-first development is mandatory so every TL can begin immediately.
 
+### Platform-surface posture (TL1 review records)
+
+**P2-FIX-112 — the vscode fs-port append strategy (2026-10-01, TL1 review).**
+`vscode.workspace.fs` (`FileSystem`, the vendored `vscode.d.ts`) exposes
+exactly: `stat`, `readDirectory`, `createDirectory`, `readFile`, `writeFile`,
+`delete`, `rename`, `copy` — **no append primitive**. The sanctioned append
+strategy for every vscode fs-port surface is therefore **read + tmp + atomic
+rename** (byte-preserving, non-tearing — the posture landed by TL3 partition C,
+PR #74 / TL3C-12, pinned by its regression). The cost model: one
+read-modify-write amplification per append. This is the port's recorded cost,
+not a defect; a platform-level append API would be a vscode API change outside
+Flauz's reach without forking core (the zero-fork-critical law), and none is
+made. Extensions that need high-frequency appends should batch or journal
+through the durable seams (e.g. the transition-lock-serialized ledgers) rather
+than amplify per-row fs appends.
+
 ## 6. Upstream compatibility
 
 Flauz should continuously absorb upstream Code OSS improvements.
