@@ -1003,7 +1003,7 @@ Implementation routing: the P2-FIX-114 worker order pins this law; the worker im
 | ID | Owner | Status | Dependency |
 |---|---|---|---|
 | A-PROD-001 | TL-A | DONE | inherited P2-FIX tail 7/7 closed (102/106/107/109/110/111 landed; 113 closed by DL-83 decision) |
-| A-PROD-002 | TL-A | TODO | A-PROD-001 |
+| A-PROD-002 | TL-A | DONE | A-PROD-001 — evidence artifact docs/FLAUZ-PROGRAM/acceptance/a-prod-002-final-product-verification.md (journey 14/14 runtime-real; full battery family GREEN; live-provider honest two-receipt record) |
 | A-PROD-003 | TL-A | ACTIVE | current integrated product; independent of TL-B |
 | A-PROD-004 | TL-A | TODO | A-PROD-001 + dogfood evidence |
 | A-PROD-005 | TL-A | TODO | A-PROD-004 |
