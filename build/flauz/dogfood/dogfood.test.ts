@@ -26,8 +26,10 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { FRICTION_KINDS, FRICTION_SCHEMA, FrictionLog, isFrictionKind, parseFrictionLog, validateFrictionLine } from './frictionlog.mjs';
+import { answerSwitchFromPrompt } from './fake-provider.mjs';
 import { EXPLORE_ANSWER_SCHEMA, LEDGER_MODULE, parseExploreAnswer, parseImportStatement, scanLedgerConsumers, specifierResolvesTo, verifyConsumersMap, type ExploreAnswer, type GroundTruthConsumer } from './exercises/explore-repo.task.ts';
-import { SWITCH_ANSWER_SCHEMA, healthyLaneOf, parseSwitchAnswer, plannedSwitchSequence, providerFailureDetail, recoveryAccount, summarizeSwitchRun, verifySwitchAnswer, type SwitchRunRecord } from './exercises/provider-switch.task.ts';
+import { stripMarkdownJsonFence } from './answerFence.ts';
+import { SWITCH_ANSWER_SCHEMA, buildSwitchQuestion, healthyLaneOf, parseSwitchAnswer, plannedSwitchSequence, providerFailureDetail, readSwitchQuestionFacts, redactAskPromptForReport, recoveryAccount, summarizeSwitchRun, verifyPromptCarriesFacts, verifySwitchAnswer, type SwitchRunRecord } from './exercises/provider-switch.task.ts';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -276,11 +278,17 @@ function fakeReceipt(switchNo: number, lane: SwitchRunRecord['receipt']['lane'])
 }
 
 function okAsk(switchNo: number): SwitchRunRecord['ask'] {
-        return { kind: 'ok', text: '{}', decisionId: `rd-${String(switchNo).padStart(6, '0')}`, providerId: 'flauz-dogfood-fake', modelId: 'dogfood-1', durationMs: 5, attempts: 1 };
+        return { kind: 'ok', text: '{}', decisionId: `rd-${String(switchNo).padStart(6, '0')}`, providerId: 'flauz-dogfood-fake', modelId: 'dogfood-1', durationMs: 5, attempts: 1, wallClockBudgetMs: 15_000 };
 }
 
 function failedAsk(switchNo: number): SwitchRunRecord['ask'] {
-        return { kind: 'provider-failure', code: 'PROVIDER_OVERLOADED', retryable: true, retryClass: 'short-backoff', status: 500, retryAfterMs: undefined, message: 'armed to fail', decisionId: `rd-${String(switchNo).padStart(6, '0')}`, providerId: 'flauz-dogfood-failing', modelId: 'dogfood-1', durationMs: 20, attempts: 3 };
+        return { kind: 'provider-failure', code: 'PROVIDER_OVERLOADED', retryable: true, retryClass: 'short-backoff', status: 500, retryAfterMs: undefined, message: 'armed to fail', decisionId: `rd-${String(switchNo).padStart(6, '0')}`, providerId: 'flauz-dogfood-failing', modelId: 'dogfood-1', durationMs: 20, attempts: 3, wallClockBudgetMs: 15_000 };
+}
+
+const PROMPT_FACTS_OK = { ok: true, problems: [] } as const;
+
+function recordOf(switchNo: number, lane: SwitchRunRecord['lane'], ask: SwitchRunRecord['ask'], atMs: number, durationMs: number): SwitchRunRecord {
+        return { switchNo, lane, receipt: fakeReceipt(switchNo, lane === 'healthy' ? 'fake' : 'scripted-failing'), ask, askPrompt: 'ask prompt (fixture)', promptFacts: PROMPT_FACTS_OK, answerProblems: [], atMs, durationMs };
 }
 
 suite('provider-switch: the exercise logic', () => {
@@ -301,9 +309,9 @@ suite('provider-switch: the exercise logic', () => {
         test('a complete run (typed failure + recovery + evidence per switch) summarizes ok', () => {
                 const plan = plannedSwitchSequence('fake-lane');
                 const records: SwitchRunRecord[] = [
-                        { switchNo: 1, lane: 'healthy', receipt: fakeReceipt(1, 'fake'), ask: okAsk(1), answerProblems: [], atMs: 1_000, durationMs: 10 },
-                        { switchNo: 2, lane: 'scripted-failing', receipt: fakeReceipt(2, 'scripted-failing'), ask: failedAsk(2), answerProblems: [], atMs: 2_000, durationMs: 25 },
-                        { switchNo: 3, lane: 'healthy', receipt: fakeReceipt(3, 'fake'), ask: okAsk(3), answerProblems: [], atMs: 2_050, durationMs: 10 },
+                        recordOf(1, 'healthy', okAsk(1), 1_000, 10),
+                        recordOf(2, 'scripted-failing', failedAsk(2), 2_000, 25),
+                        recordOf(3, 'healthy', okAsk(3), 2_050, 10),
                 ];
                 const summary = summarizeSwitchRun(plan, records);
                 assert.ok(summary.ok, summary.problems.join('; '));
@@ -315,9 +323,9 @@ suite('provider-switch: the exercise logic', () => {
         test('a run without the typed failure is flagged (the failing window must actually fail)', () => {
                 const plan = plannedSwitchSequence('fake-lane');
                 const records: SwitchRunRecord[] = [
-                        { switchNo: 1, lane: 'healthy', receipt: fakeReceipt(1, 'fake'), ask: okAsk(1), answerProblems: [], atMs: 1_000, durationMs: 10 },
-                        { switchNo: 2, lane: 'scripted-failing', receipt: fakeReceipt(2, 'scripted-failing'), ask: okAsk(2), answerProblems: [], atMs: 2_000, durationMs: 10 },
-                        { switchNo: 3, lane: 'healthy', receipt: fakeReceipt(3, 'fake'), ask: okAsk(3), answerProblems: [], atMs: 3_000, durationMs: 10 },
+                        recordOf(1, 'healthy', okAsk(1), 1_000, 10),
+                        recordOf(2, 'scripted-failing', okAsk(2), 2_000, 10),
+                        recordOf(3, 'healthy', okAsk(3), 3_000, 10),
                 ];
                 const summary = summarizeSwitchRun(plan, records);
                 assert.ok(!summary.ok);
@@ -327,17 +335,17 @@ suite('provider-switch: the exercise logic', () => {
         test('a run without recovery is flagged, and a failure without a bounded-retry window is flagged', () => {
                 const plan = plannedSwitchSequence('fake-lane');
                 const noRecovery: SwitchRunRecord[] = [
-                        { switchNo: 1, lane: 'healthy', receipt: fakeReceipt(1, 'fake'), ask: okAsk(1), answerProblems: [], atMs: 1_000, durationMs: 10 },
-                        { switchNo: 2, lane: 'scripted-failing', receipt: fakeReceipt(2, 'scripted-failing'), ask: failedAsk(2), answerProblems: [], atMs: 2_000, durationMs: 20 },
+                        recordOf(1, 'healthy', okAsk(1), 1_000, 10),
+                        recordOf(2, 'scripted-failing', failedAsk(2), 2_000, 20),
                 ];
                 const noRecoverySummary = summarizeSwitchRun(plan, noRecovery);
                 assert.ok(!noRecoverySummary.ok);
                 assert.ok(noRecoverySummary.problems.some(problem => problem.includes('never recovered')));
                 assert.ok(noRecoverySummary.problems.some(problem => problem.includes('were planned')));
                 const singleAttempt: SwitchRunRecord[] = [
-                        { switchNo: 1, lane: 'healthy', receipt: fakeReceipt(1, 'fake'), ask: okAsk(1), answerProblems: [], atMs: 1_000, durationMs: 10 },
-                        { switchNo: 2, lane: 'scripted-failing', receipt: fakeReceipt(2, 'scripted-failing'), ask: { ...failedAsk(2), attempts: 1 }, answerProblems: [], atMs: 2_000, durationMs: 5 },
-                        { switchNo: 3, lane: 'healthy', receipt: fakeReceipt(3, 'fake'), ask: okAsk(3), answerProblems: [], atMs: 2_050, durationMs: 10 },
+                        recordOf(1, 'healthy', okAsk(1), 1_000, 10),
+                        recordOf(2, 'scripted-failing', { ...failedAsk(2), attempts: 1 }, 2_000, 5),
+                        recordOf(3, 'healthy', okAsk(3), 2_050, 10),
                 ];
                 const singleAttemptSummary = summarizeSwitchRun(plan, singleAttempt);
                 assert.ok(!singleAttemptSummary.ok);
@@ -347,9 +355,9 @@ suite('provider-switch: the exercise logic', () => {
         test('a switch without an evidence row is flagged', () => {
                 const plan = plannedSwitchSequence('fake-lane');
                 const records: SwitchRunRecord[] = [
-                        { switchNo: 1, lane: 'healthy', receipt: { ...fakeReceipt(1, 'fake'), evidenceId: '' }, ask: okAsk(1), answerProblems: [], atMs: 1_000, durationMs: 10 },
-                        { switchNo: 2, lane: 'scripted-failing', receipt: fakeReceipt(2, 'scripted-failing'), ask: failedAsk(2), answerProblems: [], atMs: 2_000, durationMs: 20 },
-                        { switchNo: 3, lane: 'healthy', receipt: fakeReceipt(3, 'fake'), ask: okAsk(3), answerProblems: [], atMs: 2_050, durationMs: 10 },
+                        { ...recordOf(1, 'healthy', okAsk(1), 1_000, 10), receipt: { ...fakeReceipt(1, 'fake'), evidenceId: '' } },
+                        recordOf(2, 'scripted-failing', failedAsk(2), 2_000, 20),
+                        recordOf(3, 'healthy', okAsk(3), 2_050, 10),
                 ];
                 const summary = summarizeSwitchRun(plan, records);
                 assert.ok(!summary.ok);
@@ -396,5 +404,229 @@ suite('provider-switch: the exercise logic', () => {
                 const account = recoveryAccount(3, 'fake', 9);
                 assert.ok(account.includes('switch 3'));
                 assert.ok(account.includes('9 ms'));
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-118 — the fence-tolerant answer parsing (the live lanes)
+// ---------------------------------------------------------------------------
+
+const SWITCH_ANSWER_DOCUMENT = JSON.stringify({ schema: SWITCH_ANSWER_SCHEMA, enabledDogfoodProviders: ['flauz-dogfood-fake'], routingDecisionCount: 2, lastDecisionId: 'rd-000002' });
+const EXPLORE_ANSWER_DOCUMENT = JSON.stringify({ schema: EXPLORE_ANSWER_SCHEMA, consumers: [{ file: 'extensions/flauz-alpha/src/consumer.ts', line: 1, consumes: ['a'] }] });
+
+suite('P2-FIX-118: fence-tolerant answer parsing (live lanes; strip-fence-then-parse)', () => {
+
+        test('fenced OK: a ```json-fenced switch answer parses in tolerant mode (fenceStripped true)', () => {
+                const fenced = '```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```';
+                const parsed = parseSwitchAnswer(fenced, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, true);
+                assert.deepStrictEqual(parsed.ok && parsed.answer.enabledDogfoodProviders, ['flauz-dogfood-fake']);
+        });
+
+        test('fenced OK: a plain-fenced (no info string) switch answer parses in tolerant mode', () => {
+                const fenced = '```\n' + SWITCH_ANSWER_DOCUMENT + '\n```';
+                assert.ok(parseSwitchAnswer(fenced, { fenceTolerant: true }).ok);
+        });
+
+        test('fenced OK: an explore answer wrapped in a ```json fence parses in tolerant mode', () => {
+                const fenced = '```json\n' + EXPLORE_ANSWER_DOCUMENT + '\n```';
+                const parsed = parseExploreAnswer(fenced, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, true);
+        });
+
+        test('malformed-fenced FAIL: broken JSON inside a fence is never silently accepted (switch + explore)', () => {
+                const malformedSwitch = '```json\n{"schema": "flauz.dogfood-switch-answer/v1", not json at all\n```';
+                const switchOutcome = parseSwitchAnswer(malformedSwitch, { fenceTolerant: true });
+                assert.ok(!switchOutcome.ok);
+                assert.ok(switchOutcome.error.includes('is not valid JSON inside the stripped markdown fence'));
+                const malformedExplore = '```json\n{"schema": "flauz.dogfood-explore-answer/v1", consumers: nope\n```';
+                const exploreOutcome = parseExploreAnswer(malformedExplore, { fenceTolerant: true });
+                assert.ok(!exploreOutcome.ok);
+                assert.ok(exploreOutcome.error.includes('is not valid JSON inside the stripped markdown fence'));
+        });
+
+        test('raw OK: a raw-JSON switch answer parses in tolerant mode with fenceStripped false', () => {
+                const parsed = parseSwitchAnswer(SWITCH_ANSWER_DOCUMENT, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, false);
+                assert.ok(parseExploreAnswer(EXPLORE_ANSWER_DOCUMENT, { fenceTolerant: true }).ok);
+        });
+
+        test('raw path stays the machine-lane DEFAULT: the W2 fenced answer still fails without fenceTolerant', () => {
+                // the verbatim W2 shape: a correct payload wrapped in ```json (the banked evidence)
+                const fenced = '```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```';
+                const outcome = parseSwitchAnswer(fenced);
+                assert.ok(!outcome.ok);
+                assert.ok(outcome.error.includes('the completion is not valid JSON'));
+        });
+
+        test('a partial fence is NOT stripped: an unterminated fence fails honestly in tolerant mode', () => {
+                const unterminated = '```json\n' + SWITCH_ANSWER_DOCUMENT;
+                assert.ok(!parseSwitchAnswer(unterminated, { fenceTolerant: true }).ok);
+        });
+
+        test('prose after the closing fence is NOT stripped (the fence must wrap the payload)', () => {
+                const withProse = '```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```\nHope this helps!';
+                assert.ok(!parseSwitchAnswer(withProse, { fenceTolerant: true }).ok);
+        });
+
+        test('stripMarkdownJsonFence: fence pair stripped, body exact, non-fenced text unchanged', () => {
+                const stripped = stripMarkdownJsonFence('```json\n{"a":1}\n```');
+                assert.strictEqual(stripped.fenced, true);
+                assert.strictEqual(stripped.body, '{"a":1}');
+                const untouched = stripMarkdownJsonFence('{"a":1}');
+                assert.strictEqual(untouched.fenced, false);
+                assert.strictEqual(untouched.body, '{"a":1}');
+                const leadingNewlines = stripMarkdownJsonFence('\n\n```json\n{"a":1}\n```\n');
+                assert.strictEqual(leadingNewlines.fenced, true);
+                assert.strictEqual(leadingNewlines.body, '{"a":1}');
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-117 — the wall-clock budget on timing rows
+// ---------------------------------------------------------------------------
+
+suite('P2-FIX-117: the wall-clock budget recorded on ask-measuring timing rows', () => {
+
+        test('timing() with wallClockBudgetMs appends the field and the row validates', async () => {
+                const target = path.join(os.tmpdir(), `flauz-dogfood-test-${String(Date.now())}-${String(Math.floor(Math.random() * 1e6))}`, 'budget.jsonl');
+                const log = new FrictionLog({ path: target });
+                const written = await log.timing({ phase: 'test:model-call', durationMs: 45_030, wallClockBudgetMs: 240_000 });
+                const parsed = JSON.parse((await fs.readFile(target, { encoding: 'utf-8' })).split('\n')[0] ?? '') as Record<string, unknown>;
+                assert.strictEqual(parsed.wallClockBudgetMs, 240_000);
+                assert.strictEqual(written.wallClockBudgetMs, 240_000);
+                assert.ok(validateFrictionLine(written).ok);
+        });
+
+        test('timing() without wallClockBudgetMs writes the pre-W2.1 shape (the field stays optional)', async () => {
+                const target = path.join(os.tmpdir(), `flauz-dogfood-test-${String(Date.now())}-${String(Math.floor(Math.random() * 1e6))}`, 'nobudget.jsonl');
+                const log = new FrictionLog({ path: target });
+                const written = await log.timing({ phase: 'test:driver-verification', durationMs: 12 });
+                const parsed = JSON.parse((await fs.readFile(target, { encoding: 'utf-8' })).split('\n')[0] ?? '') as Record<string, unknown>;
+                assert.ok(!('wallClockBudgetMs' in parsed));
+                assert.ok(validateFrictionLine(written).ok);
+        });
+
+        test('validateFrictionLine rejects non-positive and non-finite budgets, and still accepts the banked W2 row shape', () => {
+                assert.ok(!validateFrictionLine({ schema: FRICTION_SCHEMA, type: 'timing', ts: 1, phase: 'p', durationMs: 1, wallClockBudgetMs: 0 }).ok);
+                assert.ok(!validateFrictionLine({ schema: FRICTION_SCHEMA, type: 'timing', ts: 1, phase: 'p', durationMs: 1, wallClockBudgetMs: -5 }).ok);
+                assert.ok(!validateFrictionLine({ schema: FRICTION_SCHEMA, type: 'timing', ts: 1, phase: 'p', durationMs: 1, wallClockBudgetMs: Number.NaN }).ok);
+                assert.ok(!validateFrictionLine({ schema: FRICTION_SCHEMA, type: 'timing', ts: 1, phase: 'p', durationMs: 1, wallClockBudgetMs: '60000' }).ok);
+                // the banked W2 record (no budget field) still validates -- additive, backward compatible
+                assert.ok(validateFrictionLine({ schema: FRICTION_SCHEMA, type: 'timing', ts: 1790859013967, phase: 'explore-repo:model-call', durationMs: 45030 }).ok);
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-119 — the prompt-carried workspace facts
+// ---------------------------------------------------------------------------
+
+async function buildFactsWorkspace(): Promise<string> {
+        const workspace = await fs.mkdtemp(path.join(os.tmpdir(), 'flauz-dogfood-facts-'));
+        await fs.mkdir(path.join(workspace, '.flauz', 'models'), { recursive: true });
+        await fs.writeFile(path.join(workspace, '.flauz', 'models', 'providers.json'), JSON.stringify({ schema: 'flauz.model-providers/v0', providers: [
+                { providerId: 'flauz-dogfood-fake', enabled: true, credentialRef: 'env:FLAUZ_DOGFOOD_FAKE_KEY', baseUrl: 'http://127.0.0.1:9/v1' },
+                { providerId: 'flauz-dogfood-failing', enabled: false, credentialRef: 'env:FLAUZ_DOGFOOD_FAILING_KEY', baseUrl: 'http://127.0.0.1:9/fail' },
+                { providerId: 'stock-provider', enabled: true },
+        ] }, null, '\t'), { encoding: 'utf-8' });
+        await fs.writeFile(path.join(workspace, '.flauz', 'models', 'routing-decisions.jsonl'), [
+                JSON.stringify({ decisionId: 'rd-000001', purpose: 'dogfood-lane-selection' }),
+                JSON.stringify({ decisionId: 'rd-000002', purpose: 'chat-turn' }),
+                JSON.stringify({ decisionId: 'rd-000003', purpose: 'dogfood-lane-selection' }),
+                JSON.stringify({ decisionId: 'rd-000004', purpose: 'chat-turn' }),
+                JSON.stringify({ decisionId: 'rd-000005', purpose: 'chat-turn' }),
+                '',
+        ].join('\n'), { encoding: 'utf-8' });
+        return workspace;
+}
+
+suite('P2-FIX-119: the provider-switch question carries the workspace facts in the prompt', () => {
+
+        test('buildSwitchQuestion embeds the providers file verbatim + the decision count + the tail (last 3 rows)', async () => {
+                const workspace = await buildFactsWorkspace();
+                const facts = await readSwitchQuestionFacts(workspace);
+                const question = await buildSwitchQuestion(workspace);
+                const providersFile = await fs.readFile(path.join(workspace, '.flauz', 'models', 'providers.json'), { encoding: 'utf-8' });
+                assert.ok(question.includes(providersFile), 'the providers file content rides the prompt verbatim');
+                assert.ok(question.includes('total routing decisions recorded: 5'));
+                assert.ok(question.includes(JSON.stringify({ decisionId: 'rd-000003', purpose: 'dogfood-lane-selection' })));
+                assert.ok(question.includes(JSON.stringify({ decisionId: 'rd-000004', purpose: 'chat-turn' })));
+                assert.ok(question.includes(JSON.stringify({ decisionId: 'rd-000005', purpose: 'chat-turn' })));
+                assert.ok(!question.includes('rd-000001'), 'the tail window is capped at the last 3 rows');
+                assert.strictEqual(facts.routingDecisionCount, 5);
+                assert.strictEqual(facts.lastDecisionId, 'rd-000005');
+        });
+
+        test('verifyPromptCarriesFacts accepts the built question and flags a gutted one', async () => {
+                const workspace = await buildFactsWorkspace();
+                const question = await buildSwitchQuestion(workspace);
+                const good = await verifyPromptCarriesFacts(question, workspace);
+                assert.ok(good.ok, good.problems.join('; '));
+                const gutted = question.replace('total routing decisions recorded: 5', 'total routing decisions recorded: 2');
+                const bad = await verifyPromptCarriesFacts(gutted, workspace);
+                assert.ok(!bad.ok);
+                assert.ok(bad.problems.some(problem => problem.includes('stale routing-decision count')));
+        });
+
+        test('ROUND-TRIP: the fake lane (answerSwitchFromPrompt) reports the prompt facts, and the strict verification accepts them', async () => {
+                const workspace = await buildFactsWorkspace();
+                const question = await buildSwitchQuestion(workspace);
+                const outcome = answerSwitchFromPrompt(question);
+                assert.ok(outcome.ok, outcome.ok ? '' : outcome.error);
+                const parsed = parseSwitchAnswer(JSON.stringify({ schema: SWITCH_ANSWER_SCHEMA, ...outcome.answer }));
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                const verification = await verifySwitchAnswer(parsed.answer, workspace);
+                assert.ok(verification.ok, verification.problems.join('; '));
+        });
+
+        test('the retired god-view: answerSwitchFromPrompt reads the PROMPT, never the workspace (a facts-stale prompt reports stale facts)', async () => {
+                const workspace = await buildFactsWorkspace();
+                const question = await buildSwitchQuestion(workspace);
+                // the workspace drifts AFTER the question was built: the prompt-carried answer
+                // must NOT track the new state (the server-side computation path is retired)
+                await fs.writeFile(path.join(workspace, '.flauz', 'models', 'providers.json'), JSON.stringify({ schema: 'flauz.model-providers/v0', providers: [{ providerId: 'flauz-dogfood-live', enabled: true }] }), { encoding: 'utf-8' });
+                const outcome = answerSwitchFromPrompt(question);
+                assert.ok(outcome.ok, outcome.ok ? '' : outcome.error);
+                assert.deepStrictEqual(outcome.answer.enabledDogfoodProviders, ['flauz-dogfood-fake']);
+                const parsed = parseSwitchAnswer(JSON.stringify({ schema: SWITCH_ANSWER_SCHEMA, ...outcome.answer }));
+                assert.ok(parsed.ok);
+                const verification = await verifySwitchAnswer(parsed.answer, workspace);
+                assert.ok(!verification.ok, 'the strict verification catches the drift (checked, not trusted)');
+        });
+
+        test('answerSwitchFromPrompt fails closed on a prompt without the facts sections', () => {
+                const outcome = answerSwitchFromPrompt('Report the provider-lane configuration of this Flauz workspace. (no facts embedded)');
+                assert.ok(!outcome.ok);
+                assert.ok(outcome.error.includes('no providers-file facts section'));
+        });
+
+        test('the honest empty workspace: absent files embed empty facts and the round-trip still verifies', async () => {
+                const workspace = await fs.mkdtemp(path.join(os.tmpdir(), 'flauz-dogfood-empty-'));
+                const question = await buildSwitchQuestion(workspace);
+                assert.ok(question.includes('(the providers file is absent'));
+                assert.ok(question.includes('(the routing-decision ledger is empty'));
+                const outcome = answerSwitchFromPrompt(question);
+                assert.ok(outcome.ok, outcome.ok ? '' : outcome.error);
+                assert.deepStrictEqual(outcome.answer.enabledDogfoodProviders, []);
+                assert.strictEqual(outcome.answer.routingDecisionCount, 0);
+                assert.strictEqual(outcome.answer.lastDecisionId, '');
+                const parsed = parseSwitchAnswer(JSON.stringify({ schema: SWITCH_ANSWER_SCHEMA, ...outcome.answer }));
+                assert.ok(parsed.ok);
+                const verification = await verifySwitchAnswer(parsed.answer, workspace);
+                assert.ok(verification.ok, verification.problems.join('; '));
+        });
+
+        test('redactAskPromptForReport redacts credentialRef and baseUrl values (the G6 receipt posture)', async () => {
+                const workspace = await buildFactsWorkspace();
+                const question = await buildSwitchQuestion(workspace);
+                const redacted = redactAskPromptForReport(question);
+                assert.ok(redacted.includes('"credentialRef": "<redacted>"'));
+                assert.ok(redacted.includes('"baseUrl": "<redacted>"'));
+                assert.ok(!redacted.includes('FLAUZ_DOGFOOD_FAKE_KEY'));
+                assert.ok(!redacted.includes('127.0.0.1:9'));
+                assert.ok(redacted.includes('total routing decisions recorded: 5'), 'the facts stay quotable after redaction');
         });
 });

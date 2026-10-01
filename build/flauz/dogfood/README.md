@@ -1,4 +1,4 @@
-# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1)
+# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes)
 
 The W1 harness for A-PROD-003 (dogfooding): the driver machinery + the
 friction-log contract + the exercise lanes that the station then runs
@@ -11,17 +11,48 @@ drives scripted-but-real scenarios with per-exercise receipts.
 Everything here is additive harness code under `build/flauz/dogfood/**`.
 Nothing here is a gate instrument; nothing here edits one.
 
+**W2.1 (A-PROD-003-W2.1, branch flauz-tla/aprod003-w21-dogfood-realism)**
+implements the three REGISTERED W2 dogfood findings as harness-side
+fixes (P2-FIX-117/118/119; finding docs in docs/FLAUZ-PROGRAM/findings/):
+
+- **P2-FIX-117 (budget):** the driver's ask lane grows
+  `FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS` (env-only, OPTIONAL, fail-closed
+  on a malformed value; default 15 000 ms — unchanged, the fake lanes
+  behave exactly as in W1 when the knob is absent). It is wired through
+  the product's EXISTING wall-clock budget surface for the ask —
+  `AdapterConfig.requestTimeoutMs`
+  (extensions/flauz-models/src/adapters/common.ts) — the field the real
+  openAiCompat adapter turns into the request `timeoutMs` whose expiry
+  maps onto the TYPED TIMEOUT ("request exceeded its wall-clock budget").
+  The typed TIMEOUT semantics (bounded retry) are UNCHANGED; only the
+  budget value is configurable. Ask-measuring timing rows and the run
+  summary record the budget actually used.
+- **P2-FIX-118 (fenced answers):** the answer-verification layer accepts
+  a leading/trailing markdown fence around JSON payloads for LIVE lanes
+  (strip-fence-then-parse in answerFence.ts; malformed JSON inside the
+  fence still FAILS; the raw-JSON path stays the machine-lane default).
+  Unit tests cover fenced / malformed-fenced / raw shapes.
+- **P2-FIX-119 (unanswerable question):** the provider-switch exercise
+  carries the workspace facts IN the prompt (the verbatim providers
+  file content + the routing-decision tail + the total count, embedded
+  AT ASK TIME — inside the ask window, after the ask's own durable
+  routing decision) and asks the model to report them faithfully. The
+  verification stays strict; the fake lane's server-side computation
+  path for this question is RETIRED (both lanes answer from the
+  prompt-carried facts — the god-view is gone).
+
 ## Files
 
 | File | Role |
 |---|---|
 | `dogfood-driver.mjs` | THE DRIVER: boots the real seams on one mkdtemp workspace root (TaskService, EvidenceLedger + the fixture ed25519 signer, MemoryStore, OrchestrationStore, Model Fabric) and executes the exercise scripts against them. Selectable provider lanes. Writes the run receipts. |
-| `frictionlog.mjs` (+ `frictionlog.d.mts`) | The friction-log contract, schema `flauz.dogfood-friction/v1` (append-only JSONL). The `.d.mts` is the hand-written declaration (the repo's `a2a.d.mts` zero-dependency discipline). |
-| `fake-provider.mjs` | The fake/scripted provider lanes on a REAL local socket. The fake lane COMPUTES its answers at request time (the ledger-consumer map from the real tree; the workspace provider configuration from the real state files). The scripted-failing lane answers every completion with HTTP 500 -> the REAL adapter's typed `PROVIDER_OVERLOADED`. |
-| `harnessTypes.ts` | The harness/exercise contracts (typed against the real seam modules). |
-| `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise. |
-| `exercises/provider-switch.task.ts` | EXERCISE 2 (provider switching + failure/recovery): the switch plan, the workspace-state verification, the friction policy, the exercise. |
-| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic). |
+| `frictionlog.mjs` (+ `frictionlog.d.mts`) | The friction-log contract, schema `flauz.dogfood-friction/v1` (append-only JSONL; ask-measuring timing rows carry the optional `wallClockBudgetMs`, P2-FIX-117). The `.d.mts` is the hand-written declaration (the repo's `a2a.d.mts` zero-dependency discipline). |
+| `answerFence.ts` | P2-FIX-118: the strip-fence-then-parse helper (one leading/trailing markdown fence pair around a JSON payload; malformed JSON inside still fails; the raw path stays the machine-lane default). |
+| `fake-provider.mjs` (+ `fake-provider.d.mts`) | The fake/scripted provider lanes on a REAL local socket. The fake lane COMPUTES its exploration answer at request time (the ledger-consumer map from the real tree) and READS its provider-configuration answer from the prompt-carried facts (P2-FIX-119: the server-side computation path is retired). The scripted-failing lane answers every completion with HTTP 500 -> the REAL adapter's typed `PROVIDER_OVERLOADED`. The `.d.mts` is the hand-written declaration for the test suite. |
+| `harnessTypes.ts` | The harness/exercise contracts (typed against the real seam modules; the ask facade accepts an ask-time prompt builder, P2-FIX-119, and the ask outcomes carry `wallClockBudgetMs`, P2-FIX-117). |
+| `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise (live-lane answers parse through the P2-FIX-118 tolerant path). |
+| `exercises/provider-switch.task.ts` | EXERCISE 2 (provider switching + failure/recovery): the switch plan, the ask-time facts-carrying question builder (P2-FIX-119), the workspace-state verification (strict, unchanged), the friction policy, the exercise. |
+| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip). |
 
 ## How to run
 
@@ -42,8 +73,10 @@ env-contract error.
 - **fake-lane (default, no env):** the model intelligence is the
   fake/scripted provider lane — **fixture level, claimed exactly so,
   never wording-promoted**. The seams it drives are real (local-real);
-  the answers are computed live from the tree/workspace by the local
-  wire server, and the driver VERIFIES them (checked, not trusted).
+  the exploration answer is computed live from the tree by the local
+  wire server, the provider-configuration answer is read from the
+  prompt-carried facts (P2-FIX-119), and the driver VERIFIES them
+  (checked, not trusted).
 - **live-provider (W2, station-side):** selected only when ALL THREE
   env vars are present — read from ENVIRONMENT VARIABLES ONLY (the
   vendor-neutral contract shape; never files, never inline):
@@ -64,6 +97,22 @@ env-contract error.
   disk: the key material lives only in the process env and is resolved
   through the `env:FLAUZ_LIVE_PROVIDER_API_KEY` credential reference.
 
+- **the ask wall-clock budget (P2-FIX-117, any mode):** the OPTIONAL
+  env-only knob
+
+  ```sh
+  FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS=<positive-integer-ms>
+  ```
+
+  sets the wall-clock budget for every ask, wired through the product's
+  existing budget surface (`AdapterConfig.requestTimeoutMs` → the real
+  adapter's request `timeoutMs` → the TYPED TIMEOUT on expiry, bounded
+  retry unchanged). Absent → the default 15 000 ms (the W1 behavior,
+  unchanged for the fake lanes). Malformed (non-positive-integer) →
+  FAIL CLOSED (exit 2). Ask-measuring timing rows carry the budget
+  actually used as `wallClockBudgetMs`; the run summary records
+  `wallClockBudget: { configuredMs, defaultMs, source, wiredThrough }`.
+
 ## The friction-log contract (schema `flauz.dogfood-friction/v1`)
 
 One append-only JSONL file per exercise run
@@ -78,7 +127,12 @@ One append-only JSONL file per exercise run
   **A friction row with a non-empty `recovery` is the log's "recovery
   row"** (that is how the G5 receipt reads it).
 - **timing rows** (the slow-path measurement) — `{schema,
-  type:"timing", ts, phase, durationMs}`.
+  type:"timing", ts, phase, durationMs}` plus the OPTIONAL
+  `wallClockBudgetMs` (P2-FIX-117) on ask-measuring rows: the
+  wall-clock budget that governed the ask the row measures. Rows that
+  measure driver-side work (no ask) carry no budget; rows without the
+  field (the pre-W2.1 shape, e.g. the banked W2 records) still
+  validate — the field is additive and optional.
 
 Friction is recorded HONESTLY: only what actually happens during the
 run (a typed provider failure, a failed verification, a recovery). The
@@ -104,14 +158,23 @@ decision + ONE evidence row per switch (G5). The failing lane's typed
 `PROVIDER_OVERLOADED` (retryable, short-backoff) feeds the product's
 own bounded-retry bound (`resolveProviderRetryBound`); the recovery
 switch proves the same call type succeeds again. The healthy-lane
-answers are verified against the workspace's real model-state files.
+question is built AT ASK TIME with the workspace facts embedded in the
+prompt (P2-FIX-119: the verbatim providers file content + the
+routing-decision tail + the total count; the model's job is reading +
+faithful reporting), and the answers are verified STRICTLY against the
+workspace's real model-state files (checked, never trusted; live-lane
+answers parse through the P2-FIX-118 fence-tolerant path — the report
+records `askPromptRedacted` + `promptFacts` per switch as the receipt).
 Receipts: `provider-switch.report.json`, `provider-switch.receipt.json`,
 the friction log (the typed provider-failure row WITH its recovery
 account = the recovery row).
 
 `run-summary.json` (schema `flauz.dogfood-run/v1`) carries the whole
-run: mode, per-exercise verdicts/assertions/evidence ids/friction
-census, and the local-lane wire census.
+run: mode, the wall-clock budget block (P2-FIX-117),
+per-exercise verdicts/assertions/evidence ids/friction
+census, and the local-lane wire census (`chatCalls`, `failCalls`,
+`exploreComputations`, `configPromptReads` — the provider-configuration
+prompt-fact reads, P2-FIX-119).
 
 ### What a live-model miss means in W2
 

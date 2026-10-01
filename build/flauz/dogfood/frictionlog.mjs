@@ -31,10 +31,19 @@
  *     them this way; documented in the README).
  *
  *   - timing rows for the slow-path measurement, exactly the mandated
- *     fields plus the discriminators:
+ *     fields plus the discriminators, and (P2-FIX-117) the OPTIONAL
+ *     wall-clock budget that governed the ask the row measures:
  *
  *         { "schema": "flauz.dogfood-friction/v1", "type": "timing",
- *           "ts": <epoch-ms>, "phase": "...", "durationMs": <number> }
+ *           "ts": <epoch-ms>, "phase": "...", "durationMs": <number>,
+ *           "wallClockBudgetMs": <number, optional> }
+ *
+ *     `wallClockBudgetMs` is present exactly on ask-measuring timing
+ *     rows (the budget actually used, wired through the product's
+ *     AdapterConfig.requestTimeoutMs surface); rows that measure
+ *     driver-side work (no ask) carry no budget. Rows without the
+ *     field (the pre-W2.1 shape, e.g. the banked W2 records) keep
+ *     validating -- the field is additive and optional.
  *
  * The log is APPEND-ONLY: every call appends one line to the file and
  * never rewrites existing bytes. Every exercise run produces one log
@@ -78,6 +87,10 @@ function isNonNegativeFiniteNumber(value) {
 	return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
+function isPositiveFiniteNumber(value) {
+	return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
 /**
  * Validates one parsed log line (either row type) against the schema.
  * Returns { ok: true } or { ok: false, error } -- never throws.
@@ -117,6 +130,9 @@ export function validateFrictionLine(value) {
 		}
 		if (!isNonNegativeFiniteNumber(row.durationMs)) {
 			return { ok: false, error: 'timing row field "durationMs" must be a finite number >= 0' };
+		}
+		if (row.wallClockBudgetMs !== undefined && !isPositiveFiniteNumber(row.wallClockBudgetMs)) {
+			return { ok: false, error: 'timing row field "wallClockBudgetMs", when present, must be a finite number > 0' };
 		}
 		return { ok: true };
 	}
@@ -181,9 +197,14 @@ export class FrictionLog {
 		return row;
 	}
 
-	/** Appends one timing row (the slow-path measurement). */
-	async timing({ phase, durationMs }) {
-		const row = { schema: FRICTION_SCHEMA, type: 'timing', ts: this.clock(), phase, durationMs };
+	/**
+	 * Appends one timing row (the slow-path measurement). The
+	 * OPTIONAL `wallClockBudgetMs` (P2-FIX-117) records the
+	 * wall-clock budget that governed the ask this row measures;
+	 * rows without an ask carry no budget.
+	 */
+	async timing({ phase, durationMs, wallClockBudgetMs }) {
+		const row = { schema: FRICTION_SCHEMA, type: 'timing', ts: this.clock(), phase, durationMs, ...(wallClockBudgetMs !== undefined ? { wallClockBudgetMs } : {}) };
 		const validation = validateFrictionLine(row);
 		if (!validation.ok) {
 			throw new Error(`flauz.dogfood: refusing to append an invalid timing row: ${validation.error}`);

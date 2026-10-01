@@ -1,0 +1,2 @@
+{"schema":"flauz.dogfood-friction/v1","type":"timing","ts":1790876581329,"phase":"explore-repo:model-call","durationMs":191,"wallClockBudgetMs":60000}
+{"schema":"flauz.dogfood-friction/v1","type":"timing","ts":1790876581457,"phase":"explore-repo:driver-verification","durationMs":127}

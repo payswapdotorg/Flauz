@@ -44,7 +44,7 @@ export declare class FrictionLog {
 
 	friction(input: { phase: string; kind: string; detail: string; recovery?: string }): Promise<Record<string, unknown>>;
 
-	timing(input: { phase: string; durationMs: number }): Promise<Record<string, unknown>>;
+	timing(input: { phase: string; durationMs: number; wallClockBudgetMs?: number }): Promise<Record<string, unknown>>;
 
 	readAll(): Promise<readonly Record<string, unknown>[]>;
 }
