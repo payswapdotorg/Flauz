@@ -905,9 +905,9 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 | P2-FIX-114 | TL-A | DONE | DL-84 demotion landed (PR #106 415c3192e9) — both the LAB-001 contracts AND the racing LAB-002 delivery relocated to build/flauz/lab |
 | P2-FIX-115 | TL-A | REGISTERED | Dogfood: the graph-completion law's late error (no early typed signal at finishStep(failed)) — finding doc in findings/ |
 | P2-FIX-116 | TL-A | REGISTERED | Dogfood: provider-lane switch durable in three places, no linking event row — finding doc in findings/ |
-| P2-FIX-117 | TL-A | REGISTERED | Dogfood W2 (live): long-form live generation exceeds the request wall-clock budget (typed TIMEOUT at 45s) — finding doc in findings/ |
-| P2-FIX-118 | TL-A | REGISTERED | Dogfood W2 (live): real-model answers arrive markdown-fenced; answer contracts parse raw JSON only — finding doc in findings/ |
-| P2-FIX-119 | TL-A | REGISTERED | Dogfood W2 (live): the provider-switch verification question is unanswerable by a bare live model (harness-design) — finding doc in findings/ |
+| P2-FIX-117 | TL-A | DONE | Budget knob FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS wired through AdapterConfig.requestTimeoutMs (PR #116) |
+| P2-FIX-118 | TL-A | DONE | answerFence.ts strip-fence-then-parse for live lanes (PR #116) |
+| P2-FIX-119 | TL-A | DONE | The exercise carries the workspace facts in the prompt; both lanes answer from prompt-carried facts (PR #116) |
 
 Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
 
@@ -1019,6 +1019,13 @@ Implementation routing: the P2-FIX-114 worker order pins this law; the worker im
   - **P2-FIX-119** — the provider-switch verification question is unanswerable by a bare live model (no tool/file access; the fake lane's server-side god-view leaked into the exercise design) — harness-design finding, the fix is the harness's.
 - **Evidence:** the full W2 record set banked at `build/flauz/dogfood/records/w2-live-provider-2026-10-01/` (both friction logs, both receipts, the switch report with the verbatim fenced answer, the run summary: mode live-provider, modelIntelligence live-provider, 47,453 ms). The friction-log contract's first REAL rows (W1's fake-lane run produced zero friction rows by honesty — nothing failed there; W2's live run produced the program's first live-model friction evidence).
 - **Routing:** the 117/118/119 fixes are the next dogfood wave's WO (harness realism for live lanes); the 115/116 product findings stay registered for the priority wave. A-PROD-003 remains ACTIVE (the uncovered dimensions: browser work, environments, multi-agent delegation, approvals/takeover, implementation/tests as dogfooded work, workspace continuity).
+
+#### TL-A landing record — A-PROD-003-W2.1 DONE (2026-10-01)
+
+- **A-PROD-003-W2.1 (dogfood-realism) — DONE:** PR #116, squash-merged `a3f8026605`. Worker lane delivery (chat `aacce0af`, GLM-5.3/Full-Staff), worker head `9f20b5e2164` (2 commits on the pinned base `e71e537922`). Harvest: **28/28** sha256 chain + TREE-SELF-CHECK — after the RE-STAGE RECOVERY (the worker staged at its pod home outside the mounted workspace; the station's continuation request re-staged byte-identically; the LAB-002 reload-then-extract lesson applied: the reload fixed the null-commit, the CodeMirror transcript lane confirmed the full report). The delivery: **25 files +2048/−105, all inside `build/flauz/dogfood/**`** — P2-FIX-117 the budget knob (`FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS` through `AdapterConfig.requestTimeoutMs`, typed TIMEOUT + bounded retry unchanged, both states banked as records); P2-FIX-118 `answerFence.ts` (strip-fence-then-parse for live lanes; malformed-fenced FAILS; raw JSON stays the machine default); P2-FIX-119 the prompt-carried workspace facts (the fake lane's god-view retired, verification stays strict).
+- STATION re-verification (independent worktree): the driver **RUN GREEN** (2/2 exercises, 12/12 checks, the station's own tree); mocha **44/44**; the budget knob verified live (env → 60000 recorded with wiring provenance; default 15000); guard **PASS EMPTY**; compat **1887/1887**; fixtures **231/231**; cross-landing over the LAB-003/004 main: clean (zero overlap), merged tree re-verified.
+- **Honest disclosures:** the worker's clone adapted to the 7.5 GB disk (full non-shallow history of exactly the two gate-referenced lineages, main + upstream/main — not all-refs; disclosed); a live-lane SIMULATION ran but was deliberately NOT banked as records (the honest-evidence law). **The operational incident trail:** the dispatch fought the afternoon capacity siege (~2h) then a 6-fault platform outage class (send-accepted + pod-booted + turn-errored) — the station built `fault_retry.py` (the errored-turn retry daemon: detect user-only + static pod → void + release + growing backoff → re-dispatch) which landed the lane on attempt 7 when the platform recovered.
+- **Next: W3 — the realistic live re-run** (station-side: the live provider through the header gateway with the fence tolerance + the 60s budget + the prompt-carried facts; the acceptance targets: the exploration exercise's map verified against the live model's real answer, the switch exercise's answers verified from the prompt facts).
 
 ### Phase A — Product Completion / Productionization
 
