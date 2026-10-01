@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { FRICTION_KINDS, FRICTION_SCHEMA, FrictionLog, isFrictionKind, parseFrictionLog, validateFrictionLine } from './frictionlog.mjs';
 import { answerSwitchFromPrompt } from './fake-provider.mjs';
 import { EXPLORE_ANSWER_SCHEMA, LEDGER_MODULE, parseExploreAnswer, parseImportStatement, scanLedgerConsumers, specifierResolvesTo, verifyConsumersMap, type ExploreAnswer, type GroundTruthConsumer } from './exercises/explore-repo.task.ts';
-import { stripMarkdownJsonFence } from './answerFence.ts';
+import { extractFirstFencedJsonBlock, fenceTolerantParseBody, stripMarkdownJsonFence } from './answerFence.ts';
 import { SWITCH_ANSWER_SCHEMA, buildSwitchQuestion, healthyLaneOf, parseSwitchAnswer, plannedSwitchSequence, providerFailureDetail, readSwitchQuestionFacts, redactAskPromptForReport, recoveryAccount, summarizeSwitchRun, verifyPromptCarriesFacts, verifySwitchAnswer, type SwitchRunRecord } from './exercises/provider-switch.task.ts';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -467,9 +467,14 @@ suite('P2-FIX-118: fence-tolerant answer parsing (live lanes; strip-fence-then-p
                 assert.ok(!parseSwitchAnswer(unterminated, { fenceTolerant: true }).ok);
         });
 
-        test('prose after the closing fence is NOT stripped (the fence must wrap the payload)', () => {
+        test('prose after the closing fence: the W2.1 clean-pair seam still refuses it; the P2-FIX-120 composed path now parses it (the extraction fallback)', () => {
                 const withProse = '```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```\nHope this helps!';
-                assert.ok(!parseSwitchAnswer(withProse, { fenceTolerant: true }).ok);
+                // the W2.1 clean-pair FUNCTION keeps its narrow semantics (back-compat, UNCHANGED)
+                assert.strictEqual(stripMarkdownJsonFence(withProse).fenced, false);
+                // but the composed fence-tolerant parse extracts the first COMPLETE fenced block (P2-FIX-120)
+                const parsed = parseSwitchAnswer(withProse, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, true);
         });
 
         test('stripMarkdownJsonFence: fence pair stripped, body exact, non-fenced text unchanged', () => {
@@ -482,6 +487,148 @@ suite('P2-FIX-118: fence-tolerant answer parsing (live lanes; strip-fence-then-p
                 const leadingNewlines = stripMarkdownJsonFence('\n\n```json\n{"a":1}\n```\n');
                 assert.strictEqual(leadingNewlines.fenced, true);
                 assert.strictEqual(leadingNewlines.body, '{"a":1}');
+        });
+});
+
+// ---------------------------------------------------------------------------
+// suite: P2-FIX-120 — prose-adjacent fenced answers (the extraction fallback)
+// ---------------------------------------------------------------------------
+// The W3 live re-run (records banked at records/aprod003-w3-live-2026-10-01/)
+// surfaced the verbatim shape: the live model emits the fenced JSON followed
+// by prose ("```json {...} ``` Success!") and the W2.1 stripper only strips a
+// fence pair that ENDS the text. The fence-tolerant path now extracts the
+// FIRST COMPLETE fenced block from anywhere in the text (clean-pair strip
+// first, back-compat; then the extraction fallback; prose before/after
+// allowed; malformed JSON inside still FAILS; no complete fence -> the honest
+// raw failure; the raw-JSON machine-lane default unchanged).
+// ---------------------------------------------------------------------------
+
+suite('P2-FIX-120: prose-adjacent fenced answers (live lanes; the first complete fenced block)', () => {
+
+        test('fenced-with-trailing-prose OK: the verbatim W3 live shape (```json {...} ``` Success!) parses, fenceStripped true', () => {
+                const withTrailingProse = '```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```\nSuccess! Here is the provider map you asked for.';
+                const parsed = parseSwitchAnswer(withTrailingProse, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, true);
+                assert.deepStrictEqual(parsed.ok && parsed.answer.enabledDogfoodProviders, ['flauz-dogfood-fake']);
+                assert.strictEqual(parsed.ok && parsed.answer.routingDecisionCount, 2);
+        });
+
+        test('fenced-with-leading-prose OK: prose before the fence parses via the extraction fallback (BOTH exercises)', () => {
+                const withLeadingProse = 'Sure! I scanned the workspace providers file and the routing ledger. Here is the answer document:\n```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```';
+                const parsed = parseSwitchAnswer(withLeadingProse, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, true);
+                const explore = parseExploreAnswer('Here you go, the consumer map:\n```json\n' + EXPLORE_ANSWER_DOCUMENT + '\n```\nHappy mapping!', { fenceTolerant: true });
+                assert.ok(explore.ok, explore.ok ? '' : explore.error);
+                assert.strictEqual(explore.ok && explore.fenceStripped, true);
+                assert.deepStrictEqual(explore.ok && explore.answer.consumers.length, 1);
+        });
+
+        test('clean-fence (the W2.1 shape) still goes through the clean-pair path FIRST (back-compat)', () => {
+                const clean = '```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```';
+                const outcome = fenceTolerantParseBody(clean, { fenceTolerant: true });
+                assert.strictEqual(outcome.fenced, true);
+                assert.strictEqual(outcome.via, 'clean-pair');
+                assert.strictEqual(outcome.body, SWITCH_ANSWER_DOCUMENT);
+                const parsed = parseSwitchAnswer(clean, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.strictEqual(parsed.ok && parsed.fenceStripped, true);
+        });
+
+        test('multiple-fences: the FIRST complete fenced block wins', () => {
+                const secondDocument = JSON.stringify({ schema: SWITCH_ANSWER_SCHEMA, enabledDogfoodProviders: ['flauz-dogfood-other'], routingDecisionCount: 7, lastDecisionId: 'rd-000007' });
+                const twoFences = 'Here is the first answer:\n```json\n' + SWITCH_ANSWER_DOCUMENT + '\n```\nAnd a second one for good measure:\n```json\n' + secondDocument + '\n```\nDone!';
+                const parsed = parseSwitchAnswer(twoFences, { fenceTolerant: true });
+                assert.ok(parsed.ok, parsed.ok ? '' : parsed.error);
+                assert.deepStrictEqual(parsed.ok && parsed.answer.enabledDogfoodProviders, ['flauz-dogfood-fake']);
+                assert.strictEqual(parsed.ok && parsed.answer.routingDecisionCount, 2);
+                assert.strictEqual(parsed.ok && parsed.answer.lastDecisionId, 'rd-000002');
+        });
+
+        test('no-fence: a prose-only completion falls to the raw parse and fails honestly (tolerant mode changes nothing)', () => {
+                const proseOnly = 'I am very sorry, but I could not produce the JSON answer document you asked for.';
+                const outcome = parseSwitchAnswer(proseOnly, { fenceTolerant: true });
+                assert.ok(!outcome.ok);
+                assert.ok(outcome.error.includes('the completion is not valid JSON'));
+                assert.ok(!outcome.error.includes('fence'));
+                const exploreOutcome = parseExploreAnswer('no json here at all, just words', { fenceTolerant: true });
+                assert.ok(!exploreOutcome.ok);
+                assert.ok(!exploreOutcome.error.includes('fence'));
+        });
+
+        test('malformed-inside-fence FAIL: broken JSON inside an extracted block is never silently accepted (BOTH exercises)', () => {
+                const malformedSwitch = 'Absolutely! Here it is:\n```json\n{"schema": "flauz.dogfood-switch-answer/v1", not json at all\n```\nSuccess!';
+                const switchOutcome = parseSwitchAnswer(malformedSwitch, { fenceTolerant: true });
+                assert.ok(!switchOutcome.ok);
+                assert.ok(switchOutcome.error.includes('is not valid JSON inside the stripped markdown fence'));
+                const malformedExplore = '```json\n{"schema": "flauz.dogfood-explore-answer/v1", consumers: nope\n```\nHope this helps!';
+                const exploreOutcome = parseExploreAnswer(malformedExplore, { fenceTolerant: true });
+                assert.ok(!exploreOutcome.ok);
+                assert.ok(exploreOutcome.error.includes('is not valid JSON inside the stripped markdown fence'));
+        });
+
+        test('an unterminated fence still fails honestly in tolerant mode (no COMPLETE pair anywhere -> the raw parse)', () => {
+                const unterminatedWithProse = 'Sure! Here you go:\n```json\n' + SWITCH_ANSWER_DOCUMENT + '\nand I never closed the fence, sorry';
+                const outcome = parseSwitchAnswer(unterminatedWithProse, { fenceTolerant: true });
+                assert.ok(!outcome.ok);
+                assert.ok(!outcome.error.includes('fence'));
+        });
+
+        test('extractFirstFencedJsonBlock: body exact (the clean-pair body semantics), first block wins, prose-only/unterminated not found', () => {
+                // the clean shape: the extracted body equals the clean-pair body byte-for-byte
+                const cleanText = '```json\n{"a":1}\n```';
+                const extracted = extractFirstFencedJsonBlock(cleanText);
+                assert.strictEqual(extracted.found, true);
+                assert.strictEqual(extracted.body, '{"a":1}');
+                assert.strictEqual(stripMarkdownJsonFence(cleanText).body, extracted.body);
+                // prose-adjacent: leading + trailing prose, body still exact
+                const fromProse = extractFirstFencedJsonBlock('Sure!\n```json\n{"a":1}\n```\nSuccess!');
+                assert.strictEqual(fromProse.found, true);
+                assert.strictEqual(fromProse.body, '{"a":1}');
+                // the FIRST of two complete blocks wins (a bare fence before a ```json fence)
+                const twoBlocks = 'x\n```\n{"first":1}\n```\ny\n```json\n{"second":2}\n```\nz';
+                const firstBlock = extractFirstFencedJsonBlock(twoBlocks);
+                assert.strictEqual(firstBlock.found, true);
+                assert.strictEqual(firstBlock.body, '{"first":1}');
+                // a fence line with an info string never CLOSES a block (interior content)
+                const infoStringInterior = '```\n{"a":1}\n```json\n{"b":2}\n```';
+                const outerBlock = extractFirstFencedJsonBlock(infoStringInterior);
+                assert.strictEqual(outerBlock.found, true);
+                assert.strictEqual(outerBlock.body, '{"a":1}\n```json\n{"b":2}');
+                // no fence at all: not found, text unchanged
+                const noFence = extractFirstFencedJsonBlock('just prose, no fence at all');
+                assert.strictEqual(noFence.found, false);
+                assert.strictEqual(noFence.body, 'just prose, no fence at all');
+                // an unterminated opening: not found (no COMPLETE pair)
+                const unterminated = extractFirstFencedJsonBlock('```json\n{"a":1}');
+                assert.strictEqual(unterminated.found, false);
+                assert.strictEqual(unterminated.body, '```json\n{"a":1}');
+                // an inline backtick mention mid-line is NOT a fence line
+                const inlineTick = extractFirstFencedJsonBlock('the ``` inline tick is not a fence');
+                assert.strictEqual(inlineTick.found, false);
+        });
+
+        test('fenceTolerantParseBody: clean-pair preferred, extraction only as the fallback, raw default without the option', () => {
+                // clean-pair first (back-compat for the W2.1 shapes)
+                const clean = fenceTolerantParseBody('```json\n{"a":1}\n```', { fenceTolerant: true });
+                assert.strictEqual(clean.fenced, true);
+                assert.strictEqual(clean.via, 'clean-pair');
+                assert.strictEqual(clean.body, '{"a":1}');
+                // the extraction fallback for prose-adjacent text
+                const extracted = fenceTolerantParseBody('Sure!\n```json\n{"a":1}\n```\nSuccess!', { fenceTolerant: true });
+                assert.strictEqual(extracted.fenced, true);
+                assert.strictEqual(extracted.via, 'extracted');
+                assert.strictEqual(extracted.body, '{"a":1}');
+                // no complete fence: the raw body, fenced false, no via
+                const raw = fenceTolerantParseBody('{"a":1}', { fenceTolerant: true });
+                assert.strictEqual(raw.fenced, false);
+                assert.strictEqual(raw.body, '{"a":1}');
+                assert.strictEqual(raw.via, undefined);
+                // the machine-lane default: NO tolerance without the option (even a clean fence)
+                const machineLane = fenceTolerantParseBody('```json\n{"a":1}\n```');
+                assert.strictEqual(machineLane.fenced, false);
+                assert.strictEqual(machineLane.body, '```json\n{"a":1}\n```');
         });
 });
 

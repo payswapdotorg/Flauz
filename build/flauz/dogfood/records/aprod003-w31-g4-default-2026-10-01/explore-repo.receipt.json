@@ -1,0 +1,73 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "explore-repo",
+	"title": "repository exploration: map every consumer of the evidence ledger",
+	"dimensions": [
+		"repository exploration",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "explore.model-call-ok",
+			"ok": true,
+			"detail": "the exploration turn streamed 2778 chars through provider flauz-dogfood-fake (decision rd-000002, 1 attempt(s), 190 ms)"
+		},
+		{
+			"id": "explore.answer-parses",
+			"ok": true,
+			"detail": "the answer document carries 23 claimed consumers"
+		},
+		{
+			"id": "explore.map-sound",
+			"ok": true,
+			"detail": "every claimed entry re-reads as a real ledger import (23/23 sound)"
+		},
+		{
+			"id": "explore.map-complete",
+			"ok": true,
+			"detail": "the map misses 0 of the 23 real consumers"
+		},
+		{
+			"id": "explore.map-100-percent",
+			"ok": true,
+			"detail": "claimed 23 vs real 23; verified=true"
+		},
+		{
+			"id": "explore.evidence-minted",
+			"ok": true,
+			"detail": "the answer + verification artifacts are hash-pinned into the evidence ledger (E-000003, E-000004)"
+		}
+	],
+	"evidenceIds": [
+		"E-000003",
+		"E-000004"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-answer.json",
+			"sha256": "b58d396cd54d70570485ceae3dedbc2fdebec5849deec84335107f91bd698057"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-001/explore-verification.json",
+			"sha256": "1036a59c90ad69a9ab3db14b2cd6711210ae94df92022ad239cd5e753bccb4a1"
+		}
+	],
+	"frictionLogPath": "/home/z/flauz/build/flauz/dogfood/records/aprod003-w31-g4-default-2026-10-01/explore-repo.friction.jsonl",
+	"frictionRows": {
+		"friction": 0,
+		"timing": 2,
+		"recovery": 0
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"the fake lane computed its map live from the tree (the provider's own scan); the driver verified every receipt independently (regex scanner + per-entry re-read)",
+		"model intelligence: fixture (the scripted fake lane); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)"
+	]
+}
