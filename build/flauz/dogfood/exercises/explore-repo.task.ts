@@ -7,26 +7,47 @@
  *
  * A REAL exploration question over the REAL clone, driven through the
  * agent seams (task envelope -> session claim -> Model Fabric route ->
- * adapter stream) with the model's answer CHECKED against the tree,
- * never trusted:
+ * adapter stream) with the model's answer CHECKED, never trusted.
+ * P2-FIX-122 (A-PROD-003-W6) splits the question by lane -- the
+ * W5 live evidence (0/7 sound, 23/23 missed: a bare live model cannot
+ * see a 20k-file tree) made the full-tree question unanswerable for
+ * the bare-model lane:
  *
- *   "map every consumer of the evidence ledger across
- *    extensions/flauz-*: file + line + what it consumes"
+ *   fake lane (UNCHANGED, the machinery ground truth):
+ *     "map every consumer of the evidence ledger across
+ *      extensions/flauz-*: file + line + what it consumes"
+ *     The fake-provider lane answers by scanning the real tree at
+ *     request time (its own implementation, fake-provider.mjs).
  *
- * The fake-provider lane answers by scanning the real tree at request
- * time (its own implementation, fake-provider.mjs). THIS module holds
- * the driver-side INDEPENDENT implementation:
+ *   live lane (P2-FIX-122, the EXCERPT mode -- a real capability test
+ *   for a bare model):
+ *     "report the ledger consumers among THIS excerpt's lines"
+ *     The ask-time prompt builder embeds a tree EXCERPT -- a
+ *     deterministic (seeded) selection of N files' import lines from
+ *     the driver's own scan -- and the verification is scoped to the
+ *     excerpt: every claimed entry must re-read within the excerpt
+ *     (sound) and every excerpt consumer must be claimed (complete).
+ *     The same 100% bar, judged against the excerpt embedded in the
+ *     prompt. The excerpt itself is banked into the exercise receipt
+ *     (a hash-pinned artifact + embedded in the verification receipt)
+ *     so a reviewer can check the model's answer against the excerpt
+ *     by hand.
+ *
+ * THIS module holds the driver-side INDEPENDENT implementation:
  *
  *   - scanLedgerConsumers(): the ground-truth scan (regex-based import
  *     extraction + specifier resolution -- a different algorithm from
  *     the provider's string-ops scanner, the same shared contract
  *     rules);
- *   - verifyConsumersMap(): the verifier -- every claimed entry is
- *     re-checked directly against the tree (file exists under
+ *   - verifyConsumersMap(): the full-tree verifier -- every claimed
+ *     entry is re-checked directly against the tree (file exists under
  *     extensions/flauz-*, the claimed line REALLY imports the ledger
  *     module, the claimed symbols match the line's bindings) and the
  *     map is checked for completeness against the ground truth. The
  *     exercise PASSES only at 100% verified (sound AND complete).
+ *   - buildTreeExcerpt() + buildExcerptQuestion() +
+ *     verifyExcerptConsumersMap(): the P2-FIX-122 excerpt lane (pure
+ *     functions over a root/an excerpt -- fixture-testable).
  *
  * Both scanners are pure functions over a root (fixture-testable);
  * the driver runs them against the real clone. The dogfood dimensions
@@ -46,6 +67,29 @@ export const LEDGER_MODULE = 'extensions/flauz-workspace/src/ledger.ts';
 
 /** The answer document's pinned schema id. */
 export const EXPLORE_ANSWER_SCHEMA = 'flauz.dogfood-explore-answer/v1';
+
+/** The P2-FIX-122 excerpt document's pinned schema id (the banked excerpt). */
+export const EXPLORE_EXCERPT_SCHEMA = 'flauz.dogfood-explore-excerpt/v1';
+
+/** The P2-FIX-122 excerpt-mode verification receipt's pinned schema id. */
+export const EXPLORE_EXCERPT_VERIFICATION_SCHEMA = 'flauz.dogfood-explore-excerpt-verification/v1';
+
+/**
+ * The pinned default seed of the excerpt selection (P2-FIX-122).
+ * Determinism law: the same tree + the same seed + the same file count
+ * yields the byte-identical excerpt -- the station re-derives exactly
+ * what the worker derived, and the excerpt in the receipt is auditable.
+ */
+export const EXCERPT_SEED = 1220;
+
+/**
+ * The pinned default number of files the excerpt selects (P2-FIX-122).
+ * 64 of the ~370 flauz-* source files: ~260 import rows (~35 KB of
+ * prompt), a handful of ledger consumers among them (at this delivery's
+ * pinned tree: 5) -- a real reading-comprehension capability test for
+ * a bare model, bounded context, strict 100% bar.
+ */
+export const EXCERPT_FILE_COUNT = 64;
 
 /** Source extensions the contract considers (shared rule with the provider-side scanner). */
 const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts']);
@@ -137,7 +181,8 @@ function toPosix(target: string): string {
         return target.split(nodePath.sep).join('/');
 }
 
-async function collectSourceFiles(repoRoot: string): Promise<string[]> {
+/** Collects every source file under extensions/flauz-* (sorted; shared by the scan and the excerpt builder). */
+export async function collectSourceFiles(repoRoot: string): Promise<string[]> {
         const out: string[] = [];
         const extensionsDir = nodePath.join(repoRoot, 'extensions');
         let entries;
@@ -373,6 +418,275 @@ export async function verifyConsumersMap(answer: ExploreAnswer, groundTruth: rea
 }
 
 // ---------------------------------------------------------------------------
+// P2-FIX-122: the EXCERPT lane (the bare-model capability test)
+// ---------------------------------------------------------------------------
+
+/** The seeded deterministic PRNG the excerpt selection uses (mulberry32). */
+function mulberry32(seed: number): () => number {
+        let state = seed >>> 0;
+        return () => {
+                state = (state + 0x6D2B79F5) >>> 0;
+                let mixed = state;
+                mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+                mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+                return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+        };
+}
+
+/** One import line the excerpt carries (the 1-based line of its file, verbatim text). */
+export interface ExcerptLine {
+        readonly line: number;
+        readonly text: string;
+}
+
+/** One excerpt file: its repo-relative posix path + the import lines the excerpt carries. */
+export interface ExcerptFile {
+        readonly file: string;
+        readonly lines: readonly ExcerptLine[];
+}
+
+/** The banked excerpt document (the evidence a reviewer checks the answer against by hand). */
+export interface TreeExcerpt {
+        readonly schema: 'flauz.dogfood-explore-excerpt/v1';
+        readonly ledgerModule: string;
+        readonly seed: number;
+        readonly fileCount: number;
+        readonly files: readonly ExcerptFile[];
+}
+
+/** The excerpt builder's knobs (the exercise pins the defaults; the tests vary them). */
+export interface TreeExcerptOptions {
+        readonly seed?: number;
+        readonly fileCount?: number;
+        readonly ledgerModule?: string;
+}
+
+/**
+ * THE EXCERPT BUILDER (P2-FIX-122): a deterministic, seeded selection of
+ * N files' import lines from the driver's own scan of the tree. Pure
+ * function over a root: the same root + seed + fileCount + ledgerModule
+ * always yield the byte-identical excerpt (the fisher-yates shuffle is
+ * driven by the seeded PRNG over the sorted file list; the selection is
+ * presented back in tree order). The consumer guarantee: whenever the
+ * tree has ledger consumers, the excerpt carries at least one (the
+ * alphabetically-first consumer file joins the selection when the seeded
+ * picks missed them all) -- the excerpt lane is never a vacuous test.
+ */
+export async function buildTreeExcerpt(repoRoot: string, options: TreeExcerptOptions = {}): Promise<TreeExcerpt> {
+        const seed = options.seed ?? EXCERPT_SEED;
+        const fileCount = options.fileCount ?? EXCERPT_FILE_COUNT;
+        const ledgerModule = options.ledgerModule ?? LEDGER_MODULE;
+        const absoluteFiles = await collectSourceFiles(repoRoot);
+        const groundTruth = await scanLedgerConsumers(repoRoot, ledgerModule);
+        const consumerFiles = new Set(groundTruth.map(consumer => consumer.file));
+        const random = mulberry32(seed);
+        const order = [...absoluteFiles];
+        for (let index = order.length - 1; index > 0; index -= 1) {
+                const swap = Math.floor(random() * (index + 1));
+                const picked = order[swap] ?? '';
+                order[swap] = order[index] ?? '';
+                order[index] = picked;
+        }
+        const selection = order.slice(0, Math.min(Math.max(fileCount, 0), order.length)).map(file => toPosix(nodePath.relative(repoRoot, file)));
+        if (consumerFiles.size > 0 && !selection.some(file => consumerFiles.has(file))) {
+                const firstConsumer = [...consumerFiles].sort()[0] ?? '';
+                if (!selection.includes(firstConsumer)) {
+                        selection.push(firstConsumer);
+                }
+        }
+        selection.sort();
+        const files: ExcerptFile[] = [];
+        for (const relative of selection) {
+                let text = '';
+                try {
+                        text = await nodeFs.readFile(nodePath.join(repoRoot, relative), { encoding: 'utf-8' });
+                } catch {
+                        // unreadable file: an honest empty contribution (no lines)
+                }
+                const lines: ExcerptLine[] = [];
+                const rawLines = text.split('\n');
+                for (let index = 0; index < rawLines.length; index += 1) {
+                        const raw = rawLines[index] ?? '';
+                        if (parseImportStatement(raw) !== null) {
+                                lines.push({ line: index + 1, text: raw });
+                        }
+                }
+                files.push({ file: relative, lines });
+        }
+        return { schema: EXPLORE_EXCERPT_SCHEMA, ledgerModule, seed, fileCount: selection.length, files };
+}
+
+/**
+ * The excerpt's own consumer set, re-derived from the excerpt's banked
+ * lines (the excerpt-mode ground truth -- NEVER a fresh tree read: the
+ * verification judges exactly what the prompt embedded).
+ */
+export function excerptConsumersOf(excerpt: TreeExcerpt, ledgerModule: string = excerpt.ledgerModule): GroundTruthConsumer[] {
+        const consumers: GroundTruthConsumer[] = [];
+        for (const file of excerpt.files) {
+                for (const line of file.lines) {
+                        const statement = parseImportStatement(line.text);
+                        if (statement !== null && specifierResolvesTo(file.file, statement.specifier, ledgerModule)) {
+                                consumers.push({ file: file.file, line: line.line, symbols: [...statement.symbols] });
+                        }
+                }
+        }
+        return consumers;
+}
+
+/** The excerpt section markers (the question embeds the block between these; pinned by the round-trip tests). */
+export const EXCERPT_BLOCK_BEGIN = "=== TREE EXCERPT: the import lines of the excerpt's selected files (each row: file:line: verbatim source) ===";
+export const EXCERPT_BLOCK_END = '=== END TREE EXCERPT ===';
+
+/** The deterministic excerpt block: one `file:line: verbatim text` row per excerpt import line (files with no import lines contribute no rows). */
+export function excerptBlock(excerpt: TreeExcerpt): string {
+        const rows: string[] = [];
+        for (const file of excerpt.files) {
+                for (const line of file.lines) {
+                        rows.push(`${file.file}:${String(line.line)}: ${line.text}`);
+                }
+        }
+        return rows.join('\n');
+}
+
+/**
+ * Builds the P2-FIX-122 bare-model question: the consumers-among-this-
+ * excerpt ask with the excerpt embedded between the pinned markers.
+ * The operational definition is the full-tree question's rule, scoped
+ * to the excerpt's lines; the answer contract is the SAME answer schema
+ * (the question pins the scope; parseExploreAnswer is unchanged).
+ */
+export function buildExcerptQuestion(excerpt: TreeExcerpt): string {
+        return [
+                `Report the ledger consumers among THIS excerpt's lines: file + line + what it consumes.`,
+                `Operational definition (the verifier enforces exactly this): a consumer is one of the excerpt's lines (between the excerpt markers below) carrying an import or export-from statement on a single line whose relative module specifier (./ or ../, resolved with extensionless->.ts and .js/.mjs/.cjs->.ts twinning) names ${excerpt.ledgerModule}.`,
+                `You are a bare chat completion with NO tool or file access, so the excerpt below is the only repository material you get (P2-FIX-122: the excerpt lane -- a deterministic selection of the tree's import lines, embedded at ask time).`,
+                '',
+                EXCERPT_BLOCK_BEGIN,
+                excerptBlock(excerpt),
+                EXCERPT_BLOCK_END,
+                '',
+                `Report each consumer as { "file": the row's file (repo-relative posix, exactly as written in the excerpt), "line": the row's 1-based line number, "consumes": the imported named bindings (drop "type" markers) }.`,
+                `Only report entries whose file:line names one of the excerpt's rows above: a real repository consumer outside the excerpt is OUT OF SCOPE (the verification judges the excerpt only), and an invented entry fails soundness.`,
+                `Answer with exactly one JSON document of shape { "schema": "${EXPLORE_ANSWER_SCHEMA}", "consumers": [ ... ] } and nothing else.`,
+        ].join('\n');
+}
+
+/** Checks that an ask prompt actually carries the excerpt (checked, not trusted; the P2-FIX-119 discipline). */
+export function verifyPromptCarriesExcerpt(prompt: string, excerpt: TreeExcerpt): { readonly ok: boolean; readonly problems: readonly string[] } {
+        const problems: string[] = [];
+        if (!prompt.includes(EXCERPT_BLOCK_BEGIN) || !prompt.includes(EXCERPT_BLOCK_END)) {
+                problems.push('the ask prompt carries no tree-excerpt section (P2-FIX-122: the excerpt lane must embed the excerpt)');
+        }
+        const block = excerptBlock(excerpt);
+        if (block.length === 0) {
+                problems.push('the excerpt carries no import lines (a vacuous excerpt)');
+        } else if (!prompt.includes(block)) {
+                problems.push('the ask prompt does not embed the excerpt block verbatim');
+        }
+        if (!prompt.includes(excerpt.ledgerModule)) {
+                problems.push('the ask prompt does not name the ledger module');
+        }
+        return { ok: problems.length === 0, problems };
+}
+
+/** The excerpt-mode verification receipt (written to disk verbatim by the exercise; embeds the banked excerpt). */
+export interface ExcerptVerification {
+        readonly schema: 'flauz.dogfood-explore-excerpt-verification/v1';
+        readonly mode: 'excerpt';
+        readonly ledgerModule: string;
+        readonly excerpt: TreeExcerpt;
+        readonly verified: boolean;
+        readonly checked: readonly MapCheckResult[];
+        readonly missed: readonly GroundTruthConsumer[];
+        readonly totals: {
+                readonly claimed: number;
+                readonly real: number;
+                readonly verifiedEntries: number;
+                readonly problemEntries: number;
+                readonly missedEntries: number;
+        };
+}
+
+/**
+ * THE EXCERPT-MODE VERIFIER (P2-FIX-122): the model's map checked
+ * against the EXCERPT itself -- every claimed entry must re-read
+ * within the excerpt (its file:line is an excerpt row, the row REALLY
+ * imports the ledger module, the symbols match the row's bindings)
+ * and every excerpt consumer must be claimed. The same 100% bar as
+ * verifyConsumersMap, scoped to the excerpt: a REAL tree consumer
+ * outside the excerpt fails (out of scope), a hallucinated entry
+ * fails (no such excerpt row / the row does not import the ledger),
+ * a missed excerpt consumer fails completeness. Pure function over
+ * the answer + the banked excerpt (no tree reads -- the excerpt is
+ * the ground truth this lane judges).
+ */
+export function verifyExcerptConsumersMap(answer: ExploreAnswer, excerpt: TreeExcerpt, ledgerModule: string = excerpt.ledgerModule): ExcerptVerification {
+        const excerptRows = new Map<string, string>();
+        for (const file of excerpt.files) {
+                for (const line of file.lines) {
+                        excerptRows.set(`${file.file}:${String(line.line)}`, line.text);
+                }
+        }
+        const groundTruth = excerptConsumersOf(excerpt, ledgerModule);
+        const truthByKey = new Map<string, GroundTruthConsumer>();
+        for (const consumer of groundTruth) {
+                truthByKey.set(`${consumer.file}:${String(consumer.line)}`, consumer);
+        }
+        const seen = new Set<string>();
+        const checked: MapCheckResult[] = [];
+        for (const entry of answer.consumers) {
+                const problems: string[] = [];
+                const normalized = toPosix(entry.file);
+                if (normalized !== entry.file || normalized.startsWith('/') || normalized.split('/').includes('..')) {
+                        problems.push(`file is not a clean repo-relative posix path (${entry.file})`);
+                }
+                const key = `${normalized}:${String(entry.line)}`;
+                if (seen.has(key)) {
+                        problems.push(`duplicate map entry for ${key}`);
+                }
+                seen.add(key);
+                const row = excerptRows.get(key);
+                if (row === undefined) {
+                        const excerptFile = excerpt.files.find(file => file.file === normalized);
+                        problems.push(excerptFile === undefined
+                                ? `${key} is not an excerpt row (claimed outside the excerpt -- the excerpt lane judges the excerpt only)`
+                                : `the excerpt carries no import line at ${normalized}:${String(entry.line)} (its import lines: ${excerptFile.lines.map(line => String(line.line)).join(', ')})`);
+                } else {
+                        const statement = parseImportStatement(row);
+                        if (statement === null) {
+                                problems.push(`the excerpt row at ${key} is not an import statement (row reads: ${row.trim().slice(0, 80)})`);
+                        } else if (!specifierResolvesTo(normalized, statement.specifier, ledgerModule)) {
+                                problems.push(`the excerpt row at ${key} does not import ${ledgerModule} (hallucinated consumer; row reads: ${row.trim().slice(0, 80)})`);
+                        } else if (!sameSymbols(entry.consumes, statement.symbols)) {
+                                problems.push(`consumes mismatch at ${key}: claimed [${entry.consumes.join(', ')}] but the excerpt row binds [${statement.symbols.join(', ')}]`);
+                        }
+                }
+                checked.push({ file: normalized, line: entry.line, consumes: [...entry.consumes], ok: problems.length === 0, problems });
+        }
+        const claimedKeys = new Set(checked.map(entry => `${entry.file}:${String(entry.line)}`));
+        const missed = groundTruth.filter(consumer => !claimedKeys.has(`${consumer.file}:${String(consumer.line)}`));
+        const problemEntries = checked.filter(entry => !entry.ok).length;
+        const verified = problemEntries === 0 && missed.length === 0 && checked.length === groundTruth.length;
+        return {
+                schema: EXPLORE_EXCERPT_VERIFICATION_SCHEMA,
+                mode: 'excerpt',
+                ledgerModule,
+                excerpt,
+                verified,
+                checked,
+                missed,
+                totals: {
+                        claimed: checked.length,
+                        real: groundTruth.length,
+                        verifiedEntries: checked.length - problemEntries,
+                        problemEntries,
+                        missedEntries: missed.length,
+                },
+        };
+}
+
+// ---------------------------------------------------------------------------
 // The exercise
 // ---------------------------------------------------------------------------
 
@@ -406,10 +720,29 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                 const evidenceIds: string[] = [];
                 const evidenceItems: EvidenceItem[] = [];
                 const notes: string[] = [];
+                // P2-FIX-122: the lane split -- the live (bare-model) lane answers the
+                // EXCERPT-mode question (the deterministic tree excerpt embedded in the
+                // prompt at ask time, the verification scoped to the excerpt); the fake
+                // lane keeps the full-tree question and the full-tree verification,
+                // UNCHANGED (its server-side scan is the machinery ground truth).
+                const excerptMode = harness.mode === 'live-provider';
+                let askedPrompt = '';
+                let excerpt: TreeExcerpt | undefined;
 
-                // (1) the exploration turn through the Model Fabric (route + stream)
+                // (1) the exploration turn through the Model Fabric (route + stream).
+                // In excerpt mode the question is built INSIDE the ask window -- the
+                // P2-FIX-119 discipline (after the ask's own durable routing decision,
+                // right before the request ships) -- with the deterministic tree
+                // excerpt embedded (P2-FIX-122: a bare model gets the excerpt, never
+                // the tree).
                 const askStartedAt = Date.now();
-                const outcome = await harness.provider.ask(EXPLORE_QUESTION);
+                const outcome = excerptMode
+                        ? await harness.provider.ask(async () => {
+                                excerpt = await buildTreeExcerpt(harness.repoRoot);
+                                askedPrompt = buildExcerptQuestion(excerpt);
+                                return askedPrompt;
+                        })
+                        : await harness.provider.ask(EXPLORE_QUESTION);
                 const askDurationMs = Date.now() - askStartedAt;
                 await harness.friction.timing({ phase: 'explore-repo:model-call', durationMs: askDurationMs, wallClockBudgetMs: outcome.wallClockBudgetMs });
                 if (outcome.kind !== 'ok') {
@@ -469,23 +802,63 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                 }
                 recorder.check('explore.answer-parses', true, `the answer document carries ${String(parsed.answer.consumers.length)} claimed consumers`);
 
-                // (3) the driver's OWN scan of the tree (the ground truth -- never the model's word)
-                const scanStartedAt = Date.now();
-                const groundTruth = await scanLedgerConsumers(harness.repoRoot);
-                const scanDurationMs = Date.now() - scanStartedAt;
-                await harness.friction.timing({ phase: 'explore-repo:driver-verification', durationMs: scanDurationMs });
+                // (2b) P2-FIX-122 (excerpt mode): the ask prompt is CHECKED to carry
+                // the excerpt verbatim (checked, not trusted -- the P2-FIX-119
+                // discipline); the excerpt itself is banked below (5) as evidence.
+                if (excerptMode) {
+                        if (excerpt === undefined || askedPrompt === '') {
+                                throw new Error('P2-FIX-122: the excerpt-mode ask window produced no excerpt (machinery failure)');
+                        }
+                        const promptExcerpt = verifyPromptCarriesExcerpt(askedPrompt, excerpt);
+                        const excerptRows = excerptBlock(excerpt).split('\n').filter(row => row.length > 0).length;
+                        recorder.check('explore.excerpt-embedded', promptExcerpt.ok, promptExcerpt.ok
+                                ? `the ask prompt embeds the excerpt verbatim (${String(excerpt.fileCount)} files, ${String(excerptRows)} import rows, ${String(excerptConsumersOf(excerpt).length)} ledger consumers among them)`
+                                : `the ask prompt does not carry the excerpt: ${promptExcerpt.problems.join('; ')}`);
+                }
 
-                // (4) the verification: every claimed file:line receipt real + completeness exact
-                const verification = await verifyConsumersMap(parsed.answer, groundTruth, harness.repoRoot);
-                recorder.check('explore.map-sound', verification.totals.problemEntries === 0, `every claimed entry re-reads as a real ledger import (${String(verification.totals.claimed - verification.totals.problemEntries)}/${String(verification.totals.claimed)} sound)`);
-                recorder.check('explore.map-complete', verification.totals.missedEntries === 0, `the map misses ${String(verification.totals.missedEntries)} of the ${String(verification.totals.real)} real consumers`);
-                recorder.check('explore.map-100-percent', verification.verified, `claimed ${String(verification.totals.claimed)} vs real ${String(verification.totals.real)}; verified=${String(verification.verified)}`);
+                // (3) the driver's OWN verification (never the model's word): the fake
+                // lane scans the tree (the ground truth) and runs the full-tree
+                // verifier, UNCHANGED; the excerpt lane runs the excerpt-scoped
+                // verifier -- the same 100% bar, judged against the excerpt the prompt
+                // embedded (pure, no tree reads: the excerpt is this lane's ground
+                // truth). The timing row measures the driver-side verification work
+                // of the lane that ran.
+                const verifyStartedAt = Date.now();
+                let verification: MapVerification | ExcerptVerification;
+                if (excerptMode) {
+                        if (excerpt === undefined) {
+                                throw new Error('P2-FIX-122: the excerpt-mode verification reached with no excerpt (machinery failure)');
+                        }
+                        verification = verifyExcerptConsumersMap(parsed.answer, excerpt);
+                        await harness.friction.timing({ phase: 'explore-repo:driver-verification', durationMs: Date.now() - verifyStartedAt });
+                } else {
+                        const groundTruth = await scanLedgerConsumers(harness.repoRoot);
+                        const scanDurationMs = Date.now() - verifyStartedAt;
+                        await harness.friction.timing({ phase: 'explore-repo:driver-verification', durationMs: scanDurationMs });
+                        verification = await verifyConsumersMap(parsed.answer, groundTruth, harness.repoRoot);
+                }
 
-                // (5) the artifacts + evidence chain (the answer AS RECEIVED + the verification receipt)
+                // (4) the verification checks: every claimed file:line receipt real +
+                // completeness exact (the same three check ids in both lanes -- the
+                // live receipt reads exactly like the W5 one, scoped to the excerpt)
+                recorder.check('explore.map-sound', verification.totals.problemEntries === 0, `every claimed entry re-reads ${excerptMode ? 'within the excerpt (the claimed file:line is an excerpt row that really imports the ledger module)' : 'as a real ledger import'} (${String(verification.totals.claimed - verification.totals.problemEntries)}/${String(verification.totals.claimed)} sound)`);
+                recorder.check('explore.map-complete', verification.totals.missedEntries === 0, `the map misses ${String(verification.totals.missedEntries)} of the ${String(verification.totals.real)} ${excerptMode ? 'excerpt' : 'real'} consumers`);
+                recorder.check('explore.map-100-percent', verification.verified, `claimed ${String(verification.totals.claimed)} vs ${excerptMode ? 'excerpt' : 'real'} ${String(verification.totals.real)}; verified=${String(verification.verified)}`);
+
+                // (5) the artifacts + evidence chain: the answer AS RECEIVED, the
+                // P2-FIX-122 excerpt (excerpt mode -- the evidence a reviewer checks
+                // the model's answer against by hand), and the verification receipt
+                // (the excerpt-mode receipt embeds the excerpt itself)
                 const answerUri = `.flauz/artifacts/${harness.taskId}/explore-answer.json`;
                 const answerArtifact = await mintArtifact(harness, answerUri, outcome.text, `the exploration answer as received over the wire (provider ${outcome.providerId}, decision ${outcome.decisionId})`);
                 evidenceItems.push(answerArtifact.item);
                 evidenceIds.push(answerArtifact.evidenceId);
+                if (excerptMode && excerpt !== undefined) {
+                        const excerptUri = `.flauz/artifacts/${harness.taskId}/explore-excerpt.json`;
+                        const excerptArtifact = await mintArtifact(harness, excerptUri, `${JSON.stringify(excerpt, null, '\t')}\n`, `the P2-FIX-122 tree excerpt the ask prompt embedded (the deterministic seeded selection of ${String(excerpt.fileCount)} files; a reviewer checks the model's answer against THIS)`);
+                        evidenceItems.push(excerptArtifact.item);
+                        evidenceIds.push(excerptArtifact.evidenceId);
+                }
                 const verificationUri = `.flauz/artifacts/${harness.taskId}/explore-verification.json`;
                 const verificationArtifact = await mintArtifact(harness, verificationUri, `${JSON.stringify(verification, null, '\t')}\n`, 'the driver-side verification receipt (the checked map)');
                 evidenceItems.push(verificationArtifact.item);
@@ -493,7 +866,10 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                 // the records-dir copy: the verification receipt is a mandated run receipt (the workspace root is ephemeral)
                 await nodeFs.mkdir(harness.recordsDir, { recursive: true });
                 await nodeFs.writeFile(nodePath.join(harness.recordsDir, 'explore-repo.verification.json'), `${JSON.stringify(verification, null, '\t')}\n`, { encoding: 'utf-8' });
-                recorder.check('explore.evidence-minted', evidenceItems.length === 2 && evidenceIds.length === 2, `the answer + verification artifacts are hash-pinned into the evidence ledger (${evidenceIds.join(', ')})`);
+                const expectedEvidenceCount = excerptMode ? 3 : 2;
+                recorder.check('explore.evidence-minted', evidenceItems.length === expectedEvidenceCount && evidenceIds.length === expectedEvidenceCount, excerptMode
+                        ? `the answer + excerpt + verification artifacts are hash-pinned into the evidence ledger (${evidenceIds.join(', ')})`
+                        : `the answer + verification artifacts are hash-pinned into the evidence ledger (${evidenceIds.join(', ')})`);
 
                 // (6) honest friction: only what actually happened
                 if (!verification.verified) {
@@ -501,12 +877,18 @@ export const EXPLORE_EXERCISE: DogfoodExercise = {
                         await harness.friction.friction({
                                 phase: 'explore-repo:verify',
                                 kind: 'failed-task',
-                                detail: `the exploration map is not 100% verified: ${String(verification.totals.problemEntries)} problem entries, ${String(verification.totals.missedEntries)} missed; first problem: ${firstProblem}`,
+                                detail: `the exploration map is not 100% verified${excerptMode ? ' (P2-FIX-122: judged against the excerpt)' : ''}: ${String(verification.totals.problemEntries)} problem entries, ${String(verification.totals.missedEntries)} missed; first problem: ${firstProblem}`,
                                 recovery: '',
                         });
                 }
-                notes.push(`the fake lane computed its map live from the tree (the provider's own scan); the driver verified every receipt independently (regex scanner + per-entry re-read)`);
-                notes.push(`model intelligence: fixture (the scripted fake lane); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)`);
+                if (excerptMode) {
+                        notes.push(`P2-FIX-122: the live (bare-model) lane answered the EXCERPT-mode question -- the deterministic tree excerpt (seed ${String(excerpt?.seed ?? EXCERPT_SEED)}, ${String(excerpt?.fileCount ?? 0)} files) embedded in the prompt at ask time; the verification is scoped to the excerpt (every claimed entry re-reads within it, every excerpt consumer claimed) -- the same 100% bar, a real capability test instead of an unanswerable full-tree ask`);
+                        notes.push(`the excerpt is banked as evidence (a hash-pinned artifact + embedded in the verification receipt): a reviewer can check the model's answer against the excerpt by hand; the full-tree question stays the fake lane's (its server-side computation is the machinery ground truth), and the agent-with-tools lane is deferred to the tools dogfood wave`);
+                        notes.push(`model intelligence: live-provider (the excerpt lane; claimed live only by the station's live run -- never by the worker); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)`);
+                } else {
+                        notes.push(`the fake lane computed its map live from the tree (the provider's own scan); the driver verified every receipt independently (regex scanner + per-entry re-read)`);
+                        notes.push(`model intelligence: fixture (the scripted fake lane); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)`);
+                }
 
                 const failCount = recorder.checks.filter(check => !check.ok).length;
                 const frictionRows = await harness.friction.readAll();
