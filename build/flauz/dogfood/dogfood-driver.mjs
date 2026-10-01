@@ -1,0 +1,675 @@
+#!/usr/bin/env node
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+/**
+ * A-PROD-003-W1 (dogfood harness) -- THE DRIVER.
+ *
+ * Constructs the REAL product seams on one workspace root (the
+ * journey-drill pattern: imports + real seams + receipts) and executes
+ * EXERCISE SCRIPTS against them:
+ *
+ *   - Workspace OS root: TaskService + EvidenceLedger (the fixture
+ *     ed25519 signer, the committed repo fixtures -- no secrets) +
+ *     MemoryStore, on a REAL mkdtemp root, real fs, ensure()d;
+ *   - Agent OS session + task envelope: OrchestrationStore
+ *     submitGraph -> approveGraph (the mission -> task mint), the
+ *     exclusive session claim (acquireClaim) + the session-tier memory
+ *     record, startStep -> finishStep per exercise, releaseClaim,
+ *     completeGraph;
+ *   - Model Fabric with a SELECTABLE provider lane: the workspace
+ *     providers-file enablement act + the routing-policy rewrite per
+ *     switch, a fresh capability-registry load, a durable ModelRouter
+ *     decision per call, and the REAL openAiCompat adapter + nodeHttpPort
+ *     streaming every completion over a REAL local socket;
+ *   - the evidence ledger: every exercise's artifacts hash-pinned via
+ *     ledger.append + tasks.recordEvidence.
+ *
+ * MODES (the credential-free law):
+ *   fake-lane (default)   the model intelligence is the fake/scripted
+ *                         provider lane (fixture level -- NEVER
+ *                         wording-promoted; the station runs the live
+ *                         mode). The answers are COMPUTED live from the
+ *                         real tree/workspace by the local wire server.
+ *   live-provider         selected ONLY when ALL THREE env vars are
+ *                         present (FLAUZ_LIVE_PROVIDER_BASE_URL /
+ *                         _API_KEY / _MODEL -- the repo's established
+ *                         vendor-neutral contract, env-only, never
+ *                         files, never inline). A partially-present
+ *                         contract FAILS CLOSED (exit 2) -- never a
+ *                         silent fallback to the fake lane.
+ *
+ * RECEIPTS: per-exercise friction logs (schema flauz.dogfood-friction/v1,
+ * append-only) + per-exercise receipts + a run summary (schema
+ * flauz.dogfood-run/v1) under --out (default <root>/.flauz/dogfood-records).
+ *
+ * Usage:
+ *   node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs \
+ *        [--repo <dir>] [--out <dir>] [--exercise <id>]
+ *
+ * Harness module (build/flauz/dogfood/**): NOT a gate instrument.
+ */
+
+import * as nodeFs from 'node:fs';
+import * as nodeFsPromises from 'node:fs/promises';
+import * as os from 'node:os';
+import * as nodePath from 'node:path';
+
+import { sha256Hex } from '../../../extensions/flauz-workspace/src/api.ts';
+import { TaskService } from '../../../extensions/flauz-workspace/src/taskService.ts';
+import { EvidenceLedger } from '../../../extensions/flauz-workspace/src/ledger.ts';
+import { MemoryStore } from '../../../extensions/flauz-memory/src/memory.ts';
+import { createEd25519Signer } from '../../../extensions/flauz-workflow/src/keys.ts';
+import { ModelCapabilityRegistry } from '../../../extensions/flauz-models/src/discovery/registry.ts';
+import { writeProviderOverrides } from '../../../extensions/flauz-models/src/discovery/configs.ts';
+import { ModelRouter, saveRoutingPolicy } from '../../../extensions/flauz-models/src/routing/store.ts';
+import { DEFAULT_ROUTING_POLICY } from '../../../extensions/flauz-models/src/routing/policy.ts';
+import { createOpenAiCompatAdapter } from '../../../extensions/flauz-models/src/adapters/openAiCompat.ts';
+import { nodeHttpPort } from '../../../extensions/flauz-models/src/contract/nodePorts.ts';
+import { isProviderError } from '../../../extensions/flauz-models/src/contract/errors.ts';
+import { OrchestrationStore } from '../../../extensions/flauz-agent/core/orchStore.mjs';
+import { resolveProviderRetryBound } from '../../../extensions/flauz-agent/core/providerRetry.mjs';
+
+import { FrictionLog } from './frictionlog.mjs';
+import { startFakeProvider } from './fake-provider.mjs';
+import { EXPLORE_EXERCISE } from './exercises/explore-repo.task.ts';
+import { PROVIDER_SWITCH_EXERCISE } from './exercises/provider-switch.task.ts';
+
+// ---------------------------------------------------------------------------
+// Constants, environment, small utilities
+// ---------------------------------------------------------------------------
+
+const WO_ID = 'A-PROD-003-W1';
+const PRIMARY = 'flauz.agent.primary';
+const STEP_ID = 'S-01';
+const DRIVER_TAG = 'flauz dogfood driver';
+
+const LIVE_BASE_URL = process.env['FLAUZ_LIVE_PROVIDER_BASE_URL'] ?? '';
+const LIVE_API_KEY = process.env['FLAUZ_LIVE_PROVIDER_API_KEY'] ?? '';
+const LIVE_MODEL = process.env['FLAUZ_LIVE_PROVIDER_MODEL'] ?? '';
+const LIVE_CREDENTIAL_REF = 'env:FLAUZ_LIVE_PROVIDER_API_KEY';
+
+const FAKE_PROVIDER_ID = 'flauz-dogfood-fake';
+const FAILING_PROVIDER_ID = 'flauz-dogfood-failing';
+const LIVE_PROVIDER_ID = 'flauz-dogfood-live';
+const FAKE_CREDENTIAL_REF = 'env:FLAUZ_DOGFOOD_FAKE_KEY';
+const FAILING_CREDENTIAL_REF = 'env:FLAUZ_DOGFOOD_FAILING_KEY';
+
+const RUN_SCHEMA = 'flauz.dogfood-run/v1';
+
+const log = (line) => {
+        console.log(`${DRIVER_TAG}: ${line}`);
+};
+
+/** Resolves the repo root from this driver file (build/flauz/dogfood/<this file> -> three dirs up). */
+function repoRootFromHere() {
+        const url = import.meta.url;
+        if (!url.startsWith('file://')) {
+                throw new Error(`${DRIVER_TAG}: unsupported module url ${url}`);
+        }
+        let target = url.slice('file://'.length);
+        if (process.platform === 'win32') {
+                target = target.replace(/^\/([A-Za-z]:)/, '$1');
+        }
+        const here = nodePath.dirname(decodeURIComponent(target));
+        return nodePath.resolve(here, '..', '..', '..');
+}
+
+// ---------------------------------------------------------------------------
+// The shared ports (the journey-drill runtime pattern)
+// ---------------------------------------------------------------------------
+
+function runtimeFsPort() {
+        return {
+                readFileUtf8: async target => {
+                        try {
+                                return await nodeFsPromises.readFile(target, { encoding: 'utf-8' });
+                        } catch (err) {
+                                if (err !== null && typeof err === 'object' && err.code === 'ENOENT') {
+                                        return undefined;
+                                }
+                                throw err;
+                        }
+                },
+                writeFile: (target, contents) => nodeFsPromises.writeFile(target, contents, { encoding: 'utf-8' }),
+                appendFile: (target, contents) => nodeFsPromises.appendFile(target, contents, { encoding: 'utf-8' }),
+                rename: (from, to) => nodeFsPromises.rename(from, to),
+                mkdir: target => nodeFsPromises.mkdir(target, { recursive: true }),
+                readdir: async target => (await nodeFsPromises.readdir(target)).sort(),
+        };
+}
+
+/** Deterministic stepping clock for the SEAMS (receipts/timing use the real wall clock). */
+function steppingClock(start) {
+        let current = start;
+        return () => {
+                const value = current;
+                current += 1000;
+                return value;
+        };
+}
+
+const nodeHashPort = { sha256Hex: contents => sha256Hex(contents) };
+
+/** The evidence-minting TaskPort adapter (the journey's journeyTaskPort pattern). */
+function dogfoodTaskPort(tasks, ledger) {
+        return {
+                createTask: async args => ({ taskId: (await tasks.createTask(args.title)).id }),
+                appendEvent: async args => ({ task: await tasks.appendEvent(args.taskId, args.event) }),
+                appendEvidence: async args => {
+                        const appended = await ledger.append(args.taskId, {
+                                kind: args.row.kind,
+                                uri: args.row.uri,
+                                sha256: args.row.sha256,
+                                ...(args.row.note !== undefined ? { note: args.row.note } : {}),
+                        });
+                        await tasks.recordEvidence(args.taskId, {
+                                evidenceId: appended.evidenceId,
+                                seq: appended.seq,
+                                kind: args.row.kind,
+                                uri: args.row.uri,
+                                sha256: args.row.sha256,
+                                ...(args.row.note !== undefined ? { note: args.row.note } : {}),
+                        });
+                        return { evidenceId: appended.evidenceId, seq: appended.seq };
+                },
+        };
+}
+
+/** The dogfood lane preference policy (the harness authored it in this session; the switch act rewrites it). */
+function dogfoodPolicy(preferredProviderId) {
+        const userRule = {
+                id: 'dogfood-lane-preference',
+                description: 'Dogfood harness rule: prefer the currently selected provider lane (the switch act).',
+                priority: 10,
+                match: { enabledOnly: true },
+                ranking: 'prefer-order',
+                prefer: [preferredProviderId],
+        };
+        return { ...DEFAULT_ROUTING_POLICY, rules: [userRule, ...DEFAULT_ROUTING_POLICY.rules] };
+}
+
+function dogfoodModelDescriptor(modelId = 'dogfood-1') {
+        return {
+                modelId,
+                modelName: 'Flauz Dogfood Model',
+                family: 'dogfood',
+                version: '1',
+                contextWindowTokens: 32_000,
+                maxOutputTokens: 4_096,
+                inputModalities: ['text'],
+                toolCalling: false,
+        };
+}
+
+// ---------------------------------------------------------------------------
+// The provider-lane facade (selectable lanes + the real fabric per ask)
+// ---------------------------------------------------------------------------
+
+function makeProviderFacade(seams) {
+        const state = {
+                switchNo: 0,
+                currentLane: '',
+                currentProviderId: '',
+                currentModelId: '',
+                adapter: undefined,
+                router: undefined,
+                currentTaskId: '',
+        };
+
+        function laneConfiguration(lane, mode, providerPort) {
+                if (lane === 'fake') {
+                        return {
+                                providerId: FAKE_PROVIDER_ID,
+                                baseUrl: `http://127.0.0.1:${String(providerPort)}/v1`,
+                                credentialRef: FAKE_CREDENTIAL_REF,
+                                models: [dogfoodModelDescriptor()],
+                        };
+                }
+                if (lane === 'scripted-failing') {
+                        return {
+                                providerId: FAILING_PROVIDER_ID,
+                                baseUrl: `http://127.0.0.1:${String(providerPort)}/fail`,
+                                credentialRef: FAILING_CREDENTIAL_REF,
+                                models: [dogfoodModelDescriptor()],
+                        };
+                }
+                if (lane === 'live') {
+                        return {
+                                providerId: LIVE_PROVIDER_ID,
+                                baseUrl: LIVE_BASE_URL,
+                                credentialRef: LIVE_CREDENTIAL_REF,
+                                models: [dogfoodModelDescriptor(LIVE_MODEL)],
+                        };
+                }
+                throw new Error(`${DRIVER_TAG}: unknown provider lane ${lane}`);
+        }
+
+        /** The full override list per switch: every lane stays configured; exactly the selected lane is enabled. */
+        function overridesFor(lane, mode, providerPort) {
+                const entries = [
+                        { ...laneConfiguration('fake', mode, providerPort), enabled: lane === 'fake' },
+                        { ...laneConfiguration('scripted-failing', mode, providerPort), enabled: lane === 'scripted-failing' },
+                ];
+                if (mode === 'live-provider') {
+                        entries.push({ ...laneConfiguration('live', mode, providerPort), enabled: lane === 'live' });
+                }
+                return entries;
+        }
+
+        const secrets = {
+                resolve: async ref => {
+                        if (ref === FAKE_CREDENTIAL_REF || ref === FAILING_CREDENTIAL_REF) {
+                                // a local-wire marker (fixture posture; the local server ignores it)
+                                return 'dogfood-local-wire-marker';
+                        }
+                        if (ref === LIVE_CREDENTIAL_REF) {
+                                return LIVE_API_KEY === '' ? undefined : LIVE_API_KEY;
+                        }
+                        return undefined;
+                },
+        };
+
+        async function selectLane(lane) {
+                const mode = seams.mode;
+                const config = laneConfiguration(lane, mode, seams.providerPort);
+                const overrides = overridesFor(lane, mode, seams.providerPort);
+                await writeProviderOverrides(seams.fs, `${seams.root}/.flauz/models`, overrides, seams.clock());
+                const policy = dogfoodPolicy(config.providerId);
+                await saveRoutingPolicy(seams.fs, `${seams.root}/.flauz/models`, policy);
+
+                const registry = new ModelCapabilityRegistry({ root: seams.root, fs: seams.fs, clock: seams.clock });
+                await registry.load();
+                const enabled = registry.list().filter(record => record.providerId.startsWith('flauz-dogfood') && record.enabled).map(record => record.providerId).sort();
+                const router = new ModelRouter({ stateDir: `${seams.root}/.flauz/models`, fs: seams.fs, clock: seams.clock, records: () => registry.list(), policy });
+
+                // the selection probe: the enablement act MUST select this lane (no silent fallback -- ever)
+                const probe = await router.route({ purpose: 'dogfood-lane-selection', requirements: { enabledOnly: true } });
+                if (probe.selected === null || probe.selected.providerId !== config.providerId) {
+                        throw new Error(`${DRIVER_TAG}: lane selection FAILED CLOSED -- the routing decision ${probe.decisionId} selected ${JSON.stringify(probe.selected)} instead of ${config.providerId} (${probe.explanation})`);
+                }
+
+                // the evidence row minted per switch (hash-pinning the providers file of this act)
+                const providersText = await seams.fs.readFileUtf8(`${seams.root}/.flauz/models/providers.json`);
+                const providersSha = sha256Hex(providersText ?? '');
+                const appended = await seams.ledger.append(state.currentTaskId, {
+                        kind: 'note',
+                        uri: '.flauz/models/providers.json',
+                        sha256: providersSha,
+                        note: `dogfood provider lane switch ${String(state.switchNo + 1)}: ${lane} (enablement act; routing decision ${probe.decisionId} selected ${config.providerId})`,
+                });
+                await seams.tasks.recordEvidence(state.currentTaskId, { evidenceId: appended.evidenceId, seq: appended.seq, kind: 'note', uri: '.flauz/models/providers.json', sha256: providersSha, note: `dogfood provider lane switch ${String(state.switchNo + 1)}: ${lane}` });
+
+                state.switchNo += 1;
+                state.currentLane = lane;
+                state.currentProviderId = config.providerId;
+                state.currentModelId = config.models[0].modelId;
+                state.router = router;
+                state.adapter = createOpenAiCompatAdapter({
+                        config: {
+                                providerId: config.providerId,
+                                vendor: 'flauz-dogfood',
+                                displayName: `Flauz Dogfood (${lane})`,
+                                baseUrl: config.baseUrl,
+                                credentialRef: config.credentialRef,
+                                models: config.models,
+                                requestTimeoutMs: 15_000,
+                        },
+                        http: nodeHttpPort,
+                        secrets,
+                        hash: nodeHashPort,
+                        clock: () => Date.now(),
+                });
+                return {
+                        switchNo: state.switchNo,
+                        lane,
+                        providerId: config.providerId,
+                        enabledLanes: enabled,
+                        providersFileSha256: providersSha,
+                        evidenceId: appended.evidenceId,
+                        seq: appended.seq,
+                        at: seams.clock(),
+                };
+        }
+
+        async function ask(prompt) {
+                if (state.adapter === undefined || state.router === undefined) {
+                        // the session's default provider lane materializes on first use (the
+                        // product's own materialize-on-first-use pattern; the healthy lane of
+                        // the mode -- fake in the W1 sandbox, live at the station)
+                        const defaultLane = seams.mode === 'live-provider' ? 'live' : 'fake';
+                        log(`materializing the session default provider lane (${defaultLane}) on first use`);
+                        await selectLane(defaultLane);
+                }
+                const startedAt = Date.now();
+                const decision = await state.router.route({ purpose: 'chat-turn', requirements: { enabledOnly: true } });
+                if (decision.selected === null || decision.selected.providerId !== state.currentProviderId) {
+                        throw new Error(`${DRIVER_TAG}: the routing decision ${decision.decisionId} drifted off the selected lane ${state.currentProviderId} (${decision.explanation})`);
+                }
+                const maxAttempts = resolveProviderRetryBound(null);
+                let attempts = 0;
+                for (;;) {
+                        attempts += 1;
+                        try {
+                                const parts = [];
+                                for await (const event of state.adapter.stream({ modelId: state.currentModelId, messages: [{ role: 'user', content: [{ kind: 'text', value: prompt }] }] })) {
+                                        if (event.type === 'text-delta') {
+                                                parts.push(event.text);
+                                        }
+                                }
+                                return {
+                                        kind: 'ok',
+                                        text: parts.join(''),
+                                        decisionId: decision.decisionId,
+                                        providerId: state.currentProviderId,
+                                        modelId: state.currentModelId,
+                                        durationMs: Date.now() - startedAt,
+                                        attempts,
+                                };
+                        } catch (err) {
+                                if (isProviderError(err)) {
+                                        if (err.retryable && attempts < maxAttempts) {
+                                                // the product's bounded-retry bound (re-attempts are immediate; no backoff sleeps in the harness window)
+                                                continue;
+                                        }
+                                        return {
+                                                kind: 'provider-failure',
+                                                code: err.code,
+                                                retryable: err.retryable,
+                                                retryClass: err.retryClass,
+                                                status: err.status,
+                                                retryAfterMs: err.retryAfterMs,
+                                                message: err.message,
+                                                decisionId: decision.decisionId,
+                                                providerId: state.currentProviderId,
+                                                modelId: state.currentModelId,
+                                                durationMs: Date.now() - startedAt,
+                                                attempts,
+                                        };
+                                }
+                                throw err;
+                        }
+                }
+        }
+
+        return {
+                selectLane,
+                ask,
+                setCurrentTask: taskId => {
+                        state.currentTaskId = taskId;
+                },
+                get switchCount() {
+                        return state.switchNo;
+                },
+        };
+}
+
+// ---------------------------------------------------------------------------
+// The exercise runner (task envelope -> session -> step -> receipt)
+// ---------------------------------------------------------------------------
+
+async function writeJson(target, value) {
+        await nodeFsPromises.mkdir(nodePath.dirname(target), { recursive: true });
+        await nodeFsPromises.writeFile(target, `${JSON.stringify(value, null, '\t')}\n`, { encoding: 'utf-8' });
+}
+
+async function runExercise(exercise, seams, provider, outDir) {
+        log(`exercise ${exercise.id}: minting the task envelope (submitGraph + approveGraph)`);
+        const submitted = await seams.store.submitGraph({
+                title: `dogfood: ${exercise.title}`,
+                steps: [{ stepId: STEP_ID, title: exercise.title, instruction: exercise.prompt }],
+                actor: 'agent',
+                origin: `dogfood:${WO_ID}`,
+        });
+        const graphId = submitted.graphId;
+        const taskId = submitted.taskId ?? '';
+        await seams.store.approveGraph({ graphId, actor: 'human', origin: `dogfood:${WO_ID}` });
+
+        log(`exercise ${exercise.id}: opening the agent session (claim + session-tier memory) on ${taskId}`);
+        await seams.store.acquireClaim({ graphId, stepId: STEP_ID, holder: PRIMARY, actor: 'agent', origin: 'dogfood:session' });
+        await seams.memory.record('session', {
+                kind: 'observation',
+                content: `dogfood session opened on ${taskId} by ${PRIMARY} (exercise ${exercise.id}, run ${seams.runId})`,
+                taskId,
+                agentId: PRIMARY,
+                provenance: { actor: 'agent', origin: 'task-event', ts: seams.clock() },
+        });
+
+        const friction = new FrictionLog({ path: nodePath.join(outDir, `${exercise.id}.friction.jsonl`) });
+        const start = await seams.store.startStep({ graphId, stepId: STEP_ID, runnerId: PRIMARY, actor: 'agent', origin: `dogfood:${WO_ID}` });
+        provider.setCurrentTask(taskId);
+
+        const harness = {
+                runId: seams.runId,
+                mode: seams.mode,
+                root: seams.root,
+                repoRoot: seams.repoRoot,
+                recordsDir: outDir,
+                clock: seams.clock,
+                friction,
+                tasks: seams.tasks,
+                ledger: seams.ledger,
+                memory: seams.memory,
+                store: seams.store,
+                provider,
+                exerciseId: exercise.id,
+                taskId,
+                graphId,
+                stepId: STEP_ID,
+                log: line => {
+                        log(`exercise ${exercise.id}: ${line}`);
+                },
+        };
+
+        let receipt;
+        try {
+                receipt = await exercise.run(harness);
+        } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                log(`exercise ${exercise.id}: MACHINERY FAILURE -- ${message}`);
+                await friction.friction({ phase: `machinery:${exercise.id}`, kind: 'failed-task', detail: `the exercise machinery failed: ${message}`, recovery: '' });
+                receipt = {
+                        schema: 'flauz.dogfood-exercise-receipt/v1',
+                        exerciseId: exercise.id,
+                        title: exercise.title,
+                        dimensions: exercise.dimensions,
+                        verdict: 'FAIL',
+                        checks: [{ id: 'machinery', ok: false, detail: `the exercise machinery failed: ${message}` }],
+                        evidenceIds: [],
+                        evidenceItems: [],
+                        frictionLogPath: friction.path,
+                        frictionRows: { friction: 1, timing: 0, recovery: 0 },
+                        evidenceLevels: { seams: 'local-real', modelIntelligence: 'fixture' },
+                        notes: [`machinery failure: ${message}`],
+                };
+        }
+
+        // the step transition carries one summary evidence row (the journey's
+        // effect-row pattern); the artifact rows were minted by the exercise itself
+        const receiptJson = JSON.stringify(receipt);
+        await seams.store.finishStep({
+                graphId,
+                stepId: STEP_ID,
+                attempt: start.attempt,
+                outcome: receipt.verdict === 'PASS' ? 'succeeded' : 'failed',
+                output: `${exercise.id}: ${receipt.verdict}`,
+                evidence: [{ kind: 'note', uri: `flauz-dogfood-receipt://${exercise.id}`, sha256: sha256Hex(receiptJson) }],
+                actor: 'agent',
+                origin: `dogfood:${WO_ID}`,
+        });
+        await seams.store.releaseClaim({ graphId, stepId: STEP_ID, actor: 'agent', origin: 'dogfood:session-close' });
+        if (receipt.verdict === 'PASS') {
+                await seams.store.completeGraph({ graphId, actor: 'agent', origin: `dogfood:${WO_ID}` });
+        } else {
+                await seams.store.failGraph({ graphId, failedStepId: STEP_ID, actor: 'agent', origin: `dogfood:${WO_ID}` });
+        }
+
+        await writeJson(nodePath.join(outDir, `${exercise.id}.receipt.json`), receipt);
+        log(`exercise ${exercise.id}: ${receipt.verdict} (${String(receipt.checks.filter(check => check.ok).length)}/${String(receipt.checks.length)} checks; friction log ${friction.path})`);
+        return receipt;
+}
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
+
+function resolveMode() {
+        const present = {
+                baseUrl: LIVE_BASE_URL !== '',
+                apiKey: LIVE_API_KEY !== '',
+                model: LIVE_MODEL !== '',
+        };
+        const values = Object.values(present);
+        if (values.every(Boolean)) {
+                return 'live-provider';
+        }
+        if (values.some(Boolean)) {
+                const missing = Object.entries(present).filter(([, ok]) => !ok).map(([name]) => `FLAUZ_LIVE_PROVIDER_${name === 'baseUrl' ? 'BASE_URL' : name === 'apiKey' ? 'API_KEY' : 'MODEL'}`).join(', ');
+                console.error(`${DRIVER_TAG}: FAIL-CLOSED -- the live-provider env contract is partially present; missing: ${missing}`);
+                console.error(`${DRIVER_TAG}: the harness never silently falls back to the fake lane (the credential-free law); set all three or none`);
+                process.exit(2);
+        }
+        return 'fake-lane';
+}
+
+async function main() {
+        const args = process.argv.slice(2);
+        const argMap = new Map();
+        for (let index = 0; index + 1 < args.length; index += 2) {
+                argMap.set(args[index], args[index + 1]);
+        }
+        if (args.some(arg => arg.startsWith('--') && !argMap.has(arg))) {
+                console.error(`${DRIVER_TAG}: unknown or valueless argument(s): ${args.join(' ')}`);
+                console.error(`usage: node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs [--repo <dir>] [--out <dir>] [--exercise <id>]`);
+                process.exit(2);
+        }
+
+        const repoRoot = nodePath.resolve(argMap.get('--repo') ?? repoRootFromHere());
+        const mode = resolveMode();
+        const runId = `dogfood-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+        const root = await nodeFsPromises.mkdtemp(nodePath.join(os.tmpdir(), 'flauz-dogfood-'));
+        const outDir = nodePath.resolve(argMap.get('--out') ?? nodePath.join(root, '.flauz', 'dogfood-records'));
+        await nodeFsPromises.mkdir(outDir, { recursive: true });
+
+        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE];
+        const only = argMap.get('--exercise');
+        if (only !== undefined) {
+                const selected = exercises.filter(exercise => exercise.id === only);
+                if (selected.length === 0) {
+                        console.error(`${DRIVER_TAG}: no such exercise '${only}' (known: ${exercises.map(exercise => exercise.id).join(', ')})`);
+                        process.exit(2);
+                }
+                exercises.length = 0;
+                exercises.push(...selected);
+        }
+
+        log(`mode=${mode} (model intelligence: ${mode === 'live-provider' ? 'live-provider (the env contract)' : 'fixture (the fake/scripted lane -- claimed at fixture level, never promoted)'})`);
+        log(`workspace root ${root}; repo ${repoRoot}; records ${outDir}`);
+
+        const fakeProvider = await startFakeProvider({ repoRoot, workspaceRoot: root });
+        log(`local provider lanes on 127.0.0.1:${String(fakeProvider.port)} (fake: /v1, scripted-failing: /fail)`);
+
+        const startedAt = Date.now();
+        const fs = runtimeFsPort();
+        const clock = steppingClock(1_760_000_000_000);
+        const tasks = new TaskService({ root, fs, clock });
+        const ledger = new EvidenceLedger({
+                root,
+                fs,
+                clock,
+                signer: createEd25519Signer(
+                        'flauz-fixture-ed25519-1',
+                        nodeFs.readFileSync(nodePath.join(repoRoot, 'test', 'fixtures', 'workflow', 'keys', 'ed25519-private.pem'), { encoding: 'utf-8' }),
+                        nodeFs.readFileSync(nodePath.join(repoRoot, 'test', 'fixtures', 'workflow', 'keys', 'ed25519-public.pem'), { encoding: 'utf-8' }),
+                ),
+                checkpointInterval: 0,
+        });
+        const memory = new MemoryStore({ root, fs, clock });
+        await tasks.bootstrap();
+        await ledger.ensure();
+        await memory.ensure();
+        const store = new OrchestrationStore(root, { clock, taskPort: dogfoodTaskPort(tasks, ledger) });
+
+        const seams = {
+                runId,
+                mode,
+                root,
+                repoRoot,
+                fs,
+                clock,
+                tasks,
+                ledger,
+                memory,
+                store,
+                providerPort: fakeProvider.port,
+        };
+        const provider = makeProviderFacade(seams);
+
+        const receipts = [];
+        try {
+                for (const exercise of exercises) {
+                        receipts.push(await runExercise(exercise, seams, provider, outDir));
+                }
+        } finally {
+                fakeProvider.close();
+        }
+
+        const durationMs = Date.now() - startedAt;
+        const summary = {
+                schema: RUN_SCHEMA,
+                wo: WO_ID,
+                runId,
+                mode,
+                modelIntelligence: mode === 'live-provider' ? 'live-provider' : 'fixture (the fake/scripted lanes; never wording-promoted)',
+                startedAt: new Date(startedAt).toISOString(),
+                durationMs,
+                workspaceRoot: root,
+                repoRoot,
+                recordsDir: outDir,
+                exercises: receipts.map(receipt => ({
+                        exerciseId: receipt.exerciseId,
+                        title: receipt.title,
+                        dimensions: receipt.dimensions,
+                        verdict: receipt.verdict,
+                        assertions: { pass: receipt.checks.filter(check => check.ok).length, fail: receipt.checks.filter(check => !check.ok).length },
+                        evidenceIds: receipt.evidenceIds,
+                        frictionLogPath: receipt.frictionLogPath,
+                        frictionRows: receipt.frictionRows,
+                        evidenceLevels: receipt.evidenceLevels,
+                        notes: receipt.notes,
+                })),
+                localLaneCensus: {
+                        chatCalls: fakeProvider.chatCalls,
+                        failCalls: fakeProvider.failCalls,
+                        exploreComputations: fakeProvider.exploreComputations,
+                        configComputations: fakeProvider.configComputations,
+                        note: 'the local wire census (the live lane, when selected, talks to the vendor directly and never appears here)',
+                },
+        };
+        await writeJson(nodePath.join(outDir, 'run-summary.json'), summary);
+
+        for (const receipt of receipts) {
+                log(`receipt ${receipt.exerciseId}: ${receipt.verdict} -- ${String(receipt.checks.filter(check => check.ok).length)}/${String(receipt.checks.length)} checks, friction ${String(receipt.frictionRows.friction)}/timing ${String(receipt.frictionRows.timing)}/recovery ${String(receipt.frictionRows.recovery)}`);
+                for (const check of receipt.checks.filter(entry => !entry.ok)) {
+                        console.error(`${DRIVER_TAG}: FAIL ${receipt.exerciseId}.${check.id} -- ${check.detail}`);
+                }
+        }
+        log(`run summary ${nodePath.join(outDir, 'run-summary.json')} (${String(durationMs)} ms, ${String(provider.switchCount)} lane switch(es))`);
+
+        const failing = receipts.filter(receipt => receipt.verdict !== 'PASS').length;
+        if (failing > 0) {
+                log(`RUN FAIL (${String(failing)} exercise(s) failed)`);
+                process.exit(1);
+        }
+        log('RUN GREEN (both machinery and every exercise verdict PASS)');
+        process.exit(0);
+}
+
+main().catch(err => {
+        console.error(`${DRIVER_TAG}: FAIL machinery -- ${err instanceof Error ? err.message : String(err)}`);
+        if (err instanceof Error && err.stack !== undefined) {
+                console.error(err.stack);
+        }
+        process.exit(1);
+});
