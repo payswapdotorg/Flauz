@@ -109,6 +109,9 @@ import { CloudHttpExecutor, EnvironmentLifecycleManager, LocalProcessExecutor, P
 import { A2ABus } from '../../../flauz-agent/core/a2a.mjs';
 import { OrchestrationStore } from '../../../flauz-agent/core/orchStore.mjs';
 import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../../flauz-agent/core/leaseConflict.mjs';
+// P2-FIX-102 (type-level): the settled-race predicate narrows to the claim
+// contract's own result type (see the battery suite's identical fix).
+import type { ClaimStepLeaseResult } from '../../../flauz-agent/core/leaseConflict.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants, environment, assertion surface
@@ -372,7 +375,7 @@ interface WireFrame {
 class RecordingWebSocketCdpTransport extends WebSocketCdpTransport {
 	readonly sentFrames: WireFrame[] = [];
 
-	protected postMessage(payload: Record<string, unknown>): void {
+	protected override postMessage(payload: Record<string, unknown>): void {
 		this.sentFrames.push({
 			method: typeof payload.method === 'string' ? payload.method : '',
 			sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : undefined,
@@ -389,7 +392,7 @@ class RecordingWebSocketCdpTransport extends WebSocketCdpTransport {
  * same journey over the fake transport.
  */
 class ClosingWebSocketCdpTransport extends RecordingWebSocketCdpTransport {
-	protected postMessage(payload: Record<string, unknown>): void {
+	protected override postMessage(payload: Record<string, unknown>): void {
 		if (payload.method === 'Page.navigate') {
 			this.sentFrames.push({
 				method: 'Page.navigate',
@@ -513,6 +516,8 @@ function startProviderServer(): Promise<ProviderServer> {
 interface EnvOpLine {
 	readonly op?: string;
 	readonly result?: string;
+	/** P2-FIX-102 (type-level): the post-op lifecycle state the ops ledger writes on terminal rows. */
+	readonly toState?: string;
 	readonly actor?: string;
 	readonly error?: { readonly code?: string; readonly message?: string };
 }
@@ -1230,7 +1235,9 @@ async function journeyInv5(): Promise<void> {
 				const appended = await trio.ledger.append(args.taskId, { kind: args.row.kind as EvidenceKind, uri: args.row.uri, sha256: args.row.sha256 });
 				return { evidenceId: appended.evidenceId, seq: appended.seq };
 			},
-			appendEvent: async (args: { taskId: string; event: Record<string, unknown> }) => ({ task: await trio.tasks.appendEvent(args.taskId, args.event as TaskEvent) }),
+			// P2-FIX-102 (type-level): the TS2352 double-cast remedy (the runtime
+			// appendEvent performs the closed-set event validation).
+			appendEvent: async (args: { taskId: string; event: Record<string, unknown> }) => ({ task: await trio.tasks.appendEvent(args.taskId, args.event as unknown as TaskEvent) }),
 		};
 		const store = new OrchestrationStore(root, { taskPort, clock: steppingClock(500_000) });
 		const bus = new A2ABus(root);
@@ -1249,7 +1256,7 @@ async function journeyInv5(): Promise<void> {
 			claimStepLease(store, bus, { graphId: submitted.graphId, stepId: 'S-01', claimant: 'flauz.agent.worker-2', ttlMs: 60_000, origin: 'a2a:flauz.agent.worker-2' }),
 		]);
 		const acquiredRows = store.journalRows.filter(row => row.type === 'lease-acquired');
-		const winner = race.find((result): result is PromiseFulfilledResult<{ status: string; leaseId: string; holder: string; deadline: number; rowId: string; noticeId: string }> => result.status === 'fulfilled');
+		const winner = race.find((result): result is PromiseFulfilledResult<ClaimStepLeaseResult> => result.status === 'fulfilled');
 		const loser = race.find((result): result is PromiseRejectedResult => result.status === 'rejected');
 		recorder.check('inv5.exactly-one-winner', race.filter(result => result.status === 'fulfilled').length === 1 && loser !== undefined && acquiredRows.length === 1, `exactly one claimant acquired the lease (${race.map(result => result.status).join(' + ')}; lease-acquired rows: ${String(acquiredRows.length)})`);
 
@@ -1317,8 +1324,15 @@ async function journeyInv6(): Promise<void> {
 		// the A2A attribution leg over the REAL on-disk bus
 		const bus = new A2ABus(root);
 		const busPort: A2aPort = {
-			post: async (input: A2aMessageInput) => bus.post({ message: { kind: input.kind, from: input.from, to: input.to, ts: input.ts, inReplyTo: input.inReplyTo, payload: input.payload } }),
-			collect: async (agentId: string) => (await Promise.resolve(bus.collect({ agentId }))).messages,
+			// P2-FIX-102 (type-level): the A2aPort adapter seam. The bus's .d.mts
+			// declaration carries the wire-level shapes (kind: string, payload:
+			// Record<string, unknown> - validated per-kind by the bus at runtime);
+			// the orchestration layer's port carries the closed union. The adapter
+			// legitimately narrows at this seam: the payload cast satisfies the bus's
+			// record surface, and the returned messages are trusted as the typed union
+			// (the bus validates before journaling, so the shapes agree at runtime).
+			post: async (input: A2aMessageInput) => bus.post({ message: { kind: input.kind, from: input.from, to: input.to, ts: input.ts, inReplyTo: input.inReplyTo, payload: input.payload as unknown as Record<string, unknown> } }) as unknown as { id: string; seq: number; message: A2aMessage },
+			collect: async (agentId: string) => (await Promise.resolve(bus.collect({ agentId }))).messages as unknown as A2aMessage[],
 		};
 		const parent = new AgentMessenger({ self: 'flauz.agent', port: busPort, clock: steppingClock(30_000) });
 		const worker = new AgentMessenger({ self: 'flauz.agent.worker-1', port: busPort, clock: steppingClock(31_000) });
@@ -1472,7 +1486,7 @@ async function journeyInv8(providerPort: number, origin: string): Promise<void> 
 		const sessionId = (opened as OpenSessionResult).descriptor.sessionId;
 		const deadNavigation = await browser.navigate(sessionId, `${origin}/inv8`);
 		recorder.check('inv8.browser-death-typed', isNavigationOutcome(deadNavigation) && deadNavigation.error?.code === 'flauz.browser.transport-closed', `the mid-navigation real-socket death surfaces the typed error: ${JSON.stringify(deadNavigation.error ?? null)}`);
-		recorder.check('inv8.browser-death-no-fake-success', isNavigationOutcome(deadNavigation) && deadNavigation.committedUrl === undefined, `the dead navigation never commits a url (committedUrl ${JSON.stringify(deadNavigation.committedUrl ?? null)})`);
+		recorder.check('inv8.browser-death-no-fake-success', isNavigationOutcome(deadNavigation) && deadNavigation.committedUrl === undefined, `the dead navigation never commits a url (committedUrl ${JSON.stringify(isNavigationOutcome(deadNavigation) ? deadNavigation.committedUrl ?? null : null)})`);
 		await browser.dispose();
 
 		// (c) the task-level marking (in-process, same as the fixture rung)

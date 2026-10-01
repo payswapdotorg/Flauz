@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, SimulatedRemoteExecutor, SshCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, mintCancellationPort, SimulatedRemoteExecutor, SshCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor, EnvironmentKind } from '../src/api.ts';
 import { FakeCli } from './fakeCli.ts';
 import { sshRegistrationInput, virtualTime } from './helpers.ts';
@@ -478,7 +478,7 @@ test('ssh-cli: routing — ssh-local resolves the REAL executor without any opt-
 
 test('ssh-cli: executor-level double start is a typed ALREADY_RUNNING while the pid lives', async () => {
 	const rig = await bootSsh();
-	const ctx = { actor: 'human' as const, now: Date.now() };
+	const ctx = { actor: 'human' as const, now: Date.now(), cancellation: mintCancellationPort().port }; // DL-81: direct-call contexts carry a minted port
 	await rig.executor.create(rig.descriptor, ctx);
 	const first = await rig.executor.start(rig.descriptor, ctx);
 	ok(first.ok);
@@ -514,4 +514,181 @@ test('ssh-cli: the fixed harness missing from disk is a typed HARNESS_MISSING (i
 	ok(!started.ok);
 	strictEqual(started.error.code, 'HARNESS_MISSING');
 	strictEqual(rig.cli.calls.some(call => call.argv.includes('nohup')), false, 'no launch happened without the fixed harness');
+});
+// ---------------------------------------------------------------------------
+// P2-FIX-110 — the `remotePidAlive` single-invocation unverifiable window
+// (a `kill -0` that spawn-fails while the op's other invocations worked is
+// UNVERIFIABLE, never "not alive"; the consuming op verdicts fail closed)
+// ---------------------------------------------------------------------------
+
+/**
+ * P2-FIX-110 rig: a FRESH executor + manager over the same persisted truth
+ * (the host-restart shape — nothing in `owned`, so stop/destroy/probe take
+ * the reconcile-against-remote-truth path), with a single-invocation vanish
+ * window: while `window.open` is true ONLY the `kill -0` liveness probe
+ * spawn-fails (state reads, signal kills and `rm` all still work).
+ */
+async function bootSshHostRestart(rig: SshRig) {
+	const id = rig.descriptor.id;
+	const cli = new FakeCli();
+	const files = new Map(rig.files);
+	const localFs = memLocalFs(files);
+	const time = virtualTime();
+	const clock = time.clock;
+	const registry = new EnvironmentRegistry({ root: ROOT, fs: localFs, clock });
+	await registry.bootstrap();
+	const remote = { alive: true, status: 'running' };
+	const window = { open: false };
+	cli.handler = argv => {
+		const last = argv[argv.length - 1];
+		if (window.open && argv.includes('kill') && argv.includes('-0')) {
+			// the binary vanished for the liveness probe ONLY. exitCode is PINNED to
+			// null because that is exactly what the real NodeCliPort reports for the
+			// ENOENT class (FakeCli's default-fill would otherwise fake exit 0 — a
+			// spawn error with exit status 0 cannot happen on the real seam)
+			return { exitCode: null, spawnError: 'spawn ssh ENOENT' };
+		}
+		if (argv.includes('kill') && argv.includes('-0')) {
+			return { exitCode: remote.alive ? 0 : 1 };
+		}
+		if (argv.includes('kill') && argv.includes('-15') || argv.includes('kill') && argv.includes('-9')) {
+			remote.alive = false;
+			remote.status = 'stopped';
+			return { exitCode: 0 };
+		}
+		if (last === `~/.flauz/env-state/${id}/state.json`) {
+			return { stdout: stateJsonOf(id, remote) };
+		}
+		return { exitCode: 0 };
+	};
+	const executor = new SshCliExecutor({
+		root: ROOT, cli, fs: localFs,
+		hash: { sha256Hex: contents => createHash('sha256').update(contents, 'utf-8').digest('hex') },
+		clock, latency: time.latency, harnessPath: HARNESS_PATH,
+		startTimeoutMs: 400, pollIntervalMs: 20, stopTimeoutMs: 200,
+	});
+	const manager = new EnvironmentLifecycleManager({ registry, root: ROOT, fs: localFs, clock, executors: [executor] });
+	await manager.bootstrap();
+	return { cli, manager, remote, window, id };
+}
+
+test('ssh-cli P2-FIX-110: a kill -0 that spawn-fails while the state read worked is UNVERIFIABLE — the stop op fails closed instead of claiming the unowned pid stopped', async () => {
+	const rig = await bootSsh();
+	const id = rig.descriptor.id;
+	await rig.manager.perform('create', { id, actor: 'human' });
+	await rig.manager.perform('start', { id, actor: 'human' });
+	// HOST RESTART: a fresh executor over the same truth (the not-owned path)
+	const fresh = await bootSshHostRestart(rig);
+	fresh.window.open = true; // the binary vanishes for the kill -0 ONLY
+	const stop = await fresh.manager.perform('stop', { id, actor: 'human' });
+	ok(!stop.ok, 'an unverifiable liveness probe must not claim the pid stopped');
+	strictEqual(stop.error.code, 'CLI_NOT_AVAILABLE');
+	ok(stop.error.message.includes('unverifiable'), `the verdict names the evidence: ${stop.error.message}`);
+	// fail-closed direction: no signal was sent, the unowned process was left alone
+	strictEqual(fresh.cli.everCalledWith('-15'), false);
+	strictEqual(fresh.cli.everCalledWith('-9'), false);
+	strictEqual(fresh.remote.alive, true, 'the possibly-live backing pid was never signaled');
+});
+
+test('ssh-cli P2-FIX-110: the describe probe fails closed as stale WITHOUT the fabricated "gone" claim when the kill -0 spawn-fails mid-probe (a clean exit status still reads not-alive)', async () => {
+	const rig = await bootSsh();
+	const id = rig.descriptor.id;
+	await rig.manager.perform('create', { id, actor: 'human' });
+	await rig.manager.perform('start', { id, actor: 'human' });
+	const fresh = await bootSshHostRestart(rig);
+	fresh.window.open = true;
+	const unverifiable = await fresh.manager.describe({ id });
+	strictEqual(unverifiable.verdict.health, 'stale', 'fail closed — never healthy');
+	strictEqual(unverifiable.verdict.state, 'stopped');
+	strictEqual(unverifiable.verdict.pid, REMOTE_PID);
+	ok(unverifiable.verdict.message.includes('unverifiable'), `the message names the evidence: ${unverifiable.verdict.message}`);
+	ok(!unverifiable.verdict.message.includes('crash reconciliation'), 'an unverifiable pid is not a confirmed crash');
+	// the clean exit-status control: binary back, pid actually dead -> the exact pre-existing stale verdict
+	fresh.window.open = false;
+	fresh.remote.alive = false;
+	const dead = await fresh.manager.describe({ id });
+	strictEqual(dead.verdict.health, 'stale');
+	ok(dead.verdict.message.includes('crash reconciliation'), `the clean exit-status probe still reads not-alive: ${dead.verdict.message}`);
+});
+
+test('ssh-cli P2-FIX-110: destroy over an unverifiable liveness probe refuses the teardown (no rm -rf, no fabricated destroyed) — the retry after repair completes it honestly', async () => {
+	const rig = await bootSsh();
+	const id = rig.descriptor.id;
+	await rig.manager.perform('create', { id, actor: 'human' });
+	await rig.manager.perform('start', { id, actor: 'human' });
+	await rig.manager.perform('stop', { id, actor: 'human' }); // owned graceful stop; lifecycle = stopped
+	// HOST RESTART over the same truth — but the remote pid is STILL LIVE
+	// (pid reuse / the graceful stop never landed): the not-owned path
+	const fresh = await bootSshHostRestart(rig);
+	fresh.window.open = true; // the binary vanishes for the kill -0 only; rm still works
+	const destroy = await fresh.manager.perform('destroy', { id, actor: 'human' });
+	ok(!destroy.ok, 'an unverifiable liveness probe must not fabricate destroy success');
+	strictEqual(destroy.error.code, 'CLI_NOT_AVAILABLE');
+	ok(destroy.error.message.includes('unverifiable'), `the verdict names the evidence: ${destroy.error.message}`);
+	strictEqual(fresh.cli.everCalledWith('rm'), false, 'no rm -rf was issued over unverifiable liveness');
+	strictEqual(fresh.remote.alive, true, 'the possibly-live backing pid was never signaled');
+	strictEqual(fresh.manager.stateOf(id), 'stopped', 'the failed destroy preserved the state (no partial teardown)');
+	// the binary returns: the retry completes the teardown honestly
+	fresh.window.open = false;
+	fresh.remote.alive = false; // the human resolved the stray remotely
+	const retried = await fresh.manager.perform('destroy', { id, actor: 'human' });
+	ok(retried.ok, JSON.stringify(retried.ok ? '' : retried.error));
+	strictEqual(fresh.manager.stateOf(id), 'destroyed');
+	ok(fresh.cli.everCalledWith('rm'), 'the retry actually issued the rm -rf');
+});
+
+test('ssh-cli P2-FIX-110: start never launches a second harness over an unverifiable previous one (fail-closed refusal, no double launch)', async () => {
+	const rig = await bootSsh();
+	const id = rig.descriptor.id;
+	const ctx = { actor: 'human' as const, now: Date.now(), cancellation: mintCancellationPort().port }; // DL-81 cross-landing: direct-call contexts carry a minted port (never cancelled in the P2-FIX-110 legs)
+	await rig.executor.create(rig.descriptor, ctx);
+	const first = await rig.executor.start(rig.descriptor, ctx);
+	ok(first.ok);
+	// the single-invocation window: ONLY the kill -0 liveness probe fails
+	// (exitCode null models the real port's ENOENT result exactly)
+	rig.cli.handler = argv => {
+		if (argv.includes('kill') && argv.includes('-0')) {
+			return { exitCode: null, spawnError: 'spawn ssh ENOENT' };
+		}
+		const last = argv[argv.length - 1];
+		if (last === `~/.flauz/env-state/${id}/harness.out`) {
+			return { stdout: `${JSON.stringify({ type: 'ready', pid: 9911 })}\n` };
+		}
+		return { exitCode: 0 };
+	};
+	const second = await rig.executor.start(rig.descriptor, ctx);
+	ok(!second.ok, 'an unverifiable previous harness must not be double-started');
+	strictEqual(second.error.code, 'CLI_NOT_AVAILABLE');
+	ok(second.error.message.includes('unverifiable'), `the verdict names the evidence: ${second.error.message}`);
+	strictEqual(rig.cli.calls.filter(call => call.argv.includes('nohup')).length, 1, 'exactly one harness launch happened');
+});
+
+test('ssh-cli P2-FIX-110: a spawn-failing kill -0 during the stop grace window never confirms gone — the escalation runs honestly (no fabricated graceful reap)', async () => {
+	const rig = await bootSsh();
+	const id = rig.descriptor.id;
+	await rig.manager.perform('create', { id, actor: 'human' });
+	await rig.manager.perform('start', { id, actor: 'human' });
+	const window = { open: true }; // the binary is ALREADY gone for kill -0 when the stop begins
+	rig.cli.handler = argv => {
+		if (argv.includes('kill') && argv.includes('-0')) {
+			// exitCode null = the real port's ENOENT shape (never the default-fill 0)
+			return window.open ? { exitCode: null, spawnError: 'spawn ssh ENOENT' } : { exitCode: rig.remote.alive ? 0 : 1 };
+		}
+		if (argv.includes('kill') && argv.includes('-15')) {
+			return { exitCode: 0 }; // delivered, but this pid refuses graceful death
+		}
+		if (argv.includes('kill') && argv.includes('-9')) {
+			window.open = false; // the binary returns alongside the escalation
+			rig.remote.alive = false;
+			rig.remote.status = 'stopped';
+			return { exitCode: 0 };
+		}
+		return { exitCode: 0 };
+	};
+	const stopped = await rig.manager.perform('stop', { id, actor: 'human' });
+	ok(stopped.ok, JSON.stringify(stopped.ok ? '' : stopped.error));
+	const stopDetail = stopped.detail?.type === 'stop' ? stopped.detail : undefined;
+	strictEqual(stopDetail?.forcedSignal, 'SIGKILL', 'the unconfirmed reap escalates instead of fabricating a SIGTERM confirmation');
+	strictEqual(rig.cli.everCalledWith('-9'), true, 'the escalation actually ran');
+	strictEqual(rig.manager.stateOf(id), 'stopped');
 });

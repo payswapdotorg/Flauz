@@ -17,10 +17,10 @@
  *     never rewrites history.
  *
  * Parsing is STRICT: unknown keys, wrong schema ids, non-enum states/actors/
- * ops/results, `result:'error'` without an `error` payload (or `ok` with
- * one) are typed `STORE_CORRUPT` errors — the store fails closed rather than
- * best-effort-loading a mutated file (DL-29 discipline: no silent
- * reinterpretation).
+ * ops/results, `result:'error'`/`result:'cancelled'` without an `error`
+ * payload (or `ok` with one) are typed `STORE_CORRUPT` errors — the store
+ * fails closed rather than best-effort-loading a mutated file (DL-29
+ * discipline: no silent reinterpretation).
  */
 import {
 	FLAUZ_DIR,
@@ -150,17 +150,20 @@ export function parseOpRecord(value: unknown, lineNo: number): EnvironmentOpReco
 	if (!isEnvironmentId(value.environmentId)) {
 		throw storeError(`${where} environmentId must be a valid environment id (got ${JSON.stringify(value.environmentId)})`);
 	}
-	if (value.result !== 'ok' && value.result !== 'error') {
-		throw storeError(`${where} result must be 'ok' or 'error' (got ${JSON.stringify(value.result)})`);
+	if (value.result !== 'ok' && value.result !== 'error' && value.result !== 'cancelled') {
+		throw storeError(`${where} result must be 'ok', 'error' or 'cancelled' (got ${JSON.stringify(value.result)})`);
 	}
 	for (const key of ['fromState', 'toState'] as const) {
 		if (typeof value[key] !== 'string' || !isLifecycleState(value[key])) {
 			throw storeError(`${where} ${key} '${JSON.stringify(value[key])}' is not a lifecycle state`);
 		}
 	}
-	if (value.result === 'error') {
+	if (value.result === 'error' || value.result === 'cancelled') {
+		// DL-81 / P2-FIX-109: a cancelled attempt carries the typed OP_CANCELLED
+		// error payload (the partial-effect facts + the cancelling actor) — the
+		// same {code, message} shape an error row carries.
 		if (!hasKey(value, 'error')) {
-			throw storeError(`${where} result 'error' requires the error payload {code, message}`);
+			throw storeError(`${where} result '${value.result}' requires the error payload {code, message}`);
 		}
 		if (!isPlainObject(value.error) || !hasExactKeys(value.error, ['code', 'message'])) {
 			throw storeError(`${where} error must have exactly the keys [code, message]`);
@@ -185,9 +188,9 @@ export function parseOpRecord(value: unknown, lineNo: number): EnvironmentOpReco
 		result: value.result,
 		fromState: value.fromState as string,
 		toState: value.toState as string,
-		...(value.result === 'error'
-			? { error: { code: (value.error as Record<string, string>).code, message: (value.error as Record<string, string>).message } }
-			: {}),
+		...(value.result === 'ok'
+			? {}
+			: { error: { code: (value.error as Record<string, string>).code, message: (value.error as Record<string, string>).message } }),
 	};
 }
 

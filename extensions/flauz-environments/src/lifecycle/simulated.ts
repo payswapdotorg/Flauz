@@ -31,11 +31,20 @@
  *   - Ops move the sim file the way a real provider would move its remote
  *     truth; attach/detach mint logical leases recorded in the sim state
  *     (id + held-since — the lease a real provider would hand back).
+ *
+ * DL-81 / P2-FIX-109 — the port is modeled DETERMINISTICALLY: every op
+ * consults the cooperative cancellation port at its pre-spawn effect
+ * checkpoint (after the injected latency, BEFORE the effect commits its
+ * sim-state save). A cancel minted while the op is inside its latency window
+ * is therefore always observed — the cancelled op leaves the sim truth
+ * untouched (no fabricated running state) and returns the typed OP_CANCELLED
+ * effect with the structured partial-effect facts.
  */
 import { type EnvironmentDescriptor, type EnvironmentKind, type FileSystemPort, joinPath, type Clock } from '../api.ts';
 
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
-import type { DescribeVerdict, ExecutorEffectResult, ProvenanceActor } from './types.ts';
+import { observeCancellation } from './executor.ts';
+import type { DescribeVerdict, ExecutorEffectError, ExecutorEffectResult, ProvenanceActor } from './types.ts';
 
 const SIM_STATE_SCHEMA_ID = 'flauz.env-sim/v0';
 
@@ -162,12 +171,21 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 		return { code: cue.code, message: cue.message };
 	}
 
-	private async guard(descriptor: EnvironmentDescriptor, op: SimFailureCue['op'], requiresState: boolean): Promise<{ ok: false; error: { code: string; message: string } } | { ok: true; state: SimEnvState }> {
+	private async guard(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext, op: SimFailureCue['op'], requiresState: boolean): Promise<{ ok: false; error: ExecutorEffectError } | { ok: true; state: SimEnvState }> {
 		const cue = this.consumeCue(op);
 		if (cue !== undefined) {
 			return { ok: false, error: cue };
 		}
 		await this.delay();
+		// DL-81 / P2-FIX-109 — the pre-spawn effect checkpoint (the deterministic
+		// port model): observed AFTER the injected latency and BEFORE the op's
+		// effect commits (every mutating save happens after guard) — a cancel
+		// minted mid-latency is always observed, and the sim truth stays
+		// untouched (no fabricated running state).
+		const cancelled = observeCancellation(ctx, 'pre-spawn', `sim backing state untouched (the '${op}' effect never committed)`);
+		if (cancelled !== undefined && !cancelled.ok) {
+			return { ok: false, error: cancelled.error };
+		}
 		const state = await this.load(descriptor.id);
 		if (requiresState && state === undefined) {
 			return { ok: false, error: { code: 'SIM_STATE_GONE', message: `simulated backing state for '${descriptor.id}' is gone (crash or destroy) — the lifecycle state outruns the truth` } };
@@ -178,7 +196,7 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 	// -- the executor surface ------------------------------------------------------
 
 	async create(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'create', false);
+		const guard = await this.guard(descriptor, ctx, 'create', false);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}
@@ -187,7 +205,7 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 	}
 
 	async start(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'start', false);
+		const guard = await this.guard(descriptor, ctx, 'start', false);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}
@@ -200,8 +218,8 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 		return { ok: true, detail: { type: 'start', pid } };
 	}
 
-	async stop(descriptor: EnvironmentDescriptor, _ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'stop', false);
+	async stop(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
+		const guard = await this.guard(descriptor, ctx, 'stop', false);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}
@@ -211,7 +229,7 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 	}
 
 	async attach(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'attach', true);
+		const guard = await this.guard(descriptor, ctx, 'attach', true);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}
@@ -227,8 +245,8 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 		return { ok: true, detail: { type: 'attach', leaseId: lease.leaseId, heldSince: lease.heldSince } };
 	}
 
-	async detach(descriptor: EnvironmentDescriptor, _ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'detach', true);
+	async detach(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
+		const guard = await this.guard(descriptor, ctx, 'detach', true);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}
@@ -241,7 +259,7 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 	}
 
 	async snapshot(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'snapshot', true);
+		const guard = await this.guard(descriptor, ctx, 'snapshot', true);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}
@@ -252,8 +270,8 @@ export class SimulatedRemoteExecutor implements EnvironmentExecutor {
 		return { ok: true, detail: { type: 'snapshot', snapshotDir, fileCount: 1, manifestPath: joinPath(snapshotDir, 'sim-state.json') } };
 	}
 
-	async destroy(descriptor: EnvironmentDescriptor, _ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
-		const guard = await this.guard(descriptor, 'destroy', false);
+	async destroy(descriptor: EnvironmentDescriptor, ctx: ExecutorOpContext): Promise<ExecutorEffectResult> {
+		const guard = await this.guard(descriptor, ctx, 'destroy', false);
 		if (!guard.ok) {
 			return { ok: false, error: guard.error };
 		}

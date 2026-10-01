@@ -47,6 +47,23 @@
  * is MANDATORY and fail-closed: an unknown initiator makes the journal write
  * fail LOUDLY with the typed {@link BrowserSessionJournalError}.
  *
+ * P2-FIX-107 (DL-80, the two-layer redaction law's AT-RECORD layer): the
+ * URLs this journal persists -- the descriptor snapshot's tab URLs and the
+ * `navigated` rows' requested/committed URLs -- are NORMALIZED AT RECORD
+ * CONSTRUCTION TIME ({@link redactSecretShapedQueryValues}): the URL's
+ * STRUCTURE and param NAMES are preserved, secret-shaped query-param VALUES
+ * are replaced with the `[redacted]` marker (detected per query-param value
+ * by the flauz-resources SECRET_SHAPED_PATTERNS class, imported -- never
+ * redefined here). URLs without secret-shaped query values are
+ * BYTE-IDENTICAL through the layer, so the pinned v0 canonical record forms
+ * and the PIN-1 reader contract are untouched for them. Runtime navigation
+ * semantics are unchanged -- the browser navigates the REAL URL; only the
+ * RECORD is redacted. The continuity export REMAINS the authoritative
+ * full-redaction boundary, unchanged (belt-and-braces: the export catches
+ * non-query secret shapes this at-record layer does not target); verdict
+ * notes keep their structure (DL-80 scope guard -- the resources-lane
+ * detector's beat where they surface).
+ *
  * Consumption contract: this journal is the forensic/continuity seam another
  * lane consumes READ-ONLY. Writers: the session manager (events for sessions
  * it owns). Readers: use {@link validateSessionJournalLine} -- it enforces
@@ -61,6 +78,7 @@
 import { appendFile, mkdir } from 'node:fs/promises';
 import * as path from 'node:path';
 import { canonicalJson } from '../policy.ts';
+import { redactSecretShapedQueryValues } from './urlRedaction.ts';
 import {
 	BROWSER_SESSION_SCHEMA_VERSION,
 	BROWSER_SESSION_STATES,
@@ -266,6 +284,49 @@ function validateNavigationShape(value: unknown): SessionJournalNavigation {
 }
 
 /**
+ * P2-FIX-107 / DL-80 -- the at-record projection of one descriptor snapshot:
+ * every tab URL is normalized ({@link redactSecretShapedQueryValues}) on the
+ * CLONE the snapshot already is (the caller's live descriptor is never
+ * touched -- runtime state keeps the REAL URLs; only the record is redacted).
+ * A no-op (the same snapshot object) when no tab URL carries a secret-shaped
+ * query value.
+ */
+function redactedDescriptorSnapshot(descriptor: BrowserSessionDescriptor): BrowserSessionDescriptor {
+	let changed = false;
+	const tabs = descriptor.tabs.map(tab => {
+		const url = redactSecretShapedQueryValues(tab.url);
+		if (url === tab.url) {
+			return tab;
+		}
+		changed = true;
+		return { ...tab, url };
+	});
+	return changed ? { ...descriptor, tabs } : descriptor;
+}
+
+/**
+ * P2-FIX-107 / DL-80 -- the at-record projection of one navigation facts
+ * object: requested/committed URLs normalized on a COPY (the caller's object
+ * is never mutated); decision/sent and the committedUrl presence/absence law
+ * pass through unchanged (the J3 invariants are unaffected by redaction). A
+ * no-op (the same object) when neither URL carries a secret-shaped query
+ * value.
+ */
+function redactedNavigationFacts(navigation: SessionJournalNavigation): SessionJournalNavigation {
+	const requestedUrl = redactSecretShapedQueryValues(navigation.requestedUrl);
+	const committedUrl = navigation.committedUrl === undefined ? undefined : redactSecretShapedQueryValues(navigation.committedUrl);
+	if (requestedUrl === navigation.requestedUrl && committedUrl === navigation.committedUrl) {
+		return navigation;
+	}
+	return {
+		decision: navigation.decision,
+		requestedUrl,
+		sent: navigation.sent,
+		...(committedUrl === undefined ? {} : { committedUrl }),
+	};
+}
+
+/**
  * Builds (and validates) one journal record. The actor must be one of the
  * contract actors ({@link BROWSER_SESSION_JOURNAL_ACTORS} — sessions produce
  * 'agent'/'human' via {@link journalActorOf}; 'tool' is accepted for
@@ -274,6 +335,12 @@ function validateNavigationShape(value: unknown): SessionJournalNavigation {
  * a navigation row without them — is a contract deviation, fail-closed).
  * Throws {@link BrowserSessionJournalError} on any contract violation -- the
  * caller surfaces it (fail-closed), never drops the record silently.
+ *
+ * P2-FIX-107 / DL-80: the BUILT record persists the URLs through the at-record
+ * redaction layer (see redactedDescriptorSnapshot / redactedNavigationFacts
+ * above) -- structure and param names preserved, secret-shaped query-param
+ * VALUES redacted; byte-identical for URLs without secret-shaped query
+ * values.
  */
 export function buildSessionJournalRecord(actor: SessionJournalActor | string, event: SessionJournalEvent | string, descriptor: BrowserSessionDescriptor, ts: number, navigation?: SessionJournalNavigation): SessionJournalRecord {
 	if (!BROWSER_SESSION_JOURNAL_ACTORS.includes(actor as SessionJournalActor)) {
@@ -301,8 +368,8 @@ export function buildSessionJournalRecord(actor: SessionJournalActor | string, e
 		ts,
 		actor: actor as SessionJournalActor,
 		event: event as SessionJournalEvent,
-		descriptor: snapshotDescriptor(descriptor),
-		...(navigation === undefined ? {} : { navigation }),
+		descriptor: redactedDescriptorSnapshot(snapshotDescriptor(descriptor)),
+		...(navigation === undefined ? {} : { navigation: redactedNavigationFacts(navigation) }),
 	};
 }
 

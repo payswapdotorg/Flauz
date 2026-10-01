@@ -15,7 +15,7 @@ import { deepStrictEqual, ok, strictEqual } from 'node:assert';
 import * as http from 'node:http';
 import { createHash } from 'node:crypto';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { CloudHttpExecutor, nodeHttpPort, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
+import { CloudHttpExecutor, mintCancellationPort, nodeHttpPort, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import { cloudSandboxRegistrationInput, fixedClock } from './helpers.ts';
 
 const ROOT = '/ws';
@@ -396,7 +396,7 @@ test('cloud-http: a literal key in the descriptor is rejected (schema law, defen
 			enabled: true,
 			timing: { created: 1, updatedAt: 1 },
 		};
-		const created = await rig.executor.create(descriptor as never, { actor: 'human', now: Date.now() });
+		const created = await rig.executor.create(descriptor as never, { actor: 'human', now: Date.now(), cancellation: mintCancellationPort().port });
 		ok(!created.ok);
 		strictEqual(created.error.code, 'CONNECTION_INVALID');
 		ok(created.error.message.includes('vault'));

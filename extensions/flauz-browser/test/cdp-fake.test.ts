@@ -221,3 +221,104 @@ test('every sent command is recorded in order with its id, params, and sessionId
 	assert.equal(commands[2]?.sessionId, sessionId);
 	transport.close();
 });
+
+// P2-FIX-106 re-model pins: the simulator mirrors REAL browser-level delivery
+// (drill findings F-DELIVERY / F-POPUP-URL — the shapes the gate is built on).
+test('P2-FIX-106 fake re-model: Target.setAutoAttach at BROWSER scope (no sessionId) is accepted, arms browser-level auto-attach, and fires not-waiting echoes for pre-existing targets', async () => {
+	const transport = new FakeCdpTransport();
+	const { targetId } = await attachFreshTarget(transport); // a pre-existing page target
+	assert.equal(transport.hasBrowserAutoAttach(), false, 'not armed before the command');
+	const echoes: Array<{ targetId: string; waitingForDebugger: boolean; rootScope: boolean }> = [];
+	transport.on('Target.attachedToTarget', (params, scopeSessionId) => {
+		const info = params.targetInfo as { targetId?: unknown } | undefined;
+		echoes.push({
+			targetId: typeof info?.targetId === 'string' ? info.targetId : '',
+			waitingForDebugger: params.waitingForDebugger === true,
+			rootScope: scopeSessionId === undefined,
+		});
+	});
+	await transport.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page' }] });
+	assert.equal(transport.hasBrowserAutoAttach(), true, 'armed at browser scope');
+	assert.equal(echoes.length, 1, 'real Chromium fires an attach echo for the PRE-EXISTING target when auto-attach is armed');
+	assert.equal(echoes[0]?.targetId, targetId);
+	assert.equal(echoes[0]?.waitingForDebugger, false, 'a pre-existing target already started — the echo is not a hold');
+	assert.equal(echoes[0]?.rootScope, true, 'browser-scope delivery (root)');
+	// disarming clears it:
+	await transport.send('Target.setAutoAttach', { autoAttach: false });
+	assert.equal(transport.hasBrowserAutoAttach(), false);
+	// and a session-scoped setAutoAttach still takes the per-session path (tab-scoped work):
+	const { sessionId } = await attachFreshTarget(transport);
+	await transport.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page' }] }, sessionId);
+	assert.equal(transport.hasAutoAttach(sessionId), true, 'session-scoped auto-attach unchanged');
+	transport.close();
+});
+
+test('P2-FIX-106 fake re-model: openPopupFrom delivers REAL browser-level shapes (root, url EMPTY, openerId, held) and the Fetch pre-use observation model (arm -> release -> pause -> abort/resume)', async () => {
+	const transport = new FakeCdpTransport();
+	// an opener page target:
+	const opener = await transport.send<{ targetId: string }>('Target.createTarget', { url: 'about:blank' });
+	// UNARMED: the popup free-runs (the F-DELIVERY shape with the gate unarmed):
+	assert.equal(transport.openPopupFrom(opener.targetId, 'https://free.example.com/run'), undefined, 'nothing observed it');
+	// ARMED (browser scope, waitForDebuggerOnStart):
+	await transport.send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page' }] });
+	const attaches: Array<{ url: string; openerId?: string; waitingForDebugger: boolean; rootScope: boolean; sessionId: string }> = [];
+	transport.on('Target.attachedToTarget', (params, scopeSessionId) => {
+		const info = params.targetInfo as { url?: unknown; openerId?: unknown } | undefined;
+		attaches.push({
+			url: typeof info?.url === 'string' ? info.url : '',
+			openerId: typeof info?.openerId === 'string' ? info.openerId : undefined,
+			waitingForDebugger: params.waitingForDebugger === true,
+			rootScope: scopeSessionId === undefined,
+			sessionId: typeof params.sessionId === 'string' ? params.sessionId : '',
+		});
+	});
+	const popupTargetId = transport.openPopupFrom(opener.targetId, 'https://evil.example.org/popup');
+	assert.ok(popupTargetId !== undefined, 'the browser-level auto-attach observed it');
+	assert.equal(attaches.length, 1);
+	assert.equal(attaches[0]?.url, '', 'F-POPUP-URL: url EMPTY at attach (the pending destination is not available)');
+	assert.equal(attaches[0]?.openerId, opener.targetId, 'opener attribution');
+	assert.equal(attaches[0]?.waitingForDebugger, true, 'held');
+	assert.equal(attaches[0]?.rootScope, true, 'F-DELIVERY: browser-level (root) delivery — page sessions get nothing');
+	const heldSessionId = attaches[0]?.sessionId ?? '';
+	// The Fetch pre-use observation sequence (subscribe BEFORE the release —
+	// the pause event fires on the microtask after the release response):
+	const pausedPromise = new Promise<{ requestId?: string; request?: { url?: unknown } }>(resolve => {
+		const subscription = transport.on('Fetch.requestPaused', (params, scopeSessionId) => {
+			if (scopeSessionId === heldSessionId) {
+				subscription.dispose();
+				resolve(params as { requestId?: string; request?: { url?: unknown } });
+			}
+		});
+	});
+	await transport.send('Fetch.enable', {}, heldSessionId); // arm: NO pause yet (a held target starts no request)
+	await transport.send('Runtime.runIfWaitingForDebugger', {}, heldSessionId); // release: the pending navigation pauses
+	const paused = await pausedPromise;
+	assert.equal(paused.request?.url, 'https://evil.example.org/popup', 'the FIRST paused request carries the destination');
+	assert.ok(typeof paused.requestId === 'string');
+	// the deny shape: abort before the wire — the navigation NEVER loads:
+	await transport.send('Fetch.failRequest', { requestId: paused.requestId, errorReason: 'BlockedByClient' }, heldSessionId);
+	assert.equal(transport.browserState.urlOf(popupTargetId), 'about:blank', 'aborted: zero committed loads');
+	// the allow shape (second popup): Fetch.disable resumes + commits:
+	const allowedTargetId = transport.openPopupFrom(opener.targetId, 'https://docs.example.com/ok');
+	const allowedSession = attaches[1]?.sessionId ?? '';
+	await transport.send('Fetch.enable', {}, allowedSession);
+	await transport.send('Runtime.runIfWaitingForDebugger', {}, allowedSession);
+	await new Promise<void>(resolve => setTimeout(resolve, 5));
+	await transport.send('Fetch.disable', {}, allowedSession);
+	assert.equal(transport.browserState.urlOf(allowedTargetId ?? ''), 'https://docs.example.com/ok', 'resumed: the destination commits');
+	// a no-destination popup: no request ever pauses (released, interception disarmed):
+	let noUrlPauses = 0;
+	transport.on('Fetch.requestPaused', (_params, scopeSessionId) => {
+		if (scopeSessionId === attaches[2]?.sessionId) {
+			noUrlPauses += 1;
+		}
+	});
+	transport.openPopupFrom(opener.targetId, '');
+	const noUrlSession = attaches[2]?.sessionId ?? '';
+	await transport.send('Fetch.enable', {}, noUrlSession);
+	await transport.send('Runtime.runIfWaitingForDebugger', {}, noUrlSession);
+	await new Promise<void>(resolve => setTimeout(resolve, 5));
+	await transport.send('Fetch.disable', {}, noUrlSession).catch(() => undefined);
+	assert.equal(noUrlPauses, 0, 'no request ever pauses for a no-destination popup');
+	transport.close();
+});

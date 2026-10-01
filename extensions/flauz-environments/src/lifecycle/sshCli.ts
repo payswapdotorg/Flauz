@@ -36,7 +36,11 @@
  *   - probe (describe)  : remote state file + `kill -0 <pid>` liveness ->
  *     healthy / stale (crash reconciliation) / orphan (alive but not started
  *     by this instance) / not-running. The ssh binary vanishing mid-life
- *     reads as `stale` (fail-closed, never silently healthy).
+ *     reads as `stale` (fail-closed, never silently healthy); vanishing
+ *     FOR the kill -0 itself is the typed `UNVERIFIABLE` liveness outcome
+ *     (P2-FIX-110) — the consuming op verdicts fail closed on it, never
+ *     claiming the pid gone or destroyed on evidence a spawn error does
+ *     not support.
  *
  * INJECTION LAW: argv tokens are executor-constructed ONLY — the descriptor
  * contributes DATA (host/port/user as the ssh DESTINATION, parsed by the ssh
@@ -63,6 +67,7 @@
  */
 import { joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
+import { cancelledEffectError, observeCancellation } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 import { excerpt, parseHarnessStdio, type CliPort } from './cliPort.ts';
 import type { HashPort, LocalEnvFsPort, SnapshotManifest, SnapshotManifestFile } from './localProcess.ts';
@@ -71,6 +76,19 @@ export const SSH_CLI_EXECUTOR_KIND = 'ssh-cli';
 
 /** Schema id pinned into snapshot manifests (same as the local executor). */
 export const SSH_SNAPSHOT_MANIFEST_SCHEMA_ID = 'flauz.env-snapshot-manifest/v0';
+
+/**
+ * P2-FIX-110 — the typed result vocabulary of the `kill -0` liveness probe
+ * (`remotePidAlive`). `UNVERIFIABLE` (the ssh binary itself could not be
+ * spawned — the single-invocation vanish window between an earlier
+ * successful invocation and the probe) is never collapsed into `NOT_ALIVE`:
+ * no exit status was ever produced, so the evidence supports neither
+ * "alive" nor "gone". The consuming op verdicts fail closed on it (never
+ * healthy, never a fabricated teardown, never a confident
+ * "destroyed"/"gone" claim).
+ */
+export const REMOTE_PID_LIVENESS_OUTCOMES = ['ALIVE', 'NOT_ALIVE', 'UNVERIFIABLE'] as const;
+export type RemotePidLiveness = (typeof REMOTE_PID_LIVENESS_OUTCOMES)[number];
 
 export interface SshCliExecutorOptions {
 	readonly root: string;
@@ -253,12 +271,25 @@ export class SshCliExecutor implements EnvironmentExecutor {
 			return { ok: false, error: shape.error };
 		}
 		const existing = this.owned.get(descriptor.id);
-		if (existing !== undefined && await this.remotePidAlive(shape.connection, existing.pid)) {
-			return effectError('ALREADY_RUNNING', `environment '${descriptor.id}' already has a live remote harness (pid ${existing.pid})`);
+		if (existing !== undefined) {
+			const liveness = await this.remotePidAlive(shape.connection, existing.pid);
+			if (liveness === 'ALIVE') {
+				return effectError('ALREADY_RUNNING', `environment '${descriptor.id}' already has a live remote harness (pid ${existing.pid})`);
+			}
+			if (liveness === 'UNVERIFIABLE') {
+				return effectError('CLI_NOT_AVAILABLE', `liveness of the previously started harness (pid ${existing.pid}) for '${descriptor.id}' is unverifiable (the ssh binary vanished for the kill -0 probe) — refusing to launch a second harness over an unverifiable one (fail closed; restore the binary, then retry start)`);
+			}
 		}
 		const harnessSource = await this.fs.readFileUtf8(this.harnessPath);
 		if (harnessSource === undefined) {
 			return effectError('HARNESS_MISSING', `the fixed harness is not readable at ${this.harnessPath} — refusing to run anything else (injection law)`);
+		}
+		// DL-81 / P2-FIX-109 — the PRE-SPAWN effect checkpoint: a cancel observed
+		// here returns the typed OP_CANCELLED effect before any remote process
+		// or remote state exists.
+		const cancelledPreSpawn = observeCancellation(ctx, 'pre-spawn', `no remote harness launched for '${descriptor.id}'`);
+		if (cancelledPreSpawn !== undefined) {
+			return cancelledPreSpawn;
 		}
 		const dir = this.remoteDirOf(descriptor.id);
 		const log = this.remoteLogFileOf(descriptor.id);
@@ -280,7 +311,25 @@ export class SshCliExecutor implements EnvironmentExecutor {
 			return effectError('START_FAILED', `remote harness launch for '${descriptor.id}' failed (exit ${launch.exitCode}): ${excerpt(launch.stderr)}`);
 		}
 		// readiness: the harness's own stdio protocol lands in the remote log
-		const ready = await this.awaitReady(descriptor.id, shape.connection);
+		// (DL-81: the POST-SPAWN/PRE-CONFIRM cancellation checkpoint is observed
+		// on every poll of this loop)
+		const ready = await this.awaitReady(descriptor.id, shape.connection, ctx);
+		if (ready.cancelled) {
+			// DL-81 — the defensive reap BEFORE returning CANCELLED: the remote
+			// state file names the launched harness pid (the fixed harness
+			// writes it before its ready line), so an unconfirmed-but-named
+			// pid is terminated over the connection (kill-only-ours holds —
+			// this pid is the one THIS start launched). An unreadable state
+			// file is the checkpoint miss-window: the nohup'd harness exits on
+			// its own when the ssh session's stdin pipe closes, and the
+			// superseding destroy removes the remote dir.
+			const read = await this.readRemoteState(shape.connection, descriptor.id);
+			if (read !== undefined && read.ok) {
+				await this.terminateOwned(shape.connection, read.state.pid);
+				return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-confirm', `remote harness pid ${read.state.pid} launched for '${descriptor.id}' (readiness unconfirmed) — defensively terminated over the connection (no orphan remote child)`) };
+			}
+			return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-confirm', `remote harness launched for '${descriptor.id}' but its remote state file is not readable yet (pid unconfirmed — the checkpoint miss-window; the superseding destroy removes the remote dir)`) };
+		}
 		if (!ready.ok) {
 			return { ok: false, error: ready.error };
 		}
@@ -307,8 +356,12 @@ export class SshCliExecutor implements EnvironmentExecutor {
 			return { ok: false, error: read.reason };
 		}
 		const state = read.state;
-		if (await this.remotePidAlive(shape.connection, state.pid)) {
+		const liveness = await this.remotePidAlive(shape.connection, state.pid);
+		if (liveness === 'ALIVE') {
 			return effectError('PROCESS_NOT_OWNED', `environment '${descriptor.id}' backing pid ${state.pid} is alive on the remote but was not started by this executor instance — refusing to signal a process we do not own (orphan; resolve it manually on the remote, then retry)`);
+		}
+		if (liveness === 'UNVERIFIABLE') {
+			return effectError('CLI_NOT_AVAILABLE', `liveness of remote backing pid ${state.pid} for '${descriptor.id}' is unverifiable (the ssh binary vanished between the state read and the kill -0 probe) — refusing to report it stopped (fail closed; restore the binary, then retry stop)`);
 		}
 		return { ok: true, detail: { type: 'stop', pid: state.pid, forcedSignal: null } };
 	}
@@ -377,8 +430,12 @@ export class SshCliExecutor implements EnvironmentExecutor {
 					return { ok: false, error: read.reason };
 				}
 				pid = read.state.pid;
-				if (await this.remotePidAlive(shape.connection, read.state.pid)) {
+				const liveness = await this.remotePidAlive(shape.connection, read.state.pid);
+				if (liveness === 'ALIVE') {
 					return effectError('PROCESS_NOT_OWNED', `environment '${descriptor.id}' backing pid ${read.state.pid} is alive on the remote but was not started by this executor instance — refusing to signal it (orphan; resolve it manually on the remote, then retry destroy)`);
+				}
+				if (liveness === 'UNVERIFIABLE') {
+					return effectError('CLI_NOT_AVAILABLE', `liveness of remote backing pid ${read.state.pid} for '${descriptor.id}' is unverifiable (the ssh binary vanished between the state read and the kill -0 probe) — refusing to remove remote state that may still back a live process (fail closed; no fabricated teardown; restore the binary, then retry destroy)`);
 				}
 			}
 		}
@@ -437,8 +494,20 @@ export class SshCliExecutor implements EnvironmentExecutor {
 				...(leasePayload === undefined ? {} : { lease: leasePayload }),
 			};
 		}
-		const alive = await this.remotePidAlive(shape.connection, state.pid);
-		if (!alive) {
+		const liveness = await this.remotePidAlive(shape.connection, state.pid);
+		if (liveness === 'UNVERIFIABLE') {
+			// P2-FIX-110 fail-closed: never healthy — and never a confident
+			// "gone" (crash reconciliation) claim either; the binary vanished
+			// between the successful state read and this probe
+			return {
+				health: 'stale',
+				state: 'stopped',
+				pid: state.pid,
+				message: `liveness of remote backing process ${state.pid} for '${descriptor.id}' is unverifiable (the ssh binary vanished between the state read and the kill -0 probe) — failing closed as stale, never healthy and never claiming it gone (restore the binary, then re-probe)`,
+				...(leasePayload === undefined ? {} : { lease: leasePayload }),
+			};
+		}
+		if (liveness === 'NOT_ALIVE') {
 			return {
 				health: 'stale',
 				state: 'stopped',
@@ -492,10 +561,22 @@ export class SshCliExecutor implements EnvironmentExecutor {
 		}
 	}
 
-	/** `kill -0` over the connection — the signal-free liveness check. */
-	private async remotePidAlive(connection: { readonly host: string; readonly port?: number; readonly user?: string }, pid: number): Promise<boolean> {
+	/**
+	 * `kill -0` over the connection — the signal-free liveness check.
+	 *
+	 * P2-FIX-110: the probe's verdict is TYPED. A spawn failure (the ssh
+	 * binary itself vanished — the single-invocation window between this
+	 * probe and the invocation that succeeded before it) is
+	 * `UNVERIFIABLE`, never "not alive": no exit status was ever produced,
+	 * so the evidence supports neither alive nor gone. Consumers fail
+	 * closed on `UNVERIFIABLE`.
+	 */
+	private async remotePidAlive(connection: { readonly host: string; readonly port?: number; readonly user?: string }, pid: number): Promise<RemotePidLiveness> {
 		const result = await this.cli.spawnCli([...this.baseArgv(connection), 'kill', '-0', String(pid)], { timeoutMs: this.commandTimeoutMs + this.connectTimeoutMs });
-		return result.exitCode === 0;
+		if (result.spawnError !== undefined) {
+			return 'UNVERIFIABLE';
+		}
+		return result.exitCode === 0 ? 'ALIVE' : 'NOT_ALIVE';
 	}
 
 	/** Graceful kill -15 -> grace window -> kill -9, on OUR pid only. */
@@ -514,7 +595,11 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	private async awaitGone(connection: { readonly host: string; readonly port?: number; readonly user?: string }, pid: number, windowMs: number): Promise<boolean> {
 		const deadline = this.clock() + windowMs; // the injected clock + latency cue bound every wait
 		for (; ;) {
-			if (!(await this.remotePidAlive(connection, pid))) {
+			// P2-FIX-110: only a clean exit-status verdict confirms gone — an
+			// UNVERIFIABLE poll (binary vanished) never does, so the grace
+			// window runs its course and the escalation proceeds (never a
+			// fabricated reap)
+			if ((await this.remotePidAlive(connection, pid)) === 'NOT_ALIVE') {
 				return true;
 			}
 			if (this.clock() >= deadline) {
@@ -527,20 +612,27 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	/**
 	 * Polls the remote harness log until the harness's OWN stdio protocol
 	 * reports ready (pid) or error — bounded by the readiness window.
+	 * DL-81 / P2-FIX-109: the POST-SPAWN/PRE-CONFIRM cancellation checkpoint
+	 * is observed on EVERY poll iteration — a minted cancel resolves the loop
+	 * with the `cancelled` arm (the caller performs the defensive remote reap
+	 * before returning CANCELLED).
 	 */
-	private async awaitReady(envId: string, connection: { readonly host: string; readonly port?: number; readonly user?: string }): Promise<{ ok: true; pid: number } | { ok: false; error: { code: string; message: string } }> {
+	private async awaitReady(envId: string, connection: { readonly host: string; readonly port?: number; readonly user?: string }, ctx: ExecutorOpContext): Promise<{ cancelled: false; ok: true; pid: number } | { cancelled: false; ok: false; error: { code: string; message: string } } | { cancelled: true }> {
 		const deadline = this.clock() + this.startTimeoutMs; // the injected clock + latency cue bound every wait
 		for (; ;) {
+			if (ctx.cancellation.cancelled) {
+				return { cancelled: true };
+			}
 			const log = await this.cli.spawnCli([...this.baseArgv(connection), 'cat', this.remoteLogFileOf(envId)], { timeoutMs: this.commandTimeoutMs + this.connectTimeoutMs });
 			const parsed = parseHarnessStdio(log.stdout);
 			if (parsed.readyPid !== undefined) {
-				return { ok: true, pid: parsed.readyPid };
+				return { cancelled: false, ok: true, pid: parsed.readyPid };
 			}
 			if (parsed.error !== undefined) {
-				return { ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' reported a protocol error: ${parsed.error}` } };
+				return { cancelled: false, ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' reported a protocol error: ${parsed.error}` } };
 			}
 			if (this.clock() >= deadline) {
-				return { ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' did not report ready within ${this.startTimeoutMs} ms (log so far: ${excerpt(log.stdout + log.stderr, 160) || 'empty'})` } };
+				return { cancelled: false, ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' did not report ready within ${this.startTimeoutMs} ms (log so far: ${excerpt(log.stdout + log.stderr, 160) || 'empty'})` } };
 			}
 			await this.sleep(this.pollIntervalMs);
 		}

@@ -63,6 +63,7 @@
  */
 import { joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
+import { cancelledEffectError, observeCancellation } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 import { excerpt, parseHarnessStdio, type CliPort } from './cliPort.ts';
 import type { HashPort, LocalEnvFsPort, SnapshotManifest, SnapshotManifestFile } from './localProcess.ts';
@@ -292,6 +293,12 @@ export class DockerCliExecutor implements EnvironmentExecutor {
 		if (harnessSource === undefined) {
 			return effectError('HARNESS_MISSING', `the fixed harness is not readable at ${this.harnessPath} — refusing to run anything else (injection law)`);
 		}
+		// DL-81 / P2-FIX-109 — the PRE-SPAWN effect checkpoint: a cancel observed
+		// here returns the typed OP_CANCELLED effect before any container exists.
+		const cancelledPreSpawn = observeCancellation(ctx, 'pre-spawn', `no container launched for '${descriptor.id}'`);
+		if (cancelledPreSpawn !== undefined) {
+			return cancelledPreSpawn;
+		}
 		const name = this.containerNameOf(descriptor.id);
 		// 1. the keep-alive holder: a pinned-safe detached container
 		const run = await this.cli.spawnCli(['docker', 'run', '-d', '--name', name, this.image, 'tail', '-f', '/dev/null'], { timeoutMs: this.commandTimeoutMs });
@@ -328,7 +335,20 @@ export class DockerCliExecutor implements EnvironmentExecutor {
 			return effectError('START_FAILED', `docker exec of the fixed harness into '${descriptor.id}' failed (exit ${launch.exitCode}): ${excerpt(launch.stderr)}`);
 		}
 		// 4. readiness: the harness's own stdio protocol lands in the log
-		const ready = await this.awaitReady(containerId, descriptor.id);
+		//    (DL-81: the POST-SPAWN/PRE-CONFIRM cancellation checkpoint is
+		//    observed on every poll of this loop)
+		const ready = await this.awaitReady(containerId, descriptor.id, ctx);
+		if (ready.cancelled) {
+			// DL-81 — the defensive reap BEFORE returning CANCELLED: the
+			// launched-but-unconfirmed container is stopped+removed (no orphan
+			// container). If the teardown itself fails, ITS typed error surfaces
+			// instead — never a fabricated cancelled result.
+			const removed = await this.removeContainer(containerId, name);
+			if (!removed.ok) {
+				return { ok: false, error: removed.error };
+			}
+			return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-confirm', `container ${containerId.slice(0, 12)} launched, harness readiness unconfirmed — container stopped+removed (defensive reap; no orphan container)`) };
+		}
 		if (!ready.ok) {
 			await this.removeContainer(containerId, name);
 			return { ok: false, error: ready.error };
@@ -615,20 +635,29 @@ export class DockerCliExecutor implements EnvironmentExecutor {
 		}
 	}
 
-	/** Polls the in-container harness log until its stdio protocol reports ready (pid) or error. */
-	private async awaitReady(containerId: string, envId: string): Promise<{ ok: true; pid: number } | { ok: false; error: { code: string; message: string } }> {
+	/**
+	 * Polls the in-container harness log until its stdio protocol reports
+	 * ready (pid) or error. DL-81 / P2-FIX-109: the POST-SPAWN/PRE-CONFIRM
+	 * cancellation checkpoint is observed on EVERY poll iteration — a
+	 * minted cancel resolves the loop with the `cancelled` arm (the caller
+	 * performs the defensive container reap before returning CANCELLED).
+	 */
+	private async awaitReady(containerId: string, envId: string, ctx: ExecutorOpContext): Promise<{ cancelled: false; ok: true; pid: number } | { cancelled: false; ok: false; error: { code: string; message: string } } | { cancelled: true }> {
 		const deadline = this.clock() + this.startTimeoutMs; // the injected clock + latency cue bound every wait
 		for (; ;) {
+			if (ctx.cancellation.cancelled) {
+				return { cancelled: true };
+			}
 			const log = await this.cli.spawnCli(['docker', 'exec', containerId, 'cat', DOCKER_CONTAINER_LOG], { timeoutMs: this.commandTimeoutMs });
 			const parsed = parseHarnessStdio(log.stdout);
 			if (parsed.readyPid !== undefined) {
-				return { ok: true, pid: parsed.readyPid };
+				return { cancelled: false, ok: true, pid: parsed.readyPid };
 			}
 			if (parsed.error !== undefined) {
-				return { ok: false, error: { code: 'START_FAILED', message: `in-container harness for '${envId}' reported a protocol error: ${parsed.error}` } };
+				return { cancelled: false, ok: false, error: { code: 'START_FAILED', message: `in-container harness for '${envId}' reported a protocol error: ${parsed.error}` } };
 			}
 			if (this.clock() >= deadline) {
-				return { ok: false, error: { code: 'START_FAILED', message: `in-container harness for '${envId}' did not report ready within ${this.startTimeoutMs} ms (log so far: ${excerpt(log.stdout + log.stderr, 160) || 'empty'})` } };
+				return { cancelled: false, ok: false, error: { code: 'START_FAILED', message: `in-container harness for '${envId}' did not report ready within ${this.startTimeoutMs} ms (log so far: ${excerpt(log.stdout + log.stderr, 160) || 'empty'})` } };
 			}
 			await this.sleep(this.pollIntervalMs);
 		}
