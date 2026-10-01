@@ -259,3 +259,86 @@ OpenMuse is a reference product/interoperability target for agentic browser/term
 - Any future OpenMuse interoperability must terminate at the same Flauz service boundary used by other external clients.
 
 This decision is intentionally non-blocking for TL1-TL4 and does not create a new active work item.
+
+
+## 10. Engineering Lab
+
+The Engineering Lab is an additive optimization layer above the existing Flauz authorities.
+
+### 10.1 Purpose
+
+The Lab learns how to organize work for a specific user and task type by searching over Agent Bodies, model occupancy, organization topology, tools, capabilities, budgets and execution strategies.
+
+It may construct simulated task worlds and evaluate candidate organizations before recommending a configuration for a real Flauz task.
+
+### 10.2 Stable contracts
+
+The Lab introduces additive, versioned contracts:
+
+- WorkloadProfile
+- TaskTypeDescriptor
+- TaskScenario
+- LabScenario
+- LabRun
+- WorldModelVersion
+- AgentBodyDescriptor
+- OrganizationCandidate
+- CapabilityRequirement
+- EvaluationReport
+- CalibrationRecord
+- LabRecommendation
+- ExperimentLink
+
+A Lab contract must not redefine an existing Flauz authority.
+
+### 10.3 Agent Body / model separation
+
+An Agent Body is independent of its model occupant.
+
+Agent Body + selected model + permitted capabilities = Agent Instance.
+
+The Lab may compare the same body under different models and may search model assignment across an organization.
+
+Model/provider authorization remains owned by Model Fabric. The Lab creates no second model router.
+
+### 10.4 Organization search
+
+An Agent Organization is a graph of bodies/instances and communication/delegation edges.
+
+Search may vary role specialization, graph topology, number of agents, model assignment, tools, memory, budgets, ordering and termination.
+
+A single-agent organization is always a mandatory baseline.
+
+### 10.5 Simulation and learning
+
+The Lab may use deterministic replay, stochastic simulation, contextual bandits, offline policy learning, RL, model-based search or other replaceable optimizers.
+
+The evaluation contract is architectural; the optimizer is not.
+
+Counterfactual outcomes must remain explicitly labeled as model output. Historical evidence remains immutable.
+
+### 10.6 Workload learning and privacy
+
+The Lab may learn from user intent and recent activity only under explicit product controls.
+
+Implementation must provide workspace/tenant isolation, opt-in learning controls, separation of raw activity from derived features, secret exclusion, retention/export/delete controls and auditable provenance for recommendations.
+
+### 10.7 Real-task boundary
+
+A Lab recommendation becomes a real task only through normal Flauz authorities:
+
+LabRecommendation -> AgentTask / Workflow / Session -> existing policy/approval/lease/resource controls -> real execution -> EvidenceRow / outcome -> calibration.
+
+The Lab never directly performs an ungoverned side effect.
+
+### 10.8 Safety
+
+A simulated strategy that violates policy, rights, privacy, security or authorization is invalid regardless of reward.
+
+### 10.9 Long-running work
+
+Simulation/training jobs use durable worker infrastructure and resumable artifacts. The Lab must not depend on synchronous web requests for long-running computation.
+
+### 10.10 External technology
+
+CopilotKit, OpenMuse and Code OSS remain non-authoritative integration technologies. The Lab is a Flauz-owned contract layer and is independent of a particular simulation/RL library.
