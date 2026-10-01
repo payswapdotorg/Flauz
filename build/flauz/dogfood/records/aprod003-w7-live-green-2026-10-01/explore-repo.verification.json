@@ -1,0 +1,1423 @@
+{
+	"schema": "flauz.dogfood-explore-excerpt-verification/v1",
+	"mode": "excerpt",
+	"ledgerModule": "extensions/flauz-workspace/src/ledger.ts",
+	"excerpt": {
+		"schema": "flauz.dogfood-explore-excerpt/v1",
+		"ledgerModule": "extensions/flauz-workspace/src/ledger.ts",
+		"seed": 1220,
+		"fileCount": 64,
+		"files": [
+			{
+				"file": "extensions/flauz-agent/core/contracts.mjs",
+				"lines": [
+					{
+						"line": 30,
+						"text": "import { createHash } from 'node:crypto';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/core/orchMediator.mjs",
+				"lines": [
+					{
+						"line": 47,
+						"text": "import { OrchestrationStore } from './orchStore.mjs';"
+					},
+					{
+						"line": 48,
+						"text": "import { recoveryScan } from './recovery.mjs';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/core/recovery.d.mts",
+				"lines": [
+					{
+						"line": 10,
+						"text": "import type { OrchestrationStore } from './orchStore.d.mts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/core/service.d.mts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-agent/src/artifacts.ts",
+				"lines": [
+					{
+						"line": 15,
+						"text": "import { createHash } from 'node:crypto';"
+					},
+					{
+						"line": 16,
+						"text": "import { mkdir, writeFile } from 'node:fs/promises';"
+					},
+					{
+						"line": 17,
+						"text": "import { join } from 'node:path';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/src/marks.ts",
+				"lines": [
+					{
+						"line": 46,
+						"text": "import * as fs from 'node:fs';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/src/participant.ts",
+				"lines": [
+					{
+						"line": 16,
+						"text": "import { Orchestrator } from './orchestrator.ts';"
+					},
+					{
+						"line": 17,
+						"text": "import type { ModelSelection } from './models.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/test/agentOsService.recovery.test.ts",
+				"lines": [
+					{
+						"line": 29,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 30,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 31,
+						"text": "import { mkdtempSync, readFileSync, existsSync } from 'node:fs';"
+					},
+					{
+						"line": 32,
+						"text": "import { tmpdir } from 'node:os';"
+					},
+					{
+						"line": 33,
+						"text": "import { join } from 'node:path';"
+					},
+					{
+						"line": 34,
+						"text": "import { createHash } from 'node:crypto';"
+					},
+					{
+						"line": 36,
+						"text": "import { AgentOsServiceBoundary, BoundaryFailure, BOUNDARY_FAILURE_CODES, type AgentOsStateSnapshot, type BoundaryRecoveryReport } from '../core/serviceBoundary.mjs';"
+					},
+					{
+						"line": 37,
+						"text": "import { SEAM_PROTOCOL_V1 } from '../core/protocol.mjs';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/test/harness/killTarget.ts",
+				"lines": [
+					{
+						"line": 20,
+						"text": "import { readFileSync } from 'node:fs';"
+					},
+					{
+						"line": 21,
+						"text": "import { join } from 'node:path';"
+					},
+					{
+						"line": 22,
+						"text": "import { OrchestrationStore } from '../../core/orchStore.mjs';"
+					},
+					{
+						"line": 23,
+						"text": "import { WorkspaceSeam } from '../../core/service.mjs';"
+					},
+					{
+						"line": 24,
+						"text": "import { executeOp, freshContext, FileEffectSink, makeClock, type ScenarioOp } from './orchWorkspace.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/test/orchestration.killRecover.test.ts",
+				"lines": [
+					{
+						"line": 36,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 37,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 38,
+						"text": "import { spawn, type ChildProcess } from 'node:child_process';"
+					},
+					{
+						"line": 39,
+						"text": "import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';"
+					},
+					{
+						"line": 40,
+						"text": "import { tmpdir } from 'node:os';"
+					},
+					{
+						"line": 41,
+						"text": "import { join } from 'node:path';"
+					},
+					{
+						"line": 42,
+						"text": "import { fileURLToPath } from 'node:url';"
+					},
+					{
+						"line": 43,
+						"text": "import { OrchestrationStore } from '../core/orchStore.mjs';"
+					},
+					{
+						"line": 44,
+						"text": "import { recoveryScan } from '../core/recovery.mjs';"
+					},
+					{
+						"line": 45,
+						"text": "import { driveGraph } from '../core/runtime.mjs';"
+					},
+					{
+						"line": 46,
+						"text": "import { planRetry, DEFAULT_RETRY_POLICY } from '../core/policy.mjs';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/test/orchestration.leaseConflict.p2fix103.test.ts",
+				"lines": [
+					{
+						"line": 22,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 23,
+						"text": "import assert from 'node:assert/strict';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/test/orchestration.tl2004.test.ts",
+				"lines": [
+					{
+						"line": 32,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 33,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 34,
+						"text": "import { mkdtempSync, readFileSync } from 'node:fs';"
+					},
+					{
+						"line": 35,
+						"text": "import { tmpdir } from 'node:os';"
+					},
+					{
+						"line": 36,
+						"text": "import { join } from 'node:path';"
+					},
+					{
+						"line": 37,
+						"text": "import { OrchestrationStore } from '../core/orchStore.mjs';"
+					},
+					{
+						"line": 38,
+						"text": "import { WorkspaceSeam } from '../core/service.mjs';"
+					},
+					{
+						"line": 39,
+						"text": "import { recoveryScan } from '../core/recovery.mjs';"
+					},
+					{
+						"line": 40,
+						"text": "import { driveGraph } from '../core/runtime.mjs';"
+					},
+					{
+						"line": 41,
+						"text": "import { contentHashOf, OrchestrationError } from '../core/orchestration.mjs';"
+					},
+					{
+						"line": 42,
+						"text": "import { makeClock, sha256Of } from './harness/orchWorkspace.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-agent/test/sessionsView.test.ts",
+				"lines": [
+					{
+						"line": 12,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 13,
+						"text": "import { deepStrictEqual, ok, strictEqual } from 'node:assert';"
+					},
+					{
+						"line": 26,
+						"text": "import type { TakeoverStepSnapshot } from '../src/takeover.ts';"
+					},
+					{
+						"line": 27,
+						"text": "import type { Task } from '../src/types.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-browser/src/cdp/transport.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-browser/test/canaries/browser-launch-runtime.drill.ts",
+				"lines": [
+					{
+						"line": 66,
+						"text": "import * as http from 'node:http';"
+					},
+					{
+						"line": 67,
+						"text": "import * as nodeFs from 'node:fs/promises';"
+					},
+					{
+						"line": 68,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 69,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 71,
+						"text": "import { BrowserPolicyEngine } from '../../src/policy.ts';"
+					},
+					{
+						"line": 72,
+						"text": "import { waitForCdpEvent, WebSocketCdpTransport } from '../../src/cdp/transport.ts';"
+					},
+					{
+						"line": 73,
+						"text": "import { CdpEndpointHost } from '../../src/runtime/host.ts';"
+					},
+					{
+						"line": 74,
+						"text": "import { BrowserSessionManager, isNavigationOutcome, isSessionError } from '../../src/runtime/sessionManager.ts';"
+					},
+					{
+						"line": 75,
+						"text": "import { FileSystemSessionJournal } from '../../src/runtime/journal.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-browser/test/cdpBypass.test.ts",
+				"lines": [
+					{
+						"line": 14,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 15,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 16,
+						"text": "import { readFileSync } from 'node:fs';"
+					},
+					{
+						"line": 17,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 18,
+						"text": "import { fileURLToPath } from 'node:url';"
+					},
+					{
+						"line": 19,
+						"text": "import { BrowserPolicyEngine, type PolicyVerdict } from '../src/policy.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-browser/test/popup-gate.test.ts",
+				"lines": [
+					{
+						"line": 34,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 35,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 36,
+						"text": "import { BrowserPolicyEngine } from '../src/policy.ts';"
+					},
+					{
+						"line": 37,
+						"text": "import { CdpEndpointHost } from '../src/runtime/host.ts';"
+					},
+					{
+						"line": 38,
+						"text": "import { BrowserSessionManager, isNavigationOutcome } from '../src/runtime/sessionManager.ts';"
+					},
+					{
+						"line": 39,
+						"text": "import { FakeBrowserState, FakeCdpTransport } from '../src/cdp/fake.ts';"
+					},
+					{
+						"line": 40,
+						"text": "import type { CdpParams } from '../src/cdp/transport.ts';"
+					},
+					{
+						"line": 41,
+						"text": "import { UNTRUSTED_CONTENT_MARKER, isUntrustedContentNote } from '../src/runtime/capture.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-browser/test/session-manager.test.ts",
+				"lines": [
+					{
+						"line": 23,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 24,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 25,
+						"text": "import { BrowserPolicyEngine } from '../src/policy.ts';"
+					},
+					{
+						"line": 26,
+						"text": "import { CdpEndpointHost } from '../src/runtime/host.ts';"
+					},
+					{
+						"line": 27,
+						"text": "import { BrowserSessionManager, isNavigationOutcome, type RecoveryVerdict, isSessionError } from '../src/runtime/sessionManager.ts';"
+					},
+					{
+						"line": 28,
+						"text": "import { FakeBrowserState, FakeCdpTransport } from '../src/cdp/fake.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-browser/test/views.test.ts",
+				"lines": [
+					{
+						"line": 12,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 13,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 22,
+						"text": "import { BrowserPolicyEngine } from '../src/policy.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/fixtures/env-agent.ts",
+				"lines": [
+					{
+						"line": 39,
+						"text": "import * as fs from 'node:fs';"
+					},
+					{
+						"line": 40,
+						"text": "import * as path from 'node:path';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/src/api.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-environments/src/lifecycle/cloudHttp.ts",
+				"lines": [
+					{
+						"line": 70,
+						"text": "import { isSecretRef, joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';"
+					},
+					{
+						"line": 71,
+						"text": "import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';"
+					},
+					{
+						"line": 72,
+						"text": "import type { DescribeVerdict, ExecutorEffectError, ExecutorEffectResult, ProviderRetryHint } from './types.ts';"
+					},
+					{
+						"line": 73,
+						"text": "import { excerpt } from './cliPort.ts';"
+					},
+					{
+						"line": 74,
+						"text": "import type { HashPort, LocalEnvFsPort, SnapshotManifest, SnapshotManifestFile } from './localProcess.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/src/lifecycle/manager.ts",
+				"lines": [
+					{
+						"line": 59,
+						"text": "import type { Clock, EnvironmentDescriptor, EnvironmentKind, FileSystemPort } from '../api.ts';"
+					},
+					{
+						"line": 60,
+						"text": "import { EnvironmentRegistry } from '../registry.ts';"
+					},
+					{
+						"line": 61,
+						"text": "import { ENVIRONMENT_OPS, EnvironmentLifecycleError, LIFECYCLE_SCHEMA_ID, LIFECYCLE_SCHEMA_VERSION, PROVENANCE_ACTORS, type DescribeReport, type DescribeVerdict, type EnvironmentOpError, type EnvironmentOpName, type EnvironmentOpOutcome, type EnvironmentOpRecord, type ExecutorEffectError, type ExecutorEffectResult, type ExecutorOpDetail, type LifecycleEnvelope, type LifecycleEntry, type ProvenanceActor, phaseOf } from './types.ts';"
+					},
+					{
+						"line": 63,
+						"text": "import { LifecycleStore } from './store.ts';"
+					},
+					{
+						"line": 64,
+						"text": "import { failureState, successState, transientPhase, transitionFor } from './stateMachine.ts';"
+					},
+					{
+						"line": 66,
+						"text": "import { defaultRetryWait, formatProviderRetryAttemptMessage, isRetryableProviderStatus, providerRetryWaitMs, readProviderRetryHint, resolveRetryBound, type ProviderRetryOptions, type RetryWaitPort } from './providerRetry.ts';"
+					},
+					{
+						"line": 67,
+						"text": "import type { EnvironmentExecutor, ExecutorOpContext } from './executor.ts';"
+					},
+					{
+						"line": 68,
+						"text": "import { cancelledEffect, mintCancellationPort, readCancellationFacts, type CancellationPortMint, type ExecutorCancellationPort } from './executor.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/src/resolver/index.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-environments/src/resolver/resolver.ts",
+				"lines": [
+					{
+						"line": 70,
+						"text": "import { isSecretRef, joinPath, type CloudSandboxConnection, type ContainerConnection, type EnvironmentDescriptor, type FileSystemPort, type SshConnection } from '../api.ts';"
+					},
+					{
+						"line": 71,
+						"text": "import type { EnvironmentRegistry } from '../registry.ts';"
+					},
+					{
+						"line": 72,
+						"text": "import type { ConnectionPlan } from '../providers/types.ts';"
+					},
+					{
+						"line": 73,
+						"text": "import { EnvironmentLifecycleError, EnvironmentLifecycleManager, isRunningState } from '../lifecycle/index.ts';"
+					},
+					{
+						"line": 74,
+						"text": "import { excerpt, type CliPort } from '../lifecycle/cliPort.ts';"
+					},
+					{
+						"line": 75,
+						"text": "import type { HttpPort, SecretResolverPort } from '../lifecycle/cloudHttp.ts';"
+					},
+					{
+						"line": 76,
+						"text": "import { AGENT_HOST_BRIDGE_TOKEN_ENV_VAR, ResolverFailure, type FlauzResolvedData, type ResolverOutcome } from './types.ts';"
+					},
+					{
+						"line": 77,
+						"text": "import { authorityFailure, formatFlauzEnvAuthority, parseFlauzEnvAuthority } from './authority.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/src/resolver/types.ts",
+				"lines": [
+					{
+						"line": 47,
+						"text": "import type { EnvironmentKind } from '../api.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/test/cancellation.test.ts",
+				"lines": [
+					{
+						"line": 34,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 35,
+						"text": "import { deepStrictEqual, ok, rejects, strictEqual } from 'node:assert';"
+					},
+					{
+						"line": 36,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 37,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 38,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 39,
+						"text": "import { spawn } from 'node:child_process';"
+					},
+					{
+						"line": 40,
+						"text": "import { createHash } from 'node:crypto';"
+					},
+					{
+						"line": 42,
+						"text": "import { EnvironmentRegistry } from '../src/registry.ts';"
+					},
+					{
+						"line": 64,
+						"text": "import type { EnvironmentDescriptor, EnvironmentKind, FileSystemPort } from '../src/api.ts';"
+					},
+					{
+						"line": 65,
+						"text": "import { FakeCli } from './fakeCli.ts';"
+					},
+					{
+						"line": 66,
+						"text": "import { FIXED_TS, cloudSandboxRegistrationInput, containerRegistrationInput, fixedClock, sshRegistrationInput, workspaceRemoteRegistrationInput } from './helpers.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/test/dockerCli.test.ts",
+				"lines": [
+					{
+						"line": 14,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 15,
+						"text": "import { deepStrictEqual, ok, strictEqual } from 'node:assert';"
+					},
+					{
+						"line": 16,
+						"text": "import { createHash } from 'node:crypto';"
+					},
+					{
+						"line": 17,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 18,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 19,
+						"text": "import { EnvironmentRegistry } from '../src/registry.ts';"
+					},
+					{
+						"line": 20,
+						"text": "import { EnvironmentLifecycleManager, DockerCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';"
+					},
+					{
+						"line": 21,
+						"text": "import type { EnvironmentDescriptor } from '../src/api.ts';"
+					},
+					{
+						"line": 22,
+						"text": "import { FakeCli } from './fakeCli.ts';"
+					},
+					{
+						"line": 23,
+						"text": "import { containerRegistrationInput, virtualTime } from './helpers.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/test/fixtures-continuity.test.ts",
+				"lines": [
+					{
+						"line": 13,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 14,
+						"text": "import { ok, strictEqual, throws } from 'node:assert';"
+					},
+					{
+						"line": 15,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 16,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 17,
+						"text": "import { canonicalJson } from '../src/api.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-environments/test/lifecycle.test.ts",
+				"lines": [
+					{
+						"line": 11,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 12,
+						"text": "import { deepStrictEqual, ok, rejects, strictEqual, throws } from 'node:assert';"
+					},
+					{
+						"line": 13,
+						"text": "import { EnvironmentRegistry } from '../src/registry.ts';"
+					},
+					{
+						"line": 14,
+						"text": "import { EnvironmentLifecycleManager, EnvironmentLifecycleError, canTransition, failureState, legalOpsFrom, successState, transitionFor, type DescribeVerdict, type EnvironmentExecutor, type ExecutorEffectResult } from '../src/lifecycle/index.ts';"
+					},
+					{
+						"line": 16,
+						"text": "import { LifecycleStore, parseLifecycleEnvelope, parseOpLine, serializeLifecycleEnvelope, serializeOpRecord } from '../src/lifecycle/store.ts';"
+					},
+					{
+						"line": 17,
+						"text": "import { SimulatedRemoteExecutor } from '../src/lifecycle/simulated.ts';"
+					},
+					{
+						"line": 19,
+						"text": "import { type EnvironmentDescriptor, joinPath } from '../src/api.ts';"
+					},
+					{
+						"line": 20,
+						"text": "import { cloudSandboxRegistrationInput, fixedClock, memFsPort, steppingClock, workspaceRemoteRegistrationInput } from './helpers.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-execution/src/contracts.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-execution/src/extension.ts",
+				"lines": [
+					{
+						"line": 15,
+						"text": "import * as vscode from 'vscode';"
+					},
+					{
+						"line": 16,
+						"text": "import { ExecJournalStore } from './journal.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-execution/vscode-dts/vscode.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-memory/shims/node.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-memory/src/api.ts",
+				"lines": [
+					{
+						"line": 34,
+						"text": "import { type Actor, canonicalJson, deepSorted, joinPath } from '../../flauz-workspace/src/api.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-memory/src/retrieval.ts",
+				"lines": [
+					{
+						"line": 27,
+						"text": "import { type MemoryIndex, type MemoryIndexEntry } from './api.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-memory/test/helpers.ts",
+				"lines": [
+					{
+						"line": 10,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 11,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 12,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 13,
+						"text": "import { type FileSystemPort, sha256Hex } from '../../flauz-workspace/src/api.ts';"
+					},
+					{
+						"line": 15,
+						"text": "import { MemoryStore } from '../src/memory.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-memory/test/retrieval.test.ts",
+				"lines": [
+					{
+						"line": 10,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 11,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 12,
+						"text": "import { indexFromRecords } from '../src/context.ts';"
+					},
+					{
+						"line": 13,
+						"text": "import { effectiveShares, retrieve, type EffectiveShare } from '../src/retrieval.ts';"
+					},
+					{
+						"line": 14,
+						"text": "import type { MemoryRecord } from '../src/api.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-memory/vscode-dts/vscode.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-models/src/contract/canonical.ts",
+				"lines": [
+					{
+						"line": 21,
+						"text": "import type { ChatInputPart, ChatMessage, ChatRequest, ResponseProvenance, WireFamily } from './types.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-models/src/contract/errors.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-models/src/contract/index.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-models/src/discovery/index.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-models/src/mcp/policy.ts",
+				"lines": [
+					{
+						"line": 33,
+						"text": "import type { Clock, FileSystemPort } from '../contract/ports.ts';"
+					},
+					{
+						"line": 34,
+						"text": "import { atomicWrite, envelopeText, joinStatePath, readEnvelope, StateFileError } from '../discovery/stateFiles.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-models/src/routing/policy.ts",
+				"lines": [
+					{
+						"line": 25,
+						"text": "import type { CapabilityQuery, CapabilityRecord } from '../discovery/registry.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-models/src/routing/store.ts",
+				"lines": [
+					{
+						"line": 17,
+						"text": "import type { Clock, FileSystemPort } from '../contract/ports.ts';"
+					},
+					{
+						"line": 18,
+						"text": "import { atomicWrite, appendJsonlLine, envelopeText, joinStatePath, readEnvelope, readJsonl, StateFileError } from '../discovery/stateFiles.ts';"
+					},
+					{
+						"line": 19,
+						"text": "import { DEFAULT_ROUTING_POLICY, ROUTING_DECISION_SCHEMA_ID, ROUTING_POLICY_SCHEMA_ID, evaluateRoutingPolicy, type RouteRequest, type RoutingDecision, type RoutingPolicyFile, type RoutingRule } from './policy.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-models/src/vendors/types.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-models/test/fsPort.ts",
+				"lines": [
+					{
+						"line": 11,
+						"text": "import * as fs from 'node:fs';"
+					},
+					{
+						"line": 12,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 13,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 14,
+						"text": "import type { FileSystemPort } from '../src/contract/ports.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-models/test/live-provider-drill.contract.test.ts",
+				"lines": [
+					{
+						"line": 32,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 33,
+						"text": "import { deepStrictEqual, ok, strictEqual } from 'node:assert';"
+					},
+					{
+						"line": 34,
+						"text": "import { readFileSync } from 'node:fs';"
+					},
+					{
+						"line": 56,
+						"text": "import { PROVIDER_RETRY_AFTER_CAP_MS, PROVIDER_RETRY_FIXED_DELAY_MS, PROVIDER_RETRY_MAX_ATTEMPTS_DEFAULT, isRetryableProviderStatus, providerRetryWaitMs, resolveRetryBound } from '../../flauz-environments/src/lifecycle/providerRetry.ts';"
+					},
+					{
+						"line": 58,
+						"text": "import { type HttpPort, type HttpPortRequest, type HttpPortResponse, HttpPortAbortError } from '../src/contract/ports.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-resources/shims/node.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-resources/src/continuity.ts",
+				"lines": [
+					{
+						"line": 43,
+						"text": "import type { ResourceGraph } from './graph.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-resources/vscode-dts/vscode.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-workflow/shims/node.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-workflow/src/executable.ts",
+				"lines": [
+					{
+						"line": 41,
+						"text": "import type { TaskService } from '../../flauz-workspace/src/taskService.ts';"
+					},
+					{
+						"line": 42,
+						"text": "import { hasKey, type EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';"
+					},
+					{
+						"line": 43,
+						"text": "import { type WorkflowFragment, type WorkflowModel, type WorkflowService, isWorkflowId } from './envelope.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts",
+				"lines": [
+					{
+						"line": 130,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 131,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 132,
+						"text": "import * as nodeFs from 'node:fs/promises';"
+					},
+					{
+						"line": 133,
+						"text": "import * as nodeFsSync from 'node:fs';"
+					},
+					{
+						"line": 134,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 135,
+						"text": "import * as nodePath from 'node:path';"
+					},
+					{
+						"line": 136,
+						"text": "import { fileURLToPath } from 'node:url';"
+					},
+					{
+						"line": 139,
+						"text": "import { sha256Hex, type EvidenceKind, type FileSystemPort, type TaskEvent } from '../../flauz-workspace/src/api.ts';"
+					},
+					{
+						"line": 140,
+						"text": "import { TaskService } from '../../flauz-workspace/src/taskService.ts';"
+					},
+					{
+						"line": 141,
+						"text": "import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';"
+					},
+					{
+						"line": 142,
+						"text": "import { WorkflowService } from '../src/envelope.ts';"
+					},
+					{
+						"line": 143,
+						"text": "import { createEd25519Signer } from '../src/keys.ts';"
+					},
+					{
+						"line": 144,
+						"text": "import { MemoryStore } from '../../flauz-memory/src/memory.ts';"
+					},
+					{
+						"line": 145,
+						"text": "import { buildEchoResponse, createMockProvider } from '../../flauz-models/src/mockProvider.ts';"
+					},
+					{
+						"line": 146,
+						"text": "import { ModelCapabilityRegistry } from '../../flauz-models/src/discovery/registry.ts';"
+					},
+					{
+						"line": 147,
+						"text": "import { ModelRouter, listDecisions } from '../../flauz-models/src/routing/store.ts';"
+					},
+					{
+						"line": 148,
+						"text": "import { DEFAULT_ROUTING_POLICY } from '../../flauz-models/src/routing/policy.ts';"
+					},
+					{
+						"line": 149,
+						"text": "import { A2ABus, type A2aMessage } from '../../flauz-agent/core/a2a.mjs';"
+					},
+					{
+						"line": 150,
+						"text": "import { OrchestrationStore, type TaskPort } from '../../flauz-agent/core/orchStore.mjs';"
+					},
+					{
+						"line": 151,
+						"text": "import type { JournalRow } from '../../flauz-agent/core/orchestration.mjs';"
+					},
+					{
+						"line": 152,
+						"text": "import { driveGraph, type EffectSink, type EffectSinkResult, type EffectSpec, type ProviderErrorField } from '../../flauz-agent/core/runtime.mjs';"
+					},
+					{
+						"line": 153,
+						"text": "import { recoveryScan } from '../../flauz-agent/core/recovery.mjs';"
+					},
+					{
+						"line": 154,
+						"text": "import { delegateStep, ingestResultReport, stepResourceId } from '../../flauz-agent/core/routing.mjs';"
+					},
+					{
+						"line": 155,
+						"text": "import { claimStepLease, isLeaseConflictError, leaseConflictFacts, LEASE_CONFLICT_CODE, type ClaimStepLeaseResult } from '../../flauz-agent/core/leaseConflict.mjs';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts",
+				"lines": [
+					{
+						"line": 87,
+						"text": "import * as http from 'node:http';"
+					},
+					{
+						"line": 88,
+						"text": "import { spawn } from 'node:child_process';"
+					},
+					{
+						"line": 89,
+						"text": "import * as nodeFs from 'node:fs/promises';"
+					},
+					{
+						"line": 90,
+						"text": "import * as nodeFsSync from 'node:fs';"
+					},
+					{
+						"line": 91,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 92,
+						"text": "import * as nodePath from 'node:path';"
+					},
+					{
+						"line": 93,
+						"text": "import { createHash } from 'node:crypto';"
+					},
+					{
+						"line": 95,
+						"text": "import { sha256Hex, type EvidenceKind, type FileSystemPort, type LedgerRow, type TaskEvent } from '../../../flauz-workspace/src/api.ts';"
+					},
+					{
+						"line": 96,
+						"text": "import { TaskService } from '../../../flauz-workspace/src/taskService.ts';"
+					},
+					{
+						"line": 97,
+						"text": "import { EvidenceLedger, rowLine } from '../../../flauz-workspace/src/ledger.ts';"
+					},
+					{
+						"line": 98,
+						"text": "import { WorkflowService, type ApprovalPort, type ToolExecutorPort } from '../../src/envelope.ts';"
+					},
+					{
+						"line": 99,
+						"text": "import { AgentMessenger, type A2aMessage, type A2aMessageInput, type A2aPort } from '../../src/messaging.ts';"
+					},
+					{
+						"line": 100,
+						"text": "import { BrowserPolicyEngine } from '../../../flauz-browser/src/policy.ts';"
+					},
+					{
+						"line": 101,
+						"text": "import { CdpEndpointHost } from '../../../flauz-browser/src/runtime/host.ts';"
+					},
+					{
+						"line": 102,
+						"text": "import { BrowserSessionManager, isNavigationOutcome, isSessionError, type OpenSessionResult } from '../../../flauz-browser/src/runtime/sessionManager.ts';"
+					},
+					{
+						"line": 103,
+						"text": "import type { NavigationOutcome } from '../../../flauz-browser/src/runtime/tabs.ts';"
+					},
+					{
+						"line": 104,
+						"text": "import { WebSocketCdpTransport } from '../../../flauz-browser/src/cdp/transport.ts';"
+					},
+					{
+						"line": 105,
+						"text": "import { FakeBrowserState } from '../../../flauz-browser/src/cdp/fake.ts';"
+					},
+					{
+						"line": 106,
+						"text": "import { FileSystemSessionJournal, type SessionJournalRecord } from '../../../flauz-browser/src/runtime/journal.ts';"
+					},
+					{
+						"line": 107,
+						"text": "import { EnvironmentRegistry } from '../../../flauz-environments/src/registry.ts';"
+					},
+					{
+						"line": 108,
+						"text": "import { CloudHttpExecutor, EnvironmentLifecycleManager, LocalProcessExecutor, PROVIDER_RETRY_ATTEMPT_PREFIX, nodeHttpPort, parseProviderRetryAttemptMessage, type ChildHandle, type EnvironmentOpOutcome, type HashPort, type HttpPort, type LocalEnvFsPort, type ProcessPort } from '../../../flauz-environments/src/lifecycle/index.ts';"
+					},
+					{
+						"line": 109,
+						"text": "import { A2ABus } from '../../../flauz-agent/core/a2a.mjs';"
+					},
+					{
+						"line": 110,
+						"text": "import { OrchestrationStore } from '../../../flauz-agent/core/orchStore.mjs';"
+					},
+					{
+						"line": 111,
+						"text": "import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../../flauz-agent/core/leaseConflict.mjs';"
+					},
+					{
+						"line": 114,
+						"text": "import type { ClaimStepLeaseResult } from '../../../flauz-agent/core/leaseConflict.mjs';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workflow/test/fixtures.test.ts",
+				"lines": [
+					{
+						"line": 12,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 13,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 14,
+						"text": "import { readdirSync, readFileSync } from 'node:fs';"
+					},
+					{
+						"line": 15,
+						"text": "import { join } from 'node:path';"
+					},
+					{
+						"line": 16,
+						"text": "import { validateWorkflowFragment } from '../src/envelope.ts';"
+					},
+					{
+						"line": 17,
+						"text": "import { validateEnvelope } from '../../flauz-workspace/src/taskService.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workflow/test/generateLedgerFixtures.ts",
+				"lines": [
+					{
+						"line": 32,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 33,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 34,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 35,
+						"text": "import { sha256Hex, type FileSystemPort } from '../../flauz-workspace/src/api.ts';"
+					},
+					{
+						"line": 36,
+						"text": "import { EvidenceLedger, rowHash } from '../../flauz-workspace/src/ledger.ts';"
+					},
+					{
+						"line": 37,
+						"text": "import type { LedgerWatermark } from '../../flauz-workspace/src/hardening.ts';"
+					},
+					{
+						"line": 38,
+						"text": "import { createFixtureSigner, generateFixtureKeystore } from '../src/keys.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workflow/test/helpers.ts",
+				"lines": [
+					{
+						"line": 10,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 11,
+						"text": "import * as os from 'node:os';"
+					},
+					{
+						"line": 12,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 13,
+						"text": "import { sha256Hex, type FileSystemPort } from '../../flauz-workspace/src/api.ts';"
+					},
+					{
+						"line": 14,
+						"text": "import { TaskService } from '../../flauz-workspace/src/taskService.ts';"
+					},
+					{
+						"line": 15,
+						"text": "import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';"
+					},
+					{
+						"line": 16,
+						"text": "import { WorkflowService } from '../src/envelope.ts';"
+					},
+					{
+						"line": 17,
+						"text": "import { createMockVscode, type MockVscode } from './vscodeMock.ts';"
+					},
+					{
+						"line": 18,
+						"text": "import { setVscodeApi } from '../src/globals.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workflow/test/triggers.test.ts",
+				"lines": [
+					{
+						"line": 23,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 24,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 25,
+						"text": "import { readFileSync } from 'node:fs';"
+					},
+					{
+						"line": 26,
+						"text": "import { join } from 'node:path';"
+					},
+					{
+						"line": 27,
+						"text": "import { validateWorkflowFragment } from '../src/envelope.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workspace/shims/node.d.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/globals.ts",
+				"lines": []
+			},
+			{
+				"file": "extensions/flauz-workspace/test/envelope.test.ts",
+				"lines": [
+					{
+						"line": 5,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 6,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 7,
+						"text": "import * as fs from 'node:fs/promises';"
+					},
+					{
+						"line": 8,
+						"text": "import * as path from 'node:path';"
+					},
+					{
+						"line": 9,
+						"text": "import { FIXED_TS, bootWorkspace, nodeFsPort, steppingClock, type TestWorkspace } from './helpers.ts';"
+					},
+					{
+						"line": 10,
+						"text": "import { serializeEnvelope, type Task } from '../src/api.ts';"
+					},
+					{
+						"line": 11,
+						"text": "import { TaskService } from '../src/taskService.ts';"
+					}
+				]
+			},
+			{
+				"file": "extensions/flauz-workspace/test/stateMachine.test.ts",
+				"lines": [
+					{
+						"line": 5,
+						"text": "import { test } from 'node:test';"
+					},
+					{
+						"line": 6,
+						"text": "import assert from 'node:assert/strict';"
+					},
+					{
+						"line": 7,
+						"text": "import { FIXED_TS, bootWorkspace, type TestWorkspace } from './helpers.ts';"
+					},
+					{
+						"line": 8,
+						"text": "import { TRANSITIONS, type Actor, type TaskEvent, type TaskStatus } from '../src/api.ts';"
+					}
+				]
+			}
+		]
+	},
+	"verified": true,
+	"checked": [
+		{
+			"file": "extensions/flauz-workflow/src/executable.ts",
+			"line": 42,
+			"consumes": [
+				"hasKey",
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts",
+			"line": 141,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts",
+			"line": 97,
+			"consumes": [
+				"EvidenceLedger",
+				"rowLine"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/generateLedgerFixtures.ts",
+			"line": 36,
+			"consumes": [
+				"EvidenceLedger",
+				"rowHash"
+			],
+			"ok": true,
+			"problems": []
+		},
+		{
+			"file": "extensions/flauz-workflow/test/helpers.ts",
+			"line": 15,
+			"consumes": [
+				"EvidenceLedger"
+			],
+			"ok": true,
+			"problems": []
+		}
+	],
+	"missed": [],
+	"totals": {
+		"claimed": 5,
+		"real": 5,
+		"verifiedEntries": 5,
+		"problemEntries": 0,
+		"missedEntries": 0
+	}
+}
