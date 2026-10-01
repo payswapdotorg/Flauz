@@ -1,0 +1,2 @@
+{"schema":"flauz.dogfood-friction/v1","type":"timing","ts":1790881344437,"phase":"explore-repo:model-call","durationMs":61348,"wallClockBudgetMs":300000}
+{"schema":"flauz.dogfood-friction/v1","type":"friction","ts":1790881344440,"phase":"explore-repo:parse-answer","kind":"failed-task","detail":"the completion did not parse as the answer document: the completion is not valid JSON: Unexpected token '`', \"```json\n{\n\"... is not valid JSON","recovery":""}

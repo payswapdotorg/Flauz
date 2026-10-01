@@ -908,7 +908,8 @@ Both TLs operate from current `main`, use stable contracts, and do not wait for 
 | P2-FIX-117 | TL-A | DONE | Budget knob FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS wired through AdapterConfig.requestTimeoutMs (PR #116) |
 | P2-FIX-118 | TL-A | DONE | answerFence.ts strip-fence-then-parse for live lanes (PR #116) |
 | P2-FIX-119 | TL-A | DONE | The exercise carries the workspace facts in the prompt; both lanes answer from prompt-carried facts (PR #116) |
-| P2-FIX-120 | TL-A | REGISTERED | Dogfood W3 (live): prose-adjacent fenced answers defeat the clean-fence stripper (the 118 residual) — finding doc in findings/ |
+| P2-FIX-120 | TL-A | DONE | extractFirstFencedJsonBlock (the first-complete-fence extraction; PR #119) |
+| P2-FIX-121 | TL-A | REGISTERED | Dogfood W4 (live): the default completion budget truncates long answers mid-JSON (finish_reason length @4095) — finding doc in findings/ |
 
 Prior TL1/TL3 claim records remain historical provenance. Unmerged claim branches are not product state.
 
@@ -1033,6 +1034,12 @@ Implementation routing: the P2-FIX-114 worker order pins this law; the worker im
 - **W3 RUN (live-provider, station-side, WITH the realism fixes):** the driver on the post-W2.1 main, live lane = the real glm-4-plus through the station's header gateway, `FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS=300000`. **The W2.1 fixes verified live:** the exploration model call streamed **14,826 chars in 40,044 ms under the configured budget — no TIMEOUT** (the 117 fix; the W2 run died at the 45s default); the provider-switch exercise passed **6/6 live** (the 119 prompt-carried facts + the 118 clean-fence tolerance both working; the typed PROVIDER_OVERLOADED failure + recovery exercised through the real adapter).
 - **THE RUN'S NEW FINDING (the dogfood loop iterating exactly as designed):** the exploration answer still failed to parse — the live model emits the fenced JSON **followed by prose** (a station probe captured the exact shape), and the W2.1 stripper only handles a fence pair that ends the text. **P2-FIX-120 REGISTERED** (the 118 residual class: prose-adjacent fenced answers) with the candidate acceptance shape (extract the FIRST complete fenced block from anywhere; machine-lane raw default unchanged).
 - **Evidence:** the full W3 record set banked at `build/flauz/dogfood/records/aprod003-w3-live-2026-10-01/` (both receipts, both friction logs — including the first LIVE parse-failure friction row with the wallClockBudgetMs timing row — the switch report, the run summary: mode live-provider, modelIntelligence live-provider, 42,336 ms).
+
+#### TL-A landing record — A-PROD-003-W3.1 DONE + the W4 run (2026-10-01)
+
+- **A-PROD-003-W3.1 (P2-FIX-120) — DONE:** PR #119, squash-merged `e08387231f9`. Worker lane delivery (chat `84745668`), worker head `40b07af4b92c` (single commit on the pinned base `ee41514ba08` = main at dispatch; no cross-landing needed). Harvest: **12/12** chain (the MANIFEST.txt naming variant disclosed; staged AT THE MOUNTED WORKSPACE ROOT — the W2.1 lesson held). The delivery: `extractFirstFencedJsonBlock` (the first-complete-fence extraction from anywhere in the text; the clean-pair strip byte-identical, back-compat) + the exercises' fallback wiring + the fence tests. STATION re-verification: driver RUN GREEN (fake lane), mocha **53/53**, guard EMPTY, compat **1887/1887**, the extraction verified on all five shapes (trailing-prose/leading-prose/clean/no-fence/malformed-inside).
+- **THE W4 LIVE RE-RUN (with the 120 fix): the provider-switch 6/6 live again; the exploration STILL failed** — and the forensic probe found the REAL class: `finish_reason: length` at `completion_tokens: 4095` — the platform's default completion budget TRUNCATES the real 23-consumer map mid-JSON (the closing fence never arrives; the extraction correctly finds no pair). The W3 14,826-char answer was the SAME truncation class — **P2-FIX-121 REGISTERED** (the live lane's completion budget) with the probe receipts verbatim; the candidate acceptance: an explicit completion budget on the live ask (env knob + generous default) + the finish_reason surfaced in the receipt (a truncation is visible, never a silent ok).
+- **Evidence:** the W4 record set banked at `build/flauz/dogfood/records/aprod003-w4-live-2026-10-01/`.
 
 ### Phase A — Product Completion / Productionization
 
