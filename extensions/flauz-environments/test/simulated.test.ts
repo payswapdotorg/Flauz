@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import { deepStrictEqual, ok, strictEqual } from 'node:assert';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, type SimFsPort, SimulatedRemoteExecutor } from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, mintCancellationPort, type SimFsPort, SimulatedRemoteExecutor } from '../src/lifecycle/index.ts';
 import type { EnvironmentKind } from '../src/api.ts';
 import { fixedClock, cloudSandboxRegistrationInput, containerRegistrationInput, sshRegistrationInput } from './helpers.ts';
 
@@ -198,7 +198,7 @@ test('simulated: the executor is TEST INFRASTRUCTURE class and never claims to b
 	strictEqual(executor.infrastructureClass, 'simulated');
 	strictEqual(executor.executorKind, 'simulated-container');
 	// negative pids can never be mistaken for process ids to signal
-	const fake = executor.start({ id: 'env-x', kind: 'container', label: 'x', connection: { workspaceFolder: '/w', name: 'n' }, trust: { posture: 'trusted', inheritsWorkspaceTrust: true }, capabilities: { agentHost: true, browser: false, exec: true, terminal: true }, enabled: true, timing: { created: 1, updatedAt: 1 } }, { actor: 'human', now: 1730000000000 });
+	const fake = executor.start({ id: 'env-x', kind: 'container', label: 'x', connection: { workspaceFolder: '/w', name: 'n' }, trust: { posture: 'trusted', inheritsWorkspaceTrust: true }, capabilities: { agentHost: true, browser: false, exec: true, terminal: true }, enabled: true, timing: { created: 1, updatedAt: 1 } }, { actor: 'human', now: 1730000000000, cancellation: mintCancellationPort().port });
 	void fake.then(effect => {
 		ok(effect.ok);
 		ok(effect.detail?.type === 'start' && effect.detail.pid < 0);

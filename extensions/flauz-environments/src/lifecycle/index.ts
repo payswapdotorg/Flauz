@@ -32,6 +32,17 @@
  *                          gated apiKeyRef, never holds key material).
  */
 export type { EnvironmentExecutor, ExecutorOpContext, ExecutorOpDetail } from './executor.ts';
+export {
+	CANCELLATION_POLL_MS,
+	cancelledEffect,
+	cancelledEffectError,
+	mintCancellationPort,
+	observeCancellation,
+	readCancellationFacts,
+	watchCancellation,
+	type CancellationPortMint,
+	type ExecutorCancellationPort,
+} from './executor.ts';
 export { EnvironmentLifecycleManager, type EnvironmentLifecycleManagerOptions, type LifecycleOpRequest } from './manager.ts';
 export {
 	PROVIDER_RETRY_AFTER_CAP_MS,
@@ -92,6 +103,7 @@ export {
 	type EnvironmentOpName,
 	type EnvironmentOpOutcome,
 	type EnvironmentOpRecord,
+	type ExecutorCancelledFacts,
 	type ExecutorEffectError,
 	type ExecutorEffectResult,
 	type HealthVerdict,

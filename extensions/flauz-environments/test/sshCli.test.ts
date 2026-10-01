@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { EnvironmentRegistry } from '../src/registry.ts';
-import { EnvironmentLifecycleManager, SimulatedRemoteExecutor, SshCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
+import { EnvironmentLifecycleManager, mintCancellationPort, SimulatedRemoteExecutor, SshCliExecutor, type LocalEnvFsPort } from '../src/lifecycle/index.ts';
 import type { EnvironmentDescriptor, EnvironmentKind } from '../src/api.ts';
 import { FakeCli } from './fakeCli.ts';
 import { sshRegistrationInput, virtualTime } from './helpers.ts';
@@ -478,7 +478,7 @@ test('ssh-cli: routing — ssh-local resolves the REAL executor without any opt-
 
 test('ssh-cli: executor-level double start is a typed ALREADY_RUNNING while the pid lives', async () => {
 	const rig = await bootSsh();
-	const ctx = { actor: 'human' as const, now: Date.now() };
+	const ctx = { actor: 'human' as const, now: Date.now(), cancellation: mintCancellationPort().port }; // DL-81: direct-call contexts carry a minted port
 	await rig.executor.create(rig.descriptor, ctx);
 	const first = await rig.executor.start(rig.descriptor, ctx);
 	ok(first.ok);
@@ -640,7 +640,7 @@ test('ssh-cli P2-FIX-110: destroy over an unverifiable liveness probe refuses th
 test('ssh-cli P2-FIX-110: start never launches a second harness over an unverifiable previous one (fail-closed refusal, no double launch)', async () => {
 	const rig = await bootSsh();
 	const id = rig.descriptor.id;
-	const ctx = { actor: 'human' as const, now: Date.now() };
+	const ctx = { actor: 'human' as const, now: Date.now(), cancellation: mintCancellationPort().port }; // DL-81 cross-landing: direct-call contexts carry a minted port (never cancelled in the P2-FIX-110 legs)
 	await rig.executor.create(rig.descriptor, ctx);
 	const first = await rig.executor.start(rig.descriptor, ctx);
 	ok(first.ok);

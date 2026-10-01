@@ -67,6 +67,7 @@
  */
 import { joinPath, serializeEnvelope, type Clock, type EnvironmentDescriptor, type EnvironmentKind } from '../api.ts';
 import type { ExecutorOpContext, EnvironmentExecutor } from './executor.ts';
+import { cancelledEffectError, observeCancellation } from './executor.ts';
 import type { DescribeVerdict, ExecutorEffectResult } from './types.ts';
 import { excerpt, parseHarnessStdio, type CliPort } from './cliPort.ts';
 import type { HashPort, LocalEnvFsPort, SnapshotManifest, SnapshotManifestFile } from './localProcess.ts';
@@ -283,6 +284,13 @@ export class SshCliExecutor implements EnvironmentExecutor {
 		if (harnessSource === undefined) {
 			return effectError('HARNESS_MISSING', `the fixed harness is not readable at ${this.harnessPath} — refusing to run anything else (injection law)`);
 		}
+		// DL-81 / P2-FIX-109 — the PRE-SPAWN effect checkpoint: a cancel observed
+		// here returns the typed OP_CANCELLED effect before any remote process
+		// or remote state exists.
+		const cancelledPreSpawn = observeCancellation(ctx, 'pre-spawn', `no remote harness launched for '${descriptor.id}'`);
+		if (cancelledPreSpawn !== undefined) {
+			return cancelledPreSpawn;
+		}
 		const dir = this.remoteDirOf(descriptor.id);
 		const log = this.remoteLogFileOf(descriptor.id);
 		// The one command-free pipe: the FIXED harness ships over stdin to
@@ -303,7 +311,25 @@ export class SshCliExecutor implements EnvironmentExecutor {
 			return effectError('START_FAILED', `remote harness launch for '${descriptor.id}' failed (exit ${launch.exitCode}): ${excerpt(launch.stderr)}`);
 		}
 		// readiness: the harness's own stdio protocol lands in the remote log
-		const ready = await this.awaitReady(descriptor.id, shape.connection);
+		// (DL-81: the POST-SPAWN/PRE-CONFIRM cancellation checkpoint is observed
+		// on every poll of this loop)
+		const ready = await this.awaitReady(descriptor.id, shape.connection, ctx);
+		if (ready.cancelled) {
+			// DL-81 — the defensive reap BEFORE returning CANCELLED: the remote
+			// state file names the launched harness pid (the fixed harness
+			// writes it before its ready line), so an unconfirmed-but-named
+			// pid is terminated over the connection (kill-only-ours holds —
+			// this pid is the one THIS start launched). An unreadable state
+			// file is the checkpoint miss-window: the nohup'd harness exits on
+			// its own when the ssh session's stdin pipe closes, and the
+			// superseding destroy removes the remote dir.
+			const read = await this.readRemoteState(shape.connection, descriptor.id);
+			if (read !== undefined && read.ok) {
+				await this.terminateOwned(shape.connection, read.state.pid);
+				return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-confirm', `remote harness pid ${read.state.pid} launched for '${descriptor.id}' (readiness unconfirmed) — defensively terminated over the connection (no orphan remote child)`) };
+			}
+			return { ok: false, error: cancelledEffectError(ctx.cancellation, 'pre-confirm', `remote harness launched for '${descriptor.id}' but its remote state file is not readable yet (pid unconfirmed — the checkpoint miss-window; the superseding destroy removes the remote dir)`) };
+		}
 		if (!ready.ok) {
 			return { ok: false, error: ready.error };
 		}
@@ -586,20 +612,27 @@ export class SshCliExecutor implements EnvironmentExecutor {
 	/**
 	 * Polls the remote harness log until the harness's OWN stdio protocol
 	 * reports ready (pid) or error — bounded by the readiness window.
+	 * DL-81 / P2-FIX-109: the POST-SPAWN/PRE-CONFIRM cancellation checkpoint
+	 * is observed on EVERY poll iteration — a minted cancel resolves the loop
+	 * with the `cancelled` arm (the caller performs the defensive remote reap
+	 * before returning CANCELLED).
 	 */
-	private async awaitReady(envId: string, connection: { readonly host: string; readonly port?: number; readonly user?: string }): Promise<{ ok: true; pid: number } | { ok: false; error: { code: string; message: string } }> {
+	private async awaitReady(envId: string, connection: { readonly host: string; readonly port?: number; readonly user?: string }, ctx: ExecutorOpContext): Promise<{ cancelled: false; ok: true; pid: number } | { cancelled: false; ok: false; error: { code: string; message: string } } | { cancelled: true }> {
 		const deadline = this.clock() + this.startTimeoutMs; // the injected clock + latency cue bound every wait
 		for (; ;) {
+			if (ctx.cancellation.cancelled) {
+				return { cancelled: true };
+			}
 			const log = await this.cli.spawnCli([...this.baseArgv(connection), 'cat', this.remoteLogFileOf(envId)], { timeoutMs: this.commandTimeoutMs + this.connectTimeoutMs });
 			const parsed = parseHarnessStdio(log.stdout);
 			if (parsed.readyPid !== undefined) {
-				return { ok: true, pid: parsed.readyPid };
+				return { cancelled: false, ok: true, pid: parsed.readyPid };
 			}
 			if (parsed.error !== undefined) {
-				return { ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' reported a protocol error: ${parsed.error}` } };
+				return { cancelled: false, ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' reported a protocol error: ${parsed.error}` } };
 			}
 			if (this.clock() >= deadline) {
-				return { ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' did not report ready within ${this.startTimeoutMs} ms (log so far: ${excerpt(log.stdout + log.stderr, 160) || 'empty'})` } };
+				return { cancelled: false, ok: false, error: { code: 'START_FAILED', message: `remote harness for '${envId}' did not report ready within ${this.startTimeoutMs} ms (log so far: ${excerpt(log.stdout + log.stderr, 160) || 'empty'})` } };
 			}
 			await this.sleep(this.pollIntervalMs);
 		}
