@@ -311,8 +311,9 @@ export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {
 				id: 'workflows',
 				label: 'Workflows',
 				description: 'not initialized',
-				tooltip: 'No .flauz/workflows/index.json yet — the index is created when a run is saved as a workflow.',
+				tooltip: 'No .flauz/workflows/index.json yet — the index is created when a run is saved as a workflow. Save your next run to start it.',
 				icon: 'rocket',
+				command: { command: 'flauz.workflow.save', title: 'Save Run as Workflow' },
 				contextValue: 'flauzHomeWorkflows',
 			};
 		}
