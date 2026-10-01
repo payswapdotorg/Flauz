@@ -12,11 +12,11 @@ The program therefore collapses into two vertical, full-stack lanes:
 - **TL-A — Product Completion and Productionization**
 - **TL-B — Engineering Lab and Adaptive Optimization**
 
-Both TLs are expected to operate autonomously from `main), use stable contracts, and finish their assigned vertical without waiting for the other.
+Both TLs are expected to operate autonomously from `main`, use stable contracts, and finish their assigned vertical without waiting for the other.
 
 ## Shared rules
 
-1. `main) is the only product state.
+1. `main` is the only product state.
 2. Every work item is registered before implementation.
 3. One owner per item.
 4. One implementation PR per item unless a documented integration wave requires otherwise.
@@ -85,7 +85,7 @@ TL-B may consume all stable Flauz contracts but must not replace Agent OS, Model
 
 A work item is independently runnable when:
 
-- its branch starts from current `main);
+- its branch starts from current `main`;
 - all cross-TL dependencies are typed contracts;
 - deterministic fixtures/mock adapters exist for any unavailable implementation;
 - its tests do not import another TL's unfinished branch;
@@ -111,7 +111,7 @@ Before the program is considered complete:
 
 - TL-A proves the production product works independently.
 - TL-B proves the Lab works independently.
-- Both rerun the shared integration scenario from clean `main).
+- Both rerun the shared integration scenario from clean `main`.
 - The integration uses only published contracts.
 - The Lab cannot grant permissions, credentials or bypass policy.
 - A failed Lab is safe: it cannot corrupt real workspace state.
