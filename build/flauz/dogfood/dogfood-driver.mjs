@@ -53,6 +53,17 @@
  * and P2-FIX-119 (the provider-switch question carries the workspace facts
  * in the prompt, built at ask time; both lanes answer from the prompt).
  *
+ * W3.2 (A-PROD-003-W3.2): the REGISTERED live finding P2-FIX-121 is fixed
+ * harness-side here -- the LIVE lane's ask request sets an explicit
+ * completion budget (the FLAUZ_DOGFOOD_LIVE_MAX_TOKENS env knob, default
+ * 32_768, fail-closed on a malformed value) wired through the product's
+ * existing request surface ChatRequest.maxOutputTokens -> the openAiCompat
+ * wire body's max_tokens; the fake lanes' request shape is UNCHANGED. The
+ * ask's ok-result and the exercise receipts surface the finish reason (the
+ * adapter's terminal finish event); a `length` finish renders as the
+ * VISIBLE TRUNCATED marker -- never a silent ok, never a bare raw-parse
+ * error.
+ *
  * Usage:
  *   node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs \
  *        [--repo <dir>] [--out <dir>] [--exercise <id>]
@@ -82,6 +93,7 @@ import { resolveProviderRetryBound } from '../../../extensions/flauz-agent/core/
 
 import { FrictionLog } from './frictionlog.mjs';
 import { startFakeProvider } from './fake-provider.mjs';
+import { consumeAskStream, DEFAULT_LIVE_MAX_TOKENS, LIVE_MAX_TOKENS_ENV, parseLiveMaxTokens } from './liveBudget.mjs';
 import { EXPLORE_EXERCISE } from './exercises/explore-repo.task.ts';
 import { PROVIDER_SWITCH_EXERCISE } from './exercises/provider-switch.task.ts';
 
@@ -109,6 +121,21 @@ const LIVE_CREDENTIAL_REF = 'env:FLAUZ_LIVE_PROVIDER_API_KEY';
 // W1 value exactly: 15_000 ms, unchanged for the fake lanes.
 const WALL_CLOCK_BUDGET_ENV = 'FLAUZ_DOGFOOD_WALL_CLOCK_BUDGET_MS';
 const DEFAULT_WALL_CLOCK_BUDGET_MS = 15_000;
+
+// P2-FIX-121 (the live completion-budget knob): env-only, OPTIONAL,
+// fail-closed on a malformed value (the constants + the pure parser live
+// in liveBudget.mjs -- the single source the tests pin). The value lands
+// on the LIVE lane's ask requests ONLY, wired through the product's
+// EXISTING request surface -- ChatRequest.maxOutputTokens
+// (extensions/flauz-models/src/contract/types.ts), the field the real
+// openAiCompat adapter maps onto the wire body's `max_tokens`
+// (extensions/flauz-models/src/adapters/openAiCompat.ts,
+// buildOpenAiRequestBody). The default (knob absent) is the generous
+// 32_768-token budget (the platform default ~4096 truncated the real
+// 23-consumer exploration map mid-JSON: finish_reason length at
+// completion_tokens 4095, the opening fence without the closing). The
+// fake lanes' request shape is UNCHANGED (the P2-FIX-121 acceptance).
+//
 
 const FAKE_PROVIDER_ID = 'flauz-dogfood-fake';
 const FAILING_PROVIDER_ID = 'flauz-dogfood-failing';
@@ -238,6 +265,21 @@ function makeProviderFacade(seams) {
                 currentTaskId: '',
                 requestTimeoutMs: DEFAULT_WALL_CLOCK_BUDGET_MS,
         };
+
+        /** P2-FIX-121: the ask request for the currently selected lane -- the LIVE lane carries the explicit completion budget; the fake lanes' request shape is UNCHANGED. */
+        function askRequest(prompt) {
+                return {
+                        modelId: state.currentModelId,
+                        messages: [{ role: 'user', content: [{ kind: 'text', value: prompt }] }],
+                        // P2-FIX-121: the LIVE lane's explicit completion budget -- the
+                        // neutral ChatRequest.maxOutputTokens surface the REAL openAiCompat
+                        // adapter maps onto the wire body's `max_tokens` (the platform
+                        // default ~4096 truncated the real exploration map mid-JSON). The
+                        // fake/scripted lanes keep the W1 request shape exactly (no
+                        // max_tokens field -- their wire behavior is the P2-FIX-121 baseline).
+                        ...(state.currentLane === 'live' ? { maxOutputTokens: seams.liveMaxTokens } : {}),
+                };
+        }
 
         function laneConfiguration(lane, mode, providerPort) {
                 if (lane === 'fake') {
@@ -381,21 +423,21 @@ function makeProviderFacade(seams) {
                 for (;;) {
                         attempts += 1;
                         try {
-                                const parts = [];
-                                for await (const event of state.adapter.stream({ modelId: state.currentModelId, messages: [{ role: 'user', content: [{ kind: 'text', value: prompt }] }] })) {
-                                        if (event.type === 'text-delta') {
-                                                parts.push(event.text);
-                                        }
-                                }
+                                // P2-FIX-121: the stream is consumed through the shared
+                                // ask-stream consumer -- the joined text PLUS the terminal
+                                // finish event's reason (the surface the W1 loop dropped;
+                                // a `length` finish is a VISIBLE truncation in the receipts).
+                                const consumed = await consumeAskStream(state.adapter.stream(askRequest(prompt)));
                                 return {
                                         kind: 'ok',
-                                        text: parts.join(''),
+                                        text: consumed.text,
                                         decisionId: decision.decisionId,
                                         providerId: state.currentProviderId,
                                         modelId: state.currentModelId,
                                         durationMs: Date.now() - startedAt,
                                         attempts,
                                         wallClockBudgetMs: state.requestTimeoutMs,
+                                        finishReason: consumed.finishReason,
                                 };
                         } catch (err) {
                                 if (isProviderError(err)) {
@@ -582,6 +624,22 @@ function resolveWallClockBudget() {
         return { ms: Number(raw), source: 'env' };
 }
 
+/**
+ * P2-FIX-121: resolves the live lane's completion budget from the env-only
+ * knob (FLAUZ_DOGFOOD_LIVE_MAX_TOKENS; the pure parser lives in
+ * liveBudget.mjs -- the single source the tests pin). Absent -> the
+ * generous default (32_768 tokens). Present but malformed -> FAIL CLOSED
+ * (exit 2, the same env-contract discipline as P2-FIX-117).
+ */
+function resolveLiveMaxTokens() {
+        const parsed = parseLiveMaxTokens(process.env[LIVE_MAX_TOKENS_ENV] ?? '');
+        if (!parsed.ok) {
+                console.error(`${DRIVER_TAG}: FAIL-CLOSED -- ${parsed.error}`);
+                process.exit(2);
+        }
+        return parsed;
+}
+
 async function main() {
         const args = process.argv.slice(2);
         const argMap = new Map();
@@ -597,6 +655,7 @@ async function main() {
         const repoRoot = nodePath.resolve(argMap.get('--repo') ?? repoRootFromHere());
         const mode = resolveMode();
         const wallClockBudget = resolveWallClockBudget();
+        const liveMaxTokens = resolveLiveMaxTokens();
         const runId = `dogfood-${new Date().toISOString().replace(/[:.]/g, '-')}`;
         const root = await nodeFsPromises.mkdtemp(nodePath.join(os.tmpdir(), 'flauz-dogfood-'));
         const outDir = nodePath.resolve(argMap.get('--out') ?? nodePath.join(root, '.flauz', 'dogfood-records'));
@@ -616,6 +675,10 @@ async function main() {
 
         log(`mode=${mode} (model intelligence: ${mode === 'live-provider' ? 'live-provider (the env contract)' : 'fixture (the fake/scripted lane -- claimed at fixture level, never promoted)'})`);
         log(`ask wall-clock budget ${String(wallClockBudget.ms)} ms (${wallClockBudget.source === 'env' ? `env:${WALL_CLOCK_BUDGET_ENV}` : `default; ${WALL_CLOCK_BUDGET_ENV} absent`}) wired through AdapterConfig.requestTimeoutMs (P2-FIX-117; the typed TIMEOUT + bounded-retry semantics unchanged)`);
+        log(`live-lane completion budget ${String(liveMaxTokens.tokens)} tokens (${liveMaxTokens.source === 'env' ? `env:${LIVE_MAX_TOKENS_ENV}` : `default; ${LIVE_MAX_TOKENS_ENV} absent`}) wired through ChatRequest.maxOutputTokens -> the openAiCompat wire body max_tokens (P2-FIX-121; the fake lanes' request shape unchanged)`);
+        if (liveMaxTokens.source === 'env' && mode !== 'live-provider') {
+                log(`note: ${LIVE_MAX_TOKENS_ENV} is set but this run selects no live lane (mode=${mode}); the completion budget lands on live-lane ask requests only`);
+        }
         log(`workspace root ${root}; repo ${repoRoot}; records ${outDir}`);
 
         const fakeProvider = await startFakeProvider({ repoRoot, workspaceRoot: root });
@@ -655,6 +718,7 @@ async function main() {
                 store,
                 providerPort: fakeProvider.port,
                 wallClockBudgetMs: wallClockBudget.ms,
+                liveMaxTokens: liveMaxTokens.tokens,
         };
         const provider = makeProviderFacade(seams);
 
@@ -681,6 +745,12 @@ async function main() {
                         defaultMs: DEFAULT_WALL_CLOCK_BUDGET_MS,
                         source: wallClockBudget.source === 'env' ? `env:${WALL_CLOCK_BUDGET_ENV}` : 'default',
                         wiredThrough: 'AdapterConfig.requestTimeoutMs (the product request wall-clock budget surface; the typed TIMEOUT + bounded-retry semantics unchanged)',
+                },
+                liveCompletionBudget: {
+                        configuredTokens: liveMaxTokens.tokens,
+                        defaultTokens: DEFAULT_LIVE_MAX_TOKENS,
+                        source: liveMaxTokens.source === 'env' ? `env:${LIVE_MAX_TOKENS_ENV}` : 'default',
+                        wiredThrough: 'ChatRequest.maxOutputTokens -> the openAiCompat adapter wire body max_tokens (the LIVE lane\'s ask requests only; the fake lanes\' request shape unchanged)',
                 },
                 workspaceRoot: root,
                 repoRoot,

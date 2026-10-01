@@ -32,6 +32,7 @@ import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { sha256Hex } from '../../../../extensions/flauz-workspace/src/api.ts';
 import { fenceTolerantParseBody, type AnswerParseOptions } from '../answerFence.ts';
+import { answerParseFailDetail, finishReasonDetail } from '../liveBudget.mjs';
 import type { AskOutcome, AskProviderFailure, DogfoodExercise, DogfoodHarness, DogfoodMode, ExerciseCheck, ExerciseReceipt, EvidenceItem, LaneSwitchReceipt } from '../harnessTypes.ts';
 
 /** The answer document's pinned schema id. */
@@ -447,7 +448,10 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                                 // (strip-fence-then-parse); machine lanes keep the raw-JSON default.
                                 const parsed = parseSwitchAnswer(ask.text, { fenceTolerant: harness.mode === 'live-provider' });
                                 if (!parsed.ok) {
-                                        answerProblems.push(parsed.error);
+                                        // P2-FIX-121: the parse-failure problem carries the finish
+                                        // reason; a `length` finish appends the VISIBLE TRUNCATED
+                                        // marker (never a bare raw-parse error).
+                                        answerProblems.push(answerParseFailDetail(parsed.error, ask.finishReason));
                                 } else {
                                         const verification = await verifySwitchAnswer(parsed.answer, harness.root);
                                         answerProblems.push(...verification.problems);
@@ -519,7 +523,7 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                                 providersFileSha256: record.receipt.providersFileSha256,
                                 evidenceId: record.receipt.evidenceId,
                                 ask: record.ask.kind === 'ok'
-                                        ? { kind: 'ok', decisionId: record.ask.decisionId, attempts: record.ask.attempts, durationMs: record.ask.durationMs, wallClockBudgetMs: record.ask.wallClockBudgetMs, fenceStripped: harness.mode === 'live-provider' && fenceTolerantParseBody(record.ask.text, { fenceTolerant: true }).fenced, text: record.ask.text }
+                                        ? { kind: 'ok', decisionId: record.ask.decisionId, attempts: record.ask.attempts, durationMs: record.ask.durationMs, wallClockBudgetMs: record.ask.wallClockBudgetMs, finishReason: record.ask.finishReason, finishDetail: finishReasonDetail(record.ask.finishReason), fenceStripped: harness.mode === 'live-provider' && fenceTolerantParseBody(record.ask.text, { fenceTolerant: true }).fenced, text: record.ask.text }
                                         : { kind: 'provider-failure', decisionId: record.ask.decisionId, code: record.ask.code, retryClass: record.ask.retryClass, retryable: record.ask.retryable, status: record.ask.status, attempts: record.ask.attempts, wallClockBudgetMs: record.ask.wallClockBudgetMs, message: record.ask.message },
                                 askPromptRedacted: redactAskPromptForReport(record.askPrompt),
                                 promptFacts: record.promptFacts,
@@ -541,6 +545,7 @@ export const PROVIDER_SWITCH_EXERCISE: DogfoodExercise = {
                 notes.push(`model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)`);
                 notes.push('P2-FIX-119: both lanes answer from the prompt-carried workspace facts (providers file content + routing-decision tail, embedded at ask time); the fake lane\'s server-side computation path for this question is retired; the verification stays strict (checked against the real state files)');
                 notes.push('P2-FIX-118: live-lane answers parse through the fence-tolerant path (strip-fence-then-parse; malformed JSON inside a fence still fails); machine lanes keep the raw-JSON default');
+                notes.push('P2-FIX-121: every ok ask\'s receipt record carries the finish reason (finishReason + the visible finishDetail line); a `length` finish renders as TRUNCATED -- a visible truncation, never a silent ok');
 
                 const failCount = recorder.checks.filter(check => !check.ok).length;
                 const frictionRows = await harness.friction.readAll();
