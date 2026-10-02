@@ -418,7 +418,7 @@
 			"surface": "extensions/flauz-environments",
 			"capability": "environment registry, descriptors, continuity and lifecycle core (port-injected)",
 			"class": "web-full",
-			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 — node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
+			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 \u2014 node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
 			"evidence": [
 				{
 					"kind": "node-free",
@@ -1573,6 +1573,61 @@
 				}
 			],
 			"recoveryPath": "Implement the ReleaseFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the artifact writes map to the web host write); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-lab",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. View + command activation only (onView:flauz.lab, onCommand:flauz.lab.*), no proposed APIs, no onStartupFinished. Row added by LAB-009 (the Lab console W1 wave) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-lab/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-lab/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-lab/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the console core recovers; the command/tree surface itself is host-agnostic (the LabConsolePort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-lab",
+			"capability": "lab console W1 core: state machine, port contract, tree view (port-injected)",
+			"class": "web-full",
+			"reason": "The LAB-009 W1 core is node-free and port-injected: the pure console state machine (select/run/save transitions with the DL-85 apply-refusal law), the LabConsolePort contract, and the flauz.lab tree view (vscode slices injected). Every effect flows through the port; the runtime binding lives exclusively in the wiring file below - the flauz-diagnostics core-row precedent. The deterministic lab core stays at build/flauz/lab (single source of truth; DL-85).",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-lab/src/consoleState.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-lab/src/labConsolePort.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-lab/src/labView.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed LabConsolePort (the fixture core is pure TS with no node surface) ships the whole W1 console to web with byte-identical tree contents."
 		}
 	]
 }

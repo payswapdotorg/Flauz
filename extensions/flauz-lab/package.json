@@ -1,0 +1,68 @@
+{
+	"name": "flauz-lab",
+	"displayName": "Flauz Lab",
+	"description": "The Engineering Lab console (W1): run the fixture-lane evaluation ladder over the task worlds, inspect candidate organizations, compare against the single-agent baseline and save recommendations - applying stays routed through Agent OS (the LAB-010 bridge), never a second execution engine.",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onView:flauz.lab",
+		"onCommand:flauz.lab.runNow",
+		"onCommand:flauz.lab.saveRecommendation",
+		"onCommand:flauz.focusView.lab",
+		"onCommand:flauz.lab.refreshView"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.lab",
+					"name": "Lab"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "flauz.lab.runNow",
+				"title": "Run Lab Now",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.lab.saveRecommendation",
+				"title": "Save Recommendation",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.focusView.lab",
+				"title": "Focus Lab View",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.lab.refreshView",
+				"title": "Refresh Lab View",
+				"category": "Flauz"
+			}
+		],
+		"viewsWelcome": [
+			{
+				"view": "flauz.lab",
+				"contents": "The Flauz Lab learns which agent organizations serve your workload best: run the fixture-lane evaluation ladder, inspect candidates and compare against the single-agent baseline.\n[Run Lab Now](command:flauz.lab.runNow)\nSaved recommendations apply through Agent OS, never directly from this console."
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
+}
