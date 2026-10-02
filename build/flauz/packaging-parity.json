@@ -1222,6 +1222,119 @@
 				}
 			],
 			"recoveryPath": "Implement the BackupFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the atomic stage+rename maps to writeFile-to-temp + rename where the web host offers it); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-migration",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.migration.*), no views, no proposed APIs. Row added by A-PROD-004-W3 (the workspace migration/upgrade safety + rollback wave) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-migration/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-migration/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-migration/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the MigrationFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-migration",
+			"capability": "migration core: census-mirroring surface enumeration + counting, the W2 export/verify anchor machinery (contract-duplicated, cross-recognizable with flauz-backup in both directions), per-surface format-version readers, the plan/execute/rollback cores with the anchor-first + verify-first laws, torn-migration detection, split-sided privacy sweep, record banking, command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-004-W3 core is node-free and port-injected: the durable-state surface registry + contract shapes + canonical serialization + pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the owning modules), the census-mirroring enumeration + counting laws (surfaces.ts), the ledger/ops chain recomputes re-run at plan/anchor/post-flight time (verify.ts), the W2 export builder + export verifier duplicated as the anchor machinery (anchor.ts, pinned cross-recognizable with the REAL flauz-backup export/verify in both directions by the contract suite), the per-surface format-version readers (versionInventory.ts), the pre-flight plan with the compat matrix + the typed incompatibility refusals (plan.ts), the anchor-first execute with per-surface atomic stage+rename transforms + post-flight verification + migration-record banking (execute.ts, banking.ts), the verify-first rollback with byte-identical restore + the pair banking + the fresh-plan law (rollback.ts), the torn-migration detector (torn.ts), the split-sided secret-shape sweep (privacy.ts), the command surface (commands.ts, globals.ts) and the shared timestamp module (format.ts, the PU6 verbatim copy). Every effect is a port (MigrationFsPort/Clock/OutputChannelPort/VersionsInfo); the node wiring lives exclusively in the wiring row below - the flauz-backup substrate-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/surfaces.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/verify.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/anchor.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/versionInventory.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/plan.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/execute.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/rollback.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/torn.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/banking.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-migration/src/format.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed MigrationFsPort (vscode.workspace.fs + a workspace-folders readdir source) ships the whole plan/execute/rollback surface to web with byte-identical anchor artifacts (the rollback cleanup maps to the web host delete)."
+		},
+		{
+			"surface": "extensions/flauz-migration",
+			"capability": "durable-state wiring + anchor writes + transform renames + rollback cleanup (node MigrationFsPort over the workspace .flauz/ tree, the .flauz-exports/ anchors and the .flauz/migration/ records)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the MigrationFsPort to node:fs/promises (readFile/readdir/mkdir/writeFile/appendFile/rename over the workspace root's .flauz/ tree, the .flauz-exports/ anchor trees and the .flauz/migration/ record bank; rename backs the per-surface atomic stage+rename of the transforms and the rollback; rm force backs the rollback path's marker/plan/stage-leftover cleanup). The blocker is the wiring choice, not the core (see its row) - the flauz-backup wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-migration/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the MigrationFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the atomic stage+rename maps to writeFile-to-temp + rename where the web host offers it; the cleanup maps to the web host delete); the desktop entry keeps nodeFs."
 		}
 	]
 }

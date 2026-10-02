@@ -1,0 +1,48 @@
+{
+        "name": "flauz-migration",
+        "displayName": "Flauz Migration",
+        "description": "Flauz workspace migration/upgrade safety and rollback: a pre-flight migration plan over the durable .flauz/ census surfaces (per-surface format-version inventory, compat matrix, typed incompatibility refusals), the anchor-first execute path (a verified durable-state export anchor BEFORE any transform; per-surface atomic stage+rename transforms; post-flight census + chain-verification re-run; the migration record banked into the census-visible state), and the verify-first rollback path (tamper-refusing anchor verification, byte-identical per-surface restore, the rollback record banked -- the migration + rollback pair visible to the next diagnostics census).",
+        "version": "0.1.0",
+        "publisher": "flauz",
+        "license": "MIT",
+        "type": "module",
+        "engines": {
+                "vscode": "^1.140.0"
+        },
+        "categories": [
+                "Other"
+        ],
+        "activationEvents": [
+                "onCommand:flauz.migration.plan",
+                "onCommand:flauz.migration.execute",
+                "onCommand:flauz.migration.rollback"
+        ],
+        "main": "./dist/extension.js",
+        "contributes": {
+                "commands": [
+                        {
+                                "command": "flauz.migration.plan",
+                                "title": "Plan Workspace Migration (Pre-flight)",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.migration.execute",
+                                "title": "Execute Workspace Migration (Anchor-first)",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.migration.rollback",
+                                "title": "Roll Back Workspace Migration (Verify-first)",
+                                "category": "Flauz"
+                        }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+                "test": "mocha --ui tdd test/*.test.ts"
+        },
+        "devDependencies": {
+                "typescript": "5.9.3"
+        }
+}
