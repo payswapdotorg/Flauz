@@ -34,7 +34,7 @@
         "scripts": {
                 "typecheck": "tsc --noEmit",
                 "typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
-                "test": "node --test test/*.test.ts"
+                "test": "mocha --ui tdd test/*.test.ts"
         },
         "devDependencies": {
                 "typescript": "5.9.3"

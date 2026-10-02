@@ -52,3 +52,26 @@ the diagnostics surface over them.
 
 No workspace folder open? The commands degrade honestly: a channel notice
 and a typed `FLAUZ_DIAG_NO_WORKSPACE` result; no bundle is created.
+
+## The tests (the G10 recipe — the mocha tdd isolated runner)
+
+The suite is mocha-tdd shaped (`suite`/`test` globals, the
+build/flauz/dogfood harness convention — never a repo install):
+
+```sh
+mkdir -p /tmp/labrun && cd /tmp/labrun && npm init -y >/dev/null && \
+  npm i --silent --no-audit --no-fund mocha tsx
+cd <repo-root>/extensions/flauz-diagnostics
+NODE_OPTIONS="--import file:///tmp/labrun/node_modules/tsx/dist/loader.mjs" \
+  /tmp/labrun/node_modules/.bin/mocha --ui tdd test/*.test.ts
+```
+
+`npm test` in this directory runs the same mocha command (mocha resolves
+from the repo root's devDependencies after a root install; the tsx loader
+rides NODE_OPTIONS as above). The scoped typechecks:
+
+```sh
+tsc --noEmit                       # src only (full strict incl. noUnusedLocals)
+tsc --noEmit -p tsconfig.test.json # src + tests (see the in-file note on the
+                                   # sibling lint-posture relaxation)
+```
