@@ -2,7 +2,7 @@
 	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
 	"bomFormat": "CycloneDX",
 	"specVersion": "1.5",
-	"serialNumber": "urn:uuid:b6bc6ba6-406f-5583-9333-8a9771a9c073",
+	"serialNumber": "urn:uuid:a3623340-59bc-5a7c-a99a-efeaf6ac4a90",
 	"version": 1,
 	"metadata": {
 		"tools": {
@@ -188,6 +188,23 @@
 		},
 		{
 			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-release@0.1.0",
+			"name": "flauz-release",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-release@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-release/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
 			"bom-ref": "pkg:generic/flauz/flauz-resources@0.1.0",
 			"name": "flauz-resources",
 			"version": "0.1.0",
@@ -268,6 +285,7 @@
 				"pkg:generic/flauz/flauz-memory@0.1.0",
 				"pkg:generic/flauz/flauz-migration@0.1.0",
 				"pkg:generic/flauz/flauz-models@0.1.0",
+				"pkg:generic/flauz/flauz-release@0.1.0",
 				"pkg:generic/flauz/flauz-resources@0.1.0",
 				"pkg:generic/flauz/flauz-telemetry@0.1.0",
 				"pkg:generic/flauz/flauz-workflow@0.1.0",
