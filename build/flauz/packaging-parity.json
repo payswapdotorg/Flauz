@@ -1036,6 +1036,95 @@
 				}
 			],
 			"recoveryPath": "Same as the wiring row: the workspace.fs port restores the full artifact surface on web."
+		},
+		{
+			"surface": "extensions/flauz-diagnostics",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.diag.*), no views, no proposed APIs. Row added by A-PROD-004-W1 (the diagnostics + support-bundle wave) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-diagnostics/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-diagnostics/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-diagnostics/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the census-reading row below recovers; the command surface itself is host-agnostic (the DiagFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-diagnostics",
+			"capability": "diagnostics core: census, chain verifiers, redaction laws, bundle builder, command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-004-W1 core is node-free and port-injected: the durable-state contract shapes + canonical serialization + pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the owning modules), the .flauz/ census collectors (census.ts), the ledger/ops chain recomputes (verify.ts), the secret-shape sweep + event redaction projections (privacy.ts), the support-bundle builder (bundle.ts), the command surface (commands.ts, globals.ts) and the shared timestamp module (format.ts, the PU6 verbatim copy). Every effect is a port (DiagFsPort/Clock/OutputChannelPort/VersionsInfo/EnvironmentInfo); the node wiring lives exclusively in the wiring row below - the flauz-memory substrate-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/census.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/verify.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/bundle.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-diagnostics/src/format.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed DiagFsPort (vscode.workspace.fs + a workspace-folders readdir source) ships the whole diagnostics/bundle surface to web with byte-identical bundle artifacts."
+		},
+		{
+			"surface": "extensions/flauz-diagnostics",
+			"capability": "durable-state wiring + bundle writes (node DiagFsPort over the workspace .flauz/ tree)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the DiagFsPort to node:fs/promises (readFile/readdir/mkdir/writeFile over the workspace root's .flauz/ tree, including the support-bundle directory writes) and reads the live environment summary from the process object. The blocker is the wiring choice, not the core (see its row) - the flauz-memory wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-diagnostics/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the DiagFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing); the desktop entry keeps nodeFs."
 		}
 	]
 }

@@ -2,27 +2,33 @@
 	"$schema": "flauz.bundle-manifest/v1",
 	"manifestVersion": 1,
 	"status": "PINNED",
-	"baseCommit": "5485ff654fd23ffad13fe73b366f92e6ea1057af",
-	"generatedAt": "2026-09-29T06:10:13.862Z",
+	"baseCommit": "650d1d6a2d056cceb930ebb4a9cd9b1d2493531e",
+	"generatedAt": "2026-10-02T02:38:55.360Z",
 	"generationCommand": "node build/flauz/scripts/security-runtime-gate.mjs --root . --generate",
 	"notes": "Pinned by --generate from a fresh double-bundle run (byte-identical passes). VERIFY mode re-bundles on every CI run and exits 1 on ANY drift (supply-chain tamper signal). Regeneration is PR-reviewed diff-by-diff; any PR that changes bundle bytes regenerates this manifest in the same PR.",
 	"bundles": {
 		"flauz-agent": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "35f2085577f5f0da8741dd39308083a7ba0531e4ef3cebafe5b57eabef21e8fb"
+				"dist/extension.js": "aca38e122caccad6fe1d25dc0fe1c17a5f68cd6a0d0dd73c62e0df61fa8cdf67"
 			}
 		},
 		"flauz-browser": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "4197377069a27de2c9c062769dbc29ac7be3340407e652141b1fec1bb985542e"
+				"dist/extension.js": "7d6f59e93f9e4568882bf45e6295f99a745f5beb6b64d63a5b2e844e9c1f1da4"
+			}
+		},
+		"flauz-diagnostics": {
+			"version": "0.1.0",
+			"artifacts": {
+				"dist/extension.js": "af3d81b4d6d0ee3472f337b37cce2632048819a21530ffc4df2a41332c47f73d"
 			}
 		},
 		"flauz-environments": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "75e441bc36f50ecb00cc0aae1aebd5f3f50d5a9c948e66ec711fcdeac17cddd1"
+				"dist/extension.js": "fe7066ec0c3f267d76c7bc9e1f86950c61e6ba6cd03cdcdb04f7360d3866b047"
 			}
 		},
 		"flauz-execution": {
@@ -46,7 +52,7 @@
 		"flauz-resources": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "65a192c392ed0acb7692341463fc56316c3b34866e94ed8d6c8a9243dc0d8c52"
+				"dist/extension.js": "359cae9a81337a901efd4367e1c3614ae886eecea08665251a1b90f58092c537"
 			}
 		},
 		"flauz-workflow": {
@@ -58,7 +64,7 @@
 		"flauz-workspace": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "ee92b0b50954cbbebfafad030fc4ea0d77e4af3df8c4cb2f70fffbb51e4bd299"
+				"dist/extension.js": "defa14cad2a733987541d2807a7e3e60830d5c8775d1dd8c190084b41bb41fa7"
 			}
 		}
 	}

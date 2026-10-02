@@ -1,0 +1,42 @@
+{
+        "name": "flauz-diagnostics",
+        "displayName": "Flauz Diagnostics",
+        "description": "Flauz diagnostics surface and support/debug bundle: a redacted, metadata-only census of the durable .flauz/ state (counts and hashes, never contents), the provider-lane summary, the recent typed-event tails and the chain-integrity verdicts.",
+        "version": "0.1.0",
+        "publisher": "flauz",
+        "license": "MIT",
+        "type": "module",
+        "engines": {
+                "vscode": "^1.140.0"
+        },
+        "categories": [
+                "Other"
+        ],
+        "activationEvents": [
+                "onCommand:flauz.diag.bundle",
+                "onCommand:flauz.diag.show"
+        ],
+        "main": "./dist/extension.js",
+        "contributes": {
+                "commands": [
+                        {
+                                "command": "flauz.diag.bundle",
+                                "title": "Create Support Bundle",
+                                "category": "Flauz"
+                        },
+                        {
+                                "command": "flauz.diag.show",
+                                "title": "Show Diagnostics",
+                                "category": "Flauz"
+                        }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+                "test": "mocha --ui tdd test/*.test.ts"
+        },
+        "devDependencies": {
+                "typescript": "5.9.3"
+        }
+}
