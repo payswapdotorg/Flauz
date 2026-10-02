@@ -1,0 +1,30 @@
+{
+        "name": "flauz-release",
+        "displayName": "Flauz Release",
+        "description": "Flauz install/update verification + the release checklist -- the beta gate's closing wave (A-PROD-004-W5): the verify plane (flauz.release.verify: the installed product state end-to-end -- the extension census with every packaged extension present + activation-lint clean, the packaging-parity contract rows vs manifests, the SBOM component coverage, the durable-state surfaces readable via the W1 census machinery, and the integrity verdicts with the W2 machinery applied to the CURRENT state -- a fresh self-export verifies; the typed verdict table green/tampered/torn per check class, the record persisted workspace-locally + census-visible), the pre-update gate (flauz.release.updateCheck: censuses the current state, reads the per-surface format versions, reports the migration readiness identity/transform/refusal via the W3 plan grammar + the anchor dry-run via the W2 machinery -- NEVER performs the update; the migration stays in flauz-migration's hands), and the one-command go/no-go (flauz.release.checklist: binds ALL TEN beta capabilities -- diagnostics census, backup/export, crash recovery, migration safety, telemetry opt-in state, failure typing, rollback anchor, support/debug bundle, install verification, and the checklist artifact itself -- every row with its evidence pointer, GO only when all ten are green, the artifact persisted + re-readable as the beta gate's closure evidence).",
+        "version": "0.1.0",
+        "publisher": "flauz",
+        "license": "MIT",
+        "type": "module",
+        "engines": { "vscode": "^1.140.0" },
+        "categories": ["Other"],
+        "activationEvents": [
+                "onCommand:flauz.release.verify",
+                "onCommand:flauz.release.updateCheck",
+                "onCommand:flauz.release.checklist"
+        ],
+        "main": "./dist/extension.js",
+        "contributes": {
+                "commands": [
+                        { "command": "flauz.release.verify", "title": "Release: Verify Install (End-to-end Product State)", "category": "Flauz" },
+                        { "command": "flauz.release.updateCheck", "title": "Release: Update Check (Pre-flight, Never Updates)", "category": "Flauz" },
+                        { "command": "flauz.release.checklist", "title": "Release: Checklist (Beta Gate Go/No-Go)", "category": "Flauz" }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+                "test": "mocha --ui tdd test/*.test.ts"
+        },
+        "devDependencies": { "typescript": "5.9.3" }
+}

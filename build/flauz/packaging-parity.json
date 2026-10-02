@@ -1444,6 +1444,135 @@
 				}
 			],
 			"recoveryPath": "Implement the TelemetryFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the retention rewrite maps to a full-file write; the prune's rm maps to the web host delete); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-release",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.release.verify + onCommand:flauz.release.updateCheck + onCommand:flauz.release.checklist), no views, no proposed APIs. Row added by A-PROD-004-W5 (the install/update reliability + release checklist wave) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-release/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-release/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-release/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the ReleaseFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-release",
+			"capability": "release core: the install/update verification + the release checklist over the real surfaces -- the repo-state product reader with the extension census (activation-lint mirror R1-R3 + the built-in id/entrypoint laws) and the packaging-parity contract (PP2 coverage + PP4 posture re-derivation) + the SBOM component coverage + dependency-graph checks (productState.ts), the W1 census duplication + census-clean law (census.ts), the W2 chain-verdict re-derivation (verify.ts), the surface enumeration + counting core (surfaces.ts), the fresh self-export builder + the export verifier with the cross-recognizability law (selfExport.ts, selfVerify.ts), the W3 per-surface version inventory + torn-migration detector + the readiness matrix (identity/transform/refusal) + the anchor dry-run, never performing the update (versionInventory.ts, torn.ts, updateCheck.ts), the W4 telemetry opt-in-state resolution + the failure-taxonomy closure check (telemetryState.ts), the install-verification orchestration + the persisted census-visible record (verifyInstall.ts), the ten-row go/no-go + the persisted re-readable checklist artifact (checklist.ts), the census-visible banking with watermark resync (banking.ts), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-004-W5 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the owning modules), the secret-shape canary sweep (privacy.ts, the W2 posture), the shared timestamp module (format.ts, the PU6 verbatim copy), and the wave's own machinery -- the product-state reader + the three product check classes (productState.ts), the census + census-clean law (census.ts), the chain verdicts (verify.ts), the surface enumeration + counting (surfaces.ts), the self-export builder + verifier (selfExport.ts, selfVerify.ts), the version inventory + torn detector + pre-update gate (versionInventory.ts, torn.ts, updateCheck.ts), the telemetry config state + failure taxonomy consultation (telemetryState.ts), the install verification + record persistence (verifyInstall.ts), the ten-row checklist + artifact (checklist.ts), the banking core (banking.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (ReleaseFsPort/Clock/OutputChannelPort/VersionsInfo/ProductRoot); the node wiring lives exclusively in the wiring row below - the flauz-migration/flauz-telemetry wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/banking.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/census.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/checklist.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/productState.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/selfExport.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/selfVerify.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/surfaces.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/telemetryState.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/torn.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/updateCheck.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/verify.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/verifyInstall.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-release/src/versionInventory.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed ReleaseFsPort (vscode.workspace.fs + a workspace-folders readdir source) ships the whole verify/update-check/checklist surface to web with byte-identical artifacts; the product-state source maps to a service-side product inventory on web."
+		},
+		{
+			"surface": "extensions/flauz-release",
+			"capability": "durable-state wiring + verification-record/checklist-artifact writes + fresh-self-export writes + census-visible evidence banking (node ReleaseFsPort over the workspace .flauz/ tree, the .flauz-exports/ self-exports, and the .flauz/evidence/ ledger + watermark resync the banking path owns)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the ReleaseFsPort to node:fs/promises (readFile/readdir/mkdir/writeFile/appendFile over the workspace root's .flauz/release/ tree for the verification records + checklist artifacts, the .flauz-exports/ self-exports the verify/checklist paths cut, the read-only durable-state + repo-state product surfaces, and the .flauz/evidence/ ledger + watermark resync the banking path owns). The blocker is the wiring choice, not the core (see its row) - the flauz-migration/flauz-telemetry wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-release/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the ReleaseFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the artifact writes map to the web host write); the desktop entry keeps nodeFs."
 		}
 	]
 }
