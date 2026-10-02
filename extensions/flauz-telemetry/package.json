@@ -1,0 +1,54 @@
+{
+	"name": "flauz-telemetry",
+	"displayName": "Flauz Telemetry",
+	"description": "Flauz telemetry with explicit privacy controls + provider/environment failure handling: the opt-in plane (a declared event schema the operator inspects BEFORE enabling -- every recordable dimension enumerated: event kind, surface, outcome, duration-bucket, error-code, ids; NEVER contents), the collection plane (closed-vocabulary aggregate rows over the real durable surfaces -- provider lanes, environment validation, workflow steps -- swept fail-closed for secret-shaped values, persisted workspace-locally under .flauz/telemetry/ with retention pruning; no network egress in v0), the inspection plane (the local aggregate report: per-surface counts, outcome distributions, duration histograms, the error-code census), the typed provider/environment failure taxonomy (every failure mode of the prior waves' surfaces typed with its class, surface+identity, remediation hint and telemetry dimension), and the failure census (flauz.failures.list -- failures as first-class queryable state, grouped by class with remediation hints and the time distribution; every record pass banks a census-visible evidence row so the W1 diagnostics census genuinely reports the telemetry activity).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:flauz.telemetry.config",
+		"onCommand:flauz.telemetry.record",
+		"onCommand:flauz.telemetry.report",
+		"onCommand:flauz.failures.list"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.telemetry.config",
+				"title": "Telemetry: Configure (Opt-in, Inspect the Declared Schema First)",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.telemetry.record",
+				"title": "Telemetry: Record Session Aggregates (Local-only)",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.telemetry.report",
+				"title": "Telemetry: Report Local Aggregates",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.failures.list",
+				"title": "Failures: Recent Failure Census (Typed, Grouped, Remediation Hints)",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
+}

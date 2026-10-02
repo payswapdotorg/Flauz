@@ -1335,6 +1335,115 @@
 				}
 			],
 			"recoveryPath": "Implement the MigrationFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the atomic stage+rename maps to writeFile-to-temp + rename where the web host offers it; the cleanup maps to the web host delete); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-telemetry",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.telemetry.* + onCommand:flauz.failures.list), no views, no proposed APIs. Row added by A-PROD-004-W4 (the telemetry with explicit privacy controls + provider/environment failure handling wave) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-telemetry/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-telemetry/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-telemetry/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the TelemetryFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-telemetry",
+			"capability": "telemetry core: the declared event schema (the inspect-before-enable enumeration), the opt-in config with consent events + schema-digest pinning, the real-surface observers (routing decisions, orchestration journal, environments registry, workflow envelopes), the closed-vocabulary aggregate record pass with retention pruning + fail-closed batch sweep, the typed provider/environment failure taxonomy, the local report aggregation, the failure census, the census-visible evidence banking, command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-004-W4 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the owning modules), the secret-shape canary sweep (privacy.ts, the W2 posture), the declared event schema with its closed vocabularies + duration bucketing (schema.ts), the typed failure taxonomy over the real ProviderErrorCode/lifecycle vocabularies with remediation hints + telemetry dimensions (failures.ts), the opt-in config with the consent-event ledger rows + the schema-drift refusal (config.ts), the contract-duplicated observers over the real durable surfaces (observe.ts), the evidence-ledger row parse + banking + watermark resync re-derivation (evidence.ts), the aggregate record pass with retention + the fail-closed batch sweep (record.ts), the local aggregate report (report.ts), the failure census with the grouped operator UX (failuresList.ts), the command surface (commands.ts, globals.ts) and the shared timestamp module (format.ts, the PU6 verbatim copy). Every effect is a port (TelemetryFsPort/Clock/OutputChannelPort); the node wiring lives exclusively in the wiring row below - the flauz-backup/flauz-migration substrate-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/config.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/evidence.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/failures.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/failuresList.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/observe.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/record.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/report.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-telemetry/src/schema.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed TelemetryFsPort (vscode.workspace.fs + a workspace-folders readdir source) ships the whole opt-in/config/record/report/failure-census surface to web with byte-identical ledger artifacts (the retention prune rewrite maps to the web host write)."
+		},
+		{
+			"surface": "extensions/flauz-telemetry",
+			"capability": "durable-state wiring + telemetry ledger/config writes + retention prune rewrites (node TelemetryFsPort over the workspace .flauz/ tree and the census-visible .flauz/evidence/ banking)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the TelemetryFsPort to node:fs/promises (readFile/readdir/mkdir/writeFile/appendFile/rm-force over the workspace root's .flauz/telemetry/ tree for the config + the aggregate ledger, the read-only observation surfaces, the retention prune rewrite, and the .flauz/evidence/ ledger + watermark resync the banking path owns). The blocker is the wiring choice, not the core (see its row) - the flauz-migration wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-telemetry/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the TelemetryFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the retention rewrite maps to a full-file write; the prune's rm maps to the web host delete); the desktop entry keeps nodeFs."
 		}
 	]
 }
