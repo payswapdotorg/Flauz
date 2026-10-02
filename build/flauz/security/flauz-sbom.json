@@ -2,7 +2,7 @@
 	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
 	"bomFormat": "CycloneDX",
 	"specVersion": "1.5",
-	"serialNumber": "urn:uuid:35feb12e-79a0-577c-8d0e-4dd060fdd86c",
+	"serialNumber": "urn:uuid:ff75286d-17f7-526e-9bb6-e04328744bef",
 	"version": 1,
 	"metadata": {
 		"tools": {
@@ -154,6 +154,23 @@
 		},
 		{
 			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-migration@0.1.0",
+			"name": "flauz-migration",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-migration@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-migration/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
 			"bom-ref": "pkg:generic/flauz/flauz-models@0.1.0",
 			"name": "flauz-models",
 			"version": "0.1.0",
@@ -232,6 +249,7 @@
 				"pkg:generic/flauz/flauz-environments@0.1.0",
 				"pkg:generic/flauz/flauz-execution@0.1.0",
 				"pkg:generic/flauz/flauz-memory@0.1.0",
+				"pkg:generic/flauz/flauz-migration@0.1.0",
 				"pkg:generic/flauz/flauz-models@0.1.0",
 				"pkg:generic/flauz/flauz-resources@0.1.0",
 				"pkg:generic/flauz/flauz-workflow@0.1.0",
