@@ -2,7 +2,7 @@
 	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
 	"bomFormat": "CycloneDX",
 	"specVersion": "1.5",
-	"serialNumber": "urn:uuid:5c616131-96a0-5421-8eb0-ee0b3e6ed607",
+	"serialNumber": "urn:uuid:40f14c55-ea63-5a1f-8184-df02339376d2",
 	"version": 1,
 	"metadata": {
 		"tools": {
@@ -64,6 +64,23 @@
 				{
 					"name": "flauz:artifact",
 					"value": "extensions/flauz-browser/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-diagnostics@0.1.0",
+			"name": "flauz-diagnostics",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-diagnostics@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-diagnostics/dist/"
 				}
 			]
 		},
@@ -193,6 +210,7 @@
 			"dependsOn": [
 				"pkg:generic/flauz/flauz-agent@0.1.0",
 				"pkg:generic/flauz/flauz-browser@0.1.0",
+				"pkg:generic/flauz/flauz-diagnostics@0.1.0",
 				"pkg:generic/flauz/flauz-environments@0.1.0",
 				"pkg:generic/flauz/flauz-execution@0.1.0",
 				"pkg:generic/flauz/flauz-memory@0.1.0",
