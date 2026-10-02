@@ -1125,6 +1125,103 @@
 				}
 			],
 			"recoveryPath": "Implement the DiagFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-backup",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.backup.*), no views, no proposed APIs. Row added by A-PROD-004-W2 (the durable-state backup/export + crash-recovery wave) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-backup/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-backup/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-backup/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the BackupFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-backup",
+			"capability": "backup core: surface enumeration + counting, export builder, manifest/integrity verification, verify-first restore with atomic stage+rename + recovery-record banking, split-sided privacy sweep, command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-004-W2 core is node-free and port-injected: the durable-state surface registry + contract shapes + canonical serialization + pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the owning modules), the census-mirroring enumeration + counting laws (surfaces.ts), the export builder with per-surface sha256/bytes/counts receipts (export.ts), the ledger/ops chain recomputes re-run at export time and on copies (verify.ts), the export verifier with the green/tampered/torn verdict table (inspect.ts), the verify-first crash-recovery restore with per-surface atomic stage+rename and the banked recovery record (restore.ts), the split-sided secret-shape sweep (privacy.ts), the command surface (commands.ts, globals.ts) and the shared timestamp module (format.ts, the PU6 verbatim copy). Every effect is a port (BackupFsPort/Clock/OutputChannelPort/VersionsInfo); the node wiring lives exclusively in the wiring row below - the flauz-diagnostics substrate-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/surfaces.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/export.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/verify.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/inspect.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/restore.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-backup/src/format.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed BackupFsPort (vscode.workspace.fs + a workspace-folders readdir source) ships the whole export/verify/restore surface to web with byte-identical export artifacts."
+		},
+		{
+			"surface": "extensions/flauz-backup",
+			"capability": "durable-state wiring + export writes + restore renames (node BackupFsPort over the workspace .flauz/ tree and .flauz-exports/)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the BackupFsPort to node:fs/promises (readFile/readdir/mkdir/writeFile/appendFile/rename over the workspace root's .flauz/ tree and the .flauz-exports/ export trees; rename backs the restore path's per-surface atomic stage+rename). The blocker is the wiring choice, not the core (see its row) - the flauz-diagnostics wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-backup/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the BackupFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the atomic stage+rename maps to writeFile-to-temp + rename where the web host offers it); the desktop entry keeps nodeFs."
 		}
 	]
 }
