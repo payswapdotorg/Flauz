@@ -1,0 +1,48 @@
+{
+	"name": "flauz-backup",
+	"displayName": "Flauz Backup",
+	"description": "Flauz durable-state backup/export and crash recovery: a byte-identical export of the durable .flauz/ census surfaces (the resources graph, the ops-chain, the environments registry, the evidence ledger, the browser-session journal, the workflow envelopes, the tasks file, the orchestration state, the provider-lanes state) with a per-surface manifest and export-time integrity verdicts, an export verifier (green/tampered/torn per surface), and the verify-first restore path with atomic per-surface stage+rename and a recovery record banked into the restored state.",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:flauz.backup.export",
+		"onCommand:flauz.backup.verify",
+		"onCommand:flauz.backup.restore"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.backup.export",
+				"title": "Export Durable State (Backup)",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.backup.verify",
+				"title": "Verify Export",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.backup.restore",
+				"title": "Restore Durable State From Export (Crash Recovery)",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
+}
