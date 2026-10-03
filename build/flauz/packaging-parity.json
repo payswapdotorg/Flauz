@@ -418,7 +418,7 @@
 			"surface": "extensions/flauz-environments",
 			"capability": "environment registry, descriptors, continuity and lifecycle core (port-injected)",
 			"class": "web-full",
-			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 \u2014 node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
+			"reason": "The registry (registry.ts), the typed descriptor/continuity model (api.ts) and the whole lifecycle subtree (state machine, manager, executor port, store) are node-free: fs, spawn and hashing are injected ports wired from the extension host. The core can drive remote environment classes from a web host unchanged. Lead integration note (2026-09-28, TL1-005 merge): the production `NodeCliPort` (lifecycle/cliPort.ts, TL3-004 rung 1 — node:child_process) is a desktop-side injectable and sits deliberately OUTSIDE the node-free evidence set; the core + the CLI executors stay node-free by receiving the port (the injection law: web hosts ship the core with their own port implementation).",
 			"evidence": [
 				{
 					"kind": "node-free",
@@ -1741,6 +1741,104 @@
 				}
 			],
 			"recoveryPath": "Implement the ProductionFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the runtime installed-product port maps to the web extension host's enumeration); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-integrity",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.integrity.sign + onCommand:flauz.integrity.verify + onCommand:flauz.integrity.status), no views, no proposed APIs. Row added by A-PROD-005-W2 (the signing and integrity plane: the detached-signature ledger + the one-command verify + the read-only status view) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-integrity/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-integrity/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-integrity/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the IntegrityFsPort + KeyPort are injected)."
+		},
+		{
+			"surface": "extensions/flauz-integrity",
+			"capability": "integrity core: the signing plane -- the detached-signature ledger (the pinned bundle manifest read through the product-root port with the strict contract-duplicated parser, every artifact sha256 RE-DERIVED live over the real bytes through the pure-TS sha256 bytes core, the ed25519 detached signatures + the self-signed chain assembled through the injected KeyPort, ledger.ts), the one-command verify (the typed verdict table green/tampered/unsigned/torn per pinned artifact, the ledger-chain re-derivation, the key-binding row, the typed degradations with the record persisting -- verify.ts), the read-only status view (status.ts), the row-contract parsers + chain hashes + the bundle-manifest + evidence-ledger + watermark contracts (api.ts, DL-32), the census-visible banking with watermark resync (banking.ts), the secret-shape canary sweep (privacy.ts, the W1/W5 posture), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-005-W2 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + the pure-TS sha256 over strings AND raw bytes (api.ts, duplicated by the DL-32 convention and pinned against the W5/W1 owning modules + node:crypto), the byte codecs (hex/base64), the secret-shape canary sweep (privacy.ts), the shared timestamp module (format.ts, the PU6 verbatim copy), and the wave's own machinery -- the sign core with the fail-closed batch prelude + the determinism law (ledger.ts), the verify core with the typed verdict table + the never-a-silent-green law (verify.ts), the read-only status view (status.ts), the row contracts (api.ts), the banking core (banking.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (IntegrityFsPort/Clock/OutputChannelPort/KeyPort/product-root probe); the node + node:crypto wiring lives exclusively in the wiring row below - the flauz-production wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/banking.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/ledger.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/status.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-integrity/src/verify.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed IntegrityFsPort + a service-side KeyPort ships the whole sign/verify/status surface to web with byte-identical artifacts; the ed25519 math moves behind the port seam (the operator-key deployment drives the same seam)."
+		},
+		{
+			"surface": "extensions/flauz-integrity",
+			"capability": "durable-state wiring + ledger/verify record writes + census-visible evidence banking (node IntegrityFsPort over the workspace .flauz/ tree + the node ed25519 KeyPort over node:crypto with the port-owned workspace-local key store, and the .flauz/evidence/ ledger + watermark resync the banking path owns)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the IntegrityFsPort to node:fs/promises (readFileUtf8/readFileBytes over the product tree's pinned dist artifacts + the repo-state manifest, the writes over the workspace root's .flauz/integrity/ tree for the ledger + verify records, and the .flauz/evidence/ ledger + watermark resync the banking path owns) and the KeyPort to node:crypto's ed25519 surface (generateKeyPairSync/sign/verify + the JWK import/export over the workspace-local key store at .flauz/integrity/keys/ed25519-local-dev.json -- the port owns the path; the private key never leaves the store). The blocker is the wiring choice, not the core (see its row) - the flauz-production wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-integrity/src/extension.ts",
+					"module": "fs/promises"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-integrity/src/extension.ts",
+					"module": "crypto"
+				}
+			],
+			"recoveryPath": "Implement the IntegrityFsPort over vscode.workspace.fs in the browser build + a service-side KeyPort (the key custody seam maps to the service's HSM-backed lane in an operator deployment); the desktop entry keeps nodeFs + the node ed25519 KeyPort."
 		}
 	]
 }

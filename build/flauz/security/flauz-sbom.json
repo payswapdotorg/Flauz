@@ -2,7 +2,7 @@
 	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
 	"bomFormat": "CycloneDX",
 	"specVersion": "1.5",
-	"serialNumber": "urn:uuid:de449e98-93c2-51ae-b927-c88e059c0fed",
+	"serialNumber": "urn:uuid:c143fad8-9826-5cd8-8700-5e51bb764a4a",
 	"version": 1,
 	"metadata": {
 		"tools": {
@@ -132,6 +132,23 @@
 				{
 					"name": "flauz:artifact",
 					"value": "extensions/flauz-execution/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-integrity@0.1.0",
+			"name": "flauz-integrity",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-integrity@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-integrity/dist/"
 				}
 			]
 		},
@@ -316,6 +333,7 @@
 				"pkg:generic/flauz/flauz-diagnostics@0.1.0",
 				"pkg:generic/flauz/flauz-environments@0.1.0",
 				"pkg:generic/flauz/flauz-execution@0.1.0",
+				"pkg:generic/flauz/flauz-integrity@0.1.0",
 				"pkg:generic/flauz/flauz-lab@0.1.0",
 				"pkg:generic/flauz/flauz-memory@0.1.0",
 				"pkg:generic/flauz/flauz-migration@0.1.0",
