@@ -279,7 +279,7 @@ function checkRow(id, surface) {
 	}
 }
 
-/** DA01 — the six views, exactly, with their human-facing names, in one container. */
+/** DA01 — the seven views (TL4-001's six + flauz.lab), exactly, with their human-facing names, in one container. */
 function checkViews(surface) {
 	const misses = [];
 	const evidence = [];
@@ -910,12 +910,12 @@ function checkWebPosture(surface) {
 		const contributes = m.pkg.contributes ?? {};
 		for (const key of ['webviews', 'customEditors', 'webviewView']) {
 			if (contributes[key] !== undefined) {
-				misses.push({ subject: `${m.rel}:${key}`, detail: 'a Flauz surface contributed a webview-family contribution point — the six views are tree views (one posture across desktop/web)' });
+				misses.push({ subject: `${m.rel}:${key}`, detail: 'a Flauz surface contributed a webview-family contribution point — the seven views are tree views (one posture across desktop/web)' });
 			}
 		}
 	}
 	if (misses.length === 0 && surface.manifests.length > 0) {
-		evidence.push('no webview contributions — the six views are stock tree views (one posture)');
+		evidence.push('no webview contributions — the seven views are stock tree views (one posture)');
 	}
 	if (surface.parityRows === undefined) {
 		misses.push({ subject: 'packaging-parity-registry', detail: 'build/flauz/packaging-parity.json not found — the desktop/web posture of the flauz extensions is unclassified in this tree' });

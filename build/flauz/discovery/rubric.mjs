@@ -48,7 +48,7 @@
 // Zero dependencies: node >= 20 stdlib only.
 // ---------------------------------------------------------------------------------------------
 
-/** The six TL4-001 views: view id -> the exact user-facing name. */
+/** The seven flauz views (TL4-001's six + the LAB-009 Lab console): view id -> the exact user-facing name. */
 export const EXPECTED_VIEWS = new Map([
 		['flauz.home', 'Home'],
 		['flauz.tasks', 'Tasks'],
@@ -56,6 +56,7 @@ export const EXPECTED_VIEWS = new Map([
 		['flauz.environments', 'Environments'],
 		['flauz.browser', 'Browser'],
 		['flauz.models', 'Models'],
+		['flauz.lab', 'Lab'],
 ]);
 
 /** The single activity-bar container id (TL4-IA-SPEC section 2). */
@@ -77,11 +78,12 @@ export const PRIMARY_ACTIONS = new Map([
 		['flauz.environments', { any: ['flauz.env.register'], note: 'A new user\'s primary action is registering the first environment (the command exists, category "Flauz").' }],
 		['flauz.browser', { any: ['flauz.browser.setPolicy', 'workbench.action.files.openFolder'], note: 'No-folder state: Open Folder; with a folder: create the policy file.' }],
 		['flauz.models', { any: [], note: 'v0: no user-facing provider-registration command exists (flauz-models contributes focus + refresh only); the welcome cannot link a creation action. The surface\'s honesty is carried by DA10 instead.' }],
+		['flauz.lab', { any: ['flauz.lab.runNow'], note: 'A new user\'s primary action is running the fixture evaluation ladder once (Run Lab Now; category "Flauz").' }],
 ]);
 
 /** The audit rubric (one row per checklist item; persona where it changes the expectation). */
 export const RUBRIC = [
-		{ id: 'DA01', area: 'A1 view-discoverability', persona: 'new', title: 'the six views exist in the single flauz container with their human-facing names' },
+		{ id: 'DA01', area: 'A1 view-discoverability', persona: 'new', title: 'the seven views exist in the single flauz container with their human-facing names' },
 		{ id: 'DA02', area: 'A1 view-discoverability', persona: 'new', title: 'container + per-view focus commands, category "Flauz" (palette/F1 reachable)' },
 		{ id: 'DA03', area: 'A2 next-steps', persona: 'new', title: 'every welcome links its surface\'s primary next action' },
 		{ id: 'DA04', area: 'A2 next-steps', persona: 'new', title: 'every welcome carries a guidance sentence explaining the surface' },

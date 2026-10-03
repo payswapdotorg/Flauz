@@ -1,0 +1,24 @@
+{
+	"name": "flauz-lab",
+	"publisher": "flauz",
+	"version": "0.1.0",
+	"engines": { "vscode": "^1.140.0" },
+	"contributes": {
+		"views": {
+			"flauz": [
+				{ "id": "flauz.lab", "name": "Lab" }
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "flauz.lab",
+				"contents": "The Flauz Lab learns which agent organizations serve your workload best: run the fixture-lane evaluation ladder, inspect candidates and compare against the single-agent baseline.\n[Run Lab Now](command:flauz.lab.runNow)\nSaved recommendations apply through Agent OS, never directly from this console."
+			}
+		],
+		"commands": [
+			{ "command": "flauz.lab.runNow", "title": "Run Lab Now", "category": "Flauz" },
+			{ "command": "flauz.focusView.lab", "title": "Focus Lab View", "category": "Flauz" },
+			{ "command": "flauz.lab.refreshView", "title": "Refresh Lab View", "category": "Flauz" }
+		]
+	}
+}

@@ -2,10 +2,57 @@
 	"version": 1,
 	"description": "Minimal fixture registry for the P2-003 discovery gate (DA23 parity-coverage check).",
 	"rows": [
-		{ "surface": "extensions/flauz-workspace", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] },
-		{ "surface": "extensions/flauz-agent", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] },
-		{ "surface": "extensions/flauz-environments", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] },
-		{ "surface": "extensions/flauz-browser", "capability": "fixture", "class": "desktop-full", "reason": "fixture", "evidence": [] },
-		{ "surface": "extensions/flauz-models", "capability": "fixture", "class": "web-degraded", "reason": "fixture", "evidence": [] }
+		{
+			"surface": "extensions/flauz-workspace",
+			"capability": "fixture",
+			"class": "web-degraded",
+			"reason": "fixture",
+			"evidence": []
+		},
+		{
+			"surface": "extensions/flauz-agent",
+			"capability": "fixture",
+			"class": "web-degraded",
+			"reason": "fixture",
+			"evidence": []
+		},
+		{
+			"surface": "extensions/flauz-environments",
+			"capability": "fixture",
+			"class": "web-degraded",
+			"reason": "fixture",
+			"evidence": []
+		},
+		{
+			"surface": "extensions/flauz-browser",
+			"capability": "fixture",
+			"class": "desktop-full",
+			"reason": "fixture",
+			"evidence": []
+		},
+		{
+			"surface": "extensions/flauz-models",
+			"capability": "fixture",
+			"class": "web-degraded",
+			"reason": "fixture",
+			"evidence": []
+		},
+		{
+			"surface": "extensions/flauz-lab",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "Fixture row for the LAB-009 clean tree (mirrors the live registry's posture row).",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-lab/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				}
+			],
+			"recoveryPath": "Browser entrypoint in a later wave."
+		}
 	]
 }
