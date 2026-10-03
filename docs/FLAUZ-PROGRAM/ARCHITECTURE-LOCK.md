@@ -342,3 +342,14 @@ Simulation/training jobs use durable worker infrastructure and resumable artifac
 ### 10.10 External technology
 
 CopilotKit, OpenMuse and Code OSS remain non-authoritative integration technologies. The Lab is a Flauz-owned contract layer and is independent of a particular simulation/RL library.
+
+
+## 11. ZCode-derived Product Patterns and Capability Exchange
+
+Selected external product patterns may be adopted as additive projections over existing Flauz authorities. They must not create a second task scheduler, workflow journal, permission broker, model router, resource registry or persistence authority.
+
+Capability Packs are versioned descriptions of agent-facing artifacts (CLI, skill/instructions, MCP server, commands, configuration and provenance). External sources such as Printing Press/Printing Press Library, Composio, MCP/skills catalogues and user-supplied API/site definitions are replaceable import sources only. Imported entries become Flauz-owned records with hashes, licenses, declared permissions/endpoints and verification status.
+
+Hooks may enrich context or request existing approval behavior but may not bypass policy or leases. Persistent agent memory is subordinate to Workspace OS and tenant policy. Plan mode, run observability and replay are projections over the canonical Flauz journal. Compound commands and local mirrors are allowed only as bounded optimizations that preserve provenance and side-effect visibility.
+
+Phase-C placement: `build/flauz/zcode-patterns/**`, `build/flauz/capabilities/**`, `extensions/flauz-capabilities/**`. No `src/vs/**` change without an explicit architecture decision.

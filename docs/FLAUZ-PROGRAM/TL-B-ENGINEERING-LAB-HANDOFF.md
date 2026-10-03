@@ -238,3 +238,30 @@ For the real-task bridge, use a typed `LabExecutionPort) with a deterministic fa
 
 The Lab never bypasses Agent OS, approvals, leases, environment trust or browser policy.
 
+
+
+## Phase C — ZCode-derived product patterns + Capability Exchange
+
+LAB-001..011 are complete. TL-B now owns the independent Phase-C lane.
+
+### Product patterns
+
+Adopt product patterns that improve daily usability without importing ZCode runtime architecture: background-agent UX, hooks, explicit plan mode, run health/roster/concurrency observability, cold replay, scoped persistent memory, CLI/headless parity and capability/plugin discovery.
+
+### Capability Exchange
+
+Build a Flauz-owned Capability Pack registry with replaceable source adapters for Printing Press/Printing Press Library, Composio, MCP/skills catalogues and user-supplied API/site/community-project specifications. A source can discover or generate an artifact, but Flauz owns verification, permissioning, provenance and execution.
+
+### Worker split
+
+- **B1 — Runtime/product patterns:** ZC-001..005.
+- **B2 — Capability Exchange:** ZC-006..008.
+- **B3 — Product surfaces and acceptance:** ZC-009..010.
+
+### Non-interference law
+
+Phase-C workers branch from current main and may touch only additive build/ext surfaces and dedicated tests. No TL-A productionization surface or generated release artifact may be hand-edited. No `src/vs/**` change without a new architecture decision. Cross-TL integration, when eventually needed, uses stable contracts or adapters only.
+
+### External-source security law
+
+Imported capabilities are untrusted until verified. Record source identity, retrieval time, artifact hash, version, license, declared permissions/endpoints, platform compatibility and verification status. Installation never grants a permission by itself.
