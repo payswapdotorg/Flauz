@@ -204,6 +204,9 @@ export const LAW_SURFACES: readonly LawSurface[] = [
 	{ id: 'integrityKeyStore', owner: 'flauz-integrity', classification: 'port-owned', files: [INTEGRITY_KEY_STORE_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
 	// --- this wave's own durable home ---
 	{ id: 'isolationRecords', owner: 'flauz-isolation', classification: 'workspace-bound', files: [], dirs: [ISOLATION_DIR], recordPrefixes: [ISOLATION_AUDIT_PREFIX, ISOLATION_ENFORCE_PREFIX], dirPrefixes: [] },
+	// --- the worker-durability plane (A-PROD-005-W4; the station law-table growth:
+	//     the reviewed contract-pin update the law's own comment demands) ---
+	{ id: 'durabilityRecords', owner: 'flauz-durability', classification: 'workspace-bound', files: ['.flauz/durability/lanes.json'], dirs: ['.flauz/durability'], recordPrefixes: ['heartbeat-', 'status-'], dirPrefixes: [] },
 ];
 
 /**
@@ -220,6 +223,7 @@ export const KNOWN_EXTENSIONS: readonly string[] = [
 	'flauz-diagnostics',
 	'flauz-environments',
 	'flauz-execution',
+	'flauz-durability',
 	'flauz-integrity',
 	'flauz-isolation',
 	'flauz-lab',

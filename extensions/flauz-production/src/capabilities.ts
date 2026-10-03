@@ -218,6 +218,16 @@ export const CAPABILITY_CATALOG: readonly CapabilityDef[] = [
                 supported: 'the enforcement verdict for the CURRENT workspace: the cross-workspace census (exactly ONE .flauz/ tree reachable by law -- multiple = typed violation with the paths), the export-dir shape (exports live ONLY directly under .flauz-exports/, never inside .flauz/ -- the anti-recursion law), the telemetry local-only law, the memory-tier + migration-state containment, the banked-record taskId law (anonymous rows = typed violation); typed verdicts green/violation/unknown/absent (absent surfaces degrade typed, never silent green); plus the read-only status view (the audit summary + the last verdict).',
                 unsupported: 'enforcement REPORTS violations -- it never quarantines or deletes (a violation routes to the operator with the exact paths; the records are never rewritten); the real repo tree\'s deliberate tamper-battery fixtures are honestly NAMED (the doctored-ledger fixture) rather than allowlisted -- truth over guessing; host-level isolation is out of jurisdiction (disclosed).',
         },
+        // --- flauz-durability (A-PROD-005-W4 -- the station catalog integration) ---
+        {
+                id: 'durability-supervision',
+                owner: 'flauz-durability',
+                commands: ['flauz.durability.register', 'flauz.durability.heartbeat', 'flauz.durability.status'],
+                wave: 'A-PROD-005-W4 (the worker-durability plane) -- the W4 worker lane, station-landed',
+                gate: 'the flauz-durability suite (40 tests: register 7 / heartbeat 8 / status 11 / privacy 4 / contract 10)',
+                supported: 'the long-running worker supervision plane: registering supervised lanes (the typed lane records with heartbeat interval, staleness threshold, escalation policy -- notify / checkpoint-and-restart / refuse), recording heartbeats (the liveness classes LIVE/STALE/FLAT/UNKNOWN over the bounded beat ring; the escalation-demand records), and the supervision verdict (every lane\'s liveness + interval stats + the checkpoint-law consultation: the workspace-bound state surfaces + the W2 export anchor when one exists).',
+                unsupported: 'the RECORD-KEEPING-vs-EXECUTION boundary: the extension proves the supervision records + verdict machinery; the actual process supervision/restart execution belongs to the host\'s orchestration -- disclosed, never claimed (the same posture as W3\'s host-isolation disclosure); a STALE/FLAT classification RECORDS the escalation demand, it never executes a restart; UNKNOWN lanes are typed refusals, never guessed verdicts.',
+        },
         // --- flauz-lab (the LAB-009 lab console W1 -- the station catalog integration) ---
         {
                 id: 'lab-console',

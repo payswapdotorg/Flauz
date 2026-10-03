@@ -214,8 +214,10 @@ suite('contract — the isolation law table is pinned byte-equal to the REAL own
 			OWNER_RELEASE_CHECKLIST_PREFIX,
 			'enforce-',
 			OWNER_PRODUCTION_GATE_PREFIX,
+			'heartbeat-',
 			OWNER_INTEGRITY_LEDGER_PREFIX,
 			OWNER_PRODUCTION_MATRIX_PREFIX,
+			'status-',
 			'verify-',
 		]);
 		assert.deepEqual(lawDirPrefixes(), [OWNER_EXPORT_DIR_PREFIX, OWNER_BUNDLE_DIR_PREFIX].sort());
