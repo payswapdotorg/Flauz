@@ -92,3 +92,8 @@ Never promote a lower evidence level by wording alone.
 ## Control-plane law
 
 When this file conflicts with `main`, `ARCHITECTURE-LOCK.md`, `MASTER-ROADMAP.md` or `WORK-REGISTRY.md`, those higher-authority sources win.
+
+
+## TL-B Phase C status — ZCode-derived product patterns + Capability Exchange
+
+LAB-001..011 are complete. TL-B is authorized to begin Phase C independently of TL-A. The protected productionization surfaces remain TL-A-owned; Phase C uses additive build/ext surfaces, stable contracts and station-owned generated artifacts only.
