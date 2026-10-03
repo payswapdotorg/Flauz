@@ -1,0 +1,30 @@
+{
+        "name": "flauz-durability",
+        "displayName": "Flauz Durability",
+        "description": "Flauz worker-durability plane (A-PROD-005-W4): the long-running worker supervision machinery (the wave the production gate's LAST not-yet row -- workerDurability -- names): the supervised lane registry (flauz.durability.register: the typed lane record -- lane id, the owning task/extension, the heartbeat interval, the staleness threshold, the escalation policy notify/checkpoint-and-restart/refuse -- persisted .flauz/durability/lanes.json (flauz.durability-lanes/v1); a lane id is unique: re-registering an id refreshes its policy, never duplicates; swept + banked census-visible), the worker's own liveness signal (flauz.durability.heartbeat: stamps the lane's beat history -- a bounded ring, the last 32 stamps with the injected clock -- and classifies the PRE-BEAT liveness LIVE / STALE (past the threshold) / FLAT (no beat ever, past one interval) / UNKNOWN (lane not registered: a typed refusal, never a guessed verdict); a STALE/FLAT classification triggers the lane's escalation policy record -- the machinery RECORDS the escalation demand, the execution of an actual restart routes through the owning task's own machinery, disclosed; record .flauz/durability/heartbeat-<stamp>.json (flauz.durability-heartbeat/v1), swept + banked), and the supervision verdict (flauz.durability.status: every registered lane with its liveness class, its beat-history shape -- the inter-beat intervals min/median/max + the jitter disclosure -- its escalation state, and the CHECKPOINT LAW consultation: the workspace-bound record surfaces the lane's owning extension owns through the W3 isolation audit's derivation surfaces, read-only, + the W2 backup plane's export anchor when one exists; the typed verdict table per lane supervised-green / stale / flat / unknown / degraded -- a lane whose state surfaces do not resolve is typed, never silent; record .flauz/durability/status-<stamp>.json (flauz.durability-status/v1), swept + banked).",
+        "version": "0.1.0",
+        "publisher": "flauz",
+        "license": "MIT",
+        "type": "module",
+        "engines": { "vscode": "^1.140.0" },
+        "categories": ["Other"],
+        "activationEvents": [
+                "onCommand:flauz.durability.register",
+                "onCommand:flauz.durability.heartbeat",
+                "onCommand:flauz.durability.status"
+        ],
+        "main": "./dist/extension.js",
+        "contributes": {
+                "commands": [
+                        { "command": "flauz.durability.register", "title": "Durability: Register Supervised Worker Lane", "category": "Flauz" },
+                        { "command": "flauz.durability.heartbeat", "title": "Durability: Record Worker Heartbeat", "category": "Flauz" },
+                        { "command": "flauz.durability.status", "title": "Durability: Supervision Verdict (The Status)", "category": "Flauz" }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+                "test": "mocha --ui tdd test/*.test.ts"
+        },
+        "devDependencies": { "typescript": "5.9.3" }
+}

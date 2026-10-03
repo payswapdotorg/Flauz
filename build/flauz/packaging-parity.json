@@ -1940,6 +1940,99 @@
 				}
 			],
 			"recoveryPath": "Implement the IsolationFsPort over vscode.workspace.fs in the browser build (the symlink-leak class maps to the service-side scan lane); the desktop entry keeps nodeFs."
+		},
+		{
+			"surface": "extensions/flauz-durability",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.durability.register + onCommand:flauz.durability.heartbeat + onCommand:flauz.durability.status), no views, no proposed APIs. Row added by A-PROD-005-W4 (the worker-durability plane: the long-running worker supervision -- the lane registry + the heartbeat machinery + the supervision verdict with the checkpoint-law consultation) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-durability/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-durability/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-durability/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the DurabilityFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-durability",
+			"capability": "durability core: the worker-durability plane -- the supervised lane registry with the uniqueness + policy-refresh law (lanes.ts), the heartbeat machinery with the bounded beat ring + the typed pre-beat liveness law LIVE/STALE/FLAT/UNKNOWN + the escalation-demand records (heartbeat.ts), the supervision verdict with the interval statistics + the jitter disclosure + the CHECKPOINT LAW consultation (the W3 isolation audit derivation surfaces + the W2 export anchor, contract-duplicated read-only, status.ts), the row-contract parsers + chain hashes + the watermark + the lanes/heartbeat/status record contracts (api.ts, DL-32), the census-visible banking with watermark resync (banking.ts), the secret-shape canary sweep (privacy.ts, the W1/W2 posture), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-005-W4 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + the pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the flauz-workspace/flauz-isolation owning modules + node:crypto), the lane registry + heartbeat + status cores with the never-silent-green law (lanes.ts, heartbeat.ts, status.ts), the banking core (banking.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (DurabilityFsPort/Clock/OutputChannelPort); the node wiring lives exclusively in the wiring row below - the flauz-isolation core-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/banking.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/heartbeat.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/lanes.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-durability/src/status.ts"
+				}
+			],
+			"recoveryPath": "The core is host-agnostic: add the browser entrypoint + a workspace.fs-backed DurabilityFsPort and the whole supervision plane ships unchanged (the record-keeping + verdict machinery never needs node)."
+		},
+		{
+			"surface": "extensions/flauz-durability",
+			"capability": "durable-state wiring + lane/heartbeat/status record writes + census-visible evidence banking (node DurabilityFsPort over the workspace .flauz/ tree)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the DurabilityFsPort to node:fs/promises (readFileUtf8/readdir over the workspace tree + the consulted isolation-audit records and export anchors, the writes over the lane registry, the heartbeat records, the status records and the census-visible evidence ledger banking). The node dependency is confined to this wiring row; the core row above is node-free.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-durability/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the DurabilityFsPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs (the flauz-isolation wiring-row precedent)."
 		}
 	]
 }
