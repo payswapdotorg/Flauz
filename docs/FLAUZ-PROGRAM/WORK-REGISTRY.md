@@ -1237,3 +1237,31 @@ The program is complete only when:
 - **Station review fix (registered):** the two `LabRecommendation` test fixtures were missing the required `createdAt` field (the worker authored against the appendix summary, not the full interface) — the station added `createdAt: '2026-01-15T09:30:00.000Z'` / `'2026-01-20T14:05:00.000Z'` to the pipeline/single fixtures; mechanical only, no behavioral change. Also the recurring CodeMirror flattening: 482 leading-4-space lines -> tab restoration (zero residue; odd-indents verified as MIT-header continuations).
 - **Worker delivery lane:** B3 worker dispatched from inside the replay (session lab010, fresh chat `6f49d351` after the fresh-chat medicine — the original chat `8e7afedb` became un-navigable under the zero-assistant router bounce, voided with bounded discard). The turn fired at 09:25 through an OPEN window: ~33 min extended thinking (resource-timing probe: the completions request stayed in-flight, no completed entry — the decisive liveness signal), then ~23K chars streamed before the mid-stream quota-kill froze the stream (connection half-open, UI de-animated, null assistant server-side). The watch's stuck-clock was armed for a 60-min work-rich assault — the content was extracted BEFORE any assault: the transcript CodeMirror lane recovered 36801 chars COMPLETE (2 code blocks: taskBridge.ts 10073 + taskBridge.test.ts 20406), the completion report present, both files ending clean.
 - **DAG state after this landing:** 8/11 DONE (001-007, 010); LAB-008 (calibrator) + LAB-009 (lab console W1) ACTIVE with packets parked server-side (both awaiting their quota windows, loops + watches armed); LAB-011 TODO gated on 008+009 only. The core loop (workload -> world -> search -> recommendation -> bridge) is now FULLY landed on main; the remaining waves close the loop (calibration) and surface it (the console).
+
+
+## TL-B Phase C — ZCode-derived product patterns + Capability Exchange — 2026-10-03
+
+Status: ACTIVE  
+Owner: TL-B  
+Independence: no dependency on unfinished TL-A implementation.
+
+| ID | Owner | Status | Dependency |
+|---|---|---|---|
+| ZC-001 | TL-B | TODO | existing Lab contracts |
+| ZC-002 | TL-B | TODO | ZC-001 + AgentTask/Session |
+| ZC-003 | TL-B | TODO | ZC-001 + existing approval/tool contracts |
+| ZC-004 | TL-B | TODO | ZC-001 + journal/workflow |
+| ZC-005 | TL-B | TODO | ZC-001 + Workspace OS |
+| ZC-006 | TL-B | TODO | ZC-001 + capability/tool contracts |
+| ZC-007 | TL-B | TODO | ZC-006 |
+| ZC-008 | TL-B | TODO | ZC-006 + existing authorities |
+| ZC-009 | TL-B | TODO | ZC-002..008 through stable ports |
+| ZC-010 | TL-B | TODO | ZC-009 + complete quality gates |
+
+### Protected TL-A surfaces
+
+Phase-C workers must not edit the TL-A productionization extensions or generated release artifacts. The exact protected paths are recorded in the TL-B handoff and Phase-C roadmap section.
+
+### External capability-source posture
+
+Initial source classes: Printing Press/Printing Press Library; Composio; MCP/skills catalogues; direct user/API/site/community-project specifications. The Flauz capability registry remains authoritative for imported capability records and verification.
