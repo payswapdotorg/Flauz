@@ -199,6 +199,25 @@ export const CAPABILITY_CATALOG: readonly CapabilityDef[] = [
                 supported: 'the one-command integrity verdict: per pinned artifact -- re-hash vs the pin (tamper), ledger signature verification against the recorded public key (authenticity, key-store-independent), coverage (unsigned/torn); plus the read-only state view (pinned count, signed coverage, key fingerprint, last verdict).',
                 unsupported: 'verification REPORTS, it never repairs (a tampered or torn row routes to the operator; the ledger is never rewritten); the ledger starts EMPTY by design (a fresh workspace verifies every pinned artifact as typed unsigned coverage -- the first sign run is the operator\'s); absent key store or absent ledger is a typed degradation, never a silent green.',
         },
+        // --- flauz-isolation (A-PROD-005-W3 -- the station catalog integration) ---
+        {
+                id: 'isolation-audit',
+                owner: 'flauz-isolation',
+                commands: ['flauz.isolation.audit'],
+                wave: 'A-PROD-005-W3 (the data-isolation plane) -- the W3 worker lane, station-landed',
+                gate: 'the flauz-isolation suite (69 tests: audit 23 / enforce 18 / status 4 / contract 15 / privacy 9)',
+                supported: 'the boundary audit: every persistent surface the product writes (the .flauz/ tree\'s records -- the evidence ledger, telemetry, production census/matrix/gate, backup exports, migration state, the integrity ledger + key store, memory tiers -- each discovered through the REAL registry surfaces, never a hardcoded list), classified against the isolation law: workspace-bound (the default) / workspace-exportable (the typed operator-initiated export allowlist) / port-owned (the key store\'s sealed path law); a record found outside its lawful boundary is a typed BOUNDARY_VIOLATION with the exact path; an unknown surface class is a typed UNKNOWN disclosure (fail-closed, never a guessed verdict).',
+                unsupported: 'the audit enumerates and classifies -- it never repairs a boundary violation (the operator adjudicates; deliberate fixtures are named, not excused); the workspace is the isolatable unit this product owns (OS-level sandboxing/containers/multi-tenant host isolation are the HOST\'s posture, disclosed -- never claimed); the .git and node_modules host/tooling trees are deliberately outside the scan.',
+        },
+        {
+                id: 'isolation-enforce',
+                owner: 'flauz-isolation',
+                commands: ['flauz.isolation.enforce', 'flauz.isolation.status'],
+                wave: 'A-PROD-005-W3 (the data-isolation plane) -- the W3 worker lane, station-landed',
+                gate: 'the flauz-isolation suite (69 tests: audit 23 / enforce 18 / status 4 / contract 15 / privacy 9)',
+                supported: 'the enforcement verdict for the CURRENT workspace: the cross-workspace census (exactly ONE .flauz/ tree reachable by law -- multiple = typed violation with the paths), the export-dir shape (exports live ONLY directly under .flauz-exports/, never inside .flauz/ -- the anti-recursion law), the telemetry local-only law, the memory-tier + migration-state containment, the banked-record taskId law (anonymous rows = typed violation); typed verdicts green/violation/unknown/absent (absent surfaces degrade typed, never silent green); plus the read-only status view (the audit summary + the last verdict).',
+                unsupported: 'enforcement REPORTS violations -- it never quarantines or deletes (a violation routes to the operator with the exact paths; the records are never rewritten); the real repo tree\'s deliberate tamper-battery fixtures are honestly NAMED (the doctored-ledger fixture) rather than allowlisted -- truth over guessing; host-level isolation is out of jurisdiction (disclosed).',
+        },
         // --- flauz-lab (the LAB-009 lab console W1 -- the station catalog integration) ---
         {
                 id: 'lab-console',
