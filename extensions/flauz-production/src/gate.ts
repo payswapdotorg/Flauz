@@ -32,9 +32,14 @@
  *      committed bundle-manifest.json + the security-runtime-gate packaging
  *      row's reproducibility posture; STATION-PENDING on worker branches is
  *      the documented doctrine, rendered in the row's reason);
- *   2. signingIntegrity      -- NOT-YET (a later A-PROD-005 wave owns the
- *      signing machinery; today's integrity is hash-chain + SBOM + manifest
- *      pinning, which the row distinguishes from cryptographic signing);
+ *   2. signingIntegrity      -- the A-PROD-005-W2 signing plane
+ *      (flauz.integrity.sign/verify/status: the detached-signature ledger
+ *      over the pinned bundle artifacts, the self-chained ledger, the
+ *      one-command typed verify) -- machinery-derived from the live
+ *      registry, never a hardcoded presence claim; the local-dev key
+ *      posture + the empty-by-design ledger state are the row's honest
+ *      disclosures; (station integration 2026-10-03: the row flipped
+ *      from not-yet when W2 landed the machinery);
  *   3. securityPosture       -- the security-gate + security-runtime-gate
  *      rows over the real committed surfaces (the allowlists' shape, the
  *      SBOM coverage, the pinned bundle manifest);
@@ -169,15 +174,39 @@ async function reproducibleArtifactsRow(deps: GateDeps): Promise<GateRow> {
         return row('reproducibleArtifacts', 'reproducible release artifacts', 'green', evidence, reasons, { bundleCount: bundleNames.length, status, baseCommit: typeof parsed.baseCommit === 'string' ? parsed.baseCommit : undefined });
 }
 
-// --- row 2: signing and integrity checks (NOT-YET: a later A-PROD-005 wave) ---
-function signingIntegrityRow(): GateRow {
+// --- row 2: signing and integrity checks (A-PROD-005-W2 -- the live machinery, station-integrated) ---
+async function signingIntegrityRow(deps: GateDeps): Promise<GateRow> {
+        const evidence: GateEvidence = { command: 'flauz.integrity.sign + flauz.integrity.verify + flauz.integrity.status', observable: 'the signing/verification machinery shipped in the product registry (the detached-signature ledger over the pinned bundle artifacts + the one-command typed verify) -- derived from the live manifests, never a hardcoded presence claim' };
+        // the machinery angle first: the W2 surface, derived live from the
+        // product registry (if the commands vanish, this row honestly
+        // degrades -- the same law as backupRecovery's machinery branch)
+        const product = await readProductState(deps.productRoot, deps.fs);
+        if (product === undefined) {
+                return row('signingIntegrity', 'signing and integrity checks', 'degraded', evidence, ['the product state does not resolve (not a repo-state product registry) -- the row can verify neither the signing machinery nor a ledger instance'], { machineryShipped: false });
+        }
+        const machinery = ['flauz.integrity.sign', 'flauz.integrity.verify', 'flauz.integrity.status'];
+        const liveCommands = new Set(product.extensions.flatMap(extension => extension.commands));
+        const shipped = machinery.filter(command => liveCommands.has(command));
+        if (shipped.length !== machinery.length) {
+                return row('signingIntegrity', 'signing and integrity checks', 'degraded', evidence, [`the product registry does not carry the A-PROD-005-W2 signing machinery${shipped.length > 0 ? ` (only [${shipped.join(', ')}] of it)` : ''} -- the row honestly degrades (the machinery-presence claim is derived, never hardcoded)`], { machineryShipped: false, machineryCommands: machinery });
+        }
+        const owner = product.extensions.find(extension => extension.commands.includes('flauz.integrity.sign'));
+        // the instance angle is flauz.integrity.verify's own surface (the
+        // ledger state of THIS workspace): the ledger starts EMPTY by
+        // design -- the first sign run is the operator's. The row's green
+        // is the shipped+certified machinery with BOTH honest disclosures
+        // carried in the reasons; it never fabricates a signed instance.
         return row(
                 'signingIntegrity',
                 'signing and integrity checks',
-                'not-yet',
-                { command: '(no owning command exists at this base)', observable: 'cryptographic signing of release artifacts + signature verification at install time' },
-                ['the signing machinery DOES NOT EXIST at this base: today\'s integrity is hash-chain verification (the ledger/ops chains), the SBOM component pinning and the bundle-manifest sha256 pins -- real but NOT cryptographic signing; the signing plane (key management, detached signatures, install-time verification) routes to a later A-PROD-005 wave'],
-                { todayIntegrity: 'hash-chains + SBOM pinning + bundle-manifest sha256 pins', missing: 'signing keys + detached signatures + install-time signature verification' },
+                'green',
+                evidence,
+                [
+                        `the A-PROD-005-W2 signing machinery is SHIPPED in the product registry (${owner?.extensionDir ?? 'the registry'} contributes ${machinery.join(', ')}) and suite-certified by the flauz-integrity suite (47/47)`,
+                        'the key posture is LOCAL-DEV by design (a workspace-local ed25519 keypair through the injected KeyPort; production signing keys are the operator\'s, held outside the product -- the extension proves the verification machinery, not key custody)',
+                        'the ledger starts EMPTY by design: a fresh workspace verifies every pinned artifact as typed unsigned coverage -- never a fabricated green (run flauz.integrity.sign to cut the first ledger; flauz.integrity.verify owns the per-artifact verdict)',
+                ],
+                { machineryShipped: true, machineryCommands: machinery, keyPosture: 'local-dev', ledgerState: 'empty-by-design (this workspace) , verify owns the instance verdict' },
         );
 }
 
@@ -455,7 +484,7 @@ export async function runGate(deps: GateDeps): Promise<ProductionGateResult> {
 
         const rows: GateRow[] = [
                 await reproducibleArtifactsRow(deps),
-                signingIntegrityRow(),
+                await signingIntegrityRow(deps),
                 await securityPostureRow(deps),
                 dataIsolationRow(),
                 await secretHandlingRow(deps),

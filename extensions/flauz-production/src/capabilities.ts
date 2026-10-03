@@ -180,6 +180,35 @@ export const CAPABILITY_CATALOG: readonly CapabilityDef[] = [
                 supported: 'the execution resource-acquisition journal: the status render and the journal verifier (every acquisition/release is recorded, typed and hash-linked).',
                 unsupported: 'the journal records acquisitions -- it does not enforce quotas (the budget gate owns the budgets); it is workspace-local and never auto-shipped anywhere.',
         },
+        // --- flauz-integrity (A-PROD-005-W2, PR #140 -- the station catalog integration) ---
+        {
+                id: 'integrity-sign',
+                owner: 'flauz-integrity',
+                commands: ['flauz.integrity.sign'],
+                wave: 'A-PROD-005-W2 (the signing & integrity plane) -- the W2 worker lane, station-landed',
+                gate: 'the flauz-integrity suite (47 tests: sign 12 / verify 14 / status 4 / contract 9 / privacy 8)',
+                supported: 'the detached-signature ledger over the PINNED bundle artifacts: every artifact re-hashed live (never trusted from the manifest -- a disagreeing pin is a typed refusal), one ed25519 detached signature per artifact through the injected KeyPort, the self-chained ledger record (tamper-evident), persisted workspace-locally and banked census-visible.',
+                unsupported: 'the key posture is LOCAL-DEV by design (a workspace-local ed25519 keypair; production signing keys are the operator\'s, held outside the product -- the extension proves the verification machinery, not key custody); the private key never leaves the port-owned store (never committed, banked, or rendered); a pin mismatch or absent artifact refuses the whole batch (fail-closed, never a partial ledger).',
+        },
+        {
+                id: 'integrity-verify',
+                owner: 'flauz-integrity',
+                commands: ['flauz.integrity.verify', 'flauz.integrity.status'],
+                wave: 'A-PROD-005-W2 (the signing & integrity plane) -- the W2 worker lane, station-landed',
+                gate: 'the flauz-integrity suite (47 tests: sign 12 / verify 14 / status 4 / contract 9 / privacy 8)',
+                supported: 'the one-command integrity verdict: per pinned artifact -- re-hash vs the pin (tamper), ledger signature verification against the recorded public key (authenticity, key-store-independent), coverage (unsigned/torn); plus the read-only state view (pinned count, signed coverage, key fingerprint, last verdict).',
+                unsupported: 'verification REPORTS, it never repairs (a tampered or torn row routes to the operator; the ledger is never rewritten); the ledger starts EMPTY by design (a fresh workspace verifies every pinned artifact as typed unsigned coverage -- the first sign run is the operator\'s); absent key store or absent ledger is a typed degradation, never a silent green.',
+        },
+        // --- flauz-lab (the LAB-009 lab console W1 -- the station catalog integration) ---
+        {
+                id: 'lab-console',
+                owner: 'flauz-lab',
+                commands: ['flauz.lab.runNow', 'flauz.lab.saveRecommendation', 'flauz.focusView.lab', 'flauz.lab.refreshView'],
+                wave: 'LAB-009 (the Phase B lab console W1, PR #138) -- TL-B station-authored',
+                gate: 'the flauz-lab node --test suite (33/33: consoleState 18 + labView 15)',
+                supported: 'the Lab console view: the scenario tree with the run header (ladder level + honesty label), candidate rows with utility/topology and the baseline marker, the selected candidate\'s comparison rows, saved recommendations (each carrying its apply-refusal verbatim), runNow (a ladder run through the L2 rung), saveRecommendation, and the view\'s focus/refresh commands.',
+                unsupported: 'W1 saves are in-session only (the persistence wave is later); the apply seam is UI-honest (the refusal on every save -- no Agent-OS invocation from the console yet; the LAB-010 bridge stays a pure module consumed by the future wiring wave); the console renders and refuses, it never auto-applies.',
+        },
         // --- flauz-memory (the TL2 memory lane) ---
         {
                 id: 'memory-tiers',
