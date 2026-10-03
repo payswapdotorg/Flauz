@@ -1628,6 +1628,119 @@
 				}
 			],
 			"recoveryPath": "Packaging plus a web-backed LabConsolePort (the fixture core is pure TS with no node surface) ships the whole W1 console to web with byte-identical tree contents."
+		},
+		{
+			"surface": "extensions/flauz-production",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.production.census + onCommand:flauz.production.matrix + onCommand:flauz.production.gate), no views, no proposed APIs. Row added by A-PROD-005-W1 (the production verification plane: the runtime-installed-product census + the capability matrix + the production gate) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-production/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-production/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-production/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the ProductionFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-production",
+			"capability": "production core: the verification plane -- the runtime-installed-product census through the W5 product-root ports (the repo-state product registry reader + the runtime installed-product port + the five typed check classes installed/laws/presence/parity/sbom with the green/tampered/torn vocabulary and the typed absent/empty degradations, installedProduct.ts + productState.ts + census.ts), the documented supported/unsupported capability matrix derived from the live manifests' contributed commands matched against the documented catalog with the unknown/drift typed disclosures (capabilities.ts + matrix.ts), the production gate binding the ELEVEN prove-items with their evidence pointers + the typed not-yet rows naming the owning later waves + the degraded census consultation (gate.ts), the per-surface version inventory + readiness classification (versionInventory.ts), the row-contract parsers + chain hashes (verify.ts), the census-visible banking with watermark resync (banking.ts), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-005-W1 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the W5 owning modules), the secret-shape canary sweep (privacy.ts, the W1/W5 posture), the shared timestamp module (format.ts, the PU6 verbatim copy), and the wave's own machinery -- the product-state reader with the contributes.commands extension (productState.ts), the runtime installed-product port + reader (installedProduct.ts), the five-class census (census.ts), the capability catalog + closure (capabilities.ts), the derivation + disclosure matrix (matrix.ts), the eleven-row gate (gate.ts), the version inventory (versionInventory.ts), the row contracts (verify.ts), the banking core (banking.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (ProductionFsPort/Clock/OutputChannelPort/VersionsInfo/InstalledProductPort/ProductRoot); the node wiring lives exclusively in the wiring row below - the flauz-release wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/banking.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/capabilities.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/census.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/gate.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/installedProduct.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/matrix.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/productState.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/verify.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-production/src/versionInventory.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed ProductionFsPort (vscode.workspace.fs + workspace-folders readdir + a service-side installed-product inventory in place of vscode.extensions.all over the dist tree) ships the whole census/matrix/gate surface to web with byte-identical artifacts; the runtime port maps to the web extension host's enumeration."
+		},
+		{
+			"surface": "extensions/flauz-production",
+			"capability": "durable-state wiring + census/matrix/gate record writes + census-visible evidence banking (node ProductionFsPort over the workspace .flauz/ tree, the runtime installed-product enumeration, and the .flauz/evidence/ ledger + watermark resync the banking path owns)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the ProductionFsPort to node:fs/promises (readFile/readdir/mkdir/writeFile/appendFile over the workspace root's .flauz/production/ tree for the census records + matrix artifacts + gate records, the read-only repo-state product surfaces + durable-state consultation surfaces, and the .flauz/evidence/ ledger + watermark resync the banking path owns) and the runtime installed-product port to vscode.extensions.all. The blocker is the wiring choice, not the core (see its row) - the flauz-release wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-production/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the ProductionFsPort over vscode.workspace.fs in the browser build (readdir via workspace folders / a service-side listing; the runtime installed-product port maps to the web extension host's enumeration); the desktop entry keeps nodeFs."
 		}
 	]
 }

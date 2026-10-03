@@ -1,0 +1,30 @@
+{
+	"name": "flauz-production",
+	"displayName": "Flauz Production",
+	"description": "Flauz production-readiness verification plane (A-PROD-005-W1): the runtime-installed-product census (flauz.production.census: the extension set the runtime actually loaded + the dist-tree manifests + the service-side parity/SBOM surfaces, verified against the repo-state product registry through the W5 product-root ports -- every expected extension present + parseable, no unexpected extension, parity coverage both directions over the installed set, SBOM component coverage, the built-in id/entrypoint laws; the typed verdict table green/tampered/torn per check class; where the runtime surface is absent the census degrades typed, never silently green; the record persisted workspace-locally + census-visible), the documented supported/unsupported capability matrix (flauz.production.matrix: every capability the product ships -- rows derived from the real registry surfaces, never a hardcoded list that can drift; unknown-to-the-matrix capabilities = typed disclosure; persisted machine-readable + rendered human-readable), and the production gate (flauz.production.gate: the one-command verdict binding the ELEVEN prove-items -- the items with existing surfaces evaluate from the real surfaces at runtime with their evidence pointers, the items needing new machinery are typed NOT-YET rows naming the owning later wave; GO-FOR-BETA / NOT-PRODUCTION-READY with the exact row-level truth, never a silently green aggregate).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": { "vscode": "^1.140.0" },
+	"categories": ["Other"],
+	"activationEvents": [
+		"onCommand:flauz.production.census",
+		"onCommand:flauz.production.matrix",
+		"onCommand:flauz.production.gate"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{ "command": "flauz.production.census", "title": "Production: Installed-Product Census (Runtime Verification)", "category": "Flauz" },
+			{ "command": "flauz.production.matrix", "title": "Production: Capability Matrix (Supported/Unsupported)", "category": "Flauz" },
+			{ "command": "flauz.production.gate", "title": "Production: Gate (Production-Readiness Go/No-Go)", "category": "Flauz" }
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": { "typescript": "5.9.3" }
+}
