@@ -1,0 +1,30 @@
+{
+	"name": "flauz-isolation",
+	"displayName": "Flauz Isolation",
+	"description": "Flauz data-isolation plane (A-PROD-005-W3): the workspace-boundary enforcement (flauz.isolation.audit: enumerates EVERY persistent surface the product writes -- the .flauz/ tree's evidence ledger, telemetry state + records, production census/matrix/gate records, backup recovery + exports, migration state, integrity ledger/verify records + the port-owned key store, memory tiers + watermarks, and every other durable surface -- each discovered through the REAL product registry surfaces (the extensions/flauz-* manifests, the packaging-parity registry, the SBOM components: the census derivation, never a hardcoded list that can drift) and classified against the isolation law: workspace-bound (the default: the record's lifetime is the workspace's, it never leaves the tree) / workspace-exportable (the operator-initiated export surfaces: the W2 backup export, the release self-export, the diagnostics bundle -- the typed allowlist) / port-owned (the integrity key store: sealed to the port's own path law); a registry-grown extension or surface class the law does not know = typed UNKNOWN (fail-closed disclosure, never a guessed verdict); a record found OUTSIDE its lawful boundary (a stamp-shaped record file, an export- or bundle-shaped directory outside its lawful home, a nested .flauz/ or .flauz-exports/ tree, a symlink leaking the boundary) = typed BOUNDARY_VIOLATION with the exact path; record .flauz/isolation/audit-<stamp>.json (flauz-isolation-audit/v1), swept fail-closed + banked census-visible), the enforcement verdict (flauz.isolation.enforce: for the CURRENT workspace -- the cross-workspace census (how many .flauz/ trees are reachable from this workspace root: exactly ONE by law, multiple = typed violation with the paths), the export-dir shape (exports live ONLY in the .flauz-exports/ dir, never inside .flauz/ -- the W2 anti-recursion law), the telemetry local-only law (the W4 plane's state exists only at its lawful workspace-local paths; a violated one-tree census degrades the containment checks to unknown, never a silent green), the memory-tier containment, the migration-state containment, the banked-record taskId law (every banked evidence-ledger row names its owning extension -- anonymous rows = typed violation, torn rows = typed unknown); the typed verdict table per check green/violation/unknown/absent (absent surfaces degrade typed, never silent green); record .flauz/isolation/enforce-<stamp>.json (flauz-isolation-enforce/v1), swept + banked), and the read-only state view (flauz.isolation.status: the audit's surface classification summary + the last enforcement verdict -- rendered, no state change).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": { "vscode": "^1.140.0" },
+	"categories": ["Other"],
+	"activationEvents": [
+		"onCommand:flauz.isolation.audit",
+		"onCommand:flauz.isolation.enforce",
+		"onCommand:flauz.isolation.status"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{ "command": "flauz.isolation.audit", "title": "Isolation: Audit Workspace Boundaries (The Boundary Audit)", "category": "Flauz" },
+			{ "command": "flauz.isolation.enforce", "title": "Isolation: Enforce (The Enforcement Verdict)", "category": "Flauz" },
+			{ "command": "flauz.isolation.status", "title": "Isolation: Status (Read-Only State View)", "category": "Flauz" }
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": { "typescript": "5.9.3" }
+}

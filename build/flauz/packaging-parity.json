@@ -1839,6 +1839,107 @@
 				}
 			],
 			"recoveryPath": "Implement the IntegrityFsPort over vscode.workspace.fs in the browser build + a service-side KeyPort (the key custody seam maps to the service's HSM-backed lane in an operator deployment); the desktop entry keeps nodeFs + the node ed25519 KeyPort."
+		},
+		{
+			"surface": "extensions/flauz-isolation",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.isolation.audit + onCommand:flauz.isolation.enforce + onCommand:flauz.isolation.status), no views, no proposed APIs. Row added by A-PROD-005-W3 (the data-isolation plane: the workspace-boundary enforcement -- the boundary audit + the enforcement verdict + the read-only status view) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-isolation/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-isolation/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-isolation/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the IsolationFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-isolation",
+			"capability": "isolation core: the data-isolation plane -- the boundary audit (the REAL product-registry surface derivation through the product-root port with the law-table classification workspace-bound/workspace-exportable/port-owned + the typed UNKNOWN disclosures for registry-grown extensions and unclaimed .flauz/ entries, law.ts + audit.ts), the boundary scan (the typed finding kinds nested-flauz-tree/export-outside-exports-dir/bundle-outside-boundary/record-outside-boundary/symlink-into-boundary over the walked workspace tree, scan.ts), the enforcement verdict (the six typed checks with the green/violation/unknown/absent table, enforce.ts), the read-only status view (status.ts), the row-contract parsers + chain hashes + the watermark + product-registry contracts (api.ts, DL-32), the census-visible banking with watermark resync (banking.ts), the secret-shape canary sweep (privacy.ts, the W1/W2 posture), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-005-W3 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + the pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the W2/W1 owning modules + node:crypto), the isolation law table with the census-mirroring ids + the record/dir shapes derived from it (law.ts), the boundary scan (scan.ts), the audit + enforcement cores with the never-silent-green law (audit.ts, enforce.ts), the read-only status view (status.ts), the banking core (banking.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (IsolationFsPort/Clock/OutputChannelPort/product-root probe); the node wiring lives exclusively in the wiring row below - the flauz-integrity core-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/audit.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/banking.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/enforce.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/law.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/scan.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-isolation/src/status.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed IsolationFsPort ships the whole audit/enforce/status surface to web with byte-identical artifacts; the boundary walk moves behind the port seam (a service-side scan drives the same seam)."
+		},
+		{
+			"surface": "extensions/flauz-isolation",
+			"capability": "durable-state wiring + audit/enforce record writes + census-visible evidence banking (node IsolationFsPort over the workspace .flauz/ tree with the symlink probe readlink, and the .flauz/evidence/ ledger + watermark resync the banking path owns)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the IsolationFsPort to node:fs/promises (readFileUtf8/readdir over the workspace tree + the product registry, readlink for the boundary scan's symlink-leak class, the writes over the workspace root's .flauz/isolation/ tree for the audit + enforce records, and the .flauz/evidence/ ledger + watermark resync the banking path owns). The blocker is the wiring choice, not the core (see its row) - the flauz-integrity wiring-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-isolation/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the IsolationFsPort over vscode.workspace.fs in the browser build (the symlink-leak class maps to the service-side scan lane); the desktop entry keeps nodeFs."
 		}
 	]
 }

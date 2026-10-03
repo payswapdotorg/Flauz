@@ -7,11 +7,12 @@
  * class (green / red / degraded / not-yet) with single-row failure
  * fixtures, the GO-FOR-BETA / NOT-PRODUCTION-READY verdict law, the
  * never-silently-green law, and the REAL-REPO local-real receipt (the gate
- * over the live product: green rows where surfaces exist, the two typed
- * not-yet rows holding the verdict at NOT-PRODUCTION-READY -- the
+ * over the live product: green rows where surfaces exist, the one typed
+ * not-yet row holding the verdict at NOT-PRODUCTION-READY -- the
  * signingIntegrity row flipped to the live machinery with A-PROD-005-W2
- * (the station integration: green over the real product, degraded when
- * the machinery is absent from the registry, never a hardcoded claim).
+ * and dataIsolation with W3 (the station integrations: green over the
+ * real product, degraded when the machinery is absent from the registry,
+ * never a hardcoded claim).
  */
 
 import * as assert from 'node:assert/strict';
@@ -54,18 +55,26 @@ suite('A-PROD-005-W1 production gate: the row vocabulary', () => {
                 }
         });
 
-        test('the two not-yet rows name their owning later waves and are never green; the signing row degrades honestly when the machinery is absent (the station W2 integration)', async () => {
+        test('the one not-yet row names its owning later wave and is never green; the signing + isolation rows degrade honestly when the machinery is absent (the station W2/W3 integrations)', async () => {
                 const product = await bootFixtureProduct();
                 const workspace = await bootFixtureWorkspace();
                 try {
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: product.root, installedProduct: absentRuntimePort() });
-                        for (const id of ['dataIsolation', 'workerDurability']) {
+                        for (const id of ['workerDurability']) {
                                 const entry = rowOf(result.rows, id);
                                 assert.ok(entry !== undefined, `${id} exists`);
                                 assert.equal(entry.status, 'not-yet');
                                 assert.ok(entry.reasons.some(reason => reason.includes('later A-PROD-005 wave')), `${id} names the owning later wave`);
                                 assert.equal(entry.evidence.command, '(no owning command exists at this base)');
                         }
+                        // the fixture product carries NO flauz-isolation extension either: the
+                        // dataIsolation row must DEGRADE (the machinery-presence claim is
+                        // derived from the live registry, never hardcoded)
+                        const isolation = rowOf(result.rows, 'dataIsolation');
+                        assert.ok(isolation !== undefined, 'dataIsolation exists');
+                        assert.equal(isolation.status, 'degraded');
+                        assert.ok(isolation.reasons.some(reason => reason.includes('does not carry the A-PROD-005-W3 isolation machinery')), 'the degraded row names the machinery absence');
+                        assert.ok(isolation.evidence.command.includes('flauz.isolation.audit'), 'the row points at the real owning commands');
                         // the fixture product carries NO flauz-integrity extension: the
                         // signing row must DEGRADE (the machinery-presence claim is
                         // derived from the live registry, never hardcoded) -- never
@@ -89,7 +98,7 @@ suite('A-PROD-005-W1 production gate: the row vocabulary', () => {
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: product.root, installedProduct: absentRuntimePort() });
                         assert.equal(result.verdict, 'NOT-PRODUCTION-READY');
                         assert.ok(result.refusalRows.includes('signingIntegrity (degraded)'));
-                        assert.ok(result.refusalRows.includes('dataIsolation (not-yet)'));
+                        assert.ok(result.refusalRows.includes('dataIsolation (degraded)'));
                         assert.ok(result.refusalRows.includes('workerDurability (not-yet)'));
                         assert.ok(result.refusalRows.includes('installedProductCensus (degraded)'));
                         const lines = renderGate(result);
@@ -291,11 +300,11 @@ suite('A-PROD-005-W1 production gate: the record + the real-repo receipt', () =>
                 }
         });
 
-        test('THE REAL-REPO RECEIPT: over the live product every surfaced row is green (the signing row flipped with W2), the two not-yet rows hold the verdict, the census row rides the fixture port', async () => {
+        test('THE REAL-REPO RECEIPT: over the live product every surfaced row is green (the signing + isolation rows flipped with W2/W3), the one not-yet row holds the verdict, the census row rides the fixture port', async () => {
                 const workspace = await bootFixtureWorkspace();
                 try {
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: repoRoot, installedProduct: runtimePortFor(repoRoot) });
-                        for (const id of ['reproducibleArtifacts', 'signingIntegrity', 'securityPosture', 'secretHandling', 'observability', 'backupRecovery', 'failureRollback', 'upgradeCompatibility', 'documentedCapabilities', 'installedProductCensus']) {
+                        for (const id of ['reproducibleArtifacts', 'signingIntegrity', 'dataIsolation', 'securityPosture', 'secretHandling', 'observability', 'backupRecovery', 'failureRollback', 'upgradeCompatibility', 'documentedCapabilities', 'installedProductCensus']) {
                                 const entry = rowOf(result.rows, id);
                                 assert.ok(entry !== undefined, `${id} exists`);
                                 assert.equal(entry.status, 'green', `${id} is green over the real product (${JSON.stringify(entry.reasons)})`);
@@ -305,8 +314,13 @@ suite('A-PROD-005-W1 production gate: the record + the real-repo receipt', () =>
                         const signing = rowOf(result.rows, 'signingIntegrity');
                         assert.ok(signing !== undefined && signing.reasons.some(reason => reason.includes('LOCAL-DEV')), 'the key-posture disclosure is carried');
                         assert.ok(signing !== undefined && signing.reasons.some(reason => reason.includes('EMPTY by design')), 'the empty-ledger disclosure is carried');
+                        // the isolation row's green carries the workspace-vs-host boundary
+                        // disclosure (the honest boundary law)
+                        const isolation = rowOf(result.rows, 'dataIsolation');
+                        assert.ok(isolation !== undefined && isolation.reasons.some(reason => reason.includes('isolatable unit this product owns')), 'the workspace-boundary disclosure is carried');
+                        assert.ok(isolation !== undefined && isolation.reasons.some(reason => reason.includes('outside this plane')), 'the host-posture disclosure is carried');
                         assert.equal(result.verdict, 'NOT-PRODUCTION-READY');
-                        assert.deepEqual(result.refusalRows, ['dataIsolation (not-yet)', 'workerDurability (not-yet)'], 'exactly the two remaining not-yet rows hold the verdict (signingIntegrity flipped with A-PROD-005-W2)');
+                        assert.deepEqual(result.refusalRows, ['workerDurability (not-yet)'], 'exactly the one remaining not-yet row holds the verdict (signingIntegrity flipped with W2, dataIsolation with W3)');
                 } finally {
                         await workspace.cleanup();
                 }
@@ -318,7 +332,7 @@ suite('A-PROD-005-W1 production gate: the record + the real-repo receipt', () =>
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: repoRoot, installedProduct: absentRuntimePort() });
                         assert.equal(rowOf(result.rows, 'installedProductCensus')?.status, 'degraded');
                         assert.equal(result.verdict, 'NOT-PRODUCTION-READY');
-                        assert.deepEqual(result.refusalRows, ['dataIsolation (not-yet)', 'workerDurability (not-yet)', 'installedProductCensus (degraded)']);
+                        assert.deepEqual(result.refusalRows, ['workerDurability (not-yet)', 'installedProductCensus (degraded)']);
                 } finally {
                         await workspace.cleanup();
                 }
