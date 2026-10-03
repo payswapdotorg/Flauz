@@ -1,0 +1,30 @@
+{
+        "name": "flauz-integrity",
+        "displayName": "Flauz Integrity",
+        "description": "Flauz signing and integrity plane (A-PROD-005-W2): the detached-signature ledger over the pinned bundle artifacts (flauz.integrity.sign: reads build/flauz/security/bundle-manifest.json -- every pinned artifact's sha256 -- re-derives each artifact's hash LIVE over the real bytes, never trusting the manifest's value, then produces one ed25519 detached signature per artifact through the injected KeyPort; the ledger record binds artifact path + re-derived sha256 + algorithm id + key fingerprint + signature + clock-port timestamp, signs ITSELF (self-hash + self-signature -- the tamper-evident chain), persists workspace-locally + banks census-visible; the key posture is the DISCLOSED local-dev posture: a workspace-local ed25519 keypair generated on first sign, private key confined to the workspace-local key store owned by the port, never committed, never banked, never rendered -- production signing keys are the operator's, held outside the product; this extension proves the VERIFICATION machinery, not key custody), the one-command integrity verdict (flauz.integrity.verify: per pinned artifact -- re-hash the bytes, compare against the manifest pin (tamper signal), verify the ledger signature against the ledger's recorded public key (authenticity), check ledger coverage; the typed verdict table green/tampered/unsigned/torn per artifact + the ledger-chain row; absent key store / absent ledger = typed degradation, the record persists, never a silent green), and the read-only state view (flauz.integrity.status: pinned count, signed coverage, key fingerprint, last verify verdict summary -- rendered, no state change).",
+        "version": "0.1.0",
+        "publisher": "flauz",
+        "license": "MIT",
+        "type": "module",
+        "engines": { "vscode": "^1.140.0" },
+        "categories": ["Other"],
+        "activationEvents": [
+                "onCommand:flauz.integrity.sign",
+                "onCommand:flauz.integrity.verify",
+                "onCommand:flauz.integrity.status"
+        ],
+        "main": "./dist/extension.js",
+        "contributes": {
+                "commands": [
+                        { "command": "flauz.integrity.sign", "title": "Integrity: Sign Pinned Bundle Artifacts (Detached Signature Ledger)", "category": "Flauz" },
+                        { "command": "flauz.integrity.verify", "title": "Integrity: Verify (One-Command Integrity Verdict)", "category": "Flauz" },
+                        { "command": "flauz.integrity.status", "title": "Integrity: Status (Read-Only State View)", "category": "Flauz" }
+                ]
+        },
+        "scripts": {
+                "typecheck": "tsc --noEmit",
+                "typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+                "test": "mocha --ui tdd test/*.test.ts"
+        },
+        "devDependencies": { "typescript": "5.9.3" }
+}
