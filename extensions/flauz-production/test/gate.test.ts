@@ -7,12 +7,12 @@
  * class (green / red / degraded / not-yet) with single-row failure
  * fixtures, the GO-FOR-BETA / NOT-PRODUCTION-READY verdict law, the
  * never-silently-green law, and the REAL-REPO local-real receipt (the gate
- * over the live product: green rows where surfaces exist, the one typed
- * not-yet row holding the verdict at NOT-PRODUCTION-READY -- the
- * signingIntegrity row flipped to the live machinery with A-PROD-005-W2
- * and dataIsolation with W3 (the station integrations: green over the
- * real product, degraded when the machinery is absent from the registry,
- * never a hardcoded claim).
+ * over the live product: EVERY row green -- the verdict reads GO-FOR-BETA
+ * (A-PROD-005 complete: signingIntegrity flipped with W2, dataIsolation
+ * with W3, workerDurability with W4; the station integrations: green over
+ * the real product, degraded when the machinery is absent from the
+ * registry, never a hardcoded claim; the not-yet vocabulary is retired
+ * from the live row set).
  */
 
 import * as assert from 'node:assert/strict';
@@ -55,17 +55,21 @@ suite('A-PROD-005-W1 production gate: the row vocabulary', () => {
                 }
         });
 
-        test('the one not-yet row names its owning later wave and is never green; the signing + isolation rows degrade honestly when the machinery is absent (the station W2/W3 integrations)', async () => {
+        test('ZERO not-yet rows remain (A-PROD-005 complete); the three machinery rows (signing/isolation/durability) degrade honestly when the machinery is absent (the station W2/W3/W4 integrations)', async () => {
                 const product = await bootFixtureProduct();
                 const workspace = await bootFixtureWorkspace();
                 try {
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: product.root, installedProduct: absentRuntimePort() });
-                        for (const id of ['workerDurability']) {
+                        // the not-yet class is GONE from the vocabulary of live rows
+                        for (const entry of result.rows) {
+                                assert.notEqual(entry.status, 'not-yet', `${entry.id} is no longer not-yet (A-PROD-005 W1-W4 all landed)`);
+                        }
+                        // the fixture product ships NONE of the three machinery extensions: all
+                        // three rows must DEGRADE (machinery-presence derived, never hardcoded)
+                        for (const id of ['signingIntegrity', 'dataIsolation', 'workerDurability']) {
                                 const entry = rowOf(result.rows, id);
                                 assert.ok(entry !== undefined, `${id} exists`);
-                                assert.equal(entry.status, 'not-yet');
-                                assert.ok(entry.reasons.some(reason => reason.includes('later A-PROD-005 wave')), `${id} names the owning later wave`);
-                                assert.equal(entry.evidence.command, '(no owning command exists at this base)');
+                                assert.equal(entry.status, 'degraded', `${id} degrades over the machinery-less fixture`);
                         }
                         // the fixture product carries NO flauz-isolation extension either: the
                         // dataIsolation row must DEGRADE (the machinery-presence claim is
@@ -99,7 +103,7 @@ suite('A-PROD-005-W1 production gate: the row vocabulary', () => {
                         assert.equal(result.verdict, 'NOT-PRODUCTION-READY');
                         assert.ok(result.refusalRows.includes('signingIntegrity (degraded)'));
                         assert.ok(result.refusalRows.includes('dataIsolation (degraded)'));
-                        assert.ok(result.refusalRows.includes('workerDurability (not-yet)'));
+                        assert.ok(result.refusalRows.includes('workerDurability (degraded)'));
                         assert.ok(result.refusalRows.includes('installedProductCensus (degraded)'));
                         const lines = renderGate(result);
                         assert.ok(lines.some(line => line.includes('NOT-PRODUCTION-READY')));
@@ -300,7 +304,7 @@ suite('A-PROD-005-W1 production gate: the record + the real-repo receipt', () =>
                 }
         });
 
-        test('THE REAL-REPO RECEIPT: over the live product every surfaced row is green (the signing + isolation rows flipped with W2/W3), the one not-yet row holds the verdict, the census row rides the fixture port', async () => {
+        test('THE REAL-REPO RECEIPT — A-PROD-005 COMPLETE: every row green over the live product, the verdict reads GO-FOR-BETA (the W4 flip closed the last refusal row)', async () => {
                 const workspace = await bootFixtureWorkspace();
                 try {
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: repoRoot, installedProduct: runtimePortFor(repoRoot) });
@@ -319,8 +323,9 @@ suite('A-PROD-005-W1 production gate: the record + the real-repo receipt', () =>
                         const isolation = rowOf(result.rows, 'dataIsolation');
                         assert.ok(isolation !== undefined && isolation.reasons.some(reason => reason.includes('isolatable unit this product owns')), 'the workspace-boundary disclosure is carried');
                         assert.ok(isolation !== undefined && isolation.reasons.some(reason => reason.includes('outside this plane')), 'the host-posture disclosure is carried');
-                        assert.equal(result.verdict, 'NOT-PRODUCTION-READY');
-                        assert.deepEqual(result.refusalRows, ['workerDurability (not-yet)'], 'exactly the one remaining not-yet row holds the verdict (signingIntegrity flipped with W2, dataIsolation with W3)');
+                        // THE BETA GATE: every row green, zero refusal rows
+                        assert.equal(result.verdict, 'GO-FOR-BETA', 'A-PROD-005 complete: every prove-item row green over the real product');
+                        assert.deepEqual(result.refusalRows, [], 'zero refusal rows (signingIntegrity W2 + dataIsolation W3 + workerDurability W4 all flipped)');
                 } finally {
                         await workspace.cleanup();
                 }
@@ -332,7 +337,7 @@ suite('A-PROD-005-W1 production gate: the record + the real-repo receipt', () =>
                         const result = await runGate({ root: workspace.root, fs, clock, versions: fixtureVersions(), productRoot: repoRoot, installedProduct: absentRuntimePort() });
                         assert.equal(rowOf(result.rows, 'installedProductCensus')?.status, 'degraded');
                         assert.equal(result.verdict, 'NOT-PRODUCTION-READY');
-                        assert.deepEqual(result.refusalRows, ['workerDurability (not-yet)', 'installedProductCensus (degraded)']);
+                        assert.deepEqual(result.refusalRows, ['installedProductCensus (degraded)'], 'only the honest absent-runtime census row holds the verdict (all machinery rows green over the real product)');
                 } finally {
                         await workspace.cleanup();
                 }
