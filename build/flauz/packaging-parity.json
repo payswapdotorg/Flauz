@@ -2033,6 +2033,99 @@
 				}
 			],
 			"recoveryPath": "Implement the DurabilityFsPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs (the flauz-isolation wiring-row precedent)."
+		},
+		{
+			"surface": "extensions/flauz-incidents",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.incidents.report + onCommand:flauz.incidents.advance + onCommand:flauz.incidents.status), no views, no proposed APIs. Row added by A-PROD-006-W1 (the incident/problem registry plane: the closed-loop machinery of the handoff's A6 law -- the typed incident intake + the loop state machine + the ledger verdict, with the two-registry separation) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-incidents/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-incidents/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-incidents/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the IncidentsFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-incidents",
+			"capability": "incidents core: the incident/problem registry plane -- the typed incident intake with the four source bindings manual | telemetry-census | durability-escalation | dogfood-friction + the unresolvable-binding typed disclosure + the unique-id/revision-append law + the evidence-ref scoping (.flauz/ only) (incidents.ts), the loop state machine with the frozen A6 stage vocabulary + the typed forward transition lattice + the closure law (fail-closed: fix->regression requires the regression receipt, regression->release requires the release identity, release->post-release-verification requires the closing receipt) + the ONE reopen law + the verbatim registry-id carry at the registry-item stage (loop.ts), the ledger verdict with the loop verdict closed/open/reopened/refused-evidence + the three source-binding states + the closure readiness (status.ts), the row-contract parsers + chain hashes + the watermark + the incidents/loop/status record contracts (api.ts, DL-32), the census-visible banking with watermark resync (ledger.ts), the secret-shape canary sweep with the repro-note fail-closed law (privacy.ts, the W1/W2 posture), the pure-arithmetic ISO stamp formatter with the determinism law (format.ts), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-006-W1 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + the pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the flauz-workspace/flauz-durability owning modules + node:crypto), the incident intake + the loop state machine + the ledger verdict cores with the never-silent-green law (incidents.ts, loop.ts, status.ts), the banking core (ledger.ts), the privacy canary (privacy.ts), the pure-arithmetic formatter (format.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (IncidentsFsPort/Clock/OutputChannelPort); the node wiring lives exclusively in the wiring row below -- the flauz-durability core-row precedent. The loop journal is JSONL (one row per transition, canonical JSON); the incident ledger and the status record are pretty-printed artifacts (the durability pattern).",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/incidents.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/ledger.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/loop.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-incidents/src/status.ts"
+				}
+			],
+			"recoveryPath": "The core is host-agnostic: add the browser entrypoint + a workspace.fs-backed IncidentsFsPort and the whole incident/problem registry plane ships unchanged (the closed-loop machinery never needs node)."
+		},
+		{
+			"surface": "extensions/flauz-incidents",
+			"capability": "durable-state wiring + incident ledger/loop journal/status record writes + census-visible evidence banking (node IncidentsFsPort over the workspace .flauz/ tree)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the IncidentsFsPort to node:fs/promises (readFileUtf8/readdir over the workspace tree + the consulted source records -- the telemetry failure census, the durability heartbeat, the dogfood friction log, the writes over the incident ledger, the per-incident loop journals, the status records and the census-visible evidence ledger banking). The node dependency is confined to this wiring row; the core row above is node-free. The host wall clock is wired here with the determinism grep exemption comment (no host-clock calls anywhere else in src/).",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-incidents/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the IncidentsFsPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs (the flauz-durability wiring-row precedent)."
 		}
 	]
 }

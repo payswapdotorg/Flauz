@@ -355,6 +355,23 @@
 					"value": "extensions/flauz-workspace/dist/"
 				}
 			]
+		},
+{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-incidents@0.1.0",
+			"name": "flauz-incidents",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-incidents@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-incidents/dist/"
+				}
+			]
 		}
 	],
 	"dependencies": [
