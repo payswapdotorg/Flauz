@@ -1252,7 +1252,7 @@ DL-84's explicit revisit trigger fires: LAB-009 (the Lab product-console wave) g
 - **Placement:** `extensions/flauz-incidents` (the 20th flauz-* extension) — the sanctioned product lane per the DL-85 precedent (extensions/flauz-* prefix = fork-side, zero upstream merge surface), command-only activation (onCommand/onView whitelist only, no onStartupFinished, no star), auto-discovered by bundle-extensions.mjs, packaging-parity rows additive at landing (65 → 68 rows expected), SBOM component row additive.
 - **Scope guards (what DL-86 does NOT change):** the telemetry/durability/dogfood source surfaces are READ as sources only (zero edits to those extensions this wave); the production gate's eleven prove-items stay verbatim (the incident plane is post-production OPERATIONS, not a new prove-item — the launch plane (W2) binds it, with its own decision record if the gate vocabulary must grow); WORK-REGISTRY.md control-plane edits remain TL-owned station acts.
 
-Implementation routing: the A-PROD-006-W1 worker order pins this law (§7); the worker implements on branch `flauz-aprod/aprod-006-w1-incidents` at the pinned base `c984e1d9071` (main at claim time); the station independently re-verifies every receipt before landing (the ten-gate table) and updates this registry in the same merge wave.
+Implementation routing: the A-PROD-006-W1 worker order pins this law (§7); the worker implements on branch `flauz-aprod/aprod-006-w1-incidents` at the pinned base `07f1decc` (the DL-86 decision head); the station independently re-verifies every receipt before landing (the ten-gate table) and updates this registry in the same merge wave.
 
 ### Independence / ownership law
 
