@@ -1297,10 +1297,18 @@ Independence: no dependency on unfinished TL-A implementation.
 | ZC-004 | TL-B | DONE — landed (PR #147; landing record below) | ZC-001 + journal/workflow |
 | ZC-005 | TL-B | DONE — landed (PR #148; landing record below) | ZC-001 + Workspace OS |
 | ZC-006 | TL-B | TODO | ZC-001 + capability/tool contracts |
-| ZC-007 | TL-B | TODO | ZC-006 |
+| ZC-007 | TL-B | DONE — landed (PR #149; landing record below) | ZC-006 |
 | ZC-008 | TL-B | TODO | ZC-006 + existing authorities |
 | ZC-009 | TL-B | TODO | ZC-002..008 through stable ports |
 | ZC-010 | TL-B | TODO | ZC-009 + complete quality gates |
+
+
+#### ZC-007 landing record (PR #149, squash-merged d92cbcaa)
+
+- **ZC-007 (external capability-source adapters) — DONE:** PR #149, squash-merged `d92cbcaaa52`. Worker lane delivery (chat `b58d3dfd`, kick-spawned text-only): the FIRST delivery was lost whole to the transport (the assistant shells landed empty server-side; the 32K-char streamed report lived only in a wedged renderer tab) — the re-emission doctrine fired a fresh re-delivery turn that re-emitted the complete order from the original work order (7 files, 72 tests designed, one self-caught tsc-strict defect fixed pre-emission: the readonly-permission cast replaced with a type-predicate filter).
+- **The CodeMirror harvest law (new doctrine):** the DOM innerText virtualization caps rendered code blocks at ~2.1K chars (innerText harvests returned 4 truncated stubs for a 174K-char delivery); `extract_full.py` reads the CodeMirror editor STATES (`cm.cmView.view.state.doc.toString()`) which hold the complete documents — 174,725 chars across 9 code blocks, every file complete from header to closing brace. All future kick-lane harvests go through the CodeMirror extractor.
+- **TL seam transcription at apply time:** the zc006-permission-table TWIN COPIES (PACK_PERMISSION_IDS authority order verbatim into CAPABILITY_PERMISSIONS in both common/adapter.ts and common/import.ts — 'read-files', 'execute-command', 'network-access', 'write-workspace'); canonical box headers; lab-form assert imports (`import assert from 'assert'`). The zc006-verification-statuses seam keeps the fail-closed 'unverified' pin by law (imported entries ALWAYS enter unverified; no fabricated statuses) — the vocabulary transcription follows the ZC-006 receipt-path landing.
+- **Gates (repo-side, ALL GREEN):** scoped tsc strict EXIT 0; mocha tdd 72/72 (the worker's exact designed count); determinism grep comment-line-only; zero imports in common/**; placement additive-only `build/flauz/capabilities/sources/**` (7 files + the scoped tsconfig, 3,225 insertions, 0 deletions).
 
 ### Protected TL-A surfaces
 
@@ -1362,7 +1370,7 @@ Initial source classes: Printing Press/Printing Press Library; Composio; MCP/ski
 
 #### Phase C DAG state after these landings (2026-10-05)
 
-- 5/10 DONE (ZC-001 #143, ZC-002 #144, ZC-003 #146, ZC-004 #147, ZC-005 #148 — all landed through the push-opened auth path; ZC-003..ZC-005 through the kick-broken drought lanes with the inline-delivery doctrine + the re-emission cure for transport truncation); ZC-006 (Capability Pack Contract and Catalog) ACTIVE in the worker lane (turn 1 kicked); ZC-007..ZC-009 packets staged; ZC-010 gated on ZC-009 + the complete quality gates. The dead-PAT station-pending class is CLOSED — the rotated PAT landed all pending waves (ZC-001 #143, ZC-002 #144, A-PROD-006-W1 #145, ZC-003 #146, ZC-004 #147, ZC-005 #148).
+- 5/10 DONE (ZC-001 #143, ZC-002 #144, ZC-003 #146, ZC-004 #147, ZC-005 #148 — all landed through the push-opened auth path; ZC-003..ZC-005 through the kick-broken drought lanes with the inline-delivery doctrine + the re-emission cure for transport truncation); ZC-006 (Capability Pack Contract and Catalog) ACTIVE in the worker lane (verification.ts re-emission battling the MODEL_CONCURRENCY_LIMIT gate; full 7-file harvest already staged repo-side); ZC-007 DONE (#149, landed ahead of ZC-006 with the fail-closed unverified pin — the verification-statuses seam transcription follows the ZC-006 landing); ZC-008..ZC-009 packets staged; ZC-010 gated on ZC-009 + the complete quality gates. The dead-PAT station-pending class is CLOSED — the rotated PAT landed all pending waves (ZC-001 #143, ZC-002 #144, A-PROD-006-W1 #145, ZC-003 #146, ZC-004 #147, ZC-005 #148).
 
 #### TL-A station repair record — ZC-wave security-allowlist debt (2026-10-05)
 
