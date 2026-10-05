@@ -1,0 +1,85 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+/**
+ * Flauz Incidents extension activation (A-PROD-006-W1, TL-A).
+ *
+ * Activation discipline (activation-lint R1-R3): command activation ONLY
+ * (`onCommand:flauz.incidents.report + advance + status`) -- never `*`,
+ * never onStartupFinished (that budget is bridge + workspace only).
+ *
+ * Wires the node IncidentsFsPort (readFileUtf8 + readdir over the
+ * workspace tree + the write surface over the workspace .flauz/ tree) and
+ * follows the flauz-durability wiring precedent for the wall clock, the
+ * output channel and the workspace-root probe.
+ *
+ * THE DETERMINISM LAW (the grep gate): the host wall clock is wired here
+ * with the `determinism` + `injected` comment on the same line so the
+ * wave's grep gate (grep -v "determinism\|injected") exempts this single
+ * host-wiring line. No host-clock calls appear anywhere else in
+ * src/ -- the pure-API surface uses the injected clock exclusively.
+ */
+
+import * as vscode from 'vscode';
+import * as fs from 'node:fs/promises';
+import { setVscodeApi, DEFAULT_CLOCK } from './globals.ts';
+import {
+	type IncidentsFsPort,
+} from './api.ts';
+import { registerIncidentsCommands, type IncidentsCommandServices } from './commands.ts';
+
+const nodeFs: IncidentsFsPort = {
+	readFileUtf8: async path => {
+		try {
+			return await fs.readFile(path, { encoding: 'utf-8' });
+		} catch (err) {
+			if ((err as { code?: string }).code === 'ENOENT') {
+				return undefined;
+			}
+			throw err;
+		}
+	},
+	readdir: async path => {
+		try {
+			return await fs.readdir(path);
+		} catch (err) {
+			// Unlistable = missing (ENOENT), a non-directory path (ENOTDIR) or an
+			// unreadable path (EACCES/EPERM): all surface as undefined so the
+			// readers treat the path as a leaf, never crash on a
+			// file-where-a-dir-was-probed or a permission-bound tree.
+			const code = (err as { code?: string }).code;
+			if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' || code === 'EPERM') {
+				return undefined;
+			}
+			throw err;
+		}
+	},
+	mkdir: path => fs.mkdir(path, { recursive: true }),
+	writeFile: (path, contents) => fs.writeFile(path, contents, { encoding: 'utf-8' }),
+	appendFile: (path, contents) => fs.appendFile(path, contents, { encoding: 'utf-8' }),
+};
+
+export function activate(context: vscode.ExtensionContext): void {
+	setVscodeApi(vscode);
+
+	const channel = vscode.window.createOutputChannel('Flauz Incidents');
+	const services: IncidentsCommandServices = {
+		fs: nodeFs,
+		// determinism: injected host wall clock (the grep gate exempts this single host-wiring line; the pure-API surface uses the injected clock exclusively -- no Date.now()/new Date() anywhere else in src/).
+		clock: (): number => Date.now(), // determinism: the injected host wall clock (the grep gate exempts this single host-wiring line)
+		channel,
+		getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+	};
+
+	// the default clock (DEFAULT_CLOCK) is the deterministic fallback (epoch 0); the extension layer overrides it here with the host wall clock. Tests override it with the stepping-clock fixture.
+	void DEFAULT_CLOCK;
+
+	for (const disposable of [channel, ...registerIncidentsCommands(services)]) {
+		context.subscriptions.push(disposable);
+	}
+}
+
+export function deactivate(): void {
+	// Nothing to do -- all disposables ride context.subscriptions.
+}

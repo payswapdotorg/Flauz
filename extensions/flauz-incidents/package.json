@@ -1,0 +1,30 @@
+{
+	"name": "flauz-incidents",
+	"displayName": "Flauz Incidents",
+	"description": "Flauz incident/problem registry plane (A-PROD-006-W1): the closed-loop machinery of the handoff's A6 law (every material production issue follows incident -> reproducible finding -> registry item -> fix -> regression -> release -> post-release verification). Three commands, one closed loop, one ledger. flauz.incidents.report (the typed incident intake -- the incident record with the typed source binding manual | telemetry-census | durability-escalation | dogfood-friction, the incident id flauz:inc:<16-hex> from an explicit rng/seed input, the class, the severity sev1..sev4, the affected surface, the repro note, the evidence refs under .flauz/ only, the reportedAtIso; persisted .flauz/incidents/incidents.json (flauz.incidents/v1), append-only, census-visible, swept + banked; the unique-id law -- re-reporting an id appends a NEW revision, never duplicates; swept FAIL-CLOSED for secret-shaped values in repro notes -- a canary test proves repro notes never reach banked census rows); flauz.incidents.advance (the loop state machine -- per-incident loop stages frozen verbatim from the A6 law incident -> reproducible-finding -> registry-item -> fix -> regression -> release -> post-release-verification; typed forward transitions ONLY, each evidence-bearing, each carrying its evidence label from the frozen ladder fixture | simulated | local-real | runtime-real | live-provider | production-real -- never promote a label by wording; the closure law fail-closed: fix -> regression REQUIRES regression evidence (the named regression test's passing receipt), regression -> release requires the release identity (the owning release/checklist record pointer), the loop closes ONLY on post-release verification evidence -- a re-run of the named owning checks against the released state, banked as the closing receipt; missing evidence = typed REFUSAL naming the exact missing stage-evidence kind, never a silent skip; NO stage may be skipped forward; the ONE reopen law: a failed post-release verification REOPENS the incident with the failure as evidence -- a closed loop never hides a regression; the registry-item stage carries the repo-side registry item id VERBATIM -- the two-registry separation: the product surface never mints, edits, ranks or supersedes control-plane state; transition journal .flauz/incidents/loop-<incident>.jsonl (flauz.incidents-loop/v1), append-only, one row per transition with actor + timestampIso via the INJECTED clock -- no Date.now/new Date() in src, grep-clean); flauz.incidents.status (the ledger view -- the verdict table over every incident: per-incident loop stage, source-binding state resolved | disclosed-unresolvable | manual-disclosed, closure readiness -- the exact list of missing stage-evidence kinds, typed, and the loop verdict closed | open | reopened | refused-evidence; record .flauz/incidents/status-<stamp>.json (flauz.incidents-status/v1), swept + banked census-visible).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": { "vscode": "^1.140.0" },
+	"categories": ["Other"],
+	"activationEvents": [
+		"onCommand:flauz.incidents.report",
+		"onCommand:flauz.incidents.advance",
+		"onCommand:flauz.incidents.status"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{ "command": "flauz.incidents.report", "title": "Incidents: Report Incident (Typed Intake)", "category": "Flauz" },
+			{ "command": "flauz.incidents.advance", "title": "Incidents: Advance Loop Stage", "category": "Flauz" },
+			{ "command": "flauz.incidents.status", "title": "Incidents: The Ledger Verdict (Status)", "category": "Flauz" }
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": { "typescript": "5.9.3" }
+}
