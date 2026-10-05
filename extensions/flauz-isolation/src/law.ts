@@ -36,8 +36,8 @@
  */
 
 import {
-	FLAUZ_DIR,
-	EXPORTS_DIR,
+        FLAUZ_DIR,
+        EXPORTS_DIR,
 } from './api.ts';
 
 // ---------------------------------------------------------------------------
@@ -146,67 +146,70 @@ const ISOLATION_ENFORCE_PREFIX = 'enforce-';
 
 /** One durable surface the law knows: its id, its owning extension, its files/dirs, its classification. */
 export interface LawSurface {
-	/** The surface id (the census id where one exists: identical to the flauz-diagnostics DurableStateCensus key). */
-	readonly id: string;
-	/** The owning extension's directory name (the registry identity). */
-	readonly owner: string;
-	readonly classification: SurfaceClassification;
-	/** The surface's fixed files, workspace-relative (absent files are listed absent, never faked). */
-	readonly files: readonly string[];
-	/** The surface's fixed directories, workspace-relative (the surface is present when any path resolves). */
-	readonly dirs: readonly string[];
-	/**
-	 * Stamp-suffixed RECORD filename prefixes this surface's records use
-	 * (`<prefix><stamp>.json` under one of the surface's dirs): the boundary
-	 * scan's stray-record shapes grow from THIS table, never a second list.
-	 */
-	readonly recordPrefixes: readonly string[];
-	/**
-	 * Stamp-suffixed DIRECTORY shapes this surface owns (`<prefix><stamp>/`
-	 * directly under one of the surface's dirs): the boundary scan's
-	 * stray-directory shapes (the export + bundle laws).
-	 */
-	readonly dirPrefixes: readonly string[];
+        /** The surface id (the census id where one exists: identical to the flauz-diagnostics DurableStateCensus key). */
+        readonly id: string;
+        /** The owning extension's directory name (the registry identity). */
+        readonly owner: string;
+        readonly classification: SurfaceClassification;
+        /** The surface's fixed files, workspace-relative (absent files are listed absent, never faked). */
+        readonly files: readonly string[];
+        /** The surface's fixed directories, workspace-relative (the surface is present when any path resolves). */
+        readonly dirs: readonly string[];
+        /**
+         * Stamp-suffixed RECORD filename prefixes this surface's records use
+         * (`<prefix><stamp>.json` under one of the surface's dirs): the boundary
+         * scan's stray-record shapes grow from THIS table, never a second list.
+         */
+        readonly recordPrefixes: readonly string[];
+        /**
+         * Stamp-suffixed DIRECTORY shapes this surface owns (`<prefix><stamp>/`
+         * directly under one of the surface's dirs): the boundary scan's
+         * stray-directory shapes (the export + bundle laws).
+         */
+        readonly dirPrefixes: readonly string[];
 }
 
 /** The complete law table, in census order first (the W1 keys), then the later waves' surfaces. */
 export const LAW_SURFACES: readonly LawSurface[] = [
-	// --- the W1 census surfaces (ids identical to the flauz-diagnostics DurableStateCensus keys) ---
-	{ id: 'tasks', owner: 'flauz-workspace', classification: 'workspace-bound', files: [TASKS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'evidenceLedger', owner: 'flauz-workspace', classification: 'workspace-bound', files: [EVIDENCE_LEDGER_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'evidenceWatermark', owner: 'flauz-workspace', classification: 'workspace-bound', files: [EVIDENCE_WATERMARK_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'resourcesGraph', owner: 'flauz-resources', classification: 'workspace-bound', files: [RESOURCES_GRAPH_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'opsChain', owner: 'flauz-resources', classification: 'workspace-bound', files: [RESOURCES_OPS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'environmentsRegistry', owner: 'flauz-environments', classification: 'workspace-bound', files: [ENVIRONMENTS_REGISTRY_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'browserSessions', owner: 'flauz-browser', classification: 'workspace-bound', files: [BROWSER_SESSIONS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'browserPolicy', owner: 'flauz-browser', classification: 'workspace-bound', files: [BROWSER_POLICY_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'workflows', owner: 'flauz-workflow', classification: 'workspace-bound', files: [`${WORKFLOWS_DIR}/index.json`], dirs: [WORKFLOWS_DIR], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'workflowExec', owner: 'flauz-workflow', classification: 'workspace-bound', files: [], dirs: [WORKFLOW_EXEC_DIR], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'workflowRuns', owner: 'flauz-workflow', classification: 'workspace-bound', files: [], dirs: [WORKFLOW_RUNS_DIR], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'a2aContracts', owner: 'flauz-workflow', classification: 'workspace-bound', files: [], dirs: [A2A_CONTRACTS_DIR], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'orchestration', owner: 'flauz-agent', classification: 'workspace-bound', files: [ORCH_GRAPHS_PATH, ORCH_JOURNAL_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'providerLanesState', owner: 'flauz-models', classification: 'workspace-bound', files: [PROVIDERS_PATH, ROUTING_POLICY_PATH, ROUTING_DECISIONS_PATH, PROVIDER_SWITCHES_PATH], dirs: [MODELS_DIR], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'executionJournal', owner: 'flauz-execution', classification: 'workspace-bound', files: [EXEC_JOURNAL_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'memoryTiers', owner: 'flauz-memory', classification: 'workspace-bound', files: [MEMORY_SESSION_JOURNAL_PATH, MEMORY_PROJECT_JOURNAL_PATH, MEMORY_PROMOTIONS_PATH, MEMORY_SHARES_PATH, MEMORY_INDEX_PATH], dirs: [MEMORY_DIR, MEMORY_TASKS_DIR], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'memoryWatermarks', owner: 'flauz-memory', classification: 'workspace-bound', files: [MEMORY_WATERMARKS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'telemetryState', owner: 'flauz-telemetry', classification: 'workspace-bound', files: [TELEMETRY_CONFIG_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'telemetryLedger', owner: 'flauz-telemetry', classification: 'workspace-bound', files: [TELEMETRY_LEDGER_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'migrationState', owner: 'flauz-migration', classification: 'workspace-bound', files: [MIGRATION_PLAN_PATH, MIGRATION_MARKER_PATH, MIGRATION_LOG_PATH, MIGRATION_ROLLBACK_LOG_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	{ id: 'backupRecoveryLog', owner: 'flauz-backup', classification: 'workspace-bound', files: [BACKUP_RECOVERY_LOG_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	// --- the operator-initiated export surfaces (the typed allowlist) ---
-	{ id: 'backupExports', owner: 'flauz-backup', classification: 'workspace-exportable', files: [], dirs: [EXPORTS_DIR], recordPrefixes: [], dirPrefixes: [BACKUP_EXPORT_DIR_PREFIX] },
-	{ id: 'supportBundles', owner: 'flauz-diagnostics', classification: 'workspace-exportable', files: [], dirs: [FLAUZ_DIR], recordPrefixes: [], dirPrefixes: [DIAGNOSTICS_BUNDLE_DIR_PREFIX] },
-	{ id: 'releaseRecords', owner: 'flauz-release', classification: 'workspace-bound', files: [], dirs: [RELEASE_DIR], recordPrefixes: [RELEASE_VERIFY_PREFIX, RELEASE_CHECKLIST_PREFIX], dirPrefixes: [] },
-	{ id: 'releaseSelfExports', owner: 'flauz-release', classification: 'workspace-exportable', files: [], dirs: [EXPORTS_DIR], recordPrefixes: [], dirPrefixes: [BACKUP_EXPORT_DIR_PREFIX] },
-	{ id: 'productionRecords', owner: 'flauz-production', classification: 'workspace-bound', files: [], dirs: [PRODUCTION_DIR], recordPrefixes: [PRODUCTION_CENSUS_PREFIX, PRODUCTION_MATRIX_PREFIX, PRODUCTION_GATE_PREFIX], dirPrefixes: [] },
-	{ id: 'integrityRecords', owner: 'flauz-integrity', classification: 'workspace-bound', files: [], dirs: [INTEGRITY_DIR], recordPrefixes: [INTEGRITY_LEDGER_PREFIX, INTEGRITY_VERIFY_PREFIX], dirPrefixes: [] },
-	// --- the port-owned surface (sealed to the KeyPort's own path law) ---
-	{ id: 'integrityKeyStore', owner: 'flauz-integrity', classification: 'port-owned', files: [INTEGRITY_KEY_STORE_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
-	// --- this wave's own durable home ---
-	{ id: 'isolationRecords', owner: 'flauz-isolation', classification: 'workspace-bound', files: [], dirs: [ISOLATION_DIR], recordPrefixes: [ISOLATION_AUDIT_PREFIX, ISOLATION_ENFORCE_PREFIX], dirPrefixes: [] },
-	// --- the worker-durability plane (A-PROD-005-W4; the station law-table growth:
-	//     the reviewed contract-pin update the law's own comment demands) ---
-	{ id: 'durabilityRecords', owner: 'flauz-durability', classification: 'workspace-bound', files: ['.flauz/durability/lanes.json'], dirs: ['.flauz/durability'], recordPrefixes: ['heartbeat-', 'status-'], dirPrefixes: [] },
+        // --- the W1 census surfaces (ids identical to the flauz-diagnostics DurableStateCensus keys) ---
+        { id: 'tasks', owner: 'flauz-workspace', classification: 'workspace-bound', files: [TASKS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'evidenceLedger', owner: 'flauz-workspace', classification: 'workspace-bound', files: [EVIDENCE_LEDGER_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'evidenceWatermark', owner: 'flauz-workspace', classification: 'workspace-bound', files: [EVIDENCE_WATERMARK_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'resourcesGraph', owner: 'flauz-resources', classification: 'workspace-bound', files: [RESOURCES_GRAPH_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'opsChain', owner: 'flauz-resources', classification: 'workspace-bound', files: [RESOURCES_OPS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'environmentsRegistry', owner: 'flauz-environments', classification: 'workspace-bound', files: [ENVIRONMENTS_REGISTRY_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'browserSessions', owner: 'flauz-browser', classification: 'workspace-bound', files: [BROWSER_SESSIONS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'browserPolicy', owner: 'flauz-browser', classification: 'workspace-bound', files: [BROWSER_POLICY_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'workflows', owner: 'flauz-workflow', classification: 'workspace-bound', files: [`${WORKFLOWS_DIR}/index.json`], dirs: [WORKFLOWS_DIR], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'workflowExec', owner: 'flauz-workflow', classification: 'workspace-bound', files: [], dirs: [WORKFLOW_EXEC_DIR], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'workflowRuns', owner: 'flauz-workflow', classification: 'workspace-bound', files: [], dirs: [WORKFLOW_RUNS_DIR], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'a2aContracts', owner: 'flauz-workflow', classification: 'workspace-bound', files: [], dirs: [A2A_CONTRACTS_DIR], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'orchestration', owner: 'flauz-agent', classification: 'workspace-bound', files: [ORCH_GRAPHS_PATH, ORCH_JOURNAL_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'providerLanesState', owner: 'flauz-models', classification: 'workspace-bound', files: [PROVIDERS_PATH, ROUTING_POLICY_PATH, ROUTING_DECISIONS_PATH, PROVIDER_SWITCHES_PATH], dirs: [MODELS_DIR], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'executionJournal', owner: 'flauz-execution', classification: 'workspace-bound', files: [EXEC_JOURNAL_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'memoryTiers', owner: 'flauz-memory', classification: 'workspace-bound', files: [MEMORY_SESSION_JOURNAL_PATH, MEMORY_PROJECT_JOURNAL_PATH, MEMORY_PROMOTIONS_PATH, MEMORY_SHARES_PATH, MEMORY_INDEX_PATH], dirs: [MEMORY_DIR, MEMORY_TASKS_DIR], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'memoryWatermarks', owner: 'flauz-memory', classification: 'workspace-bound', files: [MEMORY_WATERMARKS_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'telemetryState', owner: 'flauz-telemetry', classification: 'workspace-bound', files: [TELEMETRY_CONFIG_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'telemetryLedger', owner: 'flauz-telemetry', classification: 'workspace-bound', files: [TELEMETRY_LEDGER_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'migrationState', owner: 'flauz-migration', classification: 'workspace-bound', files: [MIGRATION_PLAN_PATH, MIGRATION_MARKER_PATH, MIGRATION_LOG_PATH, MIGRATION_ROLLBACK_LOG_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        { id: 'backupRecoveryLog', owner: 'flauz-backup', classification: 'workspace-bound', files: [BACKUP_RECOVERY_LOG_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        // --- the operator-initiated export surfaces (the typed allowlist) ---
+        { id: 'backupExports', owner: 'flauz-backup', classification: 'workspace-exportable', files: [], dirs: [EXPORTS_DIR], recordPrefixes: [], dirPrefixes: [BACKUP_EXPORT_DIR_PREFIX] },
+        { id: 'supportBundles', owner: 'flauz-diagnostics', classification: 'workspace-exportable', files: [], dirs: [FLAUZ_DIR], recordPrefixes: [], dirPrefixes: [DIAGNOSTICS_BUNDLE_DIR_PREFIX] },
+        { id: 'releaseRecords', owner: 'flauz-release', classification: 'workspace-bound', files: [], dirs: [RELEASE_DIR], recordPrefixes: [RELEASE_VERIFY_PREFIX, RELEASE_CHECKLIST_PREFIX], dirPrefixes: [] },
+        { id: 'releaseSelfExports', owner: 'flauz-release', classification: 'workspace-exportable', files: [], dirs: [EXPORTS_DIR], recordPrefixes: [], dirPrefixes: [BACKUP_EXPORT_DIR_PREFIX] },
+        { id: 'productionRecords', owner: 'flauz-production', classification: 'workspace-bound', files: [], dirs: [PRODUCTION_DIR], recordPrefixes: [PRODUCTION_CENSUS_PREFIX, PRODUCTION_MATRIX_PREFIX, PRODUCTION_GATE_PREFIX], dirPrefixes: [] },
+        { id: 'integrityRecords', owner: 'flauz-integrity', classification: 'workspace-bound', files: [], dirs: [INTEGRITY_DIR], recordPrefixes: [INTEGRITY_LEDGER_PREFIX, INTEGRITY_VERIFY_PREFIX], dirPrefixes: [] },
+        // --- the port-owned surface (sealed to the KeyPort's own path law) ---
+        { id: 'integrityKeyStore', owner: 'flauz-integrity', classification: 'port-owned', files: [INTEGRITY_KEY_STORE_PATH], dirs: [], recordPrefixes: [], dirPrefixes: [] },
+        // --- this wave's own durable home ---
+        { id: 'isolationRecords', owner: 'flauz-isolation', classification: 'workspace-bound', files: [], dirs: [ISOLATION_DIR], recordPrefixes: [ISOLATION_AUDIT_PREFIX, ISOLATION_ENFORCE_PREFIX], dirPrefixes: [] },
+        // --- the worker-durability plane (A-PROD-005-W4; the station law-table growth:
+        //     the reviewed contract-pin update the law's own comment demands) ---
+        { id: 'durabilityRecords', owner: 'flauz-durability', classification: 'workspace-bound', files: ['.flauz/durability/lanes.json'], dirs: ['.flauz/durability'], recordPrefixes: ['heartbeat-', 'status-'], dirPrefixes: [] },
+        // --- the incident/problem registry plane (A-PROD-006-W1; the station law-table
+        //     growth: the closed-loop ledger + the per-incident loop records) ---
+        { id: 'incidentsRecords', owner: 'flauz-incidents', classification: 'workspace-bound', files: ['.flauz/incidents/incidents.json'], dirs: ['.flauz/incidents'], recordPrefixes: ['loop-'], dirPrefixes: [] },
 ];
 
 /**
@@ -217,39 +220,40 @@ export const LAW_SURFACES: readonly LawSurface[] = [
  * update, or the audit discloses the new surface as UNKNOWN).
  */
 export const KNOWN_EXTENSIONS: readonly string[] = [
-	'flauz-agent',
-	'flauz-backup',
-	'flauz-browser',
-	'flauz-diagnostics',
-	'flauz-environments',
-	'flauz-execution',
-	'flauz-durability',
-	'flauz-integrity',
-	'flauz-isolation',
-	'flauz-lab',
-	'flauz-memory',
-	'flauz-migration',
-	'flauz-models',
-	'flauz-production',
-	'flauz-release',
-	'flauz-resources',
-	'flauz-telemetry',
-	'flauz-workflow',
-	'flauz-workspace',
+        'flauz-agent',
+        'flauz-backup',
+        'flauz-browser',
+        'flauz-diagnostics',
+        'flauz-environments',
+        'flauz-execution',
+        'flauz-durability',
+        'flauz-incidents',
+        'flauz-integrity',
+        'flauz-isolation',
+        'flauz-lab',
+        'flauz-memory',
+        'flauz-migration',
+        'flauz-models',
+        'flauz-production',
+        'flauz-release',
+        'flauz-resources',
+        'flauz-telemetry',
+        'flauz-workflow',
+        'flauz-workspace',
 ];
 
 /** The law surfaces of one extension (owner-scoped; empty for the zero-surface extensions). */
 export function lawSurfacesOf(owner: string): readonly LawSurface[] {
-	return LAW_SURFACES.filter(surface => surface.owner === owner);
+        return LAW_SURFACES.filter(surface => surface.owner === owner);
 }
 
 /** The lawful boundary a surface lives under (derived from its classification + paths). */
 export function boundaryOf(surface: LawSurface): SurfaceBoundary {
-	if (surface.classification === 'port-owned') {
-		return 'port-owned';
-	}
-	const anyExportDir = surface.dirs.some(dir => dir === EXPORTS_DIR || dir.startsWith(`${EXPORTS_DIR}/`));
-	return anyExportDir ? '.flauz-exports' : '.flauz';
+        if (surface.classification === 'port-owned') {
+                return 'port-owned';
+        }
+        const anyExportDir = surface.dirs.some(dir => dir === EXPORTS_DIR || dir.startsWith(`${EXPORTS_DIR}/`));
+        return anyExportDir ? '.flauz-exports' : '.flauz';
 }
 
 // ---------------------------------------------------------------------------
@@ -261,35 +265,35 @@ export const STAMP_SHAPE = /^\d{4}-\d{2}-\d{2}T\d{6}\.\d{3}Z$/;
 
 /** Every record filename prefix the law knows (the stray-record scan shapes). */
 export function lawRecordPrefixes(): readonly string[] {
-	return [...new Set(LAW_SURFACES.flatMap(surface => surface.recordPrefixes))].sort();
+        return [...new Set(LAW_SURFACES.flatMap(surface => surface.recordPrefixes))].sort();
 }
 
 /** Every stamp-suffixed directory prefix the law knows (the stray-directory scan shapes). */
 export function lawDirPrefixes(): readonly string[] {
-	return [...new Set(LAW_SURFACES.flatMap(surface => surface.dirPrefixes))].sort();
+        return [...new Set(LAW_SURFACES.flatMap(surface => surface.dirPrefixes))].sort();
 }
 
 /** True when a filename is a stamp-shaped record of one of the law's prefixes (`<prefix><stamp>.json`). */
 export function isLawRecordName(name: string): boolean {
-	for (const prefix of lawRecordPrefixes()) {
-		if (name.startsWith(prefix)) {
-			const rest = name.slice(prefix.length);
-			if (rest.endsWith('.json') && STAMP_SHAPE.test(rest.slice(0, -5))) {
-				return true;
-			}
-		}
-	}
-	return false;
+        for (const prefix of lawRecordPrefixes()) {
+                if (name.startsWith(prefix)) {
+                        const rest = name.slice(prefix.length);
+                        if (rest.endsWith('.json') && STAMP_SHAPE.test(rest.slice(0, -5))) {
+                                return true;
+                        }
+                }
+        }
+        return false;
 }
 
 /** True when a directory name is a stamp-shaped directory of one of the law's prefixes (`<prefix><stamp>`). */
 export function isLawDirName(name: string): boolean {
-	for (const prefix of lawDirPrefixes()) {
-		if (name.startsWith(prefix) && STAMP_SHAPE.test(name.slice(prefix.length))) {
-			return true;
-		}
-	}
-	return false;
+        for (const prefix of lawDirPrefixes()) {
+                if (name.startsWith(prefix) && STAMP_SHAPE.test(name.slice(prefix.length))) {
+                        return true;
+                }
+        }
+        return false;
 }
 
 /**
@@ -298,51 +302,51 @@ export function isLawDirName(name: string): boolean {
  * stamp-shaped directory prefix, derived from the table.
  */
 export function claimedFlauzTopLevelEntries(): ReadonlySet<string> {
-	const claimed = new Set<string>();
-	for (const surface of LAW_SURFACES) {
-		if (surface.classification === 'port-owned') {
-			// the port-owned store's top-level claim (integrity/) is claimed through
-			// its owning extension's other surfaces; the store itself rides .flauz/integrity/
-			for (const file of surface.files) {
-				const segments = file.split('/');
-				if (segments[0] === FLAUZ_DIR && segments.length >= 2) {
-					claimed.add(segments[1] as string);
-				}
-			}
-			continue;
-		}
-		for (const file of surface.files) {
-			const segments = file.split('/');
-			if (segments[0] === FLAUZ_DIR && segments.length >= 2) {
-				claimed.add(segments[1] as string);
-			}
-		}
-		for (const dir of surface.dirs) {
-			const segments = dir.split('/');
-			if (segments[0] === FLAUZ_DIR && segments.length >= 2) {
-				claimed.add(segments[1] as string);
-			}
-		}
-		for (const prefix of surface.dirPrefixes) {
-			// stamp-shaped directories claim their prefix SHAPE, not a fixed name
-			claimed.add(`^${prefix}`);
-		}
-	}
-	return claimed;
+        const claimed = new Set<string>();
+        for (const surface of LAW_SURFACES) {
+                if (surface.classification === 'port-owned') {
+                        // the port-owned store's top-level claim (integrity/) is claimed through
+                        // its owning extension's other surfaces; the store itself rides .flauz/integrity/
+                        for (const file of surface.files) {
+                                const segments = file.split('/');
+                                if (segments[0] === FLAUZ_DIR && segments.length >= 2) {
+                                        claimed.add(segments[1] as string);
+                                }
+                        }
+                        continue;
+                }
+                for (const file of surface.files) {
+                        const segments = file.split('/');
+                        if (segments[0] === FLAUZ_DIR && segments.length >= 2) {
+                                claimed.add(segments[1] as string);
+                        }
+                }
+                for (const dir of surface.dirs) {
+                        const segments = dir.split('/');
+                        if (segments[0] === FLAUZ_DIR && segments.length >= 2) {
+                                claimed.add(segments[1] as string);
+                        }
+                }
+                for (const prefix of surface.dirPrefixes) {
+                        // stamp-shaped directories claim their prefix SHAPE, not a fixed name
+                        claimed.add(`^${prefix}`);
+                }
+        }
+        return claimed;
 }
 
 /** True when a `.flauz/` top-level entry name is claimed by the law (fixed name or claimed shape). */
 export function flauzEntryIsClaimed(name: string): boolean {
-	for (const claim of claimedFlauzTopLevelEntries()) {
-		if (claim.startsWith('^')) {
-			if (name.startsWith(claim.slice(1)) && STAMP_SHAPE.test(name.slice(claim.slice(1).length))) {
-				return true;
-			}
-		} else if (name === claim) {
-			return true;
-		}
-	}
-	return false;
+        for (const claim of claimedFlauzTopLevelEntries()) {
+                if (claim.startsWith('^')) {
+                        if (name.startsWith(claim.slice(1)) && STAMP_SHAPE.test(name.slice(claim.slice(1).length))) {
+                                return true;
+                        }
+                } else if (name === claim) {
+                        return true;
+                }
+        }
+        return false;
 }
 
 /** The walk's skip law: the host/tooling trees never scanned (disclosed in every record that carries a scan). */

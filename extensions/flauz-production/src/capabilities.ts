@@ -418,6 +418,16 @@ export const CAPABILITY_CATALOG: readonly CapabilityDef[] = [
                 supported: 'the one-command production-readiness verdict: each prove-item row carries its evidence pointer (evaluated from the real surfaces at runtime when the surface exists), the not-yet rows name the owning later wave, and the verdict is GO-FOR-BETA / NOT-PRODUCTION-READY with the exact row-level truth.',
                 unsupported: 'the gate NEVER silently greens a prove-item it cannot evidence (an absent surface is a DEGRADED row, a missing machinery is a NOT-YET row -- both hold the verdict at NOT-PRODUCTION-READY); the gate verifies and records, it never repairs, signs, isolates or supervises.',
         },
+        // --- flauz-incidents (A-PROD-006-W1 -- the station catalog integration) ---
+        {
+                id: 'incident-registry-loop',
+                owner: 'flauz-incidents',
+                commands: ['flauz.incidents.report', 'flauz.incidents.advance', 'flauz.incidents.status'],
+                wave: 'A-PROD-006-W1 (the incident/problem registry plane) -- the DL-86 closed-loop authority law',
+                gate: 'the flauz-incidents suite (64 tests: report 16 / advance 15 / status 16 / contract 17)',
+                supported: 'the closed-loop machinery of the A6 law: the typed incident intake (four source bindings -- manual | telemetry-census | durability-escalation | dogfood-friction; the append-only ledger .flauz/incidents/incidents.json with the unique-id law), the frozen-stage loop state machine (incident -> reproducible-finding -> registry-item -> fix -> regression -> release -> post-release-verification; typed forward transitions ONLY, each evidence-bearing with its frozen-ladder label; the fail-closed closure law -- regression requires the passing regression receipt, release requires the release identity, the loop closes ONLY on post-release verification evidence; the ONE reopen law), and the verdict ledger (the per-incident loop state + evidence history).',
+                unsupported: 'the loop RECORDS, it never EXECUTES: the extension never runs the regression, cuts the release, or re-runs the owning checks itself -- the operator (or the owning wave\'s machinery) supplies the evidence, the loop binds and verifies it (the record-keeping-vs-execution boundary, disclosed in every render); evidence labels are never promoted by wording (the frozen ladder is the law); a missing stage-evidence is a typed REFUSAL naming the exact missing kind, never a silent skip.',
+        },
 ];
 
 // ---------------------------------------------------------------------------

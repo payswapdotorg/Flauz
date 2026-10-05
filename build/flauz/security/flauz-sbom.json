@@ -2,7 +2,7 @@
 	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
 	"bomFormat": "CycloneDX",
 	"specVersion": "1.5",
-	"serialNumber": "urn:uuid:d336c048-9a5d-57f9-8f2a-2fdfa7148d16",
+	"serialNumber": "urn:uuid:305c15d4-1c60-5381-b20d-e780502ba42e",
 	"version": 1,
 	"metadata": {
 		"tools": {
@@ -149,6 +149,23 @@
 				{
 					"name": "flauz:artifact",
 					"value": "extensions/flauz-execution/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-incidents@0.1.0",
+			"name": "flauz-incidents",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-incidents@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-incidents/dist/"
 				}
 			]
 		},
@@ -355,23 +372,6 @@
 					"value": "extensions/flauz-workspace/dist/"
 				}
 			]
-		},
-{
-			"type": "library",
-			"bom-ref": "pkg:generic/flauz/flauz-incidents@0.1.0",
-			"name": "flauz-incidents",
-			"version": "0.1.0",
-			"purl": "pkg:generic/flauz/flauz-incidents@0.1.0",
-			"properties": [
-				{
-					"name": "flauz:component-kind",
-					"value": "flauz-extension"
-				},
-				{
-					"name": "flauz:artifact",
-					"value": "extensions/flauz-incidents/dist/"
-				}
-			]
 		}
 	],
 	"dependencies": [
@@ -385,6 +385,7 @@
 				"pkg:generic/flauz/flauz-durability@0.1.0",
 				"pkg:generic/flauz/flauz-environments@0.1.0",
 				"pkg:generic/flauz/flauz-execution@0.1.0",
+				"pkg:generic/flauz/flauz-incidents@0.1.0",
 				"pkg:generic/flauz/flauz-integrity@0.1.0",
 				"pkg:generic/flauz/flauz-isolation@0.1.0",
 				"pkg:generic/flauz/flauz-lab@0.1.0",
