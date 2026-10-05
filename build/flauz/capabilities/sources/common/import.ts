@@ -101,7 +101,11 @@ export function isCapabilityPermission(value: unknown): value is CapabilityPermi
 }
 
 // ---------------------------------------------------------------------------
-// SEAM(zc006-verification-statuses): this wave pins ONLY 'unverified' - the
+// SEAM(zc006-verification-statuses): CLOSED 2026-10-05 — the vocabulary below is
+// transcribed VERBATIM from the landed ZC-006 authority (common/verification.ts
+// VERIFICATION_STATUSES); imported entries still ALWAYS enter as 'unverified'
+// (the original pin, kept by the entry-status law in makeImportedEntry). The
+// original seam instruction was: this wave pins ONLY 'unverified' - the
 // status every imported entry ENTERS with, by the authority law. The ZC-006
 // receipt path owns verification transitions; this wave must not fabricate
 // statuses it cannot read from the authority. When the receipt-path authority
@@ -111,7 +115,12 @@ export function isCapabilityPermission(value: unknown): value is CapabilityPermi
 // 'unverified'.
 // ---------------------------------------------------------------------------
 
-export const IMPORTED_ENTRY_VERIFICATION_STATUSES = ['unverified'] as const;
+export const IMPORTED_ENTRY_VERIFICATION_STATUSES = [
+    'unverified',
+    'verified',
+    'verified-partial',
+    'verification-failed'
+] as const;
 
 export type ImportedEntryVerificationStatus = (typeof IMPORTED_ENTRY_VERIFICATION_STATUSES)[number];
 

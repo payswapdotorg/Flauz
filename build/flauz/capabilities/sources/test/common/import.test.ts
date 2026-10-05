@@ -521,7 +521,9 @@ suite('zc007 import contracts: guards', () => {
         assert.strictEqual(
             importContracts.isImportedEntry({
                 ...created.entry,
-                verificationStatus: 'verified'
+                // a status outside even the transcribed authority vocabulary
+                // ('verified' joined the table when the zc006 seam closed)
+                verificationStatus: 'pending'
             } as unknown as importContracts.ImportedEntry),
             false
         );
