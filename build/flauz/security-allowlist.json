@@ -5,6 +5,21 @@
 			"file": "test/fixtures/workflow/keys/ed25519-private.pem",
 			"pattern": "private-key",
 			"reason": "deliberate test fixture: the DL-20 hardened-ledger verification key pair (consumed by extensions/flauz-workflow/test/hardening.test.ts); a generated fixture pair, never a production credential"
+		},
+		{
+			"file": "build/flauz/zcode-patterns/memory/test/common/entry.test.ts",
+			"pattern": "private-key",
+			"reason": "deliberate test fixture: ZC-005 scoped-memory entry secret-exclusion contract tests (lines ~108/~267) plant a generated PEM block to prove the entry ledger excludes secret-shaped payloads; never a production credential"
+		},
+		{
+			"file": "build/flauz/zcode-patterns/memory/test/common/entry.test.ts",
+			"pattern": "aws-access-key",
+			"reason": "deliberate test fixture: ZC-005 scoped-memory entry secret-exclusion contract test (line ~113) plants the well-known documented AWS example access-key placeholder to prove the entry ledger excludes secret-shaped payloads; never a production credential"
+		},
+		{
+			"file": "build/flauz/zcode-patterns/memory/test/common/entry.test.ts",
+			"pattern": "github-pat",
+			"reason": "deliberate test fixture: ZC-005 scoped-memory entry secret-exclusion contract test (line ~114) plants a ghp_-prefixed placeholder to prove exclusion; never a production credential"
 		}
 	]
 }
