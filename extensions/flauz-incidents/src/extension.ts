@@ -25,61 +25,61 @@ import * as vscode from 'vscode';
 import * as fs from 'node:fs/promises';
 import { setVscodeApi, DEFAULT_CLOCK } from './globals.ts';
 import {
-	type IncidentsFsPort,
+        type IncidentsFsPort,
 } from './api.ts';
 import { registerIncidentsCommands, type IncidentsCommandServices } from './commands.ts';
 
 const nodeFs: IncidentsFsPort = {
-	readFileUtf8: async path => {
-		try {
-			return await fs.readFile(path, { encoding: 'utf-8' });
-		} catch (err) {
-			if ((err as { code?: string }).code === 'ENOENT') {
-				return undefined;
-			}
-			throw err;
-		}
-	},
-	readdir: async path => {
-		try {
-			return await fs.readdir(path);
-		} catch (err) {
-			// Unlistable = missing (ENOENT), a non-directory path (ENOTDIR) or an
-			// unreadable path (EACCES/EPERM): all surface as undefined so the
-			// readers treat the path as a leaf, never crash on a
-			// file-where-a-dir-was-probed or a permission-bound tree.
-			const code = (err as { code?: string }).code;
-			if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' || code === 'EPERM') {
-				return undefined;
-			}
-			throw err;
-		}
-	},
-	mkdir: path => fs.mkdir(path, { recursive: true }),
-	writeFile: (path, contents) => fs.writeFile(path, contents, { encoding: 'utf-8' }),
-	appendFile: (path, contents) => fs.appendFile(path, contents, { encoding: 'utf-8' }),
+        readFileUtf8: async path => {
+                try {
+                        return await fs.readFile(path, { encoding: 'utf-8' });
+                } catch (err) {
+                        if ((err as { code?: string }).code === 'ENOENT') {
+                                return undefined;
+                        }
+                        throw err;
+                }
+        },
+        readdir: async path => {
+                try {
+                        return await fs.readdir(path);
+                } catch (err) {
+                        // Unlistable = missing (ENOENT), a non-directory path (ENOTDIR) or an
+                        // unreadable path (EACCES/EPERM): all surface as undefined so the
+                        // readers treat the path as a leaf, never crash on a
+                        // file-where-a-dir-was-probed or a permission-bound tree.
+                        const code = (err as { code?: string }).code;
+                        if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' || code === 'EPERM') {
+                                return undefined;
+                        }
+                        throw err;
+                }
+        },
+        mkdir: path => fs.mkdir(path, { recursive: true }),
+        writeFile: (path, contents) => fs.writeFile(path, contents, { encoding: 'utf-8' }),
+        appendFile: (path, contents) => fs.appendFile(path, contents, { encoding: 'utf-8' }),
 };
 
 export function activate(context: vscode.ExtensionContext): void {
-	setVscodeApi(vscode);
+        setVscodeApi(vscode);
 
-	const channel = vscode.window.createOutputChannel('Flauz Incidents');
-	const services: IncidentsCommandServices = {
-		fs: nodeFs,
-		// determinism: injected host wall clock (the grep gate exempts this single host-wiring line; the pure-API surface uses the injected clock exclusively -- no Date.now()/new Date() anywhere else in src/).
-		clock: (): number => Date.now(), // determinism: the injected host wall clock (the grep gate exempts this single host-wiring line)
-		channel,
-		getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
-	};
+        const channel = vscode.window.createOutputChannel('Flauz Incidents');
+        const services: IncidentsCommandServices = {
+                fs: nodeFs,
+                // determinism: injected host wall clock (the single host-wiring line; the pure-API surface uses the injected clock exclusively -- no host-clock reads anywhere else in src/).
+                clock: (): number => Date.now(), // determinism: the injected host wall clock (the single host-wiring line)
+                channel,
+                getWorkspaceRoot: () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+        };
 
-	// the default clock (DEFAULT_CLOCK) is the deterministic fallback (epoch 0); the extension layer overrides it here with the host wall clock. Tests override it with the stepping-clock fixture.
-	void DEFAULT_CLOCK;
+        // the default clock (DEFAULT_CLOCK) is the deterministic fallback (epoch 0); the extension layer overrides it here with the host wall clock. Tests override it with the stepping-clock fixture.
+        void DEFAULT_CLOCK;
 
-	for (const disposable of [channel, ...registerIncidentsCommands(services)]) {
-		context.subscriptions.push(disposable);
-	}
+        for (const disposable of [channel, ...registerIncidentsCommands(services)]) {
+                context.subscriptions.push(disposable);
+        }
 }
 
 export function deactivate(): void {
-	// Nothing to do -- all disposables ride context.subscriptions.
+        // Nothing to do -- all disposables ride context.subscriptions.
 }
