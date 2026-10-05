@@ -1096,7 +1096,7 @@ Implementation routing: the P2-FIX-114 worker order pins this law; the worker im
 | A-PROD-003 | TL-A | ACTIVE | current integrated product; independent of TL-B |
 | A-PROD-004 | TL-A | DONE | A-PROD-001 + dogfood evidence — ALL FIVE WAVES LANDED: W1 (PR #128, flauz-diagnostics) + W2 (PR #133, flauz-backup) + W3 (PR #134, flauz-migration) + W4 (PR #135, flauz-telemetry) + W5 (PR #136, flauz-release: install/update reliability + the release checklist) — THE BETA GATE IS CLOSED (10/10 capabilities) |
 | A-PROD-005 | TL-A | COMPLETE — W1..W4 DONE, THE PRODUCTION GATE READS GO-FOR-BETA (landing records below) | A-PROD-004 |
-| A-PROD-006 | TL-A | CLAIMED — W1 ordered (the incident/problem registry plane; DL-86 recorded below) | A-PROD-005 |
+| A-PROD-006 | TL-A | ACTIVE — W1 DONE, landed (PR #145, flauz-incidents, the 20th extension; landing record below) | A-PROD-005 |
 
 ### Phase B — Engineering Lab
 
@@ -1291,8 +1291,8 @@ Independence: no dependency on unfinished TL-A implementation.
 
 | ID | Owner | Status | Dependency |
 |---|---|---|---|
-| ZC-001 | TL-B | TODO | existing Lab contracts |
-| ZC-002 | TL-B | TODO | ZC-001 + AgentTask/Session |
+| ZC-001 | TL-B | DONE — landed (PR #143; landing record below) | existing Lab contracts |
+| ZC-002 | TL-B | DONE — landed (PR #144; landing record below) | ZC-001 + AgentTask/Session |
 | ZC-003 | TL-B | TODO | ZC-001 + existing approval/tool contracts |
 | ZC-004 | TL-B | TODO | ZC-001 + journal/workflow |
 | ZC-005 | TL-B | TODO | ZC-001 + Workspace OS |
@@ -1309,3 +1309,26 @@ Phase-C workers must not edit the TL-A productionization extensions or generated
 ### External capability-source posture
 
 Initial source classes: Printing Press/Printing Press Library; Composio; MCP/skills catalogues; direct user/API/site/community-project specifications. The Flauz capability registry remains authoritative for imported capability records and verification.
+
+#### TL-A landing record — A-PROD-006-W1 DONE (2026-10-05)
+
+- **A-PROD-006-W1 (the incident/problem registry plane) — DONE:** `extensions/flauz-incidents` (the 20th flauz-* extension), station reconstruction of worker delivery `ddb8e08d` (worker original local commit; push was auth-blocked in its sandbox — the dead-token era closed with the operator's rotated PAT, `018bc5f4` pushed as `flauz-aprod/aprod-006-w1-incidents`), squash-merged as `c28f46ce` (PR #145) at the pinned base `07f1decc`. The delivery: **`flauz.incidents.report`** (typed intake — four source bindings manual | telemetry-census | durability-escalation | dogfood-friction; the incident id `flauz:inc:<16-hex>`; the append-only ledger `.flauz/incidents/incidents.json`; the unique-id law — re-reporting appends a revision; the fail-closed privacy sweep with the canary proof), **`flauz.incidents.advance`** (the frozen-stage loop state machine incident -> reproducible-finding -> registry-item -> fix -> regression -> release -> post-release-verification; typed forward transitions ONLY; the evidence-label ladder fixture | simulated | local-real | runtime-real | live-provider | production-real — never promoted by wording; the fail-closed closure law; the ONE reopen law), **`flauz.incidents.status`** (the verdict ledger with the honest-scope disclosure + the torn-ledger honesty).
+- **Station review (all gates exact at `018bc5f4`):** G1-G2 tsc CLEAN · G3 mocha 64/64 (report 16 / advance 15 / status 16 / contract 17 — the station's own per-suite execution) · G4 determinism grep CLEAN · G5/G6 additive-only (parity 65->68 = 93+0; SBOM 19->20 additive) · G7 placement clean (only the 3 allowed paths). The station reconstruction replayed the worker's 51 file ops in TRUE block order (the manifest sort bug root-caused and fixed — pure (msg_ts, block, call) sort); the 6 ghost-edit residuals hand-resolved tab-faithfully; the worker's own bash heredocs recovered verbatim from the batch store.
+- **The station integration (`3fbd280f`):** the flauz-production CAPABILITY_CATALOG grows the incident-registry-loop entry (production 66/66); the flauz-isolation law table grows the incidentsRecords row + KNOWN_EXTENSIONS knows flauz-incidents (test pins: surfaces 30->31, workspaceBound 26->27, the prefix set +loop- — isolation 69/69); `security-runtime-gate --generate` minted the manifest at the integration head: **20 extensions / 20 artifacts, double-bundle byte-identical** (17/20 pins byte-identical; the ONE new pin flauz-incidents; the 2 lawfully source-changed pins flauz-isolation + flauz-production — the station's own integration edits); the SBOM regenerated canonically (the worker's hand-added row carried an indent glitch; instrument-form now, gate row PASS); packaging-parity CLEAN (20 extensions, 68 rows, 0 drift); activation-lint GREEN; verify-fixtures 222 ok + 3 PRE-EXISTING real-tree deviations (identical at the pre-integration base `c28f46ce` — environmental, honestly disclosed).
+- **Worker delivery lane (honest record):** dispatched through the replay worker lane (chat `ddbbf283`, GLM-5.2, 37-min full cycle; 51 file ops + 60 bash calls harvested from the batch store). The push path was the dead-PAT station-pending class — this landing closes it: the rotated PAT verified, the branch pushed, PR #145 opened and squash-merged.
+
+#### TL-B landing record — ZC-001 DONE (2026-10-05)
+
+- **ZC-001 (the six ZCode pattern contract families) — DONE:** `build/flauz/zcode-patterns/**`, worker original `dcc1e838` (worker-local commit, push auth-blocked in its sandbox), pushed as `flauz-tlb/zc001-pattern-contracts` and squash-merged as `d68e44c5` (PR #143). The delivery: additive, versioned (`ZCODE_PATTERNS_CONTRACTS_VERSION 1.0.0`), zero-dependency projections over the existing authorities — backgroundAgent.ts (the BackgroundAgentRunRecord read-model + phase transitions, the total pure toBackgroundRunPhase mapping: every authority TaskStatus maps to exactly one phase, every TRANSITIONS rule projects to a legal phase transition, tested by iterating the authority lists), hooks.ts (the HookEventKind families + the HookEventEnvelope wire shape + the hook-effect law as a type: HookEffect admits only context-enrichment and approval-request, so a bypass-granting effect is unrepresentable), planContinuity.ts (ApprovedPlanRecord + PlanStepStatus + planStepMayProceed / pinnedPlanStepMayProceed), runHealth.ts (the RunHealthSnapshot + the pure classifyRunHealth classifier) + the remaining families (coldReplay, scopedMemory).
+- **Station review (all gates exact at `dcc1e838`):** scoped strict tsc CLEAN · mocha green · determinism grep clean (law comments only) · zero imports in common · placement build/flauz/zcode-patterns/** only. No catalog growth (a contract wave — no commands, no extension, no pin change; the manifest stays 20/20 at this base).
+- **Worker delivery lane (honest record):** dispatched through the replay worker lane; the worker executed the full order (shallow-fetch clone at the base, authority reads, gated writes, local commit); the push was the dead-PAT class — closed by this landing (rotated PAT, PR #143).
+
+#### TL-B landing record — ZC-002 DONE (2026-10-05)
+
+- **ZC-002 (the background-agent UX contracts) — DONE:** `build/flauz/capabilities/background-agent/**` (six common/ modules — launch, inspect, message, control, outcome, registryView — as pure projections over the flauz-agent/flauz-execution authorities; six mocha tdd suites; README index), worker original `21e4569b` (worker-local commit; push auth-blocked), station reconstruction `7702420e` (the worker's Edit applied byte-faithfully — old_str matched exactly; the narrative store the primary artifact per the §10b doctrine), pushed as `flauz-tlb/zc002-background-agent-ux` and squash-merged as `e2a274a5` (PR #144). Versioned contract set BACKGROUND_AGENT_UX (1.0.0); total mappings pinned by tests (controlAdmissible, outcomeFromTerminalState, roster health); zero imports in common/; determinism law headers; scope+contractVersion on every record.
+- **Station review (all gates exact at `7702420e`):** scoped strict tsc EXIT 0 · mocha tdd 72/72 (identical to the worker's own count — behavioral byte-faithfulness) · determinism grep clean (law comments only) · import-law clean (zero imports in common/) · placement build/flauz/capabilities/background-agent/** only (13 files). No catalog growth (a contract wave; the manifest stays 20/20 at this base).
+- **Worker delivery lane (honest record):** dispatched through the replay worker lane (chat `66d08285`, GLM-5.2); the worker executed the full order (13 writes + 1 edit), verified the dead token (401) and reported honestly per the packet; two renderer wedges cured by Page.reload during the harvest watch. The push was the dead-PAT class — closed by this landing (rotated PAT, PR #144).
+
+#### Phase C DAG state after these landings (2026-10-05)
+
+- 2/10 DONE (ZC-001, ZC-002 — both landed through the push-opened auth path); ZC-003 (Hook Bus) + ZC-004 (Plan + Run Observatory + Replay) ACTIVE in the worker lanes (packets dispatched server-side, watches armed, riding the site's peak-hours capacity wall); ZC-005..ZC-009 packets staged; ZC-010 gated on ZC-009 + the complete quality gates. The dead-PAT station-pending class is CLOSED — the rotated PAT landed all three pending waves in one window (ZC-001 #143, ZC-002 #144, A-PROD-006-W1 #145).
