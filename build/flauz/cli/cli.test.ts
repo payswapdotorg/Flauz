@@ -4,22 +4,25 @@
  *--------------------------------------------------------------------------------------------*/
 
 /*
- * CR-010 -- the CLI runtime suite (mocha tdd).
+ * CR-010 / CR-010b -- the CLI runtime suite (mocha tdd).
  *
  * Coverage: grammar pins, the parse layer, wired round trips over a
  * harness-backed fixture context, the typed-refusal battery (including
  * the verbatim-law pin and the headless violation), output-shape
  * pins (canonical JSON, table determinism, the digest), the parity
  * view projection, the real-seam loader's typeness, determinism
- * double-run byte-equality, and the CR-002 wave-2 background-agent
- * mutation round trips over the REAL bgAgent runtime. No Date.now,
- * no Math.random.
+ * double-run byte-equality, the CR-010b approval family (the listed
+ * derivation over the fixture journal; the grant / deny / fail-closed
+ * expiry acts over the REAL store on temp roots), and the CR-010b
+ * capability-discovery search (READ-ONLY over a registry seeded
+ * through the registry's own public API). No wall-clock reads, no
+ * random.
  */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import {
         CLI_COMMAND_COUNT,
         CLI_COMMAND_GRAMMAR,
@@ -43,12 +46,25 @@ import {
         deriveScope,
         loadHarnessContext,
         loadRealContext,
+        realRegistryFsPort,
+        registryRootFor,
         runReloadDrill,
         sha256Hex,
+        type Binding,
+        type OrchestrationStoreBinding,
 } from './runtime/context.ts';
-import { refusedCommandPaths, routeCommand, wiredCommandPaths } from './runtime/handlers.ts';
+
+/** Narrow a Binding to its bound payload (fail loudly on the unbound branch). */
+function mustBound(binding: Binding<OrchestrationStoreBinding>): OrchestrationStoreBinding {
+        if (binding.bound !== true) {
+                throw new Error('the store binding must be bound (' + binding.detail + ')');
+        }
+        return binding.binding;
+}
+import { APPROVAL_DERIVATION, refusedCommandPaths, routeCommand, wiredCommandPaths } from './runtime/handlers.ts';
 import { renderOutput, runCli } from './bin/flauz.ts';
-import { loadBgAgentRuntime } from '../capabilities/background-agent/runtime/bgAgent.mjs';
+import { createRegistry } from '../capabilities/registry/registry.mjs';
+import type { RegistryRuntime } from '../capabilities/registry/registry.mjs';
 
 const FIXTURE = {
         state: { status: 'fixture', graphs: ['graph-1'] },
@@ -59,6 +75,216 @@ const FIXTURE = {
         roster: [{ agentId: 'agent-alpha', role: 'worker' }],
         messages: [],
 };
+
+// ---------------------------------------------------------------------------
+// CR-010b fixtures: the approval journal fixture and the registry seed
+// (the registry.test.ts-validated shapes; the registry is seeded through
+// its OWN public API and the CLI only reads it).
+// ---------------------------------------------------------------------------
+
+const APPROVAL_ISSUED_AT = '2025-06-01T00:00:00.000Z';
+
+function fixtureJournalRow(
+        seq: number,
+        graphId: string,
+        stepId: string,
+        type: string,
+        payload: Record<string, unknown>,
+): Record<string, unknown> {
+        return {
+                $schema: 'flauz.orch.journal/v1',
+                seq,
+                rowId: 'r-' + String(seq).padStart(6, '0'),
+                ts: 1000 + seq,
+                graphId,
+                stepId,
+                type,
+                actor: 'fixture-actor',
+                origin: 'flauz-cli-test',
+                attempt: null,
+                idempotencyKey: null,
+                payload,
+                contentHash: 'f'.repeat(64),
+                prev: null,
+        };
+}
+
+const APPROVAL_FIXTURE = {
+        state: { status: 'fixture', graphs: ['graph-a', 'graph-b'] },
+        graphs: {
+                'graph-a': { id: 'graph-a', status: 'running' },
+                'graph-b': { id: 'graph-b', status: 'running' },
+        },
+        rows: [
+                fixtureJournalRow(1, 'graph-a', 'step-1', 'approval-requested', {
+                        reason: 'deploy the service',
+                        expiresAt: 1750000000000,
+                }),
+                fixtureJournalRow(2, 'graph-a', 'step-2', 'approval-requested', { reason: 'rotate the keys' }),
+                fixtureJournalRow(3, 'graph-a', 'step-2', 'approval-granted', { decision: 'granted' }),
+                fixtureJournalRow(4, 'graph-b', 'step-9', 'approval-requested', { reason: 'purge the cache' }),
+                fixtureJournalRow(5, 'graph-b', 'step-9', 'approval-expired', {}),
+                fixtureJournalRow(6, 'graph-b', 'step-3', 'approval-requested', {
+                        reason: 'open the firewall',
+                        expiresAt: 1750000000000,
+                }),
+        ],
+        roster: [],
+        messages: [],
+};
+
+const EXPECTED_PENDING_APPROVALS = [
+        {
+                approvalId: 'r-000001',
+                graphId: 'graph-a',
+                stepId: 'step-1',
+                reason: 'deploy the service',
+                expiresAt: 1750000000000,
+                requestedAt: 1001,
+                actor: 'fixture-actor',
+                origin: 'flauz-cli-test',
+        },
+        {
+                approvalId: 'r-000006',
+                graphId: 'graph-b',
+                stepId: 'step-3',
+                reason: 'open the firewall',
+                expiresAt: 1750000000000,
+                requestedAt: 1006,
+                actor: 'fixture-actor',
+                origin: 'flauz-cli-test',
+        },
+];
+
+const CAPABILITY_DISCOVERY = {
+        sourceKind: 'community-project',
+        artifactKind: 'cli',
+        version: '1.0.0',
+        contentHash: 'a'.repeat(64),
+        name: 'demo-capability',
+};
+const CAPABILITY_IMPORTED = {
+        digest: 'a'.repeat(64),
+        version: '1.0.0',
+        license: 'MIT',
+        permissions: ['read-files'],
+        endpoints: ['https://example.com/demo'],
+        platforms: ['linux-x64'],
+        artifactKind: 'cli',
+        provenance: { origin: 'community-project' },
+};
+const CAPABILITY_APPROVAL = { approver: 'operator-1', acknowledgedPermissions: ['read-files'] };
+const CAPABILITY_VERIFICATION_RECEIPT = {
+        verificationStatus: 'verified',
+        checks: [{ check: 'digest', outcome: 'match' }],
+};
+
+/** Seeds the registry through its OWN public API (discover -> register -> verify -> approve -> enable, plus one discovered-only entry). */
+async function seedCapabilityRegistry(root: string): Promise<RegistryRuntime> {
+        const registry = createRegistry({
+                root: registryRootFor(root),
+                clock: () => 1000,
+                fsPort: realRegistryFsPort(),
+                scope: deriveScope(root),
+        });
+        const loaded = await registry.load();
+        assert.equal(loaded.ok, true);
+        const discovered = await registry.discover(CAPABILITY_DISCOVERY);
+        assert.equal(discovered.ok, true);
+        const registered = await registry.register(CAPABILITY_IMPORTED);
+        assert.equal(registered.ok, true);
+        const verified = await registry.verify(registered.entryId, CAPABILITY_VERIFICATION_RECEIPT);
+        assert.equal(verified.ok, true);
+        const approved = await registry.approve(registered.entryId, CAPABILITY_APPROVAL);
+        assert.equal(approved.ok, true);
+        const enabled = await registry.enable(registered.entryId);
+        assert.equal(enabled.ok, true);
+        const second = await registry.discover({ ...CAPABILITY_DISCOVERY, contentHash: 'e'.repeat(64) });
+        assert.equal(second.ok, true);
+        return registry;
+}
+
+interface SeededApproval {
+        context: Awaited<ReturnType<typeof loadRealContext>>;
+        graphId: string;
+        stepId: string;
+        approvalId: string;
+}
+
+/**
+ * Seeds one pending approval through the REAL store write API (the
+ * runReloadDrill precedent: raw.submitGraph + raw.approveGraph, then
+ * raw.approvalRequest). A refused direct request retries once with
+ * startStep first (the gated-step state machine variant); the store
+ * appends nothing on a refused preview, so the retry starts clean.
+ */
+async function seedRealApproval(root: string, issuedAtIso: string, stepId: string, expiresAt?: number): Promise<SeededApproval> {
+        const context = await loadRealContext({ root, issuedAtIso });
+        const store = await context.readStore();
+        assert.equal(store.bound, true);
+        const rawStore = mustBound(store).raw as {
+                submitGraph(input: Record<string, unknown>): Promise<{ graphId: string }>;
+                approveGraph(input: Record<string, unknown>): Promise<unknown>;
+                startStep(input: Record<string, unknown>): Promise<unknown>;
+                approvalRequest(input: Record<string, unknown>): Promise<{ rowId: string }>;
+        } | undefined;
+        assert.notEqual(rawStore, undefined);
+        const submitted = await rawStore!.submitGraph({
+                title: 'cli approval round trip',
+                steps: [
+                        {
+                                stepId,
+                                title: 'the approval gate step',
+                                instruction: 'await the human approval',
+                                gate: 'human-approval',
+                        },
+                ],
+                actor: 'human',
+                origin: 'flauz-cli',
+        });
+        await rawStore!.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'flauz-cli' });
+        const requestInput: Record<string, unknown> = {
+                graphId: submitted.graphId,
+                stepId,
+                reason: 'the CLI approval round trip',
+                // The transition table: approval-requested requires an agent |
+                // service actor (the request is mechanical; only the DECIDE act
+                // is human).
+                actor: 'agent',
+                origin: 'service:flauz-cli',
+        };
+        if (expiresAt !== undefined) {
+                requestInput.expiresAt = expiresAt;
+        }
+        const requested: { rowId: string } = await rawStore!.approvalRequest(requestInput);
+        return {
+                context,
+                graphId: submitted.graphId,
+                stepId,
+                approvalId: requested.rowId,
+        };
+}
+
+/** The last step-level approval row for the seeded step (the row the act returned, wherever it sits in the journal). */
+async function lastApprovalRow(seeded: SeededApproval): Promise<Record<string, unknown>> {
+        const store = await seeded.context.readStore();
+        assert.equal(store.bound, true);
+        const rows = mustBound(store).rowsFor(seeded.graphId) as Array<Record<string, unknown>>;
+        const approvalRows = rows.filter(
+                (row) =>
+                        typeof row.type === 'string' &&
+                        String(row.type).includes('approval') &&
+                        row.stepId === seeded.stepId,
+        );
+        assert.ok(approvalRows.length >= 2, 'expected the request row plus the act row');
+        return approvalRows[approvalRows.length - 1];
+}
+
+function resultDigestOf(result: { response?: unknown }): string {
+        const digest = (result.response as { resultDigest?: string }).resultDigest;
+        assert.equal(typeof digest, 'string');
+        return digest as string;
+}
 
 suite('flauz cli: grammar pins', () => {
         test('the frozen grammar carries 29 commands', () => {
@@ -115,6 +341,14 @@ suite('flauz cli: parse layer', () => {
                 assert.equal(result.exitCode, EXIT_USAGE_ERROR);
                 assert.equal(result.parseMismatch?.kind, 'missing-argument');
                 assert.equal(result.parseMismatch?.argName, 'workflowId');
+                assert.ok(result.stderr.includes('missing-argument'));
+        });
+
+        test('a missing approval.respond argument is the typed parse mismatch (exit 2)', async () => {
+                const result = await runCli(['approval.respond']);
+                assert.equal(result.exitCode, EXIT_USAGE_ERROR);
+                assert.equal(result.parseMismatch?.kind, 'missing-argument');
+                assert.equal(result.parseMismatch?.argName, 'approvalId');
                 assert.ok(result.stderr.includes('missing-argument'));
         });
 
@@ -249,32 +483,12 @@ suite('flauz cli: output shapes', () => {
 });
 
 suite('flauz cli: the typed-refusal battery', () => {
-        test('approval.respond is the headless-interactive-surface refusal with the verbatim law (exit 1)', async () => {
-                const result = await runCli(['approval.respond', 'ap-1', 'approved'], {
-                        context: harnessContext,
-                });
-                assert.equal(result.exitCode, EXIT_TYPED_REFUSAL);
-                const refusal = result.response as { refusalCode?: string; violatedLaw?: string };
-                assert.equal(refusal.refusalCode, 'headless-interactive-surface');
-                assert.equal(refusal.violatedLaw, refusalFor('headless-interactive-surface')?.violatedLaw);
-        });
-
         test('evidence.list is the parity-projection-missing refusal with the verbatim law (exit 1)', async () => {
                 const result = await runCli(['evidence.list', 'task-1'], { context: harnessContext });
                 assert.equal(result.exitCode, EXIT_TYPED_REFUSAL);
                 const refusal = result.response as { refusalCode?: string; violatedLaw?: string };
                 assert.equal(refusal.refusalCode, 'parity-projection-missing');
                 assert.equal(refusal.violatedLaw, refusalFor('parity-projection-missing')?.violatedLaw);
-        });
-
-        test('capability-discovery.search is the parity-projection-missing refusal (exit 1)', async () => {
-                const result = await runCli(['capability-discovery.search', 'query'], {
-                        context: harnessContext,
-                });
-                assert.equal(
-                        (result.response as { refusalCode?: string }).refusalCode,
-                        'parity-projection-missing',
-                );
         });
 
         test('replay.run is the parity-projection-missing refusal (exit 1)', async () => {
@@ -298,11 +512,12 @@ suite('flauz cli: the typed-refusal battery', () => {
                 );
         });
 
-        test('every grammar command routes: 10 wired + 19 typed refusals, no drift', async () => {
-                // CR-002 wave 2: 4 wave-1 read handlers + 6 background-agent
-                // mutations are wired; the refusal census moved 25 -> 19.
-                assert.equal(wiredCommandPaths().length, 10);
-                assert.equal(refusedCommandPaths().length, 19);
+        test('every grammar command routes: 13 wired + 16 typed refusals, no drift', async () => {
+                // The merged wave-2 census: 6 read handlers + approval.respond
+                // (CR-010b) + the six background-agent mutations (CR-002) wired;
+                // the remaining 16 paths stay typed refusals.
+                assert.equal(wiredCommandPaths().length, 13);
+                assert.equal(refusedCommandPaths().length, 16);
                 for (const entry of CLI_COMMAND_GRAMMAR) {
                         const routed = await routeCommand(harnessContext, {
                                 scope: { workspaceId: harnessContext.root.split('/').pop() ?? 'x', tenantId: 'local' },
@@ -382,289 +597,453 @@ suite('flauz cli: the real seam loader (typeness)', () => {
         });
 });
 
-suite('flauz cli: background-agent mutations over the real runtime (wave 2)', () => {
-        type Seams = Extract<Awaited<ReturnType<typeof loadBgAgentRuntime>>, { bound: true }>;
+// ---------------------------------------------------------------------------
+// CR-010b wave 2: approval.list (the disclosed derivation)
+// ---------------------------------------------------------------------------
 
-        async function freshMutationRoot(): Promise<string> {
-                return await mkdtemp(join(tmpdir(), 'flauz-bg-mutations-'));
-        }
-
-        async function contextFor(root: string): Promise<Awaited<ReturnType<typeof loadRealContext>>> {
-                return await loadRealContext({ root, issuedAtIso: '1970-01-01T00:00:00.000Z' });
-        }
-
-        function requestFor(root: string, commandPath: string, args: Record<string, unknown>) {
-                // Wire-conformant arg encoding (station seam-completion): the ZC-009
-                // wire validates `args` as a plain string map, so non-string values
-                // (the json argKind payloads) are JSON-encoded here — the handlers
-                // decode them back with the same doctrine.
-                const stringArgs: Record<string, string> = {};
-                for (const [name, value] of Object.entries(args)) {
-                        stringArgs[name] = typeof value === 'string' ? value : JSON.stringify(value);
-                }
-                return {
-                        scope: deriveScope(root),
-                        contractVersion: '1.0.0',
-                        commandPath,
-                        args: stringArgs,
-                        requestId: 'test-' + commandPath,
-                        issuedAtIso: '1970-01-01T00:00:00.000Z',
+suite('flauz cli: approval.list round trips', () => {
+        test('an empty journal projects the empty pending set with the derivation disclosed', async () => {
+                const result = await runCli(['approval.list'], { context: harnessContext });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'pending-approvals',
+                        derivation: APPROVAL_DERIVATION,
+                        count: 0,
+                        approvals: [],
                 };
-        }
-
-        async function seamsFor(root: string): Promise<Seams> {
-                const loaded = await loadBgAgentRuntime({ root });
-                if (!loaded.bound) {
-                        assert.fail(loaded.detail);
-                }
-                return loaded;
-        }
-
-        function projectionOf(routed: { kind: string }): Record<string, unknown> {
-                assert.equal(routed.kind, 'projection');
-                return (routed as unknown as { projection: Record<string, unknown> }).projection;
-        }
-
-        async function launchViaCli(root: string, agentId = 'agent-alpha'): Promise<string> {
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.launch', { spec: { agentId } }),
-                );
-                assert.equal(projectionOf(routed).kind, 'projected');
-                const seams = await seamsFor(root);
-                const graphs = seams.store.listGraphs() as Array<{ graphId: string }>;
-                assert.equal(graphs.length, 1);
-                return graphs[0].graphId;
-        }
-
-        function pendingCount(seams: Seams, agentId: string): number {
-                return seams.bus.collect({ agentId, consume: false }).messages.length;
-        }
-
-        // C36
-        test('background-agent.launch routes a full projection over the real runtime', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.launch', { spec: { agentId: 'agent-alpha', label: 'wave-2' } }),
-                );
-                const projection = projectionOf(routed);
-                assert.equal(projection.kind, 'projected');
-                assert.equal(projection.journey, 'background-agent');
-                assert.equal(projection.completeness, 'full');
-                assert.match(String(projection.projectionDigest), /^[0-9a-f]{64}$/);
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
         });
 
-        // C37
-        test('launch creates the durable graph and posts to the agent inbox', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const seams = await seamsFor(root);
-                const graphs = seams.store.listGraphs() as Array<{ graphId: string }>;
-                assert.equal(graphs.length, 1);
-                assert.equal(graphs[0].graphId, runId);
-                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
-                assert.equal(messages.length, 1);
-                const message = messages[0] as { to: string; kind: string; payload: { taskId: string; prompt: string } };
-                assert.equal(message.to, 'agent-alpha');
-                // The a2a task-delegation contract shape (the graph linkage rides
-                // the prompt string).
-                assert.equal(message.kind, 'task-delegation');
-                const prompt = JSON.parse(message.payload.prompt) as { graphId: string };
-                assert.equal(prompt.graphId, runId);
+        test('the pending derivation lists requests without later decision rows, sorted by graph and step', async () => {
+                const result = await runCli(['approval.list'], { context: approvalContext });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'pending-approvals',
+                        derivation: APPROVAL_DERIVATION,
+                        count: EXPECTED_PENDING_APPROVALS.length,
+                        approvals: EXPECTED_PENDING_APPROVALS,
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
         });
 
-        // C38
-        test('launch with a non-object spec is the typed invalid-argument edge failure', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.launch', { spec: 'not-an-object' }),
-                );
-                assert.equal(routed.kind, 'edge-failure');
-                assert.equal((routed as { reason: string }).reason, 'invalid-argument');
+        test('approval.list is byte-stable across repeats over the same fixture', async () => {
+                const first = await runCli(['approval.list'], { context: approvalContext });
+                const second = await runCli(['approval.list'], { context: approvalContext });
+                assert.equal(first.stdout, second.stdout);
         });
+});
 
-        // C39
-        test('launch with a spec missing agentId is the typed invalid-argument edge failure', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.launch', { spec: {} }),
-                );
-                assert.equal(routed.kind, 'edge-failure');
-                assert.equal((routed as { reason: string }).reason, 'invalid-argument');
-        });
+// ---------------------------------------------------------------------------
+// CR-010b wave 2: approval.respond (the real store authority)
+// ---------------------------------------------------------------------------
 
-        // C40
-        test('launch with no spec argument is the absent projection (the wave-1 missing-arg precedent)', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(context, requestFor(root, 'background-agent.launch', {}));
-                assert.equal(projectionOf(routed).kind, 'absent');
-        });
-
-        // C41
-        test('background-agent.message routes and delivers to the agent inbox', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.message', { runId, payload: { text: 'hi' }, type: 'user.message' }),
-                );
-                assert.equal(projectionOf(routed).kind, 'projected');
-                const seams = await seamsFor(root);
-                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
-                assert.equal(messages.length, 2);
-                const second = messages[1] as { kind: string; payload: { message: string } };
-                // The a2a steering-relay contract shape (the typed body rides
-                // the message string).
-                assert.equal(second.kind, 'steering-relay');
-                const body = JSON.parse(second.payload.message) as { graphId: string; type: string; payload: { text: string } };
-                assert.equal(body.graphId, runId);
-                assert.equal(body.type, 'user.message');
-                assert.deepEqual(body.payload, { text: 'hi' });
-        });
-
-        // C42
-        test('message on an unknown run is the absent projection', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.message', { runId: 'nope', payload: {} }),
-                );
-                assert.equal(projectionOf(routed).kind, 'absent');
-        });
-
-        // C43
-        test('pause routes as an advisory control: the graph state is unchanged, the inbox grows', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const seams = await seamsFor(root);
-                const before = (seams.store.stateOf(runId) as { graphStatus?: string }).graphStatus;
-                const context = await contextFor(root);
-                const routed = await routeCommand(context, requestFor(root, 'background-agent.pause', { runId }));
-                assert.equal(projectionOf(routed).kind, 'projected');
-                const after = (seams.store.stateOf(runId) as { graphStatus?: string }).graphStatus;
-                assert.equal(after, before);
-                // Cross-instance observation: a fresh bus over the same root
-                // re-reads the durable journal (postings from the CLI runtime's
-                // own bus instance land on disk, not in this instance's memory).
-                const seamsAfter = await seamsFor(root);
-                assert.equal(pendingCount(seamsAfter, 'agent-alpha'), 2);
-        });
-
-        // C44
-        test('resume routes as an advisory control', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const context = await contextFor(root);
-                const routed = await routeCommand(context, requestFor(root, 'background-agent.resume', { runId }));
-                assert.equal(projectionOf(routed).kind, 'projected');
-                const seams = await seamsFor(root);
-                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
-                assert.equal(messages.length, 2);
-                const control = messages[1] as { payload: { message: string } };
-                assert.equal((JSON.parse(control.payload.message) as { control: string }).control, 'resume');
-        });
-
-        // C45
-        test('cancel routes as the enforced control and terminalizes the graph', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const context = await contextFor(root);
-                const routed = await routeCommand(
-                        context,
-                        requestFor(root, 'background-agent.cancel', { runId, reason: 'wave-2 test' }),
-                );
-                assert.equal(projectionOf(routed).kind, 'projected');
-                const seams = await seamsFor(root);
-                assert.equal((await seams.runtime.inspect(runId)).terminal, true);
-        });
-
-        // C46
-        test('stop routes identically to cancel (the enforced twin)', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const context = await contextFor(root);
-                const routed = await routeCommand(context, requestFor(root, 'background-agent.stop', { runId }));
-                assert.equal(projectionOf(routed).kind, 'projected');
-                const seams = await seamsFor(root);
-                assert.equal((await seams.runtime.inspect(runId)).terminal, true);
-        });
-
-        // C47
-        test('cancel on an unknown run is the absent projection', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(context, requestFor(root, 'background-agent.cancel', { runId: 'nope' }));
-                assert.equal(projectionOf(routed).kind, 'absent');
-        });
-
-        // C48
-        test('the scope-isolation refusal guards the mutation paths too', async () => {
-                const root = await freshMutationRoot();
-                const context = await contextFor(root);
-                const routed = await routeCommand(context, {
-                        scope: { workspaceId: 'somebody-elses', tenantId: 'local' },
-                        contractVersion: '1.0.0',
-                        commandPath: 'background-agent.launch',
-                        args: { spec: JSON.stringify({ agentId: 'agent-alpha' }) },
-                        requestId: 'test-scope-isolation',
-                        issuedAtIso: '1970-01-01T00:00:00.000Z',
+suite('flauz cli: approval.respond round trips (real store)', () => {
+        test('approval.respond grants through approvalDecide (exit 0)', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01');
+                const result = await runCli(['approval.respond', seeded.approvalId, 'granted'], {
+                        context: seeded.context,
                 });
-                const projection = projectionOf(routed);
-                assert.equal(projection.kind, 'refused');
-                assert.equal(projection.refusalCode, 'scope-isolation-violated');
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'approval-responded',
+                        approvalId: seeded.approvalId,
+                        decision: 'granted',
+                        outcome: 'granted',
+                        row: await lastApprovalRow(seeded),
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
         });
 
-        // C49
-        test('the wave-2 census: the six mutation paths are wired and no longer refused', () => {
-                const wired = wiredCommandPaths();
-                const refused = refusedCommandPaths();
-                for (const path of [
-                        'background-agent.launch',
-                        'background-agent.message',
-                        'background-agent.pause',
-                        'background-agent.stop',
-                        'background-agent.cancel',
-                        'background-agent.resume',
-                ]) {
-                        assert.ok(wired.includes(path), path);
-                        assert.equal(refused.includes(path), false, path);
+        test('approval.respond denies through approvalDecide', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01');
+                const result = await runCli(['approval.respond', seeded.approvalId, 'denied'], {
+                        context: seeded.context,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const store = await seeded.context.readStore();
+                const rows = mustBound(store).rowsFor(seeded.graphId) as unknown[];
+                assert.ok(JSON.stringify(rows).includes('denied'));
+                const expected = {
+                        kind: 'approval-responded',
+                        approvalId: seeded.approvalId,
+                        decision: 'denied',
+                        outcome: 'denied',
+                        row: await lastApprovalRow(seeded),
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('responding past expiresAt runs the fail-closed expiry (CANCELLED, never granted)', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01', 1);
+                const result = await runCli(['approval.respond', seeded.approvalId, 'granted'], {
+                        context: seeded.context,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'approval-responded',
+                        approvalId: seeded.approvalId,
+                        decision: 'granted',
+                        outcome: 'expired',
+                        failClosed: true,
+                        stepDisposition: 'cancelled',
+                        row: await lastApprovalRow(seeded),
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+                const store = await seeded.context.readStore();
+                const rows = mustBound(store).rowsFor(seeded.graphId) as unknown[];
+                assert.equal(JSON.stringify(rows).includes('granted'), false);
+                const state = (mustBound(store).raw as { stateOf(id: string): { pendingApprovals?: string[] } }).stateOf(
+                        seeded.graphId,
+                );
+                assert.equal((state.pendingApprovals ?? []).includes(seeded.stepId), false);
+        });
+
+        test('approval.respond of an unknown approval id is not-found (exit 3)', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01');
+                const result = await runCli(['approval.respond', 'r-999999', 'granted'], {
+                        context: seeded.context,
+                });
+                assert.equal(result.exitCode, EXIT_NOT_FOUND);
+                assert.equal(result.response?.outcome, 'not-found');
+        });
+
+        test('a decided approval is no longer pending: the second respond is not-found', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01');
+                const first = await runCli(['approval.respond', seeded.approvalId, 'granted'], {
+                        context: seeded.context,
+                });
+                assert.equal(first.exitCode, EXIT_OK);
+                const second = await runCli(['approval.respond', seeded.approvalId, 'denied'], {
+                        context: seeded.context,
+                });
+                assert.equal(second.exitCode, EXIT_NOT_FOUND);
+        });
+
+        test('determinism: every approval row carries the injected issuedAt, never the wall clock', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01');
+                const result = await runCli(['approval.respond', seeded.approvalId, 'granted'], {
+                        context: seeded.context,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                const store = await seeded.context.readStore();
+                assert.equal(store.bound, true);
+                const rows = mustBound(store).rowsFor(seeded.graphId) as Array<Record<string, unknown>>;
+                const approvalRows = rows.filter(
+                        (row) =>
+                                typeof row.type === 'string' &&
+                                String(row.type).includes('approval') &&
+                                row.stepId === seeded.stepId,
+                );
+                assert.ok(approvalRows.length >= 2, 'expected the request row plus the act row');
+                for (const row of approvalRows) {
+                        assert.equal(row.ts, Date.parse(APPROVAL_ISSUED_AT));
                 }
         });
 
-        // C50
-        test('cancel posts a control notice to the agent inbox', async () => {
-                const root = await freshMutationRoot();
-                const runId = await launchViaCli(root);
-                const context = await contextFor(root);
-                await routeCommand(context, requestFor(root, 'background-agent.cancel', { runId }));
-                const seams = await seamsFor(root);
-                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
-                assert.equal(messages.length, 2);
-                const notice = messages[1] as { payload: { message: string } };
-                assert.equal((JSON.parse(notice.payload.message) as { control: string }).control, 'cancel');
+        test('approval.respond over the harness fixture store is the honest no-raw-seam edge', async () => {
+                const result = await runCli(['approval.respond', 'r-000001', 'granted'], {
+                        context: approvalContext,
+                });
+                assert.notEqual(result.exitCode, EXIT_OK);
+                assert.equal(result.edgeFailure?.reason, 'seam-unavailable');
+                assert.ok(String(result.edgeFailure?.detail ?? '').includes('raw approval API'));
+        });
+
+        test('approval.list over the real seam derives the seeded pending approval', async function () {
+                this.timeout(30000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-cli-respond-'));
+                const seeded = await seedRealApproval(root, APPROVAL_ISSUED_AT, 'S-01');
+                const store = await seeded.context.readStore();
+                const rows = mustBound(store).rowsFor(seeded.graphId) as Array<Record<string, unknown>>;
+                const requestRow = rows.find(
+                        (row) =>
+                                typeof row.type === 'string' &&
+                                String(row.type).includes('approval') &&
+                                String(row.type).includes('request'),
+                );
+                assert.notEqual(requestRow, undefined);
+                const payload = (requestRow!.payload ?? {}) as Record<string, unknown>;
+                const result = await runCli(['approval.list'], { context: seeded.context });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'pending-approvals',
+                        derivation: APPROVAL_DERIVATION,
+                        count: 1,
+                        approvals: [
+                                {
+                                        approvalId: requestRow!.rowId as string,
+                                        graphId: seeded.graphId,
+                                        stepId: seeded.stepId,
+                                        reason: typeof payload.reason === 'string' ? payload.reason : null,
+                                        expiresAt: typeof payload.expiresAt === 'number' ? payload.expiresAt : null,
+                                        requestedAt: typeof requestRow!.ts === 'number' ? requestRow!.ts : null,
+                                        actor: typeof requestRow!.actor === 'string' ? requestRow!.actor : null,
+                                        origin: typeof requestRow!.origin === 'string' ? requestRow!.origin : null,
+                                },
+                        ],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+});
+
+// ---------------------------------------------------------------------------
+// CR-010b wave 2: capability-discovery.search (read-only over the live registry)
+// ---------------------------------------------------------------------------
+
+suite('flauz cli: capability-discovery.search round trips', () => {
+        test('search by state projects the registry query result', async () => {
+                const result = await runCli(['capability-discovery.search', 'state:enabled'], {
+                        context: capabilityContext,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const q = await capabilityRegistry.query({ state: 'enabled' });
+                assert.equal(q.ok, true);
+                if (!q.ok) {
+                        throw new Error('registry query refused');
+                }
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { state: 'enabled' },
+                        limit: null,
+                        count: q.count,
+                        returned: q.entries.length,
+                        entries: [...q.entries],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('search by artifactKind projects the registry query result', async () => {
+                const result = await runCli(['capability-discovery.search', 'artifactKind:cli'], {
+                        context: capabilityContext,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                const q = await capabilityRegistry.query({ artifactKind: 'cli' });
+                assert.equal(q.ok, true);
+                if (!q.ok) {
+                        throw new Error('registry query refused');
+                }
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { artifactKind: 'cli' },
+                        limit: null,
+                        count: q.count,
+                        returned: q.entries.length,
+                        entries: [...q.entries],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('search by platform projects the registry query result', async () => {
+                const result = await runCli(['capability-discovery.search', 'platform:linux-x64'], {
+                        context: capabilityContext,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                const q = await capabilityRegistry.query({ platform: 'linux-x64' });
+                assert.equal(q.ok, true);
+                if (!q.ok) {
+                        throw new Error('registry query refused');
+                }
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { platform: 'linux-x64' },
+                        limit: null,
+                        count: q.count,
+                        returned: q.entries.length,
+                        entries: [...q.entries],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('search by permissionTier projects the registry query result', async () => {
+                const result = await runCli(['capability-discovery.search', 'permissionTier:low'], {
+                        context: capabilityContext,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                const q = await capabilityRegistry.query({ permissionTier: 'low' });
+                assert.equal(q.ok, true);
+                if (!q.ok) {
+                        throw new Error('registry query refused');
+                }
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { permissionTier: 'low' },
+                        limit: null,
+                        count: q.count,
+                        returned: q.entries.length,
+                        entries: [...q.entries],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('a combined predicate intersects through the registry', async () => {
+                const result = await runCli(
+                        ['capability-discovery.search', 'state:enabled artifactKind:cli platform:linux-x64 permissionTier:low'],
+                        { context: capabilityContext },
+                );
+                assert.equal(result.exitCode, EXIT_OK);
+                const q = await capabilityRegistry.query({
+                        state: 'enabled',
+                        artifactKind: 'cli',
+                        platform: 'linux-x64',
+                        permissionTier: 'low',
+                });
+                assert.equal(q.ok, true);
+                if (!q.ok) {
+                        throw new Error('registry query refused');
+                }
+                assert.equal(q.count, 1);
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { state: 'enabled', artifactKind: 'cli', platform: 'linux-x64', permissionTier: 'low' },
+                        limit: null,
+                        count: q.count,
+                        returned: q.entries.length,
+                        entries: [...q.entries],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('the declared limit applies over the registry stable ordering and is disclosed', async () => {
+                const result = await runCli(['capability-discovery.search', 'artifactKind:cli', '1'], {
+                        context: capabilityContext,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                const q = await capabilityRegistry.query({ artifactKind: 'cli' });
+                assert.equal(q.ok, true);
+                if (!q.ok) {
+                        throw new Error('registry query refused');
+                }
+                // The registry's honest semantics: only REGISTERED-and-beyond
+                // entries carry imported.artifactKind; the discovered-only seed
+                // (imported === null) is excluded from an artifactKind query.
+                assert.equal(q.count, 1);
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { artifactKind: 'cli' },
+                        limit: 1,
+                        count: q.count,
+                        returned: 1,
+                        entries: [q.entries[0]],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+
+        test('a malformed predicate is the registry typed refusal surfaced as an edge failure', async () => {
+                const result = await runCli(['capability-discovery.search', 'rank:best'], {
+                        context: capabilityContext,
+                });
+                assert.notEqual(result.exitCode, EXIT_OK);
+                assert.equal(result.edgeFailure?.reason, 'seam-unavailable');
+                assert.ok(String(result.edgeFailure?.detail ?? '').includes('E_QUERY_MALFORMED'));
+        });
+
+        test('the read-only law: searches leave the registry bytes untouched', async () => {
+                const journalPath = join(registryRootFor(capabilityRoot), 'registry-journal.jsonl');
+                const snapshotPath = join(registryRootFor(capabilityRoot), 'registry-state.json');
+                const journalBefore = await readFile(journalPath, 'utf8');
+                const snapshotBefore = await readFile(snapshotPath, 'utf8');
+                await runCli(['capability-discovery.search', 'state:enabled'], { context: capabilityContext });
+                await runCli(['capability-discovery.search', 'artifactKind:cli', '1'], { context: capabilityContext });
+                await runCli(['capability-discovery.search', 'rank:best'], { context: capabilityContext });
+                await runCli(
+                        ['capability-discovery.search', 'state:enabled', 'platform:linux-x64', 'permissionTier:low', 'artifactKind:cli'],
+                        { context: capabilityContext },
+                );
+                assert.equal(await readFile(journalPath, 'utf8'), journalBefore);
+                assert.equal(await readFile(snapshotPath, 'utf8'), snapshotBefore);
+        });
+
+        test('search over an empty registry directory projects an honest empty result', async () => {
+                const result = await runCli(['capability-discovery.search', 'state:enabled'], {
+                        context: harnessContext,
+                });
+                assert.equal(result.exitCode, EXIT_OK);
+                assert.equal(result.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'capability-search',
+                        predicate: { state: 'enabled' },
+                        limit: null,
+                        count: 0,
+                        returned: 0,
+                        entries: [],
+                };
+                assert.equal(resultDigestOf(result), sha256Hex(canonicalJson(expected)));
+        });
+});
+
+suite('flauz cli: the registry binding', () => {
+        test('readRegistry binds the read-only registry surface', () => {
+                const binding = harnessContext.readRegistry(harnessContext.root);
+                assert.equal(typeof binding.load, 'function');
+                assert.equal(typeof binding.query, 'function');
+                assert.equal(typeof binding.inspect, 'function');
+                assert.equal('discover' in binding, false);
+                assert.equal('register' in binding, false);
+                assert.equal('verify' in binding, false);
+                assert.equal('approve' in binding, false);
+                assert.equal('enable' in binding, false);
+                assert.equal('remove' in binding, false);
+        });
+
+        test('registryRootFor places the registry under the root .flauz tree and the seeded files live there', async () => {
+                assert.equal(
+                        registryRootFor(capabilityRoot),
+                        join(resolve(capabilityRoot), '.flauz', 'capability-registry'),
+                );
+                const journal = await readFile(join(registryRootFor(capabilityRoot), 'registry-journal.jsonl'), 'utf8');
+                assert.ok(journal.length > 0);
         });
 });
 
 let harnessContext: Awaited<ReturnType<typeof loadHarnessContext>>;
 let fixtureRoot: string;
 let freshRoot: string;
+let approvalContext: Awaited<ReturnType<typeof loadHarnessContext>>;
+let approvalFixtureRoot: string;
+let capabilityContext: Awaited<ReturnType<typeof loadRealContext>>;
+let capabilityRoot: string;
+let capabilityRegistry: RegistryRuntime;
 
 suiteSetup(async () => {
         fixtureRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-fixture-'));
         await writeFile(join(fixtureRoot, 'flauz-cli-fixture.json'), JSON.stringify(FIXTURE));
+        // CR-010b: the harness root's registry directory exists so the census
+        // loop's capability-discovery.search loads an honest empty registry.
+        await mkdir(join(fixtureRoot, '.flauz', 'capability-registry'), { recursive: true });
         harnessContext = await loadHarnessContext({
                 root: fixtureRoot,
                 issuedAtIso: '1970-01-01T00:00:00.000Z',
         });
         freshRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-fresh-'));
+        approvalFixtureRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-approval-'));
+        await writeFile(join(approvalFixtureRoot, 'flauz-cli-fixture.json'), JSON.stringify(APPROVAL_FIXTURE));
+        approvalContext = await loadHarnessContext({
+                root: approvalFixtureRoot,
+                issuedAtIso: APPROVAL_ISSUED_AT,
+        });
+        capabilityRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-capability-'));
+        capabilityRegistry = await seedCapabilityRegistry(capabilityRoot);
+        capabilityContext = await loadRealContext({
+                root: capabilityRoot,
+                issuedAtIso: APPROVAL_ISSUED_AT,
+        });
 });
