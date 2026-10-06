@@ -1381,3 +1381,765 @@ suite('P2-FIX-122: the exercise\'s excerpt-mode wiring (live-provider lane, stub
                 assert.ok(!receipt.evidenceItems.some(item => item.uri.endsWith('explore-excerpt.json')));
         });
 });
+
+// ---------------------------------------------------------------------------
+// A-PROD-003-W7: the agent-with-tools dogfood lane (the new suites)
+// ---------------------------------------------------------------------------
+
+import { createAgentToolSurface, mintToolReceipt, TOOL_RECEIPT_SCHEMA, type AgentToolSurface, type ToolReceipt } from './agentTools.ts';
+import { AGENT_DELEGATION_EXERCISE, bootAgentSession, paddedEvidenceId, PRIMARY_AGENT, WORKER_AGENT, type SessionFacts } from './exercises/agent-delegation.task.ts';
+import { TOOLS_EXPLORATION_EXERCISE, TOOLS_LANE_MARKER, TOOL_RESULTS_BEGIN, TOOL_RESULTS_END, TOOLS_DIRECTIVE_SCHEMA, TOOLS_ANSWER_SCHEMA, TOOLS_VERIFICATION_SCHEMA, MAX_TOOL_TURNS, buildToolsAskPrompt, renderToolReceiptBlock, parseToolsDirective, parseToolsAnswer, verifyToolsReceipts, readCommandFile, isReadReceipt, readOnlyCommandsConfirmationPolicy, type ToolsExplorationAnswer } from './exercises/tools-exploration.task.ts';
+import { toolsAgentTurn, TOOLS_LANE_SEARCH_COMMAND } from './fake-provider.mjs';
+import { SeamClient } from '../../../extensions/flauz-agent/src/seamClient.ts';
+import { GOLDEN_COMMAND } from '../../../extensions/flauz-agent/src/orchestrator.ts';
+import { seamTaskPort, createOrchTakeoverPort } from '../../../extensions/flauz-agent/src/takeover.ts';
+import { OrchestrationStore } from '../../../extensions/flauz-agent/core/orchStore.mjs';
+import { delegateStep, ingestResultReport } from '../../../extensions/flauz-agent/core/routing.mjs';
+import { TERMINAL_TOOL_ID } from '../../../extensions/flauz-agent/src/tools/terminalTool.ts';
+
+/** The canary shapes the G8 privacy pin scans for (never to appear in any receipt/friction row). */
+const CANARY_SHAPES = /ghp_[A-Za-z0-9]{16,}|sk-[A-Za-z0-9]{16,}/;
+
+/**
+ * The G8 canary VALUES, assembled at RUNTIME (joined pieces) so no committed
+ * source line ever carries a secret-shaped literal -- the repo's own
+ * security-gate law (a planted canary must live in fixtures at run time,
+ * never in the repository bytes).
+ */
+const GHP_TOOLS_CANARY = ['ghp', `w7toolscanary${'A'.repeat(24)}`].join('_');
+const SK_TOOLS_CANARY = ['sk', `w7toolscanary${'B'.repeat(24)}`].join('-');
+const GHP_DELEGATION_CANARY = ['ghp', `w7delegationcanary${'C'.repeat(24)}`].join('_');
+const SK_DELEGATION_CANARY = ['sk', `w7delegationcanary${'D'.repeat(24)}`].join('-');
+const GHP_DELEGATION_CANARY_2 = ['ghp', `w7delegationcanary${'E'.repeat(24)}`].join('_');
+
+/** Builds the W7 tools fixture tree: the CANONICAL ledger module + known consumers + distractors (+ planted canaries). */
+async function buildToolsFixtureTree(options?: { readonly canaries?: boolean }): Promise<{ readonly root: string; readonly groundTruth: readonly GroundTruthConsumer[] }> {
+        const root = await fs.mkdtemp(path.join(os.tmpdir(), 'flauz-dogfood-w7tools-'));
+        const write = async (relative: string, contents: string): Promise<void> => {
+                const target = path.join(root, relative);
+                await fs.mkdir(path.dirname(target), { recursive: true });
+                await fs.writeFile(target, `${contents}\n`, { encoding: 'utf-8' });
+        };
+        const canaries = options?.canaries === true;
+        await write('extensions/flauz-workspace/src/ledger.ts', 'export interface LedgerRow { seq: number; sha256: string; }\nexport class EvidenceLedger { append() { return null; } }\nexport function ledgerAppend() { return null; }\nexport function verifyLedger() { return true; }\n');
+        await write('extensions/flauz-alpha/src/consumer.ts', [
+                canaries ? `// a fixture canary comment never to be read or receipted: ${GHP_TOOLS_CANARY}` : '// the W7 tools fixture consumer',
+                `import { EvidenceLedger } from '../../flauz-workspace/src/ledger';`,
+                'export const use = EvidenceLedger;',
+        ].join('\n'));
+        await write('extensions/flauz-beta/deep/consumer.ts', [
+                `import { ledgerAppend, type LedgerRow } from '../../flauz-workspace/src/ledger.js';`,
+                'export const rows: LedgerRow[] = [];',
+        ].join('\n'));
+        await write('extensions/flauz-gamma/src/reexport.ts', [
+                `export { verifyLedger } from '../../flauz-workspace/src/ledger';`,
+        ].join('\n'));
+        await write('extensions/flauz-delta/src/mentions.ts', '// a comment that merely mentions the ledger -- NOT a consumer\nexport const none = true;\n');
+        await write('extensions/flauz-delta/src/other.ts', `import { existsSync } from './other-module';\nexport const x = existsSync;\n`);
+        if (canaries) {
+                await write('extensions/flauz-epsilon/src/canary-notes.ts', `// fixture-planted canaries: ${SK_TOOLS_CANARY} -- never to reach a receipt
+`);
+        }
+        const groundTruth: GroundTruthConsumer[] = [
+                { file: 'extensions/flauz-alpha/src/consumer.ts', line: 2, symbols: ['EvidenceLedger'] },
+                { file: 'extensions/flauz-beta/deep/consumer.ts', line: 1, symbols: ['ledgerAppend', 'LedgerRow'] },
+                { file: 'extensions/flauz-gamma/src/reexport.ts', line: 1, symbols: ['verifyLedger'] },
+        ];
+        return { root, groundTruth };
+}
+
+/** A fixture receipt over given output (the pure builder, hashed by the real sha256Hex). */
+function fixtureReceipt(receiptId: string, command: string, stdout: string, options?: { readonly granted?: boolean; readonly exitCode?: number }): ToolReceipt {
+        return mintToolReceipt({
+                receiptId,
+                command,
+                decision: { tool: TERMINAL_TOOL_ID, title: 'Flauz terminal command', message: `Allow Flauz Agent to run \`${command}\` in the integrated terminal?`, command, granted: options?.granted ?? true, at: 1_000 },
+                execution: options?.granted === false ? undefined : { command, stdout, stderr: '', exitCode: options?.exitCode ?? 0, durationMs: 5, at: 1_000 },
+                refusal: options?.granted === false ? 'the human DENIED the confirmation at the tool approval gate' : null,
+                ts: 1_000,
+        });
+}
+
+suite('W7 agentTools: the real tool surface + the tool-receipt contract', () => {
+
+        test('createAgentToolSurface registers the REAL flauz_terminal tool and REALLY executes through /bin/sh on the cwd', async () => {
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-surface-'));
+                const surface = createAgentToolSurface({ cwd: root });
+                try {
+                        assert.strictEqual(surface.state.tools.length, 1, 'exactly one tool registered');
+                        assert.strictEqual(surface.state.tools[0]?.name, TERMINAL_TOOL_ID, 'the registered tool is flauz_terminal (the product\'s own tool)');
+                        const outcome = await surface.invokeTerminal('echo hello-w7-real-execution');
+                        assert.strictEqual(outcome.ok, true);
+                        assert.strictEqual(outcome.kind, 'executed');
+                        assert.strictEqual(outcome.output, 'hello-w7-real-execution');
+                        assert.strictEqual(outcome.execution?.exitCode, 0, 'the real child exited 0');
+                        assert.strictEqual(outcome.execution?.stdout.trim(), 'hello-w7-real-execution');
+                        assert.strictEqual(surface.state.invocations.length, 1, 'the invocation was recorded through the platform gate');
+                        assert.strictEqual(surface.state.invocations[0]?.name, TERMINAL_TOOL_ID);
+                        assert.strictEqual(surface.state.invocations[0]?.confirmationAsked, true, 'the HumanApproval confirmation was asked (prepareInvocation -> confirmationMessages)');
+                } finally {
+                        surface.dispose();
+                }
+        });
+
+        test('the confirmation gate: a DENYING policy refuses the invocation BEFORE execution (the product\'s own refusal semantics)', async () => {
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-surface-deny-'));
+                const surface = createAgentToolSurface({ cwd: root, confirmationPolicy: () => false });
+                try {
+                        const outcome = await surface.invokeTerminal('echo never-runs');
+                        assert.strictEqual(outcome.ok, false);
+                        assert.strictEqual(outcome.kind, 'denied');
+                        assert.match(outcome.refusal ?? '', /rejected by user/);
+                        assert.strictEqual(outcome.execution, undefined, 'nothing executed (the gate refused first)');
+                        assert.strictEqual(surface.executions.length, 0, 'no real execution happened');
+                        assert.strictEqual(surface.decisions[0]?.granted, false, 'the denial decision is captured');
+                        assert.strictEqual(surface.state.invocations.length, 1, 'the refused invocation is still recorded (asked + denied)');
+                } finally {
+                        surface.dispose();
+                }
+        });
+
+        test('the approval detail is captured verbatim from the tool\'s REAL prepareInvocation (title + message)', async () => {
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-surface-approval-'));
+                const surface = createAgentToolSurface({ cwd: root });
+                try {
+                        await surface.invokeTerminal('echo approval-detail');
+                        const decision = surface.decisions[0];
+                        assert.ok(decision !== undefined);
+                        assert.strictEqual(decision.tool, TERMINAL_TOOL_ID);
+                        assert.strictEqual(decision.title, 'Flauz terminal command');
+                        assert.match(decision.message, /Allow Flauz Agent to run `echo approval-detail`/);
+                        assert.strictEqual(decision.granted, true);
+                } finally {
+                        surface.dispose();
+                }
+        });
+
+        test('mintToolReceipt: the EXECUTED shape (schema + approval + the hashed/sized stdout + local-real evidence level)', () => {
+                const receipt = fixtureReceipt('R-1', "grep -nE -- 'import|export' extensions/flauz-a/src/a.ts", '1:import { x } from \'./ledger\';\n2:export const y = x;');
+                assert.strictEqual(receipt.schema, TOOL_RECEIPT_SCHEMA);
+                assert.strictEqual(receipt.receiptId, 'R-1');
+                assert.strictEqual(receipt.tool, TERMINAL_TOOL_ID);
+                assert.deepStrictEqual(receipt.input, { command: "grep -nE -- 'import|export' extensions/flauz-a/src/a.ts" });
+                assert.deepStrictEqual(receipt.approval, { asked: true, granted: true, title: 'Flauz terminal command', message: 'Allow Flauz Agent to run `grep -nE -- \'import|export\' extensions/flauz-a/src/a.ts` in the integrated terminal?' });
+                assert.strictEqual(receipt.execution?.exitCode, 0);
+                assert.strictEqual(receipt.execution?.stdoutBytes, 53);
+                assert.strictEqual(receipt.execution?.stdoutSha256, sha256Hex('1:import { x } from \'./ledger\';\n2:export const y = x;'));
+                assert.strictEqual(receipt.refusal, null);
+                assert.strictEqual(receipt.evidenceLevel, 'local-real');
+        });
+
+        test('mintToolReceipt: the DENIED shape (no execution, the refusal account, approval asked but not granted)', () => {
+                const receipt = fixtureReceipt('R-2', 'rm -rf /', '', { granted: false });
+                assert.strictEqual(receipt.schema, TOOL_RECEIPT_SCHEMA);
+                assert.deepStrictEqual(receipt.approval, { asked: true, granted: false, title: 'Flauz terminal command', message: 'Allow Flauz Agent to run `rm -rf /` in the integrated terminal?' });
+                assert.strictEqual(receipt.execution, null);
+                assert.match(receipt.refusal ?? '', /DENIED/);
+                assert.strictEqual(receipt.evidenceLevel, 'local-real');
+        });
+});
+
+suite('W7 agent-delegation: the golden path + the approval-gate refusal (the REAL session machinery)', () => {
+
+        test('a DENIED tool confirmation fails the task fail-closed: no evidence rows, the fail event carries "rejected by user"', async () => {
+                const sessionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-golden-deny-'));
+                const session: SessionFacts = await bootAgentSession(sessionRoot, () => undefined);
+                try {
+                        session.surface.setConfirmationPolicy(() => false);
+                        await session.handler({ prompt: 'golden path with a denied confirmation' });
+                        const refused = await session.handler({ command: 'approve', prompt: '' });
+                        const task = (await session.seam.listTasks()).tasks[0];
+                        assert.strictEqual(task?.status, 'failed');
+                        const failEvent = task?.events.find((event: { type: string }) => event.type === 'fail');
+                        assert.ok(failEvent !== undefined, 'the fail event landed');
+                        assert.match(String((failEvent as { payload?: { error?: unknown } }).payload?.error ?? ''), /rejected by user/);
+                        assert.match(refused.markdown.join('\n'), /failed/);
+                        const ledgerLines = (await fs.readFile(path.join(sessionRoot, '.flauz', 'evidence', 'ledger.jsonl'), { encoding: 'utf-8' }).catch(() => '')).split('\n').filter(line => line.length > 0);
+                        assert.strictEqual(ledgerLines.length, 0, 'NO evidence rows for the refused execution (fail-closed)');
+                        assert.strictEqual(session.surface.executions.length, 0, 'nothing really executed');
+                } finally {
+                        await session.dispose();
+                }
+        });
+
+        test('a GRANTED confirmation completes the golden path: the trail, the two hash-chained evidence rows, verify-pass, sign-off -> done', async () => {
+                const sessionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-golden-grant-'));
+                const session: SessionFacts = await bootAgentSession(sessionRoot, () => undefined);
+                try {
+                        session.surface.setConfirmationPolicy(() => true);
+                        await session.handler({ prompt: 'golden path with the confirmation granted' });
+                        await session.handler({ command: 'approve', prompt: '' });
+                        await session.handler({ command: 'sign-off', prompt: '' });
+                        const task = (await session.seam.listTasks()).tasks[0];
+                        assert.strictEqual(task?.status, 'done');
+                        const trail = (task?.events ?? []).map((event: { actor: string; type: string }) => `${event.actor}/${event.type}`);
+                        assert.strictEqual(trail.join(' | '), 'agent/created | agent/submit-plan | human/approve | agent/report | tool/verify-pass | human/sign-off');
+                        const lines = (await fs.readFile(path.join(sessionRoot, '.flauz', 'evidence', 'ledger.jsonl'), { encoding: 'utf-8' })).split('\n').filter(line => line.length > 0);
+                        assert.strictEqual(lines.length, 2, 'command-output + changeset');
+                        const row1 = JSON.parse(lines[0] ?? '') as { kind: string; taskId: string; prev: unknown };
+                        const row2 = JSON.parse(lines[1] ?? '') as { kind: string; prev: unknown };
+                        assert.strictEqual(row1.kind, 'command-output');
+                        assert.strictEqual(row1.taskId, 'T-001');
+                        assert.strictEqual(row1.prev, null);
+                        assert.strictEqual(row2.kind, 'changeset');
+                        assert.ok(typeof row2.prev === 'string' && row2.prev.length > 0, 'row 2 chains to row 1');
+                        // the REAL execution: the golden command really ran in /bin/sh
+                        const execution = session.surface.executions.find(entry => entry.command === GOLDEN_COMMAND);
+                        assert.ok(execution !== undefined, 'the golden command really executed');
+                        assert.strictEqual(execution.exitCode, 0);
+                        assert.strictEqual(execution.stdout.trim(), 'flauz-golden-path-ok');
+                        const verdict = await session.seam.verifyLedger();
+                        assert.strictEqual(verdict.ok, true, 'the ledger verifies through the real seam');
+                } finally {
+                        await session.dispose();
+                }
+        });
+
+        test('the policy choreography swaps mid-session: deny the first invocation, grant the second (the refusal then the re-run)', async () => {
+                const sessionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-golden-swap-'));
+                const session: SessionFacts = await bootAgentSession(sessionRoot, () => undefined);
+                try {
+                        session.surface.setConfirmationPolicy(() => false);
+                        await session.handler({ prompt: 'first attempt will be denied' });
+                        await session.handler({ command: 'approve', prompt: '' });
+                        session.surface.setConfirmationPolicy(() => true);
+                        await session.handler({ prompt: 'second attempt will be granted' });
+                        await session.handler({ command: 'approve', prompt: '' });
+                        const tasks = (await session.seam.listTasks()).tasks;
+                        assert.strictEqual(tasks[0]?.status, 'failed', 'the denied task failed');
+                        assert.strictEqual(tasks[1]?.status, 'awaiting-signoff', 'the granted task verified and awaits sign-off');
+                        assert.strictEqual(session.surface.decisions.map(decision => decision.granted).join(','), 'false,true', 'the two gate decisions in order');
+                        assert.strictEqual(session.surface.executions.length, 1, 'only the granted invocation executed');
+                } finally {
+                        await session.dispose();
+                }
+        });
+});
+
+suite('W7 agent-delegation: the delegation edge + the takeover transition (the REAL orchestration seams)', () => {
+
+        test('the delegation edge end to end: route-decided + the typed a2a task-delegation over the REAL service bus + the worker mailbox + the result-report ingestion + the graph completion', async () => {
+                const sessionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-edge-'));
+                const seam = await SeamClient.start({ workspaceRoot: sessionRoot, logger: () => undefined });
+                try {
+                        const store = new OrchestrationStore(sessionRoot, { taskPort: seamTaskPort(seam) });
+                        const busPort = { post: async (input: { message: Record<string, unknown> }) => seam.request<{ id: string; seq: number; message: Record<string, unknown> }>('flauz.a2a.post', { message: input.message }) };
+                        const submitted = await store.submitGraph({
+                                title: 'the delegated step',
+                                steps: [{ stepId: 'S-01', title: 'delegated work', instruction: 'do the delegated work' }],
+                                actor: 'agent',
+                                origin: 'test:w7-edge',
+                        });
+                        await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:w7-edge' });
+                        const delegation = await delegateStep(store, busPort, {
+                                graphId: submitted.graphId,
+                                stepId: 'S-01',
+                                targetAgent: WORKER_AGENT,
+                                reason: 'capability-match',
+                                details: { requiredCapability: 'terminal' },
+                                fromAgent: PRIMARY_AGENT,
+                        });
+                        const decision = store.journalRows.find(row => row.type === 'route-decided');
+                        const receipt = store.journalRows.find(row => row.type === 'delegation-sent');
+                        assert.strictEqual(String((receipt as { payload?: { decisionRowId?: unknown } })?.payload?.decisionRowId), String(decision?.rowId));
+                        assert.strictEqual(String((receipt as { payload?: { messageId?: unknown } })?.payload?.messageId), delegation.messageId);
+                        const a2aLines = (await fs.readFile(path.join(sessionRoot, '.flauz', 'a2a', 'messages.jsonl'), { encoding: 'utf-8' })).split('\n').filter(line => line.length > 0);
+                        assert.strictEqual(a2aLines.length, 1);
+                        const message = JSON.parse(a2aLines[0] ?? '') as { kind: string; from: string; to: string; id: string; payload: { taskId: string; taskDescription: string; prompt: string } };
+                        assert.strictEqual(message.kind, 'task-delegation');
+                        assert.strictEqual(message.from, PRIMARY_AGENT);
+                        assert.strictEqual(message.to, WORKER_AGENT);
+                        assert.strictEqual(message.id, delegation.messageId);
+                        assert.strictEqual(message.payload.taskId, submitted.taskId);
+                        const mail = await seam.request<{ messages: Array<Record<string, unknown>> }>('flauz.a2a.collect', { agentId: WORKER_AGENT, consume: true });
+                        assert.strictEqual(mail.messages.length, 1);
+                        const evidence = await seam.appendEvidence(submitted.taskId ?? '', { kind: 'note', uri: 'flauz-test://w7', sha256: sha256Hex('w7') });
+                        const report = await busPort.post({
+                                message: {
+                                        kind: 'result-report',
+                                        from: WORKER_AGENT,
+                                        to: PRIMARY_AGENT,
+                                        payload: { taskId: submitted.taskId, outcome: 'ok', evidenceIds: [paddedEvidenceId(evidence.seq)], summary: 'the delegated work completed' },
+                                },
+                        });
+                        const ingestion = await ingestResultReport(store, { graphId: submitted.graphId, stepId: 'S-01', messageId: report.id, outcome: 'ok', summary: 'the delegated work completed', evidenceIds: [paddedEvidenceId(evidence.seq)], fromAgent: WORKER_AGENT });
+                        assert.ok(ingestion.receiptRowId.length > 0);
+                        await store.completeGraph({ graphId: submitted.graphId, actor: 'agent', origin: 'test:w7-edge' });
+                        const state = store.getGraphState(submitted.graphId) as { graphStatus: string; steps: Record<string, { status: string; runnerId: string | null }> };
+                        assert.strictEqual(state.graphStatus, 'completed');
+                        assert.strictEqual(state.steps['S-01']?.status, 'succeeded');
+                        assert.strictEqual(state.steps['S-01']?.runnerId, WORKER_AGENT);
+                        const received = store.journalRows.find(row => row.type === 'result-received');
+                        assert.deepStrictEqual((received as { payload?: { evidenceIds?: unknown } })?.payload?.evidenceIds, [paddedEvidenceId(evidence.seq)]);
+                } finally {
+                        await seam.dispose();
+                }
+        });
+
+        test('the takeover probe reports the stuck gated step (the view row\'s data contract) and nothing after the takeover', async () => {
+                const sessionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-probe-'));
+                const seam = await SeamClient.start({ workspaceRoot: sessionRoot, logger: () => undefined });
+                try {
+                        const taskPort = seamTaskPort(seam);
+                        const store = new OrchestrationStore(sessionRoot, { taskPort });
+                        const submitted = await store.submitGraph({
+                                title: 'the gated decision',
+                                steps: [{ stepId: 'S-01', title: 'stuck work', instruction: 'needs the human', gate: 'human-approval' }],
+                                actor: 'agent',
+                                origin: 'test:w7-probe',
+                        });
+                        await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:w7-probe' });
+                        await store.approvalRequest({ graphId: submitted.graphId, stepId: 'S-01', reason: 'the gated decision', actor: 'agent', origin: 'test:w7-probe' });
+                        const port = createOrchTakeoverPort(sessionRoot, taskPort, () => undefined);
+                        const before = await port.stuckStepOf(submitted.taskId ?? '');
+                        assert.ok(before !== undefined, 'the probe sees the stuck step');
+                        assert.strictEqual(before.state, 'stuck');
+                        assert.strictEqual(before.stepId, 'S-01');
+                        const result = await port.takeOverStep(submitted.taskId ?? '', 'the human completed it personally');
+                        assert.strictEqual(result.outcome, 'taken-over');
+                        const after = await port.stuckStepOf(submitted.taskId ?? '');
+                        assert.strictEqual(after, undefined, 'no human-held step remains after the completion');
+                } finally {
+                        await seam.dispose();
+                }
+        });
+
+        test('the takeover transition: request -> accept -> complete, every journal row actor human, the step NEVER started, the chain verifies, the LEG 9 evidence lands', async () => {
+                const sessionRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-takeover-'));
+                const seam = await SeamClient.start({ workspaceRoot: sessionRoot, logger: () => undefined });
+                try {
+                        const taskPort = seamTaskPort(seam);
+                        const store = new OrchestrationStore(sessionRoot, { taskPort });
+                        const submitted = await store.submitGraph({
+                                title: 'the gated release decision',
+                                steps: [{ stepId: 'S-01', title: 'the final decision', instruction: 'the gated decision', gate: 'human-approval' }],
+                                actor: 'agent',
+                                origin: 'test:w7-takeover',
+                        });
+                        await store.approveGraph({ graphId: submitted.graphId, actor: 'human', origin: 'test:w7-takeover' });
+                        await store.approvalRequest({ graphId: submitted.graphId, stepId: 'S-01', reason: 'the gated release decision', actor: 'agent', origin: 'test:w7-takeover' });
+                        const port = createOrchTakeoverPort(sessionRoot, taskPort, () => undefined);
+                        const note = 'the human completed the gated release decision personally (the W7 takeover test)';
+                        const result = await port.takeOverStep(submitted.taskId ?? '', note);
+                        assert.strictEqual(result.outcome, 'taken-over');
+                        assert.strictEqual(result.receipt.rows.map(row => row.type).join(','), 'takeover-requested,takeover-accepted,takeover-completed');
+                        const fresh = new OrchestrationStore(sessionRoot);
+                        const takeoverRows = fresh.journalRows.filter(row => row.type.startsWith('takeover-'));
+                        assert.strictEqual(takeoverRows.map(row => row.type).join(','), 'takeover-requested,takeover-accepted,takeover-completed');
+                        assert.ok(takeoverRows.every(row => row.actor === 'human'), 'every takeover row carries the human attribution');
+                        assert.ok(!fresh.journalRows.some(row => row.type === 'step-started' && row.graphId === submitted.graphId), 'the gated step NEVER started (no agent execution)');
+                        const state = fresh.stateOf(submitted.graphId) as { steps: Record<string, { status: string; takeover?: { state: string } }> };
+                        assert.strictEqual(state.steps['S-01']?.status, 'succeeded');
+                        assert.strictEqual(state.steps['S-01']?.takeover?.state, 'completed');
+                        assert.strictEqual(fresh.verifyJournal().ok, true, 'the journal chain verifies');
+                        const ledgerLines = (await fs.readFile(path.join(sessionRoot, '.flauz', 'evidence', 'ledger.jsonl'), { encoding: 'utf-8' })).split('\n').filter(line => line.length > 0);
+                        const completion = ledgerLines.map(line => JSON.parse(line) as { uri?: string; sha256?: string }).find(row => row.uri === `flauz-orch-takeover://${submitted.graphId}/S-01`);
+                        assert.ok(completion !== undefined, 'the takeover evidence row landed');
+                        assert.strictEqual(completion.sha256, sha256Hex(note));
+                } finally {
+                        await seam.dispose();
+                }
+        });
+});
+
+suite('W7 agent-delegation: the exercise wiring (the full lane, stubbed driver seams)', () => {
+
+        /** The stubbed driver-level harness (the W6 wiring-test pattern: the SEAMS are stubs, the session machinery is REAL). */
+        async function stubHarness(recordsDir: string): Promise<DogfoodHarness> {
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-delegation-exercise-'));
+                await fs.mkdir(recordsDir, { recursive: true });
+                const friction = new FrictionLog({ path: path.join(recordsDir, 'agent-delegation.friction.jsonl'), clock: () => 1_000 });
+                let seq = 0;
+                return {
+                        runId: 'test-run', mode: 'fake-lane', root, repoRoot: REPO_ROOT, recordsDir, clock: () => 1_000, friction,
+                        tasks: { recordEvidence: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}` }; } },
+                        ledger: { append: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}`, seq }; } },
+                        memory: {}, store: {}, provider: { ask: async () => { throw new Error('the delegation exercise asks no provider turn'); } },
+                        exerciseId: 'agent-delegation', taskId: 'T-001', graphId: 'G-001', stepId: 'S-01', log: () => undefined,
+                } as unknown as DogfoodHarness;
+        }
+
+        test('the full agent-delegation run PASSes with the pinned checks + the 10 human-gate friction rows (2 with recovery accounts)', async () => {
+                const recordsDir = path.join(os.tmpdir(), `w7-delegation-records-${String(Date.now())}`);
+                const harness = await stubHarness(recordsDir);
+                const receipt = await AGENT_DELEGATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'PASS', receipt.checks.filter(check => !check.ok).map(check => `${check.id}: ${check.detail}`).join(' | '));
+                assert.deepStrictEqual(receipt.checks.map(check => check.id), [
+                        'delegation.session-booted',
+                        'delegation.golden-refusal-fail-closed',
+                        'delegation.golden-path-completed',
+                        'delegation.golden-tool-real',
+                        'delegation.edge-routed',
+                        'delegation.delegated-work-real',
+                        'delegation.result-ingested',
+                        'delegation.takeover-transition',
+                        'delegation.shared-state-consistent',
+                        'delegation.evidence-minted',
+                        'delegation.human-gates-logged',
+                ]);
+                const rows = await (harness.friction as FrictionLog).readAll();
+                const interventions = rows.filter(row => row.type === 'friction');
+                assert.strictEqual(interventions.length, 10, 'the 10 human interventions (2 plan approvals, the denial, the grant, the sign-off, 2 graph approvals, the step approval, the worker confirmation, the takeover)');
+                assert.ok(interventions.every(row => row.kind === 'manual-intervention'));
+                assert.strictEqual(interventions.filter(row => row.recovery.length > 0).length, 2, 'the denial\'s re-run + the takeover\'s completion carry recovery accounts');
+                assert.strictEqual(receipt.frictionRows.friction, 10);
+                assert.strictEqual(receipt.frictionRows.recovery, 2);
+                const report = JSON.parse(await fs.readFile(path.join(recordsDir, 'agent-delegation.report.json'), { encoding: 'utf-8' })) as {
+                        schema: string;
+                        toolReceipts: Array<{ receiptId: string; approval: { granted: boolean }; execution: unknown }>;
+                        delegatedWork?: { output?: string; exitCode?: number };
+                };
+                assert.strictEqual(report.schema, 'flauz.dogfood-delegation-report/v1');
+                assert.deepStrictEqual(report.toolReceipts.map(entry => entry.receiptId), ['R-1', 'R-2', 'R-3']);
+                assert.strictEqual(report.toolReceipts[0]?.approval.granted, false, 'R-1 is the DENIED gate');
+                assert.strictEqual(report.toolReceipts[0]?.execution, null);
+                assert.ok(report.toolReceipts[1]?.execution !== null && report.toolReceipts[2]?.execution !== null, 'R-2 + R-3 really executed');
+                assert.ok(String(report.delegatedWork?.output ?? '').includes('w7 delegated module test: PASS'));
+                assert.strictEqual(report.delegatedWork?.exitCode, 0);
+        });
+
+        test('G8 privacy canary: fixture-planted ghp_/sk_-shaped canaries NEVER appear in any receipt or friction row of the delegation lane', async () => {
+                const recordsDir = path.join(os.tmpdir(), `w7-delegation-canary-${String(Date.now())}`);
+                const harness = await stubHarness(recordsDir);
+                await fs.mkdir(path.join(harness.root, 'w7-agent-delegation-session'), { recursive: true });
+                await fs.writeFile(path.join(harness.root, 'secrets-canary.txt'), `${GHP_DELEGATION_CANARY}
+${SK_DELEGATION_CANARY}
+`, { encoding: 'utf-8' });
+                await fs.writeFile(path.join(harness.root, 'w7-agent-delegation-session', 'secrets-canary.txt'), `${GHP_DELEGATION_CANARY_2}
+`, { encoding: 'utf-8' });
+                const receipt = await AGENT_DELEGATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'PASS', 'the canary planting changed nothing');
+                assert.doesNotMatch(JSON.stringify(receipt), CANARY_SHAPES, 'the exercise receipt carries no canary');
+                const frictionText = await fs.readFile(path.join(recordsDir, 'agent-delegation.friction.jsonl'), { encoding: 'utf-8' });
+                assert.doesNotMatch(frictionText, CANARY_SHAPES, 'no friction row carries a canary');
+                const reportText = await fs.readFile(path.join(recordsDir, 'agent-delegation.report.json'), { encoding: 'utf-8' });
+                assert.doesNotMatch(reportText, CANARY_SHAPES, 'the session report carries no canary');
+        });
+});
+
+suite('W7 tools-exploration: the protocol + the receipt-contract verification (pure)', () => {
+
+        test('parseToolsDirective: the valid raw directive parses; malformed JSON / wrong schema / empty calls / bad call shapes fail closed', () => {
+                const valid = JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'flauz_terminal', input: { command: 'grep -n x' } }] });
+                const parsed = parseToolsDirective(valid);
+                assert.ok(parsed.ok);
+                assert.strictEqual(parsed.directive.calls.length, 1);
+                assert.strictEqual(parsed.directive.calls[0]?.tool, 'flauz_terminal');
+                assert.strictEqual(parsed.directive.calls[0]?.input.command, 'grep -n x');
+                assert.ok(!parseToolsDirective('not json').ok);
+                assert.ok(!parseToolsDirective(JSON.stringify({ schema: 'wrong/v1', calls: [] })).ok);
+                assert.ok(!parseToolsDirective(JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [] })).ok);
+                assert.ok(!parseToolsDirective(JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: '', input: { command: 'x' } }] })).ok);
+                assert.ok(!parseToolsDirective(JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'flauz_terminal', input: { command: '' } }] })).ok);
+                assert.ok(!parseToolsDirective(JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'flauz_terminal' }] })).ok);
+        });
+
+        test('parseToolsDirective: a FENCED directive parses in the tolerant (live) mode and fails in the raw default', () => {
+                const fenced = `\`\`\`json\n${JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'flauz_terminal', input: { command: 'ls' } }] })}\n\`\`\``;
+                assert.ok(parseToolsDirective(fenced, { fenceTolerant: true }).ok);
+                assert.ok(!parseToolsDirective(fenced).ok, 'the raw machine-lane default stays strict');
+        });
+
+        test('parseToolsAnswer: the valid shape parses (consumers + receipts); wrong schema / missing / mistyped fields fail closed', () => {
+                const valid = JSON.stringify({
+                        schema: TOOLS_ANSWER_SCHEMA,
+                        question: 'q',
+                        method: 'm',
+                        receipts: ['R-1', 'R-2'],
+                        consumers: [{ file: 'extensions/flauz-a/src/a.ts', line: 3, consumes: ['x', 'y'] }],
+                });
+                const parsed = parseToolsAnswer(valid);
+                assert.ok(parsed.ok);
+                assert.deepStrictEqual(parsed.answer.receipts, ['R-1', 'R-2']);
+                assert.deepStrictEqual(parsed.answer.consumers[0], { file: 'extensions/flauz-a/src/a.ts', line: 3, consumes: ['x', 'y'] });
+                assert.ok(!parseToolsAnswer('nope').ok);
+                assert.ok(!parseToolsAnswer(JSON.stringify({ schema: 'flauz.dogfood-explore-answer/v1', consumers: [], receipts: [], question: 'q', method: 'm' })).ok, 'the tools answer has its own schema');
+                assert.ok(!parseToolsAnswer(JSON.stringify({ schema: TOOLS_ANSWER_SCHEMA, question: '', method: 'm', receipts: [], consumers: [] })).ok);
+                assert.ok(!parseToolsAnswer(JSON.stringify({ schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: 'R-1', consumers: [] })).ok);
+                assert.ok(!parseToolsAnswer(JSON.stringify({ schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: [], consumers: [{ file: 'a.ts', line: 0, consumes: [] }] })).ok);
+                assert.ok(!parseToolsAnswer(JSON.stringify({ schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: [], consumers: [{ file: 'a.ts', line: 1, consumes: [1] }] })).ok);
+        });
+
+        test('parseToolsAnswer: a FENCED answer parses in the tolerant (live) mode', () => {
+                const fenced = `\`\`\`json\n${JSON.stringify({ schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: [], consumers: [] })}\n\`\`\`\nSuccess!`;
+                assert.ok(parseToolsAnswer(fenced, { fenceTolerant: true }).ok);
+        });
+
+        test('readCommandFile extracts the targeted file (the last token); isReadReceipt recognizes only approved exit-0 numbered greps', () => {
+                assert.strictEqual(readCommandFile("grep -nE -- 'import|export' extensions/flauz-a/src/a.ts"), 'extensions/flauz-a/src/a.ts');
+                assert.strictEqual(readCommandFile('grep -rlE -- x extensions/flauz-*'), 'extensions/flauz-*');
+                const read = fixtureReceipt('R-1', "grep -nE -- 'import|export' extensions/flauz-a/src/a.ts", '1:x');
+                const search = fixtureReceipt('R-2', 'grep -rlE -- x extensions/flauz-*', 'a.ts');
+                const denied = fixtureReceipt('R-3', "grep -nE -- 'import|export' b.ts", '', { granted: false });
+                const failed = fixtureReceipt('R-4', "grep -nE -- 'import|export' c.ts", '', { exitCode: 1 });
+                assert.strictEqual(isReadReceipt(read), true);
+                assert.strictEqual(isReadReceipt(search), false, 'the search receipt is not a read');
+                assert.strictEqual(isReadReceipt(denied), false, 'a denied invocation is not a read');
+                assert.strictEqual(isReadReceipt(failed), false, 'a non-zero exit is not a successful read');
+        });
+
+        test('verifyToolsReceipts: a covered answer verifies ok (every claimed file:line streamed by a read receipt)', () => {
+                const receipts = [
+                        fixtureReceipt('R-1', 'grep -rlE -- x extensions/flauz-*', 'extensions/flauz-a/src/a.ts\nextensions/flauz-a/src/b.ts'),
+                        fixtureReceipt('R-2', "grep -nE -- 'import|export' extensions/flauz-a/src/a.ts", "1:import { x } from './ledger';\n5:export const y = x;"),
+                        fixtureReceipt('R-3', "grep -nE -- 'import|export' extensions/flauz-a/src/b.ts", "2:import { z } from '../ledger.js';"),
+                ];
+                const answer: ToolsExplorationAnswer = {
+                        schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: ['R-1', 'R-2', 'R-3'],
+                        consumers: [
+                                { file: 'extensions/flauz-a/src/a.ts', line: 1, consumes: ['x'] },
+                                { file: 'extensions/flauz-a/src/b.ts', line: 2, consumes: ['z'] },
+                        ],
+                };
+                const verification = verifyToolsReceipts(answer, receipts);
+                assert.strictEqual(verification.ok, true, verification.problems.join('; '));
+                assert.strictEqual(verification.totals.coveredEntries, 2);
+                assert.deepStrictEqual(verification.coverage.map(row => row.coveredBy), ['R-2', 'R-3']);
+        });
+
+        test('verifyToolsReceipts: an UNCOVERED claimed entry (the hallucination shape) fails with the coverage problem; line-prefix collisions do NOT count', () => {
+                const receipts = [fixtureReceipt('R-1', "grep -nE -- 'import|export' extensions/flauz-a/src/a.ts", "12:import { x } from './ledger';")];
+                const answer: ToolsExplorationAnswer = {
+                        schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: ['R-1'],
+                        consumers: [
+                                { file: 'extensions/flauz-a/src/a.ts', line: 12, consumes: ['x'] },
+                                { file: 'extensions/flauz-a/src/a.ts', line: 1, consumes: ['x'] },
+                                { file: 'extensions/flauz-a/src/invented.ts', line: 3, consumes: ['x'] },
+                        ],
+                };
+                const verification = verifyToolsReceipts(answer, receipts);
+                assert.strictEqual(verification.ok, false);
+                assert.strictEqual(verification.totals.uncoveredEntries, 2);
+                const problems = verification.problems.join('; ');
+                assert.ok(problems.includes('not covered by any read receipt'), problems);
+                assert.ok(problems.includes('extensions/flauz-a/src/a.ts:1'), 'the line 1 claim is uncovered (12: does not cover 1:)');
+                assert.ok(problems.includes('extensions/flauz-a/src/invented.ts:3'), 'the invented file is uncovered');
+        });
+
+        test('verifyToolsReceipts: a cited receipt that was never minted, was denied, or failed its execution fails the contract', () => {
+                const denied = fixtureReceipt('R-1', "grep -nE -- 'import|export' a.ts", '', { granted: false });
+                const failed = fixtureReceipt('R-2', "grep -nE -- 'import|export' a.ts", '', { exitCode: 2 });
+                const answer: ToolsExplorationAnswer = { schema: TOOLS_ANSWER_SCHEMA, question: 'q', method: 'm', receipts: ['R-1', 'R-2', 'R-9'], consumers: [] };
+                const verification = verifyToolsReceipts(answer, [denied, failed]);
+                assert.strictEqual(verification.ok, false);
+                const problems = verification.problems.join('; ');
+                assert.ok(problems.includes('R-9 which this run never minted'), problems);
+                assert.ok(problems.includes('R-1 which did not pass the approval gate'), problems);
+                assert.ok(problems.includes('R-2 whose real execution did not succeed'), problems);
+        });
+
+        test('buildToolsAskPrompt embeds the lane marker + the question + the protocol schemas + the receipts verbatim (and the empty first-turn state)', () => {
+                const empty = buildToolsAskPrompt([]);
+                assert.ok(empty.includes(TOOLS_LANE_MARKER));
+                assert.ok(empty.includes(TOOL_RESULTS_BEGIN) && empty.includes(TOOL_RESULTS_END));
+                assert.ok(empty.includes('(no tool invocations yet'));
+                assert.ok(empty.includes(TOOLS_DIRECTIVE_SCHEMA) && empty.includes(TOOLS_ANSWER_SCHEMA));
+                const receipt = fixtureReceipt('R-1', 'echo hi', 'hi');
+                const prompt = buildToolsAskPrompt([receipt]);
+                assert.ok(prompt.includes(renderToolReceiptBlock(receipt)), 'the receipt block rides the prompt verbatim');
+                assert.ok(prompt.includes('[receipt R-1 | tool flauz_terminal | approved | command: echo hi | exit 0]'));
+                assert.ok(prompt.includes('hi'));
+        });
+});
+
+suite('W7 tools-exploration: the fake lane\'s scripted agent (the tool-carrying brain)', () => {
+
+        test('turn 1 (no receipts): the search directive (the exact sound-superset command, tool flauz_terminal)', () => {
+                const response = JSON.parse(toolsAgentTurn(buildToolsAskPrompt([]))) as { schema: string; calls: Array<{ tool: string; input: { command: string } }> };
+                assert.strictEqual(response.schema, TOOLS_DIRECTIVE_SCHEMA);
+                assert.strictEqual(response.calls.length, 1);
+                assert.strictEqual(response.calls[0]?.tool, TERMINAL_TOOL_ID);
+                assert.strictEqual(response.calls[0]?.input.command, TOOLS_LANE_SEARCH_COMMAND);
+        });
+
+        test('with the search receipt: the READ directives for every source-extension candidate (non-source candidates skipped)', () => {
+                const receipts = [
+                        fixtureReceipt('R-1', TOOLS_LANE_SEARCH_COMMAND, 'extensions/flauz-alpha/src/consumer.ts\nextensions/flauz-alpha/src/README.md\nextensions/flauz-beta/deep/consumer.ts'),
+                ];
+                const response = JSON.parse(toolsAgentTurn(buildToolsAskPrompt(receipts))) as { schema: string; calls: Array<{ input: { command: string } }> };
+                assert.strictEqual(response.schema, TOOLS_DIRECTIVE_SCHEMA);
+                assert.deepStrictEqual(response.calls.map(call => call.input.command), [
+                        "grep -nE -- 'import|export' extensions/flauz-alpha/src/consumer.ts",
+                        "grep -nE -- 'import|export' extensions/flauz-beta/deep/consumer.ts",
+                ]);
+        });
+
+        test('with search + reads: the ANSWER computed from the read lines ONLY (real consumers resolved, other-module imports excluded, receipts cited)', () => {
+                const receipts = [
+                        fixtureReceipt('R-1', TOOLS_LANE_SEARCH_COMMAND, 'extensions/flauz-alpha/src/consumer.ts'),
+                        fixtureReceipt('R-2', "grep -nE -- 'import|export' extensions/flauz-alpha/src/consumer.ts", [
+                                '1:// a comment mentioning import and ledger -- not a statement',
+                                "2:import { EvidenceLedger } from '../../flauz-workspace/src/ledger';",
+                                "3:import { existsSync } from 'node:fs';",
+                                '4:export const use = EvidenceLedger;',
+                        ].join('\n')),
+                ];
+                const response = JSON.parse(toolsAgentTurn(buildToolsAskPrompt(receipts))) as { schema: string; consumers: Array<{ file: string; line: number; consumes: string[] }>; receipts: string[]; question: string; method: string };
+                assert.strictEqual(response.schema, TOOLS_ANSWER_SCHEMA);
+                assert.deepStrictEqual(response.consumers, [{ file: 'extensions/flauz-alpha/src/consumer.ts', line: 2, consumes: ['EvidenceLedger'] }]);
+                assert.deepStrictEqual(response.receipts, ['R-1', 'R-2']);
+                assert.ok(response.method.includes('agent-with-tools'));
+                assert.ok(response.method.includes('never a server-side scan'));
+        });
+
+        test('a DENIED search receipt re-requests the search (the fail-closed loop state -- the agent cannot proceed without its tools)', () => {
+                const receipts = [fixtureReceipt('R-1', TOOLS_LANE_SEARCH_COMMAND, '', { granted: false })];
+                const response = JSON.parse(toolsAgentTurn(buildToolsAskPrompt(receipts))) as { schema: string; calls: Array<{ input: { command: string } }> };
+                assert.strictEqual(response.schema, TOOLS_DIRECTIVE_SCHEMA);
+                assert.strictEqual(response.calls[0]?.input.command, TOOLS_LANE_SEARCH_COMMAND);
+        });
+});
+
+suite('W7 tools-exploration: the provider branch over the REAL wire', () => {
+
+        test('the fake provider answers the tools-lane ask with the directive JSON over the real SSE wire (the W1 provider-lane fidelity)', async () => {
+                const { startFakeProvider } = await import('./fake-provider.mjs');
+                const fixture = await buildToolsFixtureTree();
+                const provider = await startFakeProvider({ repoRoot: fixture.root, workspaceRoot: fixture.root });
+                try {
+                        const body = JSON.stringify({ model: 'dogfood-1', messages: [{ role: 'user', content: buildToolsAskPrompt([]) }] });
+                        const text = await new Promise<string>((resolve, reject) => {
+                                const request = http.request({ host: '127.0.0.1', port: provider.port, path: '/v1/chat/completions', method: 'POST', headers: { 'content-type': 'application/json' } }, response => {
+                                        let raw = '';
+                                        response.on('data', chunk => {
+                                                raw += chunk.toString('utf-8');
+                                        });
+                                        response.on('end', () => resolve(raw));
+                                });
+                                request.on('error', reject);
+                                request.end(body);
+                        });
+                        const completion = text.split('\n').filter(line => line.startsWith('data: ') && !line.includes('[DONE]')).map(line => JSON.parse(line.slice('data: '.length)) as { choices: Array<{ delta: { content?: string } }> }).map(event => event.choices[0]?.delta.content ?? '').join('');
+                        const directive = JSON.parse(completion) as { schema: string; calls: Array<{ tool: string; input: { command: string } }> };
+                        assert.strictEqual(directive.schema, TOOLS_DIRECTIVE_SCHEMA);
+                        assert.strictEqual(directive.calls[0]?.tool, TERMINAL_TOOL_ID);
+                        assert.strictEqual(directive.calls[0]?.input.command, TOOLS_LANE_SEARCH_COMMAND);
+                        assert.strictEqual(provider.toolsComputations, 1, 'the census counted the tools-lane turn');
+                } finally {
+                        provider.close();
+                }
+        });
+});
+
+suite('W7 tools-exploration: the exercise wiring (the full lane)', () => {
+
+        /** The stubbed driver-level harness with a controllable ask (the fake-policy brain or a stubbed one). */
+        async function stubHarness(repoRoot: string, recordsDir: string, ask: (prompt: string) => Promise<string>): Promise<DogfoodHarness> {
+                const root = await fs.mkdtemp(path.join(os.tmpdir(), 'w7-tools-exercise-'));
+                await fs.mkdir(recordsDir, { recursive: true });
+                const friction = new FrictionLog({ path: path.join(recordsDir, 'tools-exploration.friction.jsonl'), clock: () => 1_000 });
+                let seq = 0;
+                return {
+                        runId: 'test-run', mode: 'fake-lane', root, repoRoot, recordsDir, clock: () => 1_000, friction,
+                        tasks: { recordEvidence: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}` }; } },
+                        ledger: { append: async () => { seq += 1; return { evidenceId: `E-${String(seq).padStart(6, '0')}`, seq }; } },
+                        memory: {}, store: {},
+                        provider: { ask: async (input: AskPrompt): Promise<AskOutcome> => {
+                                const prompt = typeof input === 'function' ? await input({ decisionId: 'rd-000001' }) : input;
+                                const text = await ask(prompt);
+                                return { kind: 'ok', text, decisionId: 'rd-000001', providerId: 'flauz-dogfood-fake', modelId: 'dogfood-1', durationMs: 5, attempts: 1, wallClockBudgetMs: 15_000, finishReason: 'stop' };
+                        } },
+                        exerciseId: 'tools-exploration', taskId: 'T-001', graphId: 'G-001', stepId: 'S-01', log: () => undefined,
+                } as unknown as DogfoodHarness;
+        }
+
+        test('the happy path: the REAL tool surface over the fixture tree + the fake-policy brain -> PASS, receipts cited, the map 100% verified against the driver\'s own scan', async () => {
+                const fixture = await buildToolsFixtureTree();
+                const recordsDir = path.join(os.tmpdir(), `w7-tools-records-${String(Date.now())}`);
+                const harness = await stubHarness(fixture.root, recordsDir, async prompt => toolsAgentTurn(prompt));
+                const receipt = await TOOLS_EXPLORATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'PASS', receipt.checks.filter(check => !check.ok).map(check => `${check.id}: ${check.detail}`).join(' | '));
+                assert.deepStrictEqual(receipt.checks.map(check => check.id), [
+                        'tools.model-calls-ok', 'tools.answer-parses', 'tools.tool-receipts-real', 'tools.answer-cites-reads',
+                        'tools.map-sound', 'tools.map-complete', 'tools.map-100-percent', 'tools.evidence-minted',
+                ]);
+                const verification = JSON.parse(await fs.readFile(path.join(recordsDir, 'tools-exploration.verification.json'), { encoding: 'utf-8' })) as {
+                        schema: string; verified: boolean;
+                        turns: Array<{ kind: string }>;
+                        receiptVerification: { totals: { receipts: number; readReceipts: number; coveredEntries: number; uncoveredEntries: number } };
+                        mapVerification: { totals: { claimed: number; real: number; verifiedEntries: number; problemEntries: number; missedEntries: number } };
+                };
+                assert.strictEqual(verification.schema, TOOLS_VERIFICATION_SCHEMA);
+                assert.strictEqual(verification.verified, true);
+                assert.deepStrictEqual(verification.turns.map(turn => turn.kind), ['directive', 'directive', 'answer'], 'search -> reads -> answer');
+                assert.strictEqual(verification.receiptVerification.totals.receipts, 4, 'the search + the 3 candidate reads');
+                assert.strictEqual(verification.receiptVerification.totals.readReceipts, 3);
+                assert.strictEqual(verification.receiptVerification.totals.coveredEntries, 3);
+                assert.strictEqual(verification.receiptVerification.totals.uncoveredEntries, 0);
+                assert.deepStrictEqual(verification.mapVerification.totals, { claimed: 3, real: 3, verifiedEntries: 3, problemEntries: 0, missedEntries: 0 }, 'the fixture ground truth verified 100%');
+                assert.strictEqual(receipt.evidenceItems.length, 2 + verification.receiptVerification.totals.receipts, 'every receipt + the answer + the verification hash-pinned');
+        });
+
+        test('the hallucinating stub (answers immediately, claims it never read) FAILs: the coverage contract + the map soundness, with honest friction rows', async () => {
+                const fixture = await buildToolsFixtureTree();
+                const recordsDir = path.join(os.tmpdir(), `w7-tools-halluc-${String(Date.now())}`);
+                const hallucinated = JSON.stringify({
+                        schema: TOOLS_ANSWER_SCHEMA,
+                        question: 'q',
+                        method: 'guessed without reading',
+                        receipts: ['R-1'],
+                        consumers: [
+                                { file: 'extensions/flauz-alpha/src/consumer.ts', line: 2, consumes: ['EvidenceLedger'] },
+                                { file: 'extensions/flauz-invented/src/consumer.ts', line: 1, consumes: ['EvidenceLedger'] },
+                        ],
+                });
+                const harness = await stubHarness(fixture.root, recordsDir, async () => hallucinated);
+                const receipt = await TOOLS_EXPLORATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'FAIL');
+                assert.ok(!receipt.checks.find(check => check.id === 'tools.answer-cites-reads')?.ok, 'the coverage check failed');
+                assert.ok(!receipt.checks.find(check => check.id === 'tools.map-sound')?.ok, 'the invented entry fails soundness');
+                const rows = await (harness.friction as FrictionLog).readAll();
+                assert.ok(rows.some(row => row.type === 'friction' && row.kind === 'evidence-gap' && row.detail.includes('tool-receipt contract failed')));
+                assert.ok(rows.some(row => row.type === 'friction' && row.kind === 'failed-task' && row.detail.includes('not 100% verified')));
+        });
+
+        test('the refusing human: a non-read-only command is DENIED at the exercise\'s approval gate -- every denial a manual-intervention friction row, the loop fails closed at the turn bound', async () => {
+                const fixture = await buildToolsFixtureTree();
+                const recordsDir = path.join(os.tmpdir(), `w7-tools-refusal-${String(Date.now())}`);
+                // an agent that insists on a WRITE-class command: the careful-human policy refuses every one at the gate
+                const demanding = JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'flauz_terminal', input: { command: 'node -e "process.exit(0)"' } }] });
+                const harness = await stubHarness(fixture.root, recordsDir, async () => demanding);
+                const receipt = await TOOLS_EXPLORATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'FAIL');
+                assert.ok(!receipt.checks.find(check => check.id === 'tools.answer-parses')?.ok, 'the agent never answered (the loop hit the turn bound)');
+                const rows = await (harness.friction as FrictionLog).readAll();
+                const denials = rows.filter(row => row.type === 'friction' && row.kind === 'manual-intervention' && row.detail.includes('DENIED'));
+                assert.strictEqual(denials.length, MAX_TOOL_TURNS, `every one of the ${String(MAX_TOOL_TURNS)} turns' refusals is logged as a human intervention`);
+                const verification = JSON.parse(await fs.readFile(path.join(recordsDir, 'tools-exploration.verification.json'), { encoding: 'utf-8' })) as { receiptVerification: { totals: { receipts: number; deniedReceipts: number } } };
+                assert.strictEqual(verification.receiptVerification.totals.receipts, MAX_TOOL_TURNS);
+                assert.strictEqual(verification.receiptVerification.totals.deniedReceipts, MAX_TOOL_TURNS, 'every receipt records the denied gate');
+        });
+
+        test('an agent directing an UNKNOWN tool is refused by the lane (the surface is flauz_terminal only) and the refusal is logged', async () => {
+                const fixture = await buildToolsFixtureTree();
+                const recordsDir = path.join(os.tmpdir(), `w7-tools-unknown-${String(Date.now())}`);
+                const rogue = JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'not_a_real_tool', input: { command: 'ls' } }] });
+                const harness = await stubHarness(fixture.root, recordsDir, async () => rogue);
+                const receipt = await TOOLS_EXPLORATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'FAIL');
+                assert.ok(!receipt.checks.find(check => check.id === 'tools.tool-surface-known')?.ok, 'the unknown tool is flagged');
+                const rows = await (harness.friction as FrictionLog).readAll();
+                assert.ok(rows.some(row => row.type === 'friction' && row.detail.includes('unknown tool')));
+        });
+
+        test('G8 privacy canary: fixture-planted ghp_/sk_-shaped canaries NEVER appear in any receipt or friction row of the tools lane', async () => {
+                const fixture = await buildToolsFixtureTree({ canaries: true });
+                const recordsDir = path.join(os.tmpdir(), `w7-tools-canary-${String(Date.now())}`);
+                const harness = await stubHarness(fixture.root, recordsDir, async prompt => toolsAgentTurn(prompt));
+                const receipt = await TOOLS_EXPLORATION_EXERCISE.run(harness);
+                assert.strictEqual(receipt.verdict, 'PASS', 'the canary planting changed nothing (the canaries sit on lines the tools never read)');
+                assert.doesNotMatch(JSON.stringify(receipt), CANARY_SHAPES, 'the exercise receipt carries no canary');
+                const frictionText = await fs.readFile(path.join(recordsDir, 'tools-exploration.friction.jsonl'), { encoding: 'utf-8' });
+                assert.doesNotMatch(frictionText, CANARY_SHAPES, 'no friction row carries a canary');
+                const verificationText = await fs.readFile(path.join(recordsDir, 'tools-exploration.verification.json'), { encoding: 'utf-8' });
+                assert.doesNotMatch(verificationText, CANARY_SHAPES, 'the verification receipt (embedding every tool receipt) carries no canary');
+        });
+
+        test('MAX_TOOL_TURNS is pinned at 8 (the fail-closed bound) and the careful-human policy grants read-only grep commands only', () => {
+                assert.strictEqual(MAX_TOOL_TURNS, 8);
+                assert.strictEqual(readOnlyCommandsConfirmationPolicy('flauz_terminal', { title: 't', message: 'Allow Flauz Agent to run `grep -rn ledger extensions/flauz-*` in the integrated terminal?' }), true);
+                assert.strictEqual(readOnlyCommandsConfirmationPolicy('flauz_terminal', { title: 't', message: 'Allow Flauz Agent to run `rm -rf /` in the integrated terminal?' }), false);
+                assert.strictEqual(readOnlyCommandsConfirmationPolicy('flauz_terminal', { title: 't', message: 'Allow Flauz Agent to run `node scratch/test.mjs` in the integrated terminal?' }), false);
+        });
+});
+

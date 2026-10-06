@@ -1,0 +1,97 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "browser-policy",
+	"title": "browser work: layered policy verdicts, deny-never-navigates, drop/recovery over the fake CDP transport",
+	"dimensions": [
+		"browser work",
+		"policy layering",
+		"failure/recovery",
+		"artifacts/evidence",
+		"url redaction"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "bp.scenario-executed",
+			"ok": true,
+			"detail": "all 6 agent-path scripted navigations executed through the real tab pipeline (+ 1 user-path drill evaluated directly, per the B1c firing model)"
+		},
+		{
+			"id": "bp.deny-never-navigates",
+			"ok": true,
+			"detail": "zero Page.navigate commands in sentCommands for the 5 denied targets"
+		},
+		{
+			"id": "bp.allow-navigates",
+			"ok": true,
+			"detail": "every allowed navigation produced a Page.navigate command in sentCommands"
+		},
+		{
+			"id": "bp.verdict-layers",
+			"ok": true,
+			"detail": "each scripted denial decided at its pinned layer (driver/webRequest/willNavigate/partition)"
+		},
+		{
+			"id": "bp.policy-file-rejected",
+			"ok": true,
+			"detail": "the rejected policy file left the deny-all default in effect: n6 -> deny (layer driver, source workspace-file)"
+		},
+		{
+			"id": "bp.url-redaction",
+			"ok": true,
+			"detail": "the journal row for n7 carries the at-record redacted url (\"https://ok.example.com/secret?token=[redacted]&x=1\")"
+		},
+		{
+			"id": "bp.drop-recovery",
+			"ok": true,
+			"detail": "the journal survived the drop (7 rows intact), the re-attach appended 2 row(s), and the re-attach navigation allowed + navigated (https://ok.example.com/after-reattach)"
+		},
+		{
+			"id": "bp.screenshot-capture-command",
+			"ok": true,
+			"detail": "a Page.captureScreenshot command ran through the transport (52 base64 chars)"
+		},
+		{
+			"id": "bp.answer-verified-100",
+			"ok": true,
+			"detail": "the model's answer matched the independently re-derived ground truth 100% (sound + complete; ground-truth sha256 eae96cfa35cf36010bff3f11c01e6ed29fbb3083ce7933f9a807276614fba10e)"
+		},
+		{
+			"id": "bp.ask-prompt-carries-facts",
+			"ok": true,
+			"detail": "the ask prompt embedded the browser-session facts at ask time (P2-FIX-119 doctrine)"
+		},
+		{
+			"id": "bp.report-evidence-minted",
+			"ok": true,
+			"detail": "the browser-policy report is hash-pinned into the evidence ledger (E-000015)"
+		}
+	],
+	"evidenceIds": [
+		"E-000015"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-003/browser-policy-report.json",
+			"sha256": "164d90189b02de33994c6d4ddb30c136e3192bf440d6118513e69eec197e047e"
+		}
+	],
+	"frictionLogPath": "/tmp/w7-port/build/flauz/dogfood/records/aprod003-w7-g4-fake-lane-2026-10-06/browser-policy.friction.jsonl",
+	"frictionRows": {
+		"friction": 1,
+		"timing": 1,
+		"recovery": 1
+	},
+	"evidenceLevels": {
+		"seams": "simulated",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"evidence: SIMULATED (the fake CDP transport + the in-memory journal); the policy engine, tab pipeline, host, journal record builder and redaction are the REAL product seams",
+		"the verifier re-derives ground truth from the primitives (fresh engine.evaluate per target, the sentCommands record, the journal rows) and checks the answer 100% sound+complete; PASS only at 100%",
+		"P2-FIX-119 doctrine: both lanes answer from the prompt-carried session facts (embedded at ask time); the excerpt doctrine (P2-FIX-122 pattern) scopes the live bar when the outcome map exceeds the prompt budget",
+		"the rejected-policy-file engine runs the deny-all builtin default (source workspace-file); the n6 deciding layer is recorded VERBATIM from the real verdict, never assumed",
+		"honest seams (station must confirm): the FakeBrowserState/FakeCdpTransport/attachTab internals and the BrowserPolicyEngine body were digest-elided -- the drill closes the live transport (CdpTransport.close) and re-attaches a fresh transport sharing the state; if FakeBrowserState exposes a dedicated drop(reason) the station should prefer it; the fake provider lane's recognition of this question marker was not verifiable from the provided digests (the prompt-carried-facts posture makes both lanes answer from the prompt)"
+	]
+}

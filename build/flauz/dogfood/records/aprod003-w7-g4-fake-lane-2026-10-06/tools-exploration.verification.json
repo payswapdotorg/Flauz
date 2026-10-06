@@ -1,0 +1,1911 @@
+{
+	"schema": "flauz.dogfood-explore-tools-verification/v1",
+	"mode": "fake-lane",
+	"ledgerModule": "extensions/flauz-workspace/src/ledger.ts",
+	"question": "Map every consumer of the evidence ledger across extensions/flauz-*: file + line + what it consumes. Operational definition (the verifier enforces exactly this): a consumer is a file under extensions/flauz-*/ (any depth) carrying an import or export-from statement on a single line whose relative module specifier (./ or ../, resolved with extensionless->.ts and .js/.mjs/.cjs->.ts twinning) names extensions/flauz-workspace/src/ledger.ts. Report each consumer as { \"file\": repo-relative posix path, \"line\": the 1-based import line, \"consumes\": the imported named bindings (drop \"type\" markers) }.",
+	"turns": [
+		{
+			"turn": 1,
+			"kind": "directive",
+			"detail": "asks for 1 tool call(s)"
+		},
+		{
+			"turn": 2,
+			"kind": "directive",
+			"detail": "asks for 47 tool call(s)"
+		},
+		{
+			"turn": 3,
+			"kind": "answer",
+			"detail": "the final answer carrying 32 claimed consumers citing 48 receipts"
+		}
+	],
+	"receiptVerification": {
+		"schema": "flauz.dogfood-explore-tools-receipt-verification/v1",
+		"ok": true,
+		"problems": [],
+		"coverage": [
+			{
+				"file": "extensions/flauz-backup/test/contract.test.ts",
+				"line": 21,
+				"coveredBy": "R-6"
+			},
+			{
+				"file": "extensions/flauz-backup/test/helpers.ts",
+				"line": 33,
+				"coveredBy": "R-7"
+			},
+			{
+				"file": "extensions/flauz-diagnostics/test/contract.test.ts",
+				"line": 19,
+				"coveredBy": "R-8"
+			},
+			{
+				"file": "extensions/flauz-diagnostics/test/helpers.ts",
+				"line": 32,
+				"coveredBy": "R-9"
+			},
+			{
+				"file": "extensions/flauz-diagnostics/test/integrity.test.ts",
+				"line": 17,
+				"coveredBy": "R-10"
+			},
+			{
+				"file": "extensions/flauz-migration/test/contract.test.ts",
+				"line": 29,
+				"coveredBy": "R-22"
+			},
+			{
+				"file": "extensions/flauz-migration/test/helpers.ts",
+				"line": 33,
+				"coveredBy": "R-23"
+			},
+			{
+				"file": "extensions/flauz-release/test/helpers.ts",
+				"line": 41,
+				"coveredBy": "R-24"
+			},
+			{
+				"file": "extensions/flauz-telemetry/test/helpers.ts",
+				"line": 36,
+				"coveredBy": "R-25"
+			},
+			{
+				"file": "extensions/flauz-workflow/src/commands.ts",
+				"line": 24,
+				"coveredBy": "R-28"
+			},
+			{
+				"file": "extensions/flauz-workflow/src/coordination.ts",
+				"line": 44,
+				"coveredBy": "R-29"
+			},
+			{
+				"file": "extensions/flauz-workflow/src/envelope.ts",
+				"line": 47,
+				"coveredBy": "R-30"
+			},
+			{
+				"file": "extensions/flauz-workflow/src/executable.ts",
+				"line": 42,
+				"coveredBy": "R-27"
+			},
+			{
+				"file": "extensions/flauz-workflow/src/extension.ts",
+				"line": 32,
+				"coveredBy": "R-26"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/agentos-battery.test.ts",
+				"line": 90,
+				"coveredBy": "R-32"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts",
+				"line": 141,
+				"coveredBy": "R-36"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts",
+				"line": 97,
+				"coveredBy": "R-34"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts",
+				"line": 106,
+				"coveredBy": "R-33"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/generateLedgerFixtures.ts",
+				"line": 36,
+				"coveredBy": "R-35"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/hardening.test.ts",
+				"line": 25,
+				"coveredBy": "R-31"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/helpers.ts",
+				"line": 15,
+				"coveredBy": "R-39"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/recovery-matrix.test.ts",
+				"line": 33,
+				"coveredBy": "R-38"
+			},
+			{
+				"file": "extensions/flauz-workflow/test/session-battery.test.ts",
+				"line": 53,
+				"coveredBy": "R-37"
+			},
+			{
+				"file": "extensions/flauz-workspace/src/checkpoint.ts",
+				"line": 7,
+				"coveredBy": "R-44"
+			},
+			{
+				"file": "extensions/flauz-workspace/src/commands.ts",
+				"line": 11,
+				"coveredBy": "R-43"
+			},
+			{
+				"file": "extensions/flauz-workspace/src/extension.ts",
+				"line": 10,
+				"coveredBy": "R-40"
+			},
+			{
+				"file": "extensions/flauz-workspace/src/scmArtifactProvider.ts",
+				"line": 8,
+				"coveredBy": "R-42"
+			},
+			{
+				"file": "extensions/flauz-workspace/src/taskService.ts",
+				"line": 27,
+				"coveredBy": "R-41"
+			},
+			{
+				"file": "extensions/flauz-workspace/src/views.ts",
+				"line": 33,
+				"coveredBy": "R-45"
+			},
+			{
+				"file": "extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts",
+				"line": 88,
+				"coveredBy": "R-46"
+			},
+			{
+				"file": "extensions/flauz-workspace/test/helpers.ts",
+				"line": 10,
+				"coveredBy": "R-48"
+			},
+			{
+				"file": "extensions/flauz-workspace/test/ledger.test.ts",
+				"line": 12,
+				"coveredBy": "R-47"
+			}
+		],
+		"totals": {
+			"receipts": 48,
+			"approvedReceipts": 48,
+			"deniedReceipts": 0,
+			"readReceipts": 47,
+			"citedReceipts": 48,
+			"coveredEntries": 32,
+			"uncoveredEntries": 0
+		}
+	},
+	"toolReceipts": [
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-1",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -rlE -- \"(import|export)[^;]*from ['\\\"][^'\\\"]*ledger\" extensions/flauz-*"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -rlE -- \"(import|export)[^;]*from ['\\\"][^'\\\"]*ledger\" extensions/flauz-*` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "extensions/flauz-acceptance/src/launch.ts\nextensions/flauz-acceptance/src/status.ts\nextensions/flauz-acceptance/src/verify.ts\nextensions/flauz-acceptance/test/contract.test.ts\nextensions/flauz-backup/test/contract.test.ts\nextensions/flauz-backup/test/helpers.ts\nextensions/flauz-diagnostics/test/contract.test.ts\nextensions/flauz-diagnostics/test/helpers.ts\nextensions/flauz-diagnostics/test/integrity.test.ts\nextensions/flauz-incidents/src/status.ts\nextensions/flauz-incidents/src/loop.ts\nextensions/flauz-incidents/src/incidents.ts\nextensions/flauz-incidents/test/contract.test.ts\nextensions/flauz-integrity/src/commands.ts\nextensions/flauz-integrity/src/status.ts\nextensions/flauz-integrity/src/verify.ts\nextensions/flauz-integrity/test/sign.test.ts\nextensions/flauz-integrity/test/privacy.test.ts\nextensions/flauz-integrity/test/status.test.ts\nextensions/flauz-integrity/test/verify.test.ts\nextensions/flauz-migration/test/contract.test.ts\nextensions/flauz-migration/test/helpers.ts\nextensions/flauz-release/test/helpers.ts\nextensions/flauz-telemetry/test/helpers.ts\nextensions/flauz-workflow/src/extension.ts\nextensions/flauz-workflow/src/executable.ts\nextensions/flauz-workflow/src/commands.ts\nextensions/flauz-workflow/src/coordination.ts\nextensions/flauz-workflow/src/envelope.ts\nextensions/flauz-workflow/test/hardening.test.ts\nextensions/flauz-workflow/test/agentos-battery.test.ts\nextensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts\nextensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts\nextensions/flauz-workflow/test/generateLedgerFixtures.ts\nextensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts\nextensions/flauz-workflow/test/session-battery.test.ts\nextensions/flauz-workflow/test/recovery-matrix.test.ts\nextensions/flauz-workflow/test/helpers.ts\nextensions/flauz-workspace/src/extension.ts\nextensions/flauz-workspace/src/taskService.ts\nextensions/flauz-workspace/src/scmArtifactProvider.ts\nextensions/flauz-workspace/src/commands.ts\nextensions/flauz-workspace/src/checkpoint.ts\nextensions/flauz-workspace/src/views.ts\nextensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts\nextensions/flauz-workspace/test/ledger.test.ts\nextensions/flauz-workspace/test/helpers.ts\n",
+				"stdoutSha256": "5f9032d6468c664034e7e182f7bd69ad41cd4e6c9dce06f60d32e096ab03befa",
+				"stdoutBytes": 2236,
+				"durationMs": 34
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000024",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-1.json",
+				"sha256": "efdcf05f00538df9282b9133dfa4b2f40ef0b75810a2d91b8d48fc06456d5d31"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152751
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-2",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-acceptance/src/launch.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-acceptance/src/launch.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "56:import {\n85:import { readProductState } from './productState.ts';\n86:import { bankRecord, type BankingOutcome } from './ledger.ts';\n87:import { sweepArtifact } from './privacy.ts';\n88:import { toIsoStamp } from './format.ts';\n95:export interface ChecklistCandidate {\n107:export async function enumerateChecklistArtifacts(root: string, fs: AcceptanceFsPort): Promise<readonly ChecklistCandidate[]> {\n130:export async function readChecklistArtifact(root: string, fs: AcceptanceFsPort, relPath: string): Promise<{ readonly state: 'absent' } | { readonly state: 'torn'; readonly reason: string } | { readonly state: 'resolved'; readonly artifact: ReleaseChecklistArtifact; readonly text: string }> {\n169:export async function resolveIncidentBinding(root: string, fs: AcceptanceFsPort, incidentId: string): Promise<boolean> {\n191:export interface LaunchArgs {\n207:export function parseLaunchArgs(arg: unknown): LaunchArgs {\n251:export interface LaunchResult {\n267:export interface PersistedLaunch {\n274:export const ACCEPTANCE_LEDGER_PATH = joinPath(ACCEPTANCE_DIR, ACCEPTANCE_FILENAME);\n285:export async function launchAcceptance(deps: { root: string; fs: AcceptanceFsPort; clock: Clock }, args: LaunchArgs): Promise<LaunchResult> {\n434:export function renderLaunch(result: LaunchResult): string[] {\n",
+				"stdoutSha256": "7cecc4bd4f2e618292ba1e661b7d77ae5c644852318ab3860d91bda011946b27",
+				"stdoutBytes": 1299,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000025",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-2.json",
+				"sha256": "3620aad52ad285ef276857538c5b36a183e4e79fd048cf8c3b6c5cb1f41e997c"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152762
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-3",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-acceptance/src/status.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-acceptance/src/status.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "34:import {\n48:import { bankRecord, type BankingOutcome } from './ledger.ts';\n49:import { toIsoStamp } from './format.ts';\n52:export const BOUNDARY_DISCLOSURE = 'THE HONEST SCOPE: this wave delivers MACHINERY over workspace state -- the acceptance ledger, the verification journals, the verdict table. Production usage is EMPTY by design: the production launch has not happened; the launch acts exercised by this plane\\'s tests are seeded workspace records, honestly labeled. No record, test, or sentence may claim a production launch, production usage, or production-real evidence. The evidence label for everything in this wave is local-real (workspace records) or lower, stated honestly.';\n55:export interface StatusResult {\n62:export interface PersistedStatus {\n69:export function statusRecordPath(stamp: string): string {\n80:export async function runStatus(deps: { root: string; fs: AcceptanceFsPort; clock: Clock }): Promise<StatusResult> {\n141:export async function persistStatus(deps: { root: string; fs: AcceptanceFsPort; clock: Clock }, record: AcceptanceStatusRecord): Promise<PersistedStatus> {\n153:export function renderStatus(result: StatusResult): string[] {\n",
+				"stdoutSha256": "c02638a0806272df445c15da999d90d9ccfefc04df0e2c37266e77ac5d665325",
+				"stdoutBytes": 1174,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000026",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-3.json",
+				"sha256": "ef778916aed4c2039bef6ee976966fbf210aeb6d0d39e56d467f4b56646c3a98"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152782
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-4",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-acceptance/src/verify.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-acceptance/src/verify.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "24: *     row's owning command (flauz.diag.show, flauz.backup.export, ... --\n48:import {\n67:import { reReadProductState } from './productState.ts';\n68:import { bankRecord, type BankingOutcome } from './ledger.ts';\n69:import { sweepArtifact } from './privacy.ts';\n70:import { toIsoStamp } from './format.ts';\n71:import { readChecklistArtifact } from './launch.ts';\n78:export interface PinDrift {\n92:export function comparePin(pin: PinnedProductState, fresh: PinnedProductState): PinDrift {\n139:export interface VerifyArgs {\n145:export function parseVerifyArgs(arg: unknown): VerifyArgs {\n160:export interface VerifyResult {\n170:export interface PersistedReceipt {\n177:export function verificationJournalPath(acceptanceId: string): string {\n190:export async function verifyAcceptance(deps: { root: string; fs: AcceptanceFsPort; clock: Clock }, args: VerifyArgs): Promise<VerifyResult> {\n333:export function renderVerify(result: VerifyResult): string[] {\n",
+				"stdoutSha256": "d1705888e890d0cba9750b39a23f99e48486d274579f580f950329850318e04e",
+				"stdoutBytes": 952,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000027",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-4.json",
+				"sha256": "a3305c517d5425d602a582f7a427fc26605a912b8bf22ac9799d4d1b9ee8e08d"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152790
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-5",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-acceptance/test/contract.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-acceptance/test/contract.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "9: * (test-time cross-extension imports are the sanctioned pin pattern; src\n22:import * as assert from 'node:assert/strict';\n23:import * as nodeCrypto from 'node:crypto';\n24:import * as fs from 'node:fs/promises';\n25:import * as path from 'node:path';\n27:import {\n58:import { ACCEPTANCE_LEDGER_PATH as LAUNCH_LEDGER_PATH } from '../src/launch.ts';\n59:import { readProductState, expectedFileVersion } from '../src/productState.ts';\n60:import { bankLedgerRowFor } from '../src/ledger.ts';\n61:import { nodeAcceptanceFs, repoRoot, steppingClock, tempRoot, plantEvidenceBodies, plantChecklistArtifact, plantTasksEnvelope, plantWorkflows, CHECKLIST_ROW_IDS } from './helpers.ts';\n63:// --- the REAL owning modules (test-time cross-extension imports; the pin pattern) ---\n64:import {\n77:import {\n83:import {\n87:import { checklistIdOf as OWNER_checklistIdOf, checklistStamp as OWNER_checklistStamp, type ReleaseChecklistArtifact as OwnerArtifact } from '../../flauz-release/src/checklist.ts';\n88:import { readSurfaceVersions as OWNER_readSurfaceVersions, expectedFileVersion as OWNER_expectedFileVersion } from '../../flauz-release/src/versionInventory.ts';\n89:import { collectDurableStateCensus as OWNER_collectDurableStateCensus, censusProblems as OWNER_censusProblems, type DurableStateCensus } from '../../flauz-release/src/census.ts';\n90:import { EVIDENCE_LABELS as INCIDENTS_EVIDENCE_LABELS, INCIDENT_ID_SHAPE as INCIDENTS_ID_SHAPE, isIncidentId as INCIDENTS_isIncidentId } from '../../flauz-incidents/src/api.ts';\n148:                const apiSource = 'PROVE_ITEM_IDS is exported for the read-pin only (the contract suite)';\n217:                        const { runChecklist } = await import('../../flauz-release/src/checklist.ts');\n",
+				"stdoutSha256": "cedbcb940328bcd82df83ede629cf81c6ffe1efa005594a9bbe6bf5a622c94d7",
+				"stdoutBytes": 1731,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000028",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-5.json",
+				"sha256": "91d7cb4264dbd502e4f8b447adae6ff63f5fbbc5e266d35cb6217bf4aaaeab25"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152796
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-6",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-backup/test/contract.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-backup/test/contract.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "10: * importable); these pins keep it honest.\n13:import assert from 'node:assert/strict';\n14:import { createHash } from 'node:crypto';\n16:import { SURFACES, canonicalJson, serializeArtifact, sha256Hex } from '../src/api.ts';\n17:import { ledgerRowHash, opsRecordHash, parseLedgerLine, parseOpsLine, collectIntegrity } from '../src/verify.ts';\n18:import { countSurface } from '../src/surfaces.ts';\n19:import { canonicalJson as workspaceCanonicalJson, sha256Hex as workspaceSha256Hex, SCHEMA_ID as TASKS_SCHEMA } from '../../flauz-workspace/src/api.ts';\n20:import { canonicalJson as resourcesCanonicalJson, sha256Hex as resourcesSha256Hex, SCHEMA_ID as RESOURCES_SCHEMA, OPS_SCHEMA_ID } from '../../flauz-resources/src/api.ts';\n21:import { rowHash as workspaceRowHash, rowLine } from '../../flauz-workspace/src/ledger.ts';\n22:import { opRecordHash as resourcesOpRecordHash, opLine } from '../../flauz-resources/src/provenance.ts';\n23:import { SIZE_SCHEMA, serializeWatermark as owningSerializeWatermark, parseWatermark, type LedgerWatermark } from '../../flauz-workspace/src/hardening.ts';\n24:import { WORKFLOW_SCHEMA } from '../../flauz-workflow/src/envelope.ts';\n25:import { BROWSER_SESSION_JOURNAL_SCHEMA_ID } from '../../flauz-browser/src/runtime/journal.ts';\n26:import { ORCH_GRAPHS_SCHEMA } from '../../flauz-agent/core/orchestration.mjs';\n27:import { PROVIDERS_SCHEMA_ID } from '../../flauz-models/src/discovery/configs.ts';\n28:import { ROUTING_POLICY_SCHEMA_ID, ROUTING_DECISION_SCHEMA_ID } from '../../flauz-models/src/routing/policy.ts';\n29:import { PROVIDER_SWITCH_SCHEMA_ID } from '../../flauz-models/src/routing/switch.ts';\n30:import { collectDiagnostics } from '../../flauz-diagnostics/src/census.ts';\n31:import { collectIntegrity as diagnosticsCollectIntegrity } from '../../flauz-diagnostics/src/verify.ts';\n32:import { bootFixtureWorkspace, nodeBackupFs, fixtureVersions, steppingClock, type FixtureWorkspace } from './helpers.ts';\n33:import { serializeWatermark } from '../src/restore.ts';\n192:        test('the export-time integrity verdicts are THE SAME verdicts the diagnostics surface reports', async () => {\n",
+				"stdoutSha256": "eb65d827f48208e4b88ce6385f323c911baec15da0b466567ca4e2b692a83e48",
+				"stdoutBytes": 2128,
+				"durationMs": 6
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000029",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-6.json",
+				"sha256": "d8089212e9f7ba7bdaac88861f838c1d3c16f21f79b51981de4cf6674081a4a6"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152804
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-7",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-backup/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-backup/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "9: * driving the REAL owning services (test-time cross-extension imports are\n26:import * as fs from 'node:fs/promises';\n27:import * as os from 'node:os';\n28:import * as path from 'node:path';\n29:import { createHash } from 'node:crypto';\n31:import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';\n32:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n33:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n34:import { ResourceGraph } from '../../flauz-resources/src/graph.ts';\n35:import { ProvenanceLedger } from '../../flauz-resources/src/provenance.ts';\n36:import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';\n37:import { FileSystemSessionJournal, buildSessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';\n38:import { switchProviderLane } from '../../flauz-models/src/routing/switch.ts';\n39:import { ROUTING_POLICY_SCHEMA_ID, type RoutingPolicyFile } from '../../flauz-models/src/routing/policy.ts';\n40:import type { ProviderOverride } from '../../flauz-models/src/discovery/configs.ts';\n41:import type { FileSystemPort as ModelsFsPort, HashPort } from '../../flauz-models/src/contract/ports.ts';\n42:import { WorkflowService } from '../../flauz-workflow/src/envelope.ts';\n44:import type { BackupFsPort, Clock } from '../src/api.ts';\n45:import { toIsoStamp } from '../src/format.ts';\n46:import { ledgerHeadHash, ledgerRowHash, parseLedgerLine } from '../src/verify.ts';\n48:const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');\n52:export function steppingClock(start = 1_740_000_000_000): () => number {\n62:export function nodeWorkspaceFs(): FileSystemPort {\n82:export function nodeBackupFs(): BackupFsPort {\n115:export const nodeHashPort: HashPort = {\n143:export interface FixtureWorkspace {\n157:export interface FixtureOptions {\n161:        /** The parent dir to boot the fixture workspace under (default: the OS tempdir). The privacy suite boots a fixture under a SECRET-SHAPED path to prove the sweep refuses the export. */\n169:export async function bootFixtureWorkspace(options: FixtureOptions = {}): Promise<FixtureWorkspace> {\n213:                        { stepId: 'S-02', title: 'Emit the export', instruction: 'create the durable-state export' },\n317:export async function readAllFiles(dir: string): Promise<{ path: string; text: string }[]> {\n336:/** Lists the export directories a root carries (the export-shape test helper). */\n337:export async function listExportsOnDisk(root: string): Promise<string[]> {\n338:        const entries = await fs.readdir(path.join(root, '.flauz-exports'), { withFileTypes: true }).catch(() => []);\n339:        return entries.filter(entry => entry.isDirectory() && entry.name.startsWith('export-')).map(entry => entry.name).sort();\n343:export function fixtureVersions(): { productVersion: string; productName: string; extensions: { id: string; version: string }[] } {\n356:export async function corruptSurfaces(root: string): Promise<void> {\n368:export async function onDiskLedgerHead(root: string): Promise<string> {\n380:export { ledgerRowHash };\n",
+				"stdoutSha256": "0d9e9be476c00f716438f8b9614dc4ebba4789102167d6cda6b6885b852de5db",
+				"stdoutBytes": 3131,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000030",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-7.json",
+				"sha256": "d41b995aa3120323af5da831876447f6fa21585c8d8534d7ea53275d2ab0550e"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152809
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-8",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-diagnostics/test/contract.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-diagnostics/test/contract.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "12:import assert from 'node:assert/strict';\n13:import { createHash } from 'node:crypto';\n15:import { canonicalJson, serializeArtifact, sha256Hex } from '../src/api.ts';\n16:import { ledgerRowHash, opsRecordHash, parseLedgerLine, parseOpsLine } from '../src/verify.ts';\n17:import { canonicalJson as workspaceCanonicalJson, sha256Hex as workspaceSha256Hex } from '../../flauz-workspace/src/api.ts';\n18:import { canonicalJson as resourcesCanonicalJson, sha256Hex as resourcesSha256Hex } from '../../flauz-resources/src/api.ts';\n19:import { rowHash as workspaceRowHash, rowLine } from '../../flauz-workspace/src/ledger.ts';\n20:import { opRecordHash as resourcesOpRecordHash, opLine } from '../../flauz-resources/src/provenance.ts';\n78:                const { readFile } = await import('node:fs/promises');\n79:                const { fileURLToPath } = await import('node:url');\n80:                const fixturePath = fileURLToPath(new URL('../../../test/fixtures/resources/contracts/environments-registry.json', import.meta.url));\n",
+				"stdoutSha256": "f0304bf55ea8b95aaf83d39222c7141adde6137823cfb88ec23ad19cdf373b70",
+				"stdoutBytes": 1025,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000031",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-8.json",
+				"sha256": "17ed1684ccfd24aee500143f3a00b3cbde2f074dc0a0843cba1ef51a4bf66393"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152814
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-9",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-diagnostics/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-diagnostics/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "9: * driving the REAL owning services (test-time cross-extension imports are\n24:import * as fsSync from 'node:fs';\n25:import * as fs from 'node:fs/promises';\n26:import * as os from 'node:os';\n27:import * as path from 'node:path';\n28:import { createHash } from 'node:crypto';\n30:import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';\n31:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n32:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n33:import { ResourceGraph } from '../../flauz-resources/src/graph.ts';\n34:import { ProvenanceLedger } from '../../flauz-resources/src/provenance.ts';\n35:import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';\n36:import { FileSystemSessionJournal, buildSessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';\n37:import { switchProviderLane } from '../../flauz-models/src/routing/switch.ts';\n38:import { ROUTING_POLICY_SCHEMA_ID, type RoutingPolicyFile } from '../../flauz-models/src/routing/policy.ts';\n39:import type { ProviderOverride } from '../../flauz-models/src/discovery/configs.ts';\n40:import type { FileSystemPort as ModelsFsPort, HashPort } from '../../flauz-models/src/contract/ports.ts';\n41:import { WorkflowService } from '../../flauz-workflow/src/envelope.ts';\n43:import type { Clock, DiagFsPort } from '../src/api.ts';\n44:import { toIsoStamp } from '../src/format.ts';\n46:const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');\n50:export function steppingClock(start = 1_740_000_000_000): () => number {\n60:export function nodeWorkspaceFs(): FileSystemPort {\n80:export function nodeDiagFs(): DiagFsPort {\n108:export const nodeHashPort: HashPort = {\n136:export interface FixtureWorkspace {\n150:export interface FixtureOptions {\n160:export async function bootFixtureWorkspace(options: FixtureOptions = {}): Promise<FixtureWorkspace> {\n308:export async function readAllFiles(dir: string): Promise<{ path: string; text: string }[]> {\n328:export async function listBundleDirs(root: string): Promise<string[]> {\n333:export { fsSync };\n",
+				"stdoutSha256": "84120852adbf0927b2006ae53a34bc4ecf3514c8b0ff2c43bfb456bec36b6ada",
+				"stdoutBytes": 2121,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000032",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-9.json",
+				"sha256": "6a8664b97774ed1b8d513121b9a82198bcad3926f683d6c7adf572a45558306e"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152823
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-10",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-diagnostics/test/integrity.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-diagnostics/test/integrity.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "11:import assert from 'node:assert/strict';\n12:import * as fs from 'node:fs/promises';\n13:import * as path from 'node:path';\n15:import { joinPath } from '../src/api.ts';\n16:import { collectIntegrity, verifyLedgerChain, verifyOpsChain } from '../src/verify.ts';\n17:import { EvidenceLedger, rowHash } from '../../flauz-workspace/src/ledger.ts';\n18:import { LEDGER_PATH } from '../../flauz-workspace/src/api.ts';\n19:import { ProvenanceLedger } from '../../flauz-resources/src/provenance.ts';\n20:import { bootFixtureWorkspace, nodeWorkspaceFs, type FixtureWorkspace } from './helpers.ts';\n172:                const { createHmac } = await import('node:crypto');\n",
+				"stdoutSha256": "d98a115e0717f58acac5ed3b1f98c6d75cb1dac9a5a2499946be01e7d7ae5619",
+				"stdoutBytes": 657,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000033",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-10.json",
+				"sha256": "409040c12bf99f8ff16364a026b676d013ffeda1f6d22ef544ee4c06d472a7b4"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152828
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-11",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-incidents/src/status.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-incidents/src/status.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "43:import {\n64:import { bankRecord, type BankingOutcome } from './ledger.ts';\n65:import { toIsoStamp } from './format.ts';\n66:import { TRANSITION_EVIDENCE_REQUIREMENTS, currentLoopStage } from './loop.ts';\n69:export const BOUNDARY_DISCLOSURE = 'THE HONEST SCOPE: this wave delivers MACHINERY over workspace state -- the incident ledger, the loop journals, the verdict table. Production usage is EMPTY by design: the launch has not happened; no record, test, or sentence may claim a production incident, production usage, or production-real evidence. The evidence label for everything in this wave is local-real (workspace records) or lower, stated honestly.';\n72:export interface StatusResult {\n79:export interface PersistedStatus {\n86:export function statusRecordPath(stamp: string): string {\n95:export function loopVerdictOf(rows: readonly LoopJournalRow[]): LoopVerdict {\n118:export function registryItemIdOf(rows: readonly LoopJournalRow[]): string | undefined {\n138:export function closureReadinessOf(rows: readonly LoopJournalRow[], currentStage: LoopStage): readonly string[] {\n173:export async function runStatus(deps: { root: string; fs: IncidentsFsPort; clock: Clock }): Promise<StatusResult> {\n229:export async function persistStatus(deps: { root: string; fs: IncidentsFsPort; clock: Clock }, record: IncidentsStatusRecord): Promise<PersistedStatus> {\n241:export function renderStatus(result: StatusResult): string[] {\n264:/** Re-exported for the contract suite (the verdict vocabulary exactness pin). */\n265:export { CLOSURE_STAGE, LOOP_FORWARD } from './api.ts';\n",
+				"stdoutSha256": "39524afed5dbab3652552b7bbc299fcce30ef4d9c02eac5099e8176c53977f25",
+				"stdoutBytes": 1576,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000034",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-11.json",
+				"sha256": "29cf2188f1fbd4725efc8822c9d620953ea4da9c67b7c2f27dc22e3809c1710a"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152840
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-12",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-incidents/src/loop.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-incidents/src/loop.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "58:import {\n78:import { bankRecord, type BankingOutcome } from './ledger.ts';\n79:import { sweepArtifact } from './privacy.ts';\n80:import { toIsoStamp } from './format.ts';\n87:export const TRANSITION_EVIDENCE_REQUIREMENTS: Readonly<Record<LoopStage, string>> = {\n99:export interface AdvanceArgs {\n116:export function parseAdvanceArgs(arg: unknown): AdvanceArgs {\n165:export interface AdvanceResult {\n184:export interface PersistedJournal {\n191:export function loopJournalPath(incidentId: string): string {\n203:export function currentLoopStage(rows: readonly LoopJournalRow[]): LoopStage | undefined {\n216:export function missingEvidenceKind(fromStage: LoopStage, evidence: AdvanceArgs['evidence']): string | undefined {\n250:export async function advanceLoop(deps: { root: string; fs: IncidentsFsPort; clock: Clock }, args: AdvanceArgs): Promise<AdvanceResult> {\n350:export async function persistRow(deps: { root: string; fs: IncidentsFsPort; clock: Clock }, incidentId: string, row: LoopJournalRow): Promise<PersistedJournal> {\n374:export async function fireIntakeRow(deps: { root: string; fs: IncidentsFsPort; clock: Clock }, incidentId: string, actor: string): Promise<PersistedJournal> {\n396:export function renderAdvance(result: AdvanceResult): string[] {\n414:export function closureReadiness(fromStage: LoopStage): readonly string[] {\n422:/** Re-exported for the contract suite (the loop vocabulary exactness pin). */\n423:export { LOOP_STAGES, LOOP_FORWARD, CLOSURE_STAGE, EVIDENCE_LABELS } from './api.ts';\n",
+				"stdoutSha256": "a500f1ec173f017a1a23ff2b4954067abf2a05b9a8b1d4ada1a07f896a5f6ef5",
+				"stdoutBytes": 1512,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000035",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-12.json",
+				"sha256": "20bb2f30b153de666213c3b0debf393885047c2b04b5e36311dce520a68a1afc"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152845
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-13",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-incidents/src/incidents.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-incidents/src/incidents.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "36:import {\n61:import { bankRecord, type BankingOutcome } from './ledger.ts';\n62:import { sweepArtifact } from './privacy.ts';\n63:import { toIsoStamp } from './format.ts';\n64:import { fireIntakeRow, type PersistedJournal } from './loop.ts';\n67:export interface ReportArgs {\n85:export function parseReportArgs(arg: unknown): ReportArgs {\n195:export interface ReportResult {\n211:export interface PersistedIncidents {\n218:export const INCIDENTS_LEDGER_PATH = joinPath(INCIDENTS_DIR, INCIDENTS_FILENAME);\n227:export async function resolveSourceBinding(deps: { root: string; fs: IncidentsFsPort }, binding: ReportArgs['sourceBinding']): Promise<SourceBinding> {\n301:export async function reportIncident(deps: { root: string; fs: IncidentsFsPort; clock: Clock }, args: ReportArgs): Promise<ReportResult> {\n379:export async function persistIncidents(deps: { root: string; fs: IncidentsFsPort; clock: Clock }, record: IncidentsLedger): Promise<PersistedIncidents> {\n391:export function renderReport(result: ReportResult): string[] {\n405:export function sweepIncidentsRecord(record: IncidentsLedger): void {\n409:/** Re-exported for the contract suite + the source-fixture pin pattern. */\n410:export { INCIDENTS_TASK_ID, isIncidentId, TELEMETRY_FAILURES_SCHEMA_ID, DURABILITY_HEARTBEAT_SCHEMA_ID, FRICTION_SCHEMA_ID } from './api.ts';\n",
+				"stdoutSha256": "906c3d8b62386bb089277790aeb6a324552cd49237b2c842f93e7ba28fee999d",
+				"stdoutBytes": 1325,
+				"durationMs": 5
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000036",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-13.json",
+				"sha256": "b122db77f0ddfa5d5e2e659f50335aea0c88b8809e0dd145194a9519e24b5609"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152853
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-14",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-incidents/test/contract.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-incidents/test/contract.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "9: * (test-time cross-extension imports are the sanctioned pin pattern; src\n22:import * as assert from 'node:assert/strict';\n23:import * as nodeCrypto from 'node:crypto';\n24:import * as fs from 'node:fs/promises';\n25:import * as path from 'node:path';\n27:import {\n61:import { INCIDENTS_LEDGER_PATH } from '../src/incidents.ts';\n62:import { bankLedgerRowFor } from '../src/ledger.ts';\n63:import { nodeIncidentsFs, repoRoot, steppingClock, tempRoot, plantEvidenceBodies } from './helpers.ts';\n65:// --- the REAL owning modules (test-time cross-extension imports; the pin pattern) ---\n66:import {\n82:import { LEDGER_PATH as WORKSPACE_LEDGER_PATH, SIZE_PATH as WORKSPACE_SIZE_PATH } from '../../flauz-workspace/src/api.ts';\n83:import { TELEMETRY_FAILURES_SCHEMA_ID as OWNER_TELEMETRY_FAILURES_SCHEMA_ID } from '../../flauz-telemetry/src/failuresList.ts';\n",
+				"stdoutSha256": "2f800be95b0ef7e58922c63372ddcfd5d90b85ad11cf298abe9b1452cd9864b4",
+				"stdoutBytes": 851,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000037",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-14.json",
+				"sha256": "26846dab7396c7e234006c5a602101c732c7a43e389b7b33acc906d30805ce4e"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152858
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-15",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/src/commands.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/src/commands.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "21:import type * as vscode from 'vscode';\n22:import { vscodeApi } from './globals.ts';\n23:import {\n34:import { renderSign, persistLedger, runSign, type SignResult } from './ledger.ts';\n35:import { renderVerify, persistVerify, runVerify, type VerifyResult } from './verify.ts';\n36:import { renderStatus, runStatus, type IntegrityStatus } from './status.ts';\n38:export const COMMAND_IDS = ['flauz.integrity.sign', 'flauz.integrity.verify', 'flauz.integrity.status'] as const;\n39:export type IntegrityCommandId = (typeof COMMAND_IDS)[number];\n42:export interface IntegrityCommandServices {\n68:export type IntegrityHandler = (arg: unknown) => Promise<unknown>;\n70:export function registerIntegrityCommands(services: IntegrityCommandServices): vscode.Disposable[] {\n151:/** Re-exported for the tests' product-root fixtures (the probe seam). */\n152:export const productRootProbe = { isProductRoot, joinPath };\n",
+				"stdoutSha256": "c9e53c031dd1a937a1025af8a157d269a7a51a9d0f5d527f2749073f379992f8",
+				"stdoutBytes": 904,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000038",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-15.json",
+				"sha256": "1c68c853bd5c11499b4934fa8bad148a38fed2d0528bbf1ab5b6f306110dcf38"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152879
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-16",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/src/status.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/src/status.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "16:import {\n26:import { readPinnedManifest } from './ledger.ts';\n27:import { parseLedgerRecord, latestLedgerPath } from './verify.ts';\n28:import { toIsoStamp } from './format.ts';\n31:export interface IntegrityStatus {\n53:export async function runStatus(deps: { root: string; productRoot: string; fs: IntegrityFsPort; keys: KeyPort }): Promise<IntegrityStatus> {\n120:export function renderStatus(status: IntegrityStatus): string[] {\n",
+				"stdoutSha256": "a305218163d068ea5caa9277ce4fbcb91a3324f66cdaba2ec0074cf21010bc4e",
+				"stdoutBytes": 432,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000039",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-16.json",
+				"sha256": "39c618f8fe8f313e852ef3691b4fcf00523dbc85956ff87ded90cf00ae75ac4e"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152884
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-17",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/src/verify.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/src/verify.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "33:import {\n57:import { toIsoStamp } from './format.ts';\n58:import { readPinnedManifest, type IntegrityLedgerRecord, type LedgerEntry } from './ledger.ts';\n59:import { sweepArtifact } from './privacy.ts';\n60:import { bankRecord, type BankingOutcome } from './banking.ts';\n63:export type ArtifactVerdict = 'green' | 'tampered' | 'unsigned' | 'torn';\n66:export type ChainVerdict = 'green' | 'tampered' | 'torn' | 'unsigned';\n69:export interface VerifyArtifactRow {\n83:export interface VerifyKeyRow {\n91:export interface VerifyLedgerRow {\n102:export interface IntegrityVerifyRecord {\n125:export interface VerifyResult {\n131:export interface PersistedVerify {\n166:export function parseLedgerRecord(value: unknown): IntegrityLedgerRecord | undefined {\n230:export async function latestLedgerPath(root: string, fs: IntegrityFsPort): Promise<string | undefined> {\n245:export async function runVerify(deps: { root: string; productRoot: string; fs: IntegrityFsPort; clock: Clock; keys: KeyPort }): Promise<VerifyResult> {\n438:export async function persistVerify(deps: { root: string; fs: IntegrityFsPort; clock: Clock }, record: IntegrityVerifyRecord): Promise<PersistedVerify> {\n452:export function renderVerify(result: VerifyResult): string[] {\n",
+				"stdoutSha256": "4de1013179ab3564bbfb507b44037b7b4311991564b3d4f1cad188fb3b5c8f58",
+				"stdoutBytes": 1237,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000040",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-17.json",
+				"sha256": "f0f131533504c0456506339fd184e3781006c64d5588080e370d68d15bb2ae29"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152890
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-18",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/test/sign.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/test/sign.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "15:import * as assert from 'node:assert/strict';\n16:import * as nodeFs from 'node:fs/promises';\n17:import * as path from 'node:path';\n18:import { suite, test } from 'mocha';\n20:import { IntegrityError, KEY_STORE_PATH, base64ToBytes, joinPath, parseLedgerLine, ledgerRowLine } from '../src/api.ts';\n21:import { runSign, persistLedger, ledgerStamp } from '../src/ledger.ts';\n22:import { parseLedgerRecord } from '../src/verify.ts';\n24:import { nodeIntegrityFs, steppingClock, realNodeKeyPort, deterministicKeyPort, bootFixtureProduct, bootFixtureWorkspace, readAllFiles, nodeSha256Hex, flipOneByte } from './helpers.ts';\n87:                        const { serializeArtifact } = await import('../src/api.ts');\n119:                        const { canonicalJson, utf8Bytes, sha256Hex } = await import('../src/api.ts');\n",
+				"stdoutSha256": "a604f0434ff6df56c8f3a86bb85f5210b0a72a8371db0847f1e6d9e27955546f",
+				"stdoutBytes": 814,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000041",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-18.json",
+				"sha256": "55498dd63e4d981015a1776cab221c7cd46050f07df52c21744c789d4115a18a"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152897
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-19",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/test/privacy.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/test/privacy.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "20:import * as assert from 'node:assert/strict';\n21:import * as nodeFs from 'node:fs/promises';\n22:import * as path from 'node:path';\n23:import { suite, test } from 'mocha';\n25:import { KEY_STORE_PATH, joinPath } from '../src/api.ts';\n26:import { looksSecretShaped, sweepArtifact } from '../src/privacy.ts';\n27:import { IntegrityError } from '../src/api.ts';\n28:import { runSign, persistLedger, renderSign } from '../src/ledger.ts';\n29:import { runVerify, persistVerify, renderVerify } from '../src/verify.ts';\n30:import { runStatus, renderStatus } from '../src/status.ts';\n32:import { nodeIntegrityFs, steppingClock, realNodeKeyPort, bootFixtureProduct, bootFixtureWorkspace, readAllFiles, canaryToken, flipOneByte } from './helpers.ts';\n169:                        const nodeFsModule = await import('node:fs/promises');\n170:                        const pathModule = await import('node:path');\n",
+				"stdoutSha256": "3006766bddac14cc7e6d21b4b28b17503ed75be0b528eefea8688712ef5b350e",
+				"stdoutBytes": 896,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000042",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-19.json",
+				"sha256": "467756f975fd462c9c2152dc63bb9f7a1975d4f6bc50e2f68ac00554c16ef818"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152907
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-20",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/test/status.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/test/status.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "12:import * as assert from 'node:assert/strict';\n13:import { suite, test } from 'mocha';\n15:import type { IntegrityFsPort } from '../src/api.ts';\n16:import { joinPath } from '../src/api.ts';\n17:import { runSign, persistLedger } from '../src/ledger.ts';\n18:import { runVerify, persistVerify } from '../src/verify.ts';\n19:import { runStatus, renderStatus } from '../src/status.ts';\n21:import { nodeIntegrityFs, steppingClock, realNodeKeyPort, bootFixtureProduct, bootFixtureWorkspace } from './helpers.ts';\n98:                        const filesBefore = new Set((await (await import('./helpers.ts')).readAllFiles(joinPath(workspace.root, '.flauz'))).map(file => file.path));\n107:                        const filesAfter = (await (await import('./helpers.ts')).readAllFiles(joinPath(workspace.root, '.flauz'))).map(file => file.path);\n",
+				"stdoutSha256": "d1e81185d4288819c649a9407e9a30c3911023778d9c48ce7f5775051f4cbff6",
+				"stdoutBytes": 832,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000043",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-20.json",
+				"sha256": "dfebf40fe3396df7d0896d9ec4f90f2c5c67a673f28c6f4b5f4ebb9f99ecd6f0"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152912
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-21",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-integrity/test/verify.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-integrity/test/verify.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "15:import * as assert from 'node:assert/strict';\n16:import * as nodeFs from 'node:fs/promises';\n17:import * as path from 'node:path';\n18:import { suite, test } from 'mocha';\n20:import { INTEGRITY_DIR, KEY_STORE_PATH, joinPath } from '../src/api.ts';\n21:import { runSign, persistLedger } from '../src/ledger.ts';\n22:import { runVerify, persistVerify } from '../src/verify.ts';\n24:import { nodeIntegrityFs, steppingClock, realNodeKeyPort, deterministicKeyPort, bootFixtureProduct, bootFixtureWorkspace, flipOneByte } from './helpers.ts';\n",
+				"stdoutSha256": "b01bc472d03c68f48c99711682cf245479d663d168a4d29e00fd98a2d59e01ad",
+				"stdoutBytes": 536,
+				"durationMs": 5
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000044",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-21.json",
+				"sha256": "ae5a5827f7cea008f096f9915cb78f4624f0fa79dc9d183d2342699d1f48c972"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152919
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-22",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-migration/test/contract.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-migration/test/contract.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "10: * flauz-backup export/verify in BOTH directions: an anchor the migration\n12: * flauz.backup export verifies GREEN under the migration's anchor verify.\n14: * verified code being importable); these pins keep it honest.\n17:import assert from 'node:assert/strict';\n18:import { createHash } from 'node:crypto';\n19:import * as fs from 'node:fs/promises';\n20:import * as path from 'node:path';\n22:import { SURFACES, canonicalJson, serializeArtifact, sha256Hex, joinPath, type MigrationFsPort } from '../src/api.ts';\n23:import { ledgerRowHash, opsRecordHash, parseLedgerLine, parseOpsLine, collectIntegrity } from '../src/verify.ts';\n24:import { countSurface } from '../src/surfaces.ts';\n25:import { expectedFileVersion, readSurfaceVersions } from '../src/versionInventory.ts';\n26:import { createAnchorExport, verifyAnchorExport } from '../src/anchor.ts';\n27:import { canonicalJson as workspaceCanonicalJson, sha256Hex as workspaceSha256Hex, SCHEMA_ID as TASKS_SCHEMA } from '../../flauz-workspace/src/api.ts';\n28:import { canonicalJson as resourcesCanonicalJson, sha256Hex as resourcesSha256Hex, SCHEMA_ID as RESOURCES_SCHEMA, OPS_SCHEMA_ID } from '../../flauz-resources/src/api.ts';\n29:import { rowHash as workspaceRowHash, rowLine } from '../../flauz-workspace/src/ledger.ts';\n30:import { opRecordHash as resourcesOpRecordHash, opLine } from '../../flauz-resources/src/provenance.ts';\n31:import { SIZE_SCHEMA, serializeWatermark as owningSerializeWatermark, parseWatermark, type LedgerWatermark } from '../../flauz-workspace/src/hardening.ts';\n32:import { WORKFLOW_SCHEMA } from '../../flauz-workflow/src/envelope.ts';\n33:import { BROWSER_SESSION_JOURNAL_SCHEMA_ID } from '../../flauz-browser/src/runtime/journal.ts';\n34:import { ORCH_GRAPHS_SCHEMA } from '../../flauz-agent/core/orchestration.mjs';\n35:import { PROVIDERS_SCHEMA_ID } from '../../flauz-models/src/discovery/configs.ts';\n36:import { ROUTING_POLICY_SCHEMA_ID, ROUTING_DECISION_SCHEMA_ID } from '../../flauz-models/src/routing/policy.ts';\n37:import { PROVIDER_SWITCH_SCHEMA_ID } from '../../flauz-models/src/routing/switch.ts';\n38:import { collectDiagnostics } from '../../flauz-diagnostics/src/census.ts';\n39:import { collectIntegrity as diagnosticsCollectIntegrity } from '../../flauz-diagnostics/src/verify.ts';\n40:import { createExport as realBackupCreateExport, type ExportDeps as RealExportDeps } from '../../flauz-backup/src/export.ts';\n41:import { verifyExport as realBackupVerifyExport } from '../../flauz-backup/src/inspect.ts';\n42:import { bootFixtureWorkspace, nodeMigrationFs, fixtureVersions, steppingClock, type FixtureWorkspace } from './helpers.ts';\n43:import { serializeWatermark } from '../src/banking.ts';\n45:const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');\n287:                anchorDirName = anchor.exportDirName;\n296:                assert.strictEqual(verification.ok, true, `the migration's anchor is a genuine W2 export (metadata ${String(verification.metadata.verdict)}; ${verification.surfaces.filter(surface => surface.verdict !== 'green').map(surface => `${String(surface.surface)}=${surface.verdict}`).join(', ')})`);\n299:        test('a REAL flauz.backup export verifies GREEN under the MIGRATION\\'s anchor verify', async () => {\n300:                const exportResult = await realBackupCreateExport({\n306:                const verification = await verifyAnchorExport({ root: fixture.root, fs: fixture.fs }, exportResult.exportDirName);\n307:                assert.strictEqual(verification.ok, true, `the real flauz.backup export verifies as an anchor (metadata ${String(verification.metadata.verdict)})`);\n311:                const exportDir = joinPath(fixture.root, '.flauz-exports', anchorDirName);\n312:                const exportMeta = JSON.parse(await fs.readFile(path.join(exportDir, 'export.json'), 'utf-8')) as Record<string, unknown>;\n313:                assert.strictEqual(exportMeta.$schema, 'flauz.backup-export/v1');\n314:                assert.strictEqual(exportMeta.formatVersion, 1);\n315:                assert.strictEqual(exportMeta.commandLine, 'flauz.migration.execute');\n316:                assert.strictEqual(exportMeta.extensionId, 'flauz.flauz-migration');\n317:                const manifest = JSON.parse(await fs.readFile(path.join(exportDir, 'MANIFEST.json'), 'utf-8')) as Record<string, unknown>;\n319:                const integrity = JSON.parse(await fs.readFile(path.join(exportDir, 'integrity.json'), 'utf-8')) as Record<string, unknown>;\n",
+				"stdoutSha256": "4414826179456b7d70ebcc9804c34cb03414efce532b23cc4ea0a457acce384a",
+				"stdoutBytes": 4510,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000045",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-22.json",
+				"sha256": "cb738590bac7e41ad41ed6e5c49d5b872e66f539440fd7b61775c4bb60e12716"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152924
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-23",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-migration/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-migration/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "9: * driving the REAL owning services (test-time cross-extension imports are\n26:import * as fs from 'node:fs/promises';\n27:import * as os from 'node:os';\n28:import * as path from 'node:path';\n29:import { createHash } from 'node:crypto';\n31:import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';\n32:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n33:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n34:import { ResourceGraph } from '../../flauz-resources/src/graph.ts';\n35:import { ProvenanceLedger } from '../../flauz-resources/src/provenance.ts';\n36:import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';\n37:import { FileSystemSessionJournal, buildSessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';\n38:import { switchProviderLane } from '../../flauz-models/src/routing/switch.ts';\n39:import { ROUTING_POLICY_SCHEMA_ID, type RoutingPolicyFile } from '../../flauz-models/src/routing/policy.ts';\n40:import type { ProviderOverride } from '../../flauz-models/src/discovery/configs.ts';\n41:import type { FileSystemPort as ModelsFsPort, HashPort } from '../../flauz-models/src/contract/ports.ts';\n42:import { WorkflowService } from '../../flauz-workflow/src/envelope.ts';\n44:import type { MigrationFsPort, Clock, SurfaceId } from '../src/api.ts';\n45:import { MARKER_SCHEMA_ID } from '../src/api.ts';\n46:import { toIsoStamp } from '../src/format.ts';\n47:import { ledgerHeadHash, ledgerRowHash, parseLedgerLine } from '../src/verify.ts';\n48:import { serializeWatermark } from '../src/banking.ts';\n50:const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');\n54:export function steppingClock(start = 1_740_000_000_000): () => number {\n64:export function nodeWorkspaceFs(): FileSystemPort {\n84:export function nodeMigrationFs(): MigrationFsPort {\n118:export const nodeHashPort: HashPort = {\n146:export interface FixtureWorkspace {\n160:export interface FixtureOptions {\n172:export async function bootFixtureWorkspace(options: FixtureOptions = {}): Promise<FixtureWorkspace> {\n324:export async function readAllFiles(dir: string): Promise<{ path: string; text: string }[]> {\n343:/** Lists the export directories a root carries (the anchor-shape test helper). */\n344:export async function listExportsOnDisk(root: string): Promise<string[]> {\n345:        const entries = await fs.readdir(path.join(root, '.flauz-exports'), { withFileTypes: true }).catch(() => []);\n346:        return entries.filter(entry => entry.isDirectory() && entry.name.startsWith('export-')).map(entry => entry.name).sort();\n350:export function fixtureVersions(): { productVersion: string; productName: string; extensions: { id: string; version: string }[] } {\n367:export async function corruptSurfaces(root: string): Promise<void> {\n379:export async function onDiskLedgerHead(root: string): Promise<string> {\n392:export async function onDiskLedgerRowCount(root: string): Promise<number> {\n398:export async function onDiskLedgerKindCounts(root: string): Promise<Record<string, number>> {\n415:export async function writeWatermarkFor(root: string, clock: Clock): Promise<void> {\n437:export async function plantTornMarker(root: string, anchorDirName: string, steps: readonly { surface: SurfaceId; stepKind: 'identity' | 'transform'; done: boolean }[]): Promise<void> {\n451:export async function plantStageLeftover(root: string, sourcePath: string): Promise<void> {\n457:export interface SabotageOptions {\n468:export function saboteurFs(base: MigrationFsPort, options: SabotageOptions): MigrationFsPort {\n491:export { ledgerRowHash };\n",
+				"stdoutSha256": "a99a40a89cd521b7683898d7650b79a7906e1bad2d42e5656bc2706e1d58dc2f",
+				"stdoutBytes": 3634,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000046",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-23.json",
+				"sha256": "0543c2f1126a198fa5096f3575d6236dd6e349d9f94b40a134ee613f26627577"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152930
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-24",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-release/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-release/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "10: * driving the REAL owning services (test-time cross-extension imports are\n34:import * as fs from 'node:fs/promises';\n35:import * as os from 'node:os';\n36:import * as path from 'node:path';\n37:import { createHash } from 'node:crypto';\n39:import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';\n40:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n41:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n42:import { ResourceGraph } from '../../flauz-resources/src/graph.ts';\n43:import { ProvenanceLedger } from '../../flauz-resources/src/provenance.ts';\n44:import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';\n45:import { FileSystemSessionJournal, buildSessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';\n46:import { switchProviderLane } from '../../flauz-models/src/routing/switch.ts';\n47:import { ROUTING_POLICY_SCHEMA_ID, type RoutingPolicyFile } from '../../flauz-models/src/routing/policy.ts';\n48:import type { ProviderOverride } from '../../flauz-models/src/discovery/configs.ts';\n49:import type { FileSystemPort as ModelsFsPort, HashPort } from '../../flauz-models/src/contract/ports.ts';\n50:import { WorkflowService } from '../../flauz-workflow/src/envelope.ts';\n52:import type { ReleaseFsPort, Clock } from '../src/api.ts';\n53:import { toIsoStamp } from '../src/format.ts';\n55:const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');\n59:export const repoRoot = REPO_ROOT;\n62:export function steppingClock(start = 1_740_000_000_000): () => number {\n72:export function nodeWorkspaceFs(): FileSystemPort {\n92:export function nodeReleaseFs(): ReleaseFsPort {\n124:export const nodeHashPort: HashPort = {\n152:export interface FixtureWorkspace {\n166:export interface FixtureOptions {\n178:export async function bootFixtureWorkspace(options: FixtureOptions = {}): Promise<FixtureWorkspace> {\n325:export async function readAllFiles(dir: string): Promise<{ path: string; text: string }[]> {\n344:/** Lists the export directories a root carries (the export-shape test helper). */\n345:export async function listExportsOnDisk(root: string): Promise<string[]> {\n346:        const entries = await fs.readdir(path.join(root, '.flauz-exports'), { withFileTypes: true }).catch(() => []);\n347:        return entries.filter(entry => entry.isDirectory() && entry.name.startsWith('export-')).map(entry => entry.name).sort();\n351:export function fixtureVersions(): { productVersion: string; productName: string; extensions: { id: string; version: string }[] } {\n364:export async function corruptSurfaces(root: string): Promise<void> {\n381:export async function tamperLedgerRow(root: string): Promise<void> {\n396:export async function plantTornMarker(root: string, anchorDirName: string): Promise<void> {\n411:export async function writeFutureVersionedTasks(root: string): Promise<void> {\n420:export async function writeTelemetryConfig(root: string, body: Record<string, unknown>): Promise<void> {\n430:export interface FixtureProductOptions {\n451:export interface FixtureProduct {\n508:                        evidence: [{ kind: 'node-import', file: `extensions/${name}/src/extension.ts`, module: 'fs/promises' }],\n518:export async function bootFixtureProduct(options: FixtureProductOptions = {}): Promise<FixtureProduct> {\n527:                await fs.writeFile(path.join(root, 'extensions', name, 'src', 'extension.ts'), 'export function activate(): void { /* fixture */ }\\n', 'utf-8');\n530:        await fs.writeFile(path.join(root, 'extensions', 'flauz-alpha', 'src', 'api.ts'), 'export const fixture = 1;\\n', 'utf-8');\n531:        await fs.writeFile(path.join(root, 'extensions', 'flauz-beta', 'src', 'api.ts'), 'export const fixture = 2;\\n', 'utf-8');\n",
+				"stdoutSha256": "c4360eeccf0ca70d344efdf96e2a746626a9b08f52540196fe15b5dc32fbc38c",
+				"stdoutBytes": 3782,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000047",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-24.json",
+				"sha256": "9b3379e068d9df05f09d5933132f0549b48cb4c38ad1535bcadc29e881880507"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152938
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-25",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-telemetry/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-telemetry/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "9: * driving the REAL owning services (test-time cross-extension imports are\n30:import * as fs from 'node:fs/promises';\n31:import * as os from 'node:os';\n32:import * as path from 'node:path';\n34:import type { FileSystemPort } from '../../flauz-workspace/src/api.ts';\n35:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n36:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n37:import { appendDecision } from '../../flauz-models/src/routing/store.ts';\n38:import { ROUTING_DECISION_SCHEMA_ID } from '../../flauz-models/src/routing/policy.ts';\n39:import type { FileSystemPort as ModelsFsPort } from '../../flauz-models/src/contract/ports.ts';\n40:import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';\n41:import { WorkflowService } from '../../flauz-workflow/src/envelope.ts';\n43:import type { TelemetryFsPort, Clock } from '../src/api.ts';\n45:const REPO_ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..', '..');\n49:export function steppingClock(start = 1_740_000_000_000): () => number {\n59:export function nodeTelemetryFs(): TelemetryFsPort {\n90:export function nodeWorkspaceFs(): FileSystemPort {\n133:export interface FixtureWorkspace {\n144:export interface FixtureOptions {\n182:export async function bootFixtureWorkspace(options: FixtureOptions = {}): Promise<FixtureWorkspace> {\n344:export async function readAllFiles(dir: string): Promise<{ path: string; text: string }[]> {\n364:export async function readTelemetryLedgerText(root: string): Promise<string | undefined> {\n373:export async function readConfigText(root: string): Promise<string | undefined> {\n382:export async function onDiskLedgerRowCount(root: string): Promise<number> {\n388:export async function onDiskLedgerKindCounts(root: string): Promise<Record<string, number>> {\n399:export function captureChannel(): { lines: string[]; appendLine(line: string): void } {\n",
+				"stdoutSha256": "64611cb8bb4b1853ad337d249ad2461e81456096d627c02887811b720ee3775d",
+				"stdoutBytes": 1919,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000048",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-25.json",
+				"sha256": "214c0c0f065c94c7e7eb9d2a620b169e87f8ed3d2968849d7eed48732ce3f2af"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152943
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-26",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/src/extension.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/src/extension.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "23:import * as vscode from 'vscode';\n24:import { execFile } from 'node:child_process';\n25:import * as fs from 'node:fs/promises';\n26:import * as os from 'node:os';\n27:import * as path from 'node:path';\n28:import { setVscodeApi, vscodeApi } from './globals.ts';\n29:import { loadCheckpointSigner } from './keys.ts';\n30:import type { CheckpointSigner, FileSystemPort } from '../../flauz-workspace/src/api.ts';\n31:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n32:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n33:import { WorkflowService, type ApprovalPort, type ToolExecutorPort, type WorkflowFragment, type WorkflowToolStep } from './envelope.ts';\n34:import { registerWorkflowCommands, type WorkflowCommandServices } from './commands.ts';\n62:export function shellExecutor(workspaceRoot: string): ToolExecutorPort {\n82:export function quickPickApprovalPort(): ApprovalPort {\n107:export async function activate(context: vscode.ExtensionContext): Promise<void> {\n169:export function deactivate(): void {\n",
+				"stdoutSha256": "f54fc4a0c14231c9fcb0f3a627b648bf93bac1925e4dcb0829bf0b8baef83425",
+				"stdoutBytes": 1048,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000049",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-26.json",
+				"sha256": "d2b95afd3fd979e08e63baab54795b47b8fdffb398190c0370dcbf191b9bd309"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152948
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-27",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/src/executable.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/src/executable.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "33:import {\n41:import type { TaskService } from '../../flauz-workspace/src/taskService.ts';\n42:import { hasKey, type EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n43:import { type WorkflowFragment, type WorkflowModel, type WorkflowService, isWorkflowId } from './envelope.ts';\n46:export const EXEC_SCHEMA = 'flauz.workflows.exec/v1';\n49:export const RUN_SCHEMA = 'flauz.workflow.runs/v1';\n52:export const EXEC_SPECS_DIR = '.flauz/workflow-exec';\n55:export const RUNS_DIR = '.flauz/workflow-runs';\n58:export const SUPPORTED_ENVELOPE_VERSION = 1;\n64:export const PARAM_TYPES = ['string', 'number', 'boolean', 'json'] as const;\n65:export type ParamType = (typeof PARAM_TYPES)[number];\n67:export const STEP_APPROVAL_MODES = ['recorded', 'ask'] as const;\n68:export type StepApprovalMode = (typeof STEP_APPROVAL_MODES)[number];\n70:export const STEP_ON_FAIL = ['abort', 'continue'] as const;\n71:export type StepOnFail = (typeof STEP_ON_FAIL)[number];\n73:export interface WorkflowParam {\n81:export interface WorkflowSpecStep {\n91:export interface SpecMigration {\n97:export interface WorkflowSpec {\n119:export interface GraphRowRef {\n128:export function graphRowsOf(run: WorkflowRun): GraphRowRef[] {\n136:export const RUN_STATUSES = ['running', 'completed', 'failed', 'cancelled', 'interrupted'] as const;\n137:export type RunStatus = (typeof RUN_STATUSES)[number];\n139:export const RUN_STEP_STATUSES = ['pending', 'running', 'done', 'failed', 'skipped'] as const;\n140:export type RunStepStatus = (typeof RUN_STEP_STATUSES)[number];\n142:export interface RunStepRow {\n150:export interface WorkflowRun {\n199:export function isSpecId(value: unknown): value is string {\n203:export function isRunId(value: unknown): value is string {\n280:export function validateWorkflowSpec(value: unknown): WorkflowSpec {\n371:export interface ToolRegistryPort {\n376:export function validateSemantics(spec: WorkflowSpec, registry: ToolRegistryPort): void {\n400:export function resolveInputs(spec: WorkflowSpec, provided: Record<string, unknown>): Record<string, unknown> {\n442:export function resolveTemplate(template: unknown, inputs: Record<string, unknown>): unknown {\n466:export type ExecToolPort = (step: { seq: number; toolId: string; input: Record<string, unknown> }) => Promise<{ ok: boolean; output: string }>;\n468:export interface RunOptions {\n483:export interface RunOutcome {\n492:export interface ExecServiceOptions {\n502:export class WorkflowRunService {\n935:export function validateWorkflowRun(value: unknown): WorkflowRun {\n1031:export function execEventsOf(task: Task): { runIds: string[]; recovered: number } {\n",
+				"stdoutSha256": "b4cccad0d82f5de3cab561a4d5f158066d9a2d81ce7e80895d52a75ed970b9a9",
+				"stdoutBytes": 2612,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000050",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-27.json",
+				"sha256": "b00ed923316676220ae258288150fae0407d347014cddc16d1b57913442f7ea4"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152955
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-28",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/src/commands.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/src/commands.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "21:import type * as vscode from 'vscode';\n22:import { vscodeApi } from './globals.ts';\n23:import type { ApprovalPort, ToolExecutorPort, WorkflowFragment, WorkflowRunOutcome, WorkflowService } from './envelope.ts';\n24:import { hasKey } from '../../flauz-workspace/src/ledger.ts';\n26:export const COMMAND_IDS = [\n32:export type WorkflowCommandId = (typeof COMMAND_IDS)[number];\n34:export interface WorkflowCommandServices {\n42:export type WorkflowHandler = (arg: unknown) => Promise<unknown>;\n74:export interface WorkflowSummary {\n83:export function summarizeFragment(fragment: WorkflowFragment): WorkflowSummary {\n94:export function createWorkflowCommandHandlers(services: WorkflowCommandServices): Record<WorkflowCommandId, WorkflowHandler> {\n132:export function registerWorkflowCommands(services: WorkflowCommandServices): vscode.Disposable[] {\n",
+				"stdoutSha256": "57a97ea94f281dc400fafaaac2e52acbc8f55d27e07e6a0fc0a5c7f2ac05a90d",
+				"stdoutBytes": 846,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000051",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-28.json",
+				"sha256": "be1e1edaee16fd0f42227b60e7562d7fd2e2dea4db40c5f0e7d80e4412e9f8d1"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152960
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-29",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/src/coordination.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/src/coordination.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "36:import {\n43:import type { TaskService } from '../../flauz-workspace/src/taskService.ts';\n44:import { hasKey, type EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n45:import { type A2aMessage, type A2aPort, type A2aResultReport, isAgentId, messageIdOf } from './messaging.ts';\n46:import type { ParamType } from './executable.ts';\n49:export const CONTRACT_SCHEMA = 'flauz.a2a.contracts/v1';\n52:export const CONTRACTS_DIR = '.flauz/a2a/contracts';\n54:export const CONTRACT_STATUSES = ['delegated', 'accepted', 'submitted', 'verified', 'failed', 'cancelled'] as const;\n55:export type ContractStatus = (typeof CONTRACT_STATUSES)[number];\n58:export const STEERABLE_STATUSES: readonly ContractStatus[] = ['delegated', 'accepted'];\n62:export interface ContractField {\n68:export interface ContractConstraints {\n77:export interface SteeringRecord {\n84:export interface ContractResult {\n99:export interface DelegationContract {\n125:export interface ContextSharePort {\n136:export interface RunRowsPort {\n222:export function validateDelegationContract(value: unknown): DelegationContract {\n365:export interface DelegateOptions {\n376:export interface CoordinationOptions {\n389:export interface SharedState {\n396:export class CoordinationService {\n747:export function inMemoryA2aPort(clock: Clock): A2aPort & { messages(): readonly A2aMessage[] } {\n",
+				"stdoutSha256": "ee6ef587080dc38a8e19f261f1f2d4fba4c9462924974db81c8addf104d9e98d",
+				"stdoutBytes": 1349,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000052",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-29.json",
+				"sha256": "d15dfd30395e1cd489e3bbc57e19bd6ef46cc40d21bec38f63e904fd47aefde7"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152981
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-30",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/src/envelope.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/src/envelope.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "31:import {\n46:import { StaleRunCancelledError, type TaskService } from '../../flauz-workspace/src/taskService.ts';\n47:import { hasKey, type EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n50:export const WORKFLOW_SCHEMA = 'flauz.workflows/v1';\n53:export const WORKFLOWS_DIR = '.flauz/workflows';\n59:export const DEFAULT_WORKFLOW_MODEL: Readonly<WorkflowModel> = Object.freeze({\n65:export type RerunApprovalMode = 'replay' | 'ask';\n66:export type ToolApprovalMode = 'recorded' | 'ask';\n67:export type ToolOutcome = 'ok' | 'failed';\n69:export interface WorkflowPlan {\n74:export interface WorkflowModel {\n80:export interface WorkflowToolStep {\n90:export interface WorkflowApprovalStep {\n96:export interface WorkflowEvidenceRef {\n105:export interface WorkflowRerunRecipe {\n109:export interface WorkflowRunRecord {\n115:export interface WorkflowDerivation {\n120:export interface WorkflowFragment {\n175:export function isWorkflowId(value: unknown): value is string {\n179:export function isEvidenceId(value: unknown): value is string {\n319:export function validateWorkflowFragment(value: unknown): WorkflowFragment {\n400:export function serializeWorkflowFragment(fragment: WorkflowFragment): string {\n405:export function workflowPath(id: string): string {\n410:export const WORKFLOW_INDEX_PATH = `${WORKFLOWS_DIR}/index.json`;\n430:export interface DistillOptions {\n440:export const TERMINAL_TOOL_ID = 'flauz_terminal';\n454:export function distillTaskToFragment(task: Task, options: DistillOptions = {}): WorkflowFragment {\n521:export type ToolExecutorPort = (step: WorkflowToolStep) => Promise<{ ok: boolean; output: string }>;\n524:export type ApprovalPort = (gate: 'approval' | 'sign-off', fragment: WorkflowFragment) => Promise<'approve' | 'request-changes' | 'cancel' | 'sign-off' | 'skip'>;\n526:export interface WorkflowRunOutcome {\n545:export class WorkflowRunCancelledError extends Error {\n562:export interface WorkflowSaveOptions {\n568:export interface WorkflowRunOptions {\n577:export interface WorkflowServiceOptions {\n585:export class WorkflowService {\n910:export function evidenceEventsOf(task: Task): TaskEvent[] {\n914:/** Convenience re-export so command wiring can read the whole task envelope. */\n915:export type { Task, TaskEnvelope, TaskEvent };\n",
+				"stdoutSha256": "24c764776f5f2e57c0b965a3ea3e2b93c8cbdd19cab015d2c60e4fa0689edfb3",
+				"stdoutBytes": 2267,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000053",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-30.json",
+				"sha256": "89ea3a21da963c32bd206965fe8beec08821f83932681c7565c398bfad5a8928"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152990
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-31",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/hardening.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/hardening.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "19:import { test } from 'node:test';\n20:import assert from 'node:assert/strict';\n21:import * as fs from 'node:fs/promises';\n22:import * as os from 'node:os';\n23:import * as path from 'node:path';\n24:import { sha256Hex, type CheckpointSigner, type FileSystemPort } from '../../flauz-workspace/src/api.ts';\n25:import { EvidenceLedger, rowHash } from '../../flauz-workspace/src/ledger.ts';\n26:import { WorkflowService } from '../src/envelope.ts';\n27:import { createEd25519Signer, createFixtureSigner, createHmacSha256Signer, ed25519Supported, generateFixtureKeystore, loadCheckpointSigner } from '../src/keys.ts';\n28:import { bootWorkflowWorkspace, goldenRun, steppingClock } from './helpers.ts';\n29:import { rowHash as contractsRowHash, validateLedgerRows as contractsValidate } from '../../flauz-agent/core/contracts.mjs';\n31:const FIXTURES = new URL('../../../test/fixtures/workflow/', import.meta.url).pathname;\n",
+				"stdoutSha256": "b491871afa1f9be0b4d86aef62848a409475834726197fb437d66f48c7aa1702",
+				"stdoutBytes": 913,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000054",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-31.json",
+				"sha256": "8d2e6731319430f5338ed3f9a4934c7e5d0cd5d1e3154bdb43333d51d507c49e"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276152995
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-32",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/agentos-battery.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/agentos-battery.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "81:import { describe, test } from 'node:test';\n82:import assert from 'node:assert/strict';\n83:import * as nodeFs from 'node:fs/promises';\n84:import * as nodeFsSync from 'node:fs';\n85:import * as os from 'node:os';\n86:import * as nodePath from 'node:path';\n88:import { sha256Hex, type EvidenceKind, type FileSystemPort, type LedgerRow, type TaskEvent } from '../../flauz-workspace/src/api.ts';\n89:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n90:import { EvidenceLedger, rowLine } from '../../flauz-workspace/src/ledger.ts';\n91:import { WorkflowService, type ApprovalPort, type ToolExecutorPort } from '../src/envelope.ts';\n92:import { AgentMessenger, type A2aMessage, type A2aMessageInput, type A2aPort } from '../src/messaging.ts';\n93:import { BrowserPolicyEngine } from '../../flauz-browser/src/policy.ts';\n94:import { CdpEndpointHost } from '../../flauz-browser/src/runtime/host.ts';\n95:import { BrowserSessionManager, isNavigationOutcome, isSessionError, type OpenSessionResult } from '../../flauz-browser/src/runtime/sessionManager.ts';\n96:import type { NavigationOutcome } from '../../flauz-browser/src/runtime/tabs.ts';\n97:import { FakeBrowserState, FakeCdpTransport } from '../../flauz-browser/src/cdp/fake.ts';\n98:import { FileSystemSessionJournal, type SessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';\n99:import { EnvironmentRegistry } from '../../flauz-environments/src/registry.ts';\n100:import { CloudHttpExecutor, EnvironmentLifecycleManager, PROVIDER_RETRY_ATTEMPT_PREFIX, SimulatedRemoteExecutor, parseProviderRetryAttemptMessage, type EnvironmentOpOutcome, type HttpPort, type LocalEnvFsPort, type RetryWaitPort } from '../../flauz-environments/src/lifecycle/index.ts';\n101:import { A2ABus } from '../../flauz-agent/core/a2a.mjs';\n102:import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../flauz-agent/core/leaseConflict.mjs';\n107:import type { ClaimStepLeaseResult } from '../../flauz-agent/core/leaseConflict.mjs';\n108:import { OrchestrationStore } from '../../flauz-agent/core/orchStore.mjs';\n115:export const AGENTOS_BATTERY_SCHEMA = 'flauz.agentos-battery/v1';\n",
+				"stdoutSha256": "4c774219ea6b0f6d5a3693a1ca02c6457147bdd105aa65188eed1411ae0535b0",
+				"stdoutBytes": 2195,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000055",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-32.json",
+				"sha256": "29fe76a819992c72306af2ea3733a19774c94ca522b9c357c995fc0730683ddf"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153006
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-33",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "96:import * as http from 'node:http';\n97:import { spawn } from 'node:child_process';\n98:import * as nodeFs from 'node:fs/promises';\n99:import * as nodeFsSync from 'node:fs';\n100:import * as os from 'node:os';\n101:import * as nodePath from 'node:path';\n102:import { createHash } from 'node:crypto';\n104:import { sha256Hex, type FileSystemPort, type LedgerRow } from '../../../flauz-workspace/src/api.ts';\n105:import { TaskService } from '../../../flauz-workspace/src/taskService.ts';\n106:import { EvidenceLedger } from '../../../flauz-workspace/src/ledger.ts';\n107:import { WorkflowService, type ToolExecutorPort } from '../../src/envelope.ts';\n108:import { BrowserPolicyEngine } from '../../../flauz-browser/src/policy.ts';\n109:import { CdpEndpointHost } from '../../../flauz-browser/src/runtime/host.ts';\n110:import { BrowserSessionManager, isNavigationOutcome, isSessionError, type OpenSessionResult } from '../../../flauz-browser/src/runtime/sessionManager.ts';\n111:import type { NavigationOutcome } from '../../../flauz-browser/src/runtime/tabs.ts';\n112:import { WebSocketCdpTransport } from '../../../flauz-browser/src/cdp/transport.ts';\n113:import { FileSystemSessionJournal, type SessionJournalRecord } from '../../../flauz-browser/src/runtime/journal.ts';\n114:import { EnvironmentRegistry } from '../../../flauz-environments/src/registry.ts';\n115:import { EnvironmentLifecycleManager, LocalProcessExecutor, type ChildHandle, type HashPort, type LocalEnvFsPort, type ProcessPort } from '../../../flauz-environments/src/lifecycle/index.ts';\n165:\tconst url = import.meta.url;\n",
+				"stdoutSha256": "74019e273629de578c4f436378649f8e217b51a6ceae5dfd1fba0eb9798e1e00",
+				"stdoutBytes": 1581,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000056",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-33.json",
+				"sha256": "e591c221e5422890bdb5d0a7cd7f5657c8c37c37ce86039a22b57bbe97b2bb2e"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153012
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-34",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "87:import * as http from 'node:http';\n88:import { spawn } from 'node:child_process';\n89:import * as nodeFs from 'node:fs/promises';\n90:import * as nodeFsSync from 'node:fs';\n91:import * as os from 'node:os';\n92:import * as nodePath from 'node:path';\n93:import { createHash } from 'node:crypto';\n95:import { sha256Hex, type EvidenceKind, type FileSystemPort, type LedgerRow, type TaskEvent } from '../../../flauz-workspace/src/api.ts';\n96:import { TaskService } from '../../../flauz-workspace/src/taskService.ts';\n97:import { EvidenceLedger, rowLine } from '../../../flauz-workspace/src/ledger.ts';\n98:import { WorkflowService, type ApprovalPort, type ToolExecutorPort } from '../../src/envelope.ts';\n99:import { AgentMessenger, type A2aMessage, type A2aMessageInput, type A2aPort } from '../../src/messaging.ts';\n100:import { BrowserPolicyEngine } from '../../../flauz-browser/src/policy.ts';\n101:import { CdpEndpointHost } from '../../../flauz-browser/src/runtime/host.ts';\n102:import { BrowserSessionManager, isNavigationOutcome, isSessionError, type OpenSessionResult } from '../../../flauz-browser/src/runtime/sessionManager.ts';\n103:import type { NavigationOutcome } from '../../../flauz-browser/src/runtime/tabs.ts';\n104:import { WebSocketCdpTransport } from '../../../flauz-browser/src/cdp/transport.ts';\n105:import { FakeBrowserState } from '../../../flauz-browser/src/cdp/fake.ts';\n106:import { FileSystemSessionJournal, type SessionJournalRecord } from '../../../flauz-browser/src/runtime/journal.ts';\n107:import { EnvironmentRegistry } from '../../../flauz-environments/src/registry.ts';\n108:import { CloudHttpExecutor, EnvironmentLifecycleManager, LocalProcessExecutor, PROVIDER_RETRY_ATTEMPT_PREFIX, nodeHttpPort, parseProviderRetryAttemptMessage, type ChildHandle, type EnvironmentOpOutcome, type HashPort, type HttpPort, type LocalEnvFsPort, type ProcessPort } from '../../../flauz-environments/src/lifecycle/index.ts';\n109:import { A2ABus } from '../../../flauz-agent/core/a2a.mjs';\n110:import { OrchestrationStore } from '../../../flauz-agent/core/orchStore.mjs';\n111:import { LEASE_CONFLICT_CODE, claimStepLease, isLeaseConflictError, leaseConflictFacts, stepResourceId } from '../../../flauz-agent/core/leaseConflict.mjs';\n114:import type { ClaimStepLeaseResult } from '../../../flauz-agent/core/leaseConflict.mjs';\n181:\tconst url = import.meta.url;\n",
+				"stdoutSha256": "2b6c0ab4d2ae23c60a00eec1cb79fcec25e27e76e296850e6fd89506d8dd8861",
+				"stdoutBytes": 2369,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000057",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-34.json",
+				"sha256": "56e1623dafbce87e6fd6394772d1ce111857bab7c632330eacfae75a128385d3"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153018
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-35",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/generateLedgerFixtures.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/generateLedgerFixtures.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "32:import * as fs from 'node:fs/promises';\n33:import * as path from 'node:path';\n34:import * as os from 'node:os';\n35:import { sha256Hex, type FileSystemPort } from '../../flauz-workspace/src/api.ts';\n36:import { EvidenceLedger, rowHash } from '../../flauz-workspace/src/ledger.ts';\n37:import type { LedgerWatermark } from '../../flauz-workspace/src/hardening.ts';\n38:import { createFixtureSigner, generateFixtureKeystore } from '../src/keys.ts';\n41:const FIXTURE_ROOT = path.resolve(new URL('../../../test/fixtures/workflow/', import.meta.url).pathname);\n",
+				"stdoutSha256": "c464b064a4936ccbcb682137aca0bcf1facc6d720b91d1aa138926f9f191797c",
+				"stdoutBytes": 556,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000058",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-35.json",
+				"sha256": "2b919e7f71ba5565d1db66e2728a9da3899906049ab510eb9ce42a6c8cd3ada6"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153023
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-36",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "130:import { test } from 'node:test';\n131:import assert from 'node:assert/strict';\n132:import * as nodeFs from 'node:fs/promises';\n133:import * as nodeFsSync from 'node:fs';\n134:import * as os from 'node:os';\n135:import * as nodePath from 'node:path';\n136:import { fileURLToPath } from 'node:url';\n137:import type * as vscode from 'vscode';\n139:import { sha256Hex, type EvidenceKind, type FileSystemPort, type TaskEvent } from '../../flauz-workspace/src/api.ts';\n140:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n141:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n142:import { WorkflowService } from '../src/envelope.ts';\n143:import { createEd25519Signer } from '../src/keys.ts';\n144:import { MemoryStore } from '../../flauz-memory/src/memory.ts';\n145:import { buildEchoResponse, createMockProvider } from '../../flauz-models/src/mockProvider.ts';\n146:import { ModelCapabilityRegistry } from '../../flauz-models/src/discovery/registry.ts';\n147:import { ModelRouter, listDecisions } from '../../flauz-models/src/routing/store.ts';\n148:import { DEFAULT_ROUTING_POLICY } from '../../flauz-models/src/routing/policy.ts';\n149:import { A2ABus, type A2aMessage } from '../../flauz-agent/core/a2a.mjs';\n150:import { OrchestrationStore, type TaskPort } from '../../flauz-agent/core/orchStore.mjs';\n151:import type { JournalRow } from '../../flauz-agent/core/orchestration.mjs';\n152:import { driveGraph, type EffectSink, type EffectSinkResult, type EffectSpec, type ProviderErrorField } from '../../flauz-agent/core/runtime.mjs';\n153:import { recoveryScan } from '../../flauz-agent/core/recovery.mjs';\n154:import { delegateStep, ingestResultReport, stepResourceId } from '../../flauz-agent/core/routing.mjs';\n155:import { claimStepLease, isLeaseConflictError, leaseConflictFacts, LEASE_CONFLICT_CODE, type ClaimStepLeaseResult } from '../../flauz-agent/core/leaseConflict.mjs';\n158:// The flauz-models fabric surface (STATIC import)\n162:// tsconfig (the fabric's routing store dropped its unused import, and the\n166:// decision ledger) is imported STATICALLY. The import edge is now\n171:/** The fabric module surface this journey drives (the statically imported real modules). */\n200:\tnodePath.dirname(fileURLToPath(import.meta.url)),\n468: * per journey (statically imported; see the seam note) and shared by both\n619:\t// the flauz-models fabric modules (statically imported; see the seam note) --\n",
+				"stdoutSha256": "667462a0d236fed2eebe58d3da267ec35a03afab8b48e8ff9b94862dca1f3321",
+				"stdoutBytes": 2437,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000059",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-36.json",
+				"sha256": "e96259559b0e579f65e417bf3274bcf46cfb3164d93c4bb9fd10b18d0bd8d7b5"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153028
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-37",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/session-battery.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/session-battery.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "44:import { test } from 'node:test';\n45:import assert from 'node:assert/strict';\n46:import * as nodeFs from 'node:fs/promises';\n47:import * as os from 'node:os';\n48:import * as nodeFsSync from 'node:fs';\n49:import * as nodePath from 'node:path';\n51:import { sha256Hex, type FileSystemPort, type LedgerRow } from '../../flauz-workspace/src/api.ts';\n52:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n53:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n54:import { WorkflowService, type ToolExecutorPort } from '../src/envelope.ts';\n55:import { BrowserPolicyEngine } from '../../flauz-browser/src/policy.ts';\n56:import { CdpEndpointHost } from '../../flauz-browser/src/runtime/host.ts';\n57:import { BrowserSessionManager, isNavigationOutcome, isSessionError, type OpenSessionResult } from '../../flauz-browser/src/runtime/sessionManager.ts';\n58:import type { NavigationOutcome } from '../../flauz-browser/src/runtime/tabs.ts';\n59:import { FakeBrowserState, FakeCdpTransport } from '../../flauz-browser/src/cdp/fake.ts';\n60:import { FileSystemSessionJournal, type SessionJournalRecord } from '../../flauz-browser/src/runtime/journal.ts';\n61:import { EnvironmentRegistry } from '../../flauz-environments/src/registry.ts';\n62:import { EnvironmentLifecycleManager, SimulatedRemoteExecutor } from '../../flauz-environments/src/lifecycle/index.ts';\n",
+				"stdoutSha256": "c5f03d88df71105cc340151a3b2a9768a38a5cf5e1e64becf3f9708f181ff6fc",
+				"stdoutBytes": 1386,
+				"durationMs": 8
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000060",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-37.json",
+				"sha256": "65ff1ed91a6ba5cf19a5611e831c8522057a64e560f273d223762fd654701b02"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153038
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-38",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/recovery-matrix.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/recovery-matrix.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "26:import { test } from 'node:test';\n27:import assert from 'node:assert/strict';\n28:import * as fs from 'node:fs/promises';\n29:import * as os from 'node:os';\n30:import * as path from 'node:path';\n31:import { readFileSync } from 'node:fs';\n32:import { A2ABus } from '../../flauz-agent/core/a2a.mjs';\n33:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n34:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n35:import { nodeFsPort, steppingClock, goldenRun } from './helpers.ts';\n37:import { WorkflowService } from '../src/envelope.ts';\n38:import { WorkflowRunService, validateWorkflowSpec, type WorkflowSpec } from '../src/executable.ts';\n39:import { CoordinationService } from '../src/coordination.ts';\n40:import type { A2aPort } from '../src/messaging.ts';\n41:import { MemoryStore } from '../../flauz-memory/src/memory.ts';\n42:import { WatermarkService, type StreamJournalPort, type StreamRow } from '../../flauz-memory/src/watermarks.ts';\n43:import { CheckpointService, type MilestoneVerifier } from '../../flauz-memory/src/checkpoints.ts';\n44:import { ClaimsService } from '../../flauz-memory/src/claims.ts';\n45:import { createEd25519Signer } from '../src/keys.ts';\n47:const KEYS = new URL('../../../test/fixtures/workflow/keys/', import.meta.url).pathname;\n",
+				"stdoutSha256": "6fa26387b6f0f118438b0f7951f221c73dca4e68c39beefdcdd38dda77ccba6f",
+				"stdoutBytes": 1302,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000061",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-38.json",
+				"sha256": "1f7f7583419b935e31ada9be93492d158d51e083c746dd098181cb7b78fa2197"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153044
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-39",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workflow/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workflow/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "10:import * as fs from 'node:fs/promises';\n11:import * as os from 'node:os';\n12:import * as path from 'node:path';\n13:import { sha256Hex, type FileSystemPort } from '../../flauz-workspace/src/api.ts';\n14:import { TaskService } from '../../flauz-workspace/src/taskService.ts';\n15:import { EvidenceLedger } from '../../flauz-workspace/src/ledger.ts';\n16:import { WorkflowService } from '../src/envelope.ts';\n17:import { createMockVscode, type MockVscode } from './vscodeMock.ts';\n18:import { setVscodeApi } from '../src/globals.ts';\n20:export const FIXED_TS = 1_740_000_000_000;\n22:export function fixedClock(): () => number {\n27:export function steppingClock(start = 1_000): () => number {\n38:export function nodeFsPort(): FileSystemPort {\n57:export interface TestWorkspace {\n67:export interface BootOptions {\n72:export async function bootWorkflowWorkspace(options: BootOptions = {}): Promise<TestWorkspace> {\n105:export interface GoldenRunResult {\n113:export async function goldenRun(ws: TestWorkspace, prompt = 'ship the flauz wave 4 lane', command = 'echo flauz-golden-path-ok'): Promise<GoldenRunResult> {\n",
+				"stdoutSha256": "4bc359f41d4db8a1823ba58a7bf1498582952dc2e3a7ef37aa28791fb134a4df",
+				"stdoutBytes": 1109,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000062",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-39.json",
+				"sha256": "b97870d1c91546454bda9cb83e46a5b306ef5e15e05e4cfb5a707ca2cbe646df"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153051
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-40",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/src/extension.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/src/extension.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import * as vscode from 'vscode';\n6:import * as fs from 'node:fs/promises';\n7:import { setVscodeApi } from './globals.ts';\n8:import { joinPath, type FileSystemPort } from './api.ts';\n9:import { TaskService } from './taskService.ts';\n10:import { EvidenceLedger } from './ledger.ts';\n11:import { CheckpointInterop } from './checkpoint.ts';\n12:import { FlauzArtifactProvider } from './scmArtifactProvider.ts';\n13:import { registerWorkspaceCommands, type WorkspaceServices } from './commands.ts';\n14:import { registerWorkspaceViews } from './views.ts';\n15:import { registerLiveEvents } from './liveEvents.ts';\n34:export function activate(context: vscode.ExtensionContext): void {\n104:export function deactivate(): void {\n",
+				"stdoutSha256": "9f129a984156842e4295275a8392eaab828a23c11af05d75220e7f14a0111137",
+				"stdoutBytes": 719,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000063",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-40.json",
+				"sha256": "8df51f83e82da2b2a2bba20e478c0eccf4f7cd05edd111c7da04005541cbb158"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153056
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-41",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/src/taskService.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/src/taskService.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import {\n27:import { hasKey } from './ledger.ts';\n43:export interface TaskServiceOptions {\n61:export function validateEvent(event: unknown): TaskEvent {\n131:export function validateEnvelope(value: unknown): MutableEnvelope {\n158:export class TaskService {\n321:export class StaleRunCancelledError extends Error {\n",
+				"stdoutSha256": "5585d056b893a29e7fb4609bd7b8aabdf9f019eefaf09a3ea67dda6ce187dbb7",
+				"stdoutBytes": 314,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000064",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-41.json",
+				"sha256": "8a9c014163120de7470cab247ed3c2f3bb01a1133ae269068e0464813990ab85"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153062
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-42",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/src/scmArtifactProvider.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/src/scmArtifactProvider.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import type * as vscode from 'vscode';\n6:import { vscodeApi } from './globals.ts';\n7:import { type EvidenceKind, type LedgerRow } from './api.ts';\n8:import { evidenceIdOf } from './ledger.ts';\n10:export interface ArtifactGroupSpec {\n17:export const ARTIFACT_GROUPS: readonly ArtifactGroupSpec[] = [\n31:export function artifactForRow(row: LedgerRow): vscode.SourceControlArtifact {\n41:export class FlauzArtifactProvider implements vscode.SourceControlArtifactProvider {\n",
+				"stdoutSha256": "c2e51734d26ff6050b1336ab569d1f979dc369729b28eb366366dd87038ecbc0",
+				"stdoutBytes": 471,
+				"durationMs": 5
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000065",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-42.json",
+				"sha256": "cded5bd457c9875ea1e95da467ef8e05388dc0ee22e7c3e3c32000a0b0fd81cd"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153084
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-43",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/src/commands.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/src/commands.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import type * as vscode from 'vscode';\n6:import { vscodeApi } from './globals.ts';\n7:import type { TaskEvent } from './api.ts';\n8:import type { TaskService } from './taskService.ts';\n9:import type { CheckpointInterop } from './checkpoint.ts';\n10:import type { FlauzArtifactProvider } from './scmArtifactProvider.ts';\n11:import { hasKey, validateRowInput, type EvidenceLedger } from './ledger.ts';\n13:export const COMMAND_IDS = [\n24:export type WorkspaceCommandId = (typeof COMMAND_IDS)[number];\n26:export interface WorkspaceServices {\n33:export type WorkspaceHandler = (arg: unknown) => Promise<unknown>;\n65:export function createCommandHandlers(services: WorkspaceServices): Record<WorkspaceCommandId, WorkspaceHandler> {\n142:export function registerWorkspaceCommands(services: WorkspaceServices): vscode.Disposable[] {\n",
+				"stdoutSha256": "af6e6449953b38dff3b911bd298952cd7757608ac24c0d76c0cdba9ed87b6c19",
+				"stdoutBytes": 823,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000066",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-43.json",
+				"sha256": "3dd5c78cf29d606b2a21b7803c9dd4c25424f61f1be7d605b6f78d60c5a1c573"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153090
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-44",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/src/checkpoint.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/src/checkpoint.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import { type Clock, canonicalJson, sha256Hex } from './api.ts';\n6:import type { TaskService } from './taskService.ts';\n7:import type { EvidenceLedger } from './ledger.ts';\n10:export const GAP_CHECKPOINT_URI = 'flauz://gap/checkpoint-out-of-band-unreachable';\n12:export interface CheckpointRequest {\n18:export interface CheckpointOutcome {\n24:export class CheckpointInterop {\n",
+				"stdoutSha256": "2c19d29d0df44b9d8db896012485d3bbcc0a6c6e109455969587a5b1767018ce",
+				"stdoutBytes": 378,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000067",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-44.json",
+				"sha256": "fb2e9f7673a651828b0bf8f94eafd2cc56b8fd7e6e941bb2298d0dbe92f61b6b"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153096
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-45",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/src/views.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/src/views.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "30:import type * as vscode from 'vscode';\n31:import { vscodeApi } from './globals.ts';\n32:import { ACTIVE_STATUSES, joinPath, LEDGER_PATH, type LedgerRow, type Task, type TaskStatus } from './api.ts';\n33:import { evidenceIdOf } from './ledger.ts';\n34:import { formatAge, formatTimestamp } from './format.ts';\n35:import type { WorkspaceServices } from './commands.ts';\n38:export const HOME_VIEW_ID = 'flauz.home';\n39:export const TASKS_VIEW_ID = 'flauz.tasks';\n42:export const VIEW_COMMAND_IDS = [\n71:export interface WorkspaceViewContext {\n83:export interface WorkspaceViews {\n90:export interface HomeRow {\n101:export type TasksTreeElement =\n171:export class HomeTreeProvider implements vscode.TreeDataProvider<HomeRow> {\n359:export class TasksTreeProvider implements vscode.TreeDataProvider<TasksTreeElement> {\n537:export function registerWorkspaceViews(context: WorkspaceViewContext): WorkspaceViews {\n",
+				"stdoutSha256": "d42f4658cedeaffc2579bbb9162debb731df0e53e76b572f6ec626509863fa12",
+				"stdoutBytes": 904,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000068",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-45.json",
+				"sha256": "23f4cd5a010d30bd9bca2bff544f59d0c9198fcc44df6577a72257d3b3280419"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153102
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-46",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "79:import { test } from 'node:test';\n80:import assert from 'node:assert/strict';\n81:import * as nodeFs from 'node:fs/promises';\n82:import * as os from 'node:os';\n83:import * as path from 'node:path';\n85:import { installMockVscode, matchesWatchPattern, classifyRenameEvent, type MockFileSystemWatcher, type MockVscode } from '../shims.ts';\n86:import { sha256Hex, type FileSystemPort, type LedgerRow, type Task } from '../../src/api.ts';\n87:import { TaskService } from '../../src/taskService.ts';\n88:import { EvidenceLedger } from '../../src/ledger.ts';\n89:import { CheckpointInterop } from '../../src/checkpoint.ts';\n90:import { FlauzArtifactProvider } from '../../src/scmArtifactProvider.ts';\n91:import { registerWorkspaceViews, TasksTreeProvider, TASKS_VIEW_ID, type TasksTreeElement, type WorkspaceViewContext } from '../../src/views.ts';\n92:import { registerLiveEvents, LIVE_EVENTS_DEBOUNCE_MS, LIVE_EVENTS_WATCH_PATTERN, type LiveEventsWiring } from '../../src/liveEvents.ts';\n146:export function coalescedRefreshCount(eventTimesMs: readonly number[], debounceMs: number): number {\n",
+				"stdoutSha256": "6965792c69a534162391ace0f6329b06b51db66acef6fcebc7f8fd2ada3f2548",
+				"stdoutBytes": 1086,
+				"durationMs": 2
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000069",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-46.json",
+				"sha256": "bf00f10cb13cc67f8561596ed8c9e2a086d071da3837070aec8480f87338fee7"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153108
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-47",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/test/ledger.test.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/test/ledger.test.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import { test } from 'node:test';\n6:import assert from 'node:assert/strict';\n7:import * as fs from 'node:fs/promises';\n8:import * as path from 'node:path';\n9:import * as crypto from 'node:crypto';\n10:import { FIXED_TS, bootWorkspace, type TestWorkspace } from './helpers.ts';\n11:import { canonicalJson, sha256Hex, type LedgerRow } from '../src/api.ts';\n12:import { rowHash, rowLine } from '../src/ledger.ts';\n",
+				"stdoutSha256": "2a7081ceeab12e0c6ad09d1539442d9f52a77b38a46df293a4c348e3f2fcb4a3",
+				"stdoutBytes": 411,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000070",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-47.json",
+				"sha256": "17693ae33d8b7f0b7455cc3979c0a996aecdc51e01bcaee11ef4f70d1902cdb0"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153113
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-48",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "grep -nE -- 'import|export' extensions/flauz-workspace/test/helpers.ts"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `grep -nE -- 'import|export' extensions/flauz-workspace/test/helpers.ts` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "5:import * as fs from 'node:fs/promises';\n6:import * as os from 'node:os';\n7:import * as path from 'node:path';\n8:import type { FileSystemPort } from '../src/api.ts';\n9:import { TaskService } from '../src/taskService.ts';\n10:import { EvidenceLedger } from '../src/ledger.ts';\n11:import { CheckpointInterop } from '../src/checkpoint.ts';\n12:import { FlauzArtifactProvider } from '../src/scmArtifactProvider.ts';\n13:import { registerWorkspaceCommands, type WorkspaceServices } from '../src/commands.ts';\n14:import { installMockVscode, type MockVscode } from './shims.ts';\n16:export const FIXED_TS = 1730000000000;\n18:export function fixedClock(): () => number {\n23:export function steppingClock(start = 1000): () => number {\n32:export function nodeFsPort(): FileSystemPort {\n51:export interface TestWorkspace extends WorkspaceServices {\n59:export interface BootOptions {\n65:export async function bootWorkspace(options: BootOptions = {}): Promise<TestWorkspace> {\n",
+				"stdoutSha256": "a5ee07f3fcdb0ce015e1cf81282eaf134a1bd69d1c4d7b482fb4baaf16e2e025",
+				"stdoutBytes": 961,
+				"durationMs": 3
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000071",
+				"uri": ".flauz/artifacts/T-005/tool-receipt-R-48.json",
+				"sha256": "16678372d4a1b98dbf3993251a5dfeade3e1d817d274f417215061b0b17c5f65"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791276153118
+		}
+	],
+	"mapVerification": {
+		"schema": "flauz.dogfood-explore-verification/v1",
+		"ledgerModule": "extensions/flauz-workspace/src/ledger.ts",
+		"verified": true,
+		"checked": [
+			{
+				"file": "extensions/flauz-backup/test/contract.test.ts",
+				"line": 21,
+				"consumes": [
+					"rowHash as workspaceRowHash",
+					"rowLine"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-backup/test/helpers.ts",
+				"line": 33,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-diagnostics/test/contract.test.ts",
+				"line": 19,
+				"consumes": [
+					"rowHash as workspaceRowHash",
+					"rowLine"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-diagnostics/test/helpers.ts",
+				"line": 32,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-diagnostics/test/integrity.test.ts",
+				"line": 17,
+				"consumes": [
+					"EvidenceLedger",
+					"rowHash"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-migration/test/contract.test.ts",
+				"line": 29,
+				"consumes": [
+					"rowHash as workspaceRowHash",
+					"rowLine"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-migration/test/helpers.ts",
+				"line": 33,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-release/test/helpers.ts",
+				"line": 41,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-telemetry/test/helpers.ts",
+				"line": 36,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/src/commands.ts",
+				"line": 24,
+				"consumes": [
+					"hasKey"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/src/coordination.ts",
+				"line": 44,
+				"consumes": [
+					"hasKey",
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/src/envelope.ts",
+				"line": 47,
+				"consumes": [
+					"hasKey",
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/src/executable.ts",
+				"line": 42,
+				"consumes": [
+					"hasKey",
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/src/extension.ts",
+				"line": 32,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/agentos-battery.test.ts",
+				"line": 90,
+				"consumes": [
+					"EvidenceLedger",
+					"rowLine"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/agentos-journey.rehearsal.test.ts",
+				"line": 141,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/canaries/agentos-runtime.drill.ts",
+				"line": 97,
+				"consumes": [
+					"EvidenceLedger",
+					"rowLine"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/canaries/session-battery-runtime.drill.ts",
+				"line": 106,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/generateLedgerFixtures.ts",
+				"line": 36,
+				"consumes": [
+					"EvidenceLedger",
+					"rowHash"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/hardening.test.ts",
+				"line": 25,
+				"consumes": [
+					"EvidenceLedger",
+					"rowHash"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/helpers.ts",
+				"line": 15,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/recovery-matrix.test.ts",
+				"line": 33,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workflow/test/session-battery.test.ts",
+				"line": 53,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/checkpoint.ts",
+				"line": 7,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/commands.ts",
+				"line": 11,
+				"consumes": [
+					"hasKey",
+					"validateRowInput",
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/extension.ts",
+				"line": 10,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/scmArtifactProvider.ts",
+				"line": 8,
+				"consumes": [
+					"evidenceIdOf"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/taskService.ts",
+				"line": 27,
+				"consumes": [
+					"hasKey"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/src/views.ts",
+				"line": 33,
+				"consumes": [
+					"evidenceIdOf"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/test/canaries/live-events-runtime.drill.ts",
+				"line": 88,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/test/helpers.ts",
+				"line": 10,
+				"consumes": [
+					"EvidenceLedger"
+				],
+				"ok": true,
+				"problems": []
+			},
+			{
+				"file": "extensions/flauz-workspace/test/ledger.test.ts",
+				"line": 12,
+				"consumes": [
+					"rowHash",
+					"rowLine"
+				],
+				"ok": true,
+				"problems": []
+			}
+		],
+		"missed": [],
+		"totals": {
+			"claimed": 32,
+			"real": 32,
+			"verifiedEntries": 32,
+			"problemEntries": 0,
+			"missedEntries": 0
+		}
+	},
+	"verified": true
+}
