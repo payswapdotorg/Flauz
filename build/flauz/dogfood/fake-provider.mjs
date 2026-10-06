@@ -283,6 +283,40 @@ export function answerSwitchFromPrompt(prompt) {
         return { ok: true, answer: { enabledDogfoodProviders: enabled, routingDecisionCount, lastDecisionId } };
 }
 
+/** W7 (A-PROD-003-W7): the browser-policy outcome-map answer, COMPUTED from
+ *  the prompt-carried facts (the P2-FIX-119 doctrine: both lanes answer from
+ *  the prompt; the server-side computation path is retired). The exercise
+ *  embeds the scripted outcome map + the drop/recovery facts at ask time. */
+export function answerBrowserPolicyFromPrompt(prompt) {
+        const beginMarker = '=== BROWSER-SESSION FACT: the scripted outcome map';
+        const beginIdx = prompt.indexOf(beginMarker);
+        if (beginIdx < 0) {
+                return { ok: false, error: 'the prompt carries no browser-session facts section (the question must embed the outcome map)' };
+        }
+        const contentStart = prompt.indexOf('\n', beginIdx) + 1;
+        const endIdx = prompt.indexOf('=== END browser-session facts ===', contentStart);
+        if (endIdx < 0) {
+                return { ok: false, error: 'the browser-session facts section is unterminated' };
+        }
+        const body = prompt.slice(contentStart, endIdx).trim();
+        let facts;
+        try {
+                facts = JSON.parse(body);
+        } catch (err) {
+                return { ok: false, error: `the embedded outcome map is not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+        }
+        return {
+                ok: true,
+                answer: {
+                        schema: 'flauz.dogfood-browser-policy-answer/v1',
+                        question: 'report the browser session outcome map from the prompt-carried facts',
+                        method: 'read of the prompt-carried browser-session facts (the fake lane answers from the prompt; simulated evidence, never promoted)',
+                        navigations: facts.navigations,
+                        dropRecovery: facts.dropRecovery,
+                },
+        };
+}
+
 /** One OpenAI-shaped SSE completion body (the wire shape the REAL adapter parses). */
 function openAiSseBody(model, content) {
         const id = 'chatcmpl-dogfood-1';
@@ -395,6 +429,17 @@ export function startFakeProvider(options) {
                                         }, err => {
                                                 respond(500, JSON.stringify({ error: { message: `dogfood fake provider scan failed: ${err instanceof Error ? err.message : String(err)}` } }));
                                         });
+                                        return;
+                                }
+                                if (lower.includes('browser session outcome map') || prompt.includes('=== BROWSER-SESSION FACT:')) {
+                                        // W7: the browser-policy exercise's fake-lane answer FROM THE
+                                        // PROMPT-CARRIED FACTS (the outcome map embedded at ask time).
+                                        const outcome = answerBrowserPolicyFromPrompt(prompt);
+                                        const answer = outcome.ok
+                                                ? outcome.answer
+                                                : { schema: 'flauz.dogfood-browser-policy-answer-error/v1', error: outcome.error };
+                                        response.writeHead(200, { 'content-type': 'text/event-stream' });
+                                        response.end(openAiSseBody(model, JSON.stringify(answer)));
                                         return;
                                 }
                                 if (lower.includes('provider-lane configuration')) {
