@@ -10,8 +10,10 @@
  * harness-backed fixture context, the typed-refusal battery (including
  * the verbatim-law pin and the headless violation), output-shape
  * pins (canonical JSON, table determinism, the digest), the parity
- * view projection, the real-seam loader's typeness, and determinism
- * double-run byte-equality. No Date.now, no Math.random.
+ * view projection, the real-seam loader's typeness, determinism
+ * double-run byte-equality, and the CR-002 wave-2 background-agent
+ * mutation round trips over the REAL bgAgent runtime. No Date.now,
+ * no Math.random.
  */
 
 import assert from 'node:assert/strict';
@@ -38,6 +40,7 @@ import {
 import { projectParity } from '../zcode-patterns/cli/common/parity.ts';
 import {
         canonicalJson,
+        deriveScope,
         loadHarnessContext,
         loadRealContext,
         runReloadDrill,
@@ -45,6 +48,7 @@ import {
 } from './runtime/context.ts';
 import { refusedCommandPaths, routeCommand, wiredCommandPaths } from './runtime/handlers.ts';
 import { renderOutput, runCli } from './bin/flauz.ts';
+import { loadBgAgentRuntime } from '../capabilities/background-agent/runtime/bgAgent.mjs';
 
 const FIXTURE = {
         state: { status: 'fixture', graphs: ['graph-1'] },
@@ -294,9 +298,11 @@ suite('flauz cli: the typed-refusal battery', () => {
                 );
         });
 
-        test('every grammar command routes: 4 wired + 25 typed refusals, no drift', async () => {
-                assert.equal(wiredCommandPaths().length, 4);
-                assert.equal(refusedCommandPaths().length, 25);
+        test('every grammar command routes: 10 wired + 19 typed refusals, no drift', async () => {
+                // CR-002 wave 2: 4 wave-1 read handlers + 6 background-agent
+                // mutations are wired; the refusal census moved 25 -> 19.
+                assert.equal(wiredCommandPaths().length, 10);
+                assert.equal(refusedCommandPaths().length, 19);
                 for (const entry of CLI_COMMAND_GRAMMAR) {
                         const routed = await routeCommand(harnessContext, {
                                 scope: { workspaceId: harnessContext.root.split('/').pop() ?? 'x', tenantId: 'local' },
@@ -376,6 +382,279 @@ suite('flauz cli: the real seam loader (typeness)', () => {
         });
 });
 
+suite('flauz cli: background-agent mutations over the real runtime (wave 2)', () => {
+        type Seams = Extract<Awaited<ReturnType<typeof loadBgAgentRuntime>>, { bound: true }>;
+
+        async function freshMutationRoot(): Promise<string> {
+                return await mkdtemp(join(tmpdir(), 'flauz-bg-mutations-'));
+        }
+
+        async function contextFor(root: string): Promise<Awaited<ReturnType<typeof loadRealContext>>> {
+                return await loadRealContext({ root, issuedAtIso: '1970-01-01T00:00:00.000Z' });
+        }
+
+        function requestFor(root: string, commandPath: string, args: Record<string, unknown>) {
+                // Wire-conformant arg encoding (station seam-completion): the ZC-009
+                // wire validates `args` as a plain string map, so non-string values
+                // (the json argKind payloads) are JSON-encoded here — the handlers
+                // decode them back with the same doctrine.
+                const stringArgs: Record<string, string> = {};
+                for (const [name, value] of Object.entries(args)) {
+                        stringArgs[name] = typeof value === 'string' ? value : JSON.stringify(value);
+                }
+                return {
+                        scope: deriveScope(root),
+                        contractVersion: '1.0.0',
+                        commandPath,
+                        args: stringArgs,
+                        requestId: 'test-' + commandPath,
+                        issuedAtIso: '1970-01-01T00:00:00.000Z',
+                };
+        }
+
+        async function seamsFor(root: string): Promise<Seams> {
+                const loaded = await loadBgAgentRuntime({ root });
+                if (!loaded.bound) {
+                        assert.fail(loaded.detail);
+                }
+                return loaded;
+        }
+
+        function projectionOf(routed: { kind: string }): Record<string, unknown> {
+                assert.equal(routed.kind, 'projection');
+                return (routed as unknown as { projection: Record<string, unknown> }).projection;
+        }
+
+        async function launchViaCli(root: string, agentId = 'agent-alpha'): Promise<string> {
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.launch', { spec: { agentId } }),
+                );
+                assert.equal(projectionOf(routed).kind, 'projected');
+                const seams = await seamsFor(root);
+                const graphs = seams.store.listGraphs() as Array<{ graphId: string }>;
+                assert.equal(graphs.length, 1);
+                return graphs[0].graphId;
+        }
+
+        function pendingCount(seams: Seams, agentId: string): number {
+                return seams.bus.collect({ agentId, consume: false }).messages.length;
+        }
+
+        // C36
+        test('background-agent.launch routes a full projection over the real runtime', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.launch', { spec: { agentId: 'agent-alpha', label: 'wave-2' } }),
+                );
+                const projection = projectionOf(routed);
+                assert.equal(projection.kind, 'projected');
+                assert.equal(projection.journey, 'background-agent');
+                assert.equal(projection.completeness, 'full');
+                assert.match(String(projection.projectionDigest), /^[0-9a-f]{64}$/);
+        });
+
+        // C37
+        test('launch creates the durable graph and posts to the agent inbox', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const seams = await seamsFor(root);
+                const graphs = seams.store.listGraphs() as Array<{ graphId: string }>;
+                assert.equal(graphs.length, 1);
+                assert.equal(graphs[0].graphId, runId);
+                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
+                assert.equal(messages.length, 1);
+                const message = messages[0] as { to: string; kind: string; payload: { taskId: string; prompt: string } };
+                assert.equal(message.to, 'agent-alpha');
+                // The a2a task-delegation contract shape (the graph linkage rides
+                // the prompt string).
+                assert.equal(message.kind, 'task-delegation');
+                const prompt = JSON.parse(message.payload.prompt) as { graphId: string };
+                assert.equal(prompt.graphId, runId);
+        });
+
+        // C38
+        test('launch with a non-object spec is the typed invalid-argument edge failure', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.launch', { spec: 'not-an-object' }),
+                );
+                assert.equal(routed.kind, 'edge-failure');
+                assert.equal((routed as { reason: string }).reason, 'invalid-argument');
+        });
+
+        // C39
+        test('launch with a spec missing agentId is the typed invalid-argument edge failure', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.launch', { spec: {} }),
+                );
+                assert.equal(routed.kind, 'edge-failure');
+                assert.equal((routed as { reason: string }).reason, 'invalid-argument');
+        });
+
+        // C40
+        test('launch with no spec argument is the absent projection (the wave-1 missing-arg precedent)', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(context, requestFor(root, 'background-agent.launch', {}));
+                assert.equal(projectionOf(routed).kind, 'absent');
+        });
+
+        // C41
+        test('background-agent.message routes and delivers to the agent inbox', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.message', { runId, payload: { text: 'hi' }, type: 'user.message' }),
+                );
+                assert.equal(projectionOf(routed).kind, 'projected');
+                const seams = await seamsFor(root);
+                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
+                assert.equal(messages.length, 2);
+                const second = messages[1] as { kind: string; payload: { message: string } };
+                // The a2a steering-relay contract shape (the typed body rides
+                // the message string).
+                assert.equal(second.kind, 'steering-relay');
+                const body = JSON.parse(second.payload.message) as { graphId: string; type: string; payload: { text: string } };
+                assert.equal(body.graphId, runId);
+                assert.equal(body.type, 'user.message');
+                assert.deepEqual(body.payload, { text: 'hi' });
+        });
+
+        // C42
+        test('message on an unknown run is the absent projection', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.message', { runId: 'nope', payload: {} }),
+                );
+                assert.equal(projectionOf(routed).kind, 'absent');
+        });
+
+        // C43
+        test('pause routes as an advisory control: the graph state is unchanged, the inbox grows', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const seams = await seamsFor(root);
+                const before = (seams.store.stateOf(runId) as { graphStatus?: string }).graphStatus;
+                const context = await contextFor(root);
+                const routed = await routeCommand(context, requestFor(root, 'background-agent.pause', { runId }));
+                assert.equal(projectionOf(routed).kind, 'projected');
+                const after = (seams.store.stateOf(runId) as { graphStatus?: string }).graphStatus;
+                assert.equal(after, before);
+                // Cross-instance observation: a fresh bus over the same root
+                // re-reads the durable journal (postings from the CLI runtime's
+                // own bus instance land on disk, not in this instance's memory).
+                const seamsAfter = await seamsFor(root);
+                assert.equal(pendingCount(seamsAfter, 'agent-alpha'), 2);
+        });
+
+        // C44
+        test('resume routes as an advisory control', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const context = await contextFor(root);
+                const routed = await routeCommand(context, requestFor(root, 'background-agent.resume', { runId }));
+                assert.equal(projectionOf(routed).kind, 'projected');
+                const seams = await seamsFor(root);
+                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
+                assert.equal(messages.length, 2);
+                const control = messages[1] as { payload: { message: string } };
+                assert.equal((JSON.parse(control.payload.message) as { control: string }).control, 'resume');
+        });
+
+        // C45
+        test('cancel routes as the enforced control and terminalizes the graph', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const context = await contextFor(root);
+                const routed = await routeCommand(
+                        context,
+                        requestFor(root, 'background-agent.cancel', { runId, reason: 'wave-2 test' }),
+                );
+                assert.equal(projectionOf(routed).kind, 'projected');
+                const seams = await seamsFor(root);
+                assert.equal((await seams.runtime.inspect(runId)).terminal, true);
+        });
+
+        // C46
+        test('stop routes identically to cancel (the enforced twin)', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const context = await contextFor(root);
+                const routed = await routeCommand(context, requestFor(root, 'background-agent.stop', { runId }));
+                assert.equal(projectionOf(routed).kind, 'projected');
+                const seams = await seamsFor(root);
+                assert.equal((await seams.runtime.inspect(runId)).terminal, true);
+        });
+
+        // C47
+        test('cancel on an unknown run is the absent projection', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(context, requestFor(root, 'background-agent.cancel', { runId: 'nope' }));
+                assert.equal(projectionOf(routed).kind, 'absent');
+        });
+
+        // C48
+        test('the scope-isolation refusal guards the mutation paths too', async () => {
+                const root = await freshMutationRoot();
+                const context = await contextFor(root);
+                const routed = await routeCommand(context, {
+                        scope: { workspaceId: 'somebody-elses', tenantId: 'local' },
+                        contractVersion: '1.0.0',
+                        commandPath: 'background-agent.launch',
+                        args: { spec: JSON.stringify({ agentId: 'agent-alpha' }) },
+                        requestId: 'test-scope-isolation',
+                        issuedAtIso: '1970-01-01T00:00:00.000Z',
+                });
+                const projection = projectionOf(routed);
+                assert.equal(projection.kind, 'refused');
+                assert.equal(projection.refusalCode, 'scope-isolation-violated');
+        });
+
+        // C49
+        test('the wave-2 census: the six mutation paths are wired and no longer refused', () => {
+                const wired = wiredCommandPaths();
+                const refused = refusedCommandPaths();
+                for (const path of [
+                        'background-agent.launch',
+                        'background-agent.message',
+                        'background-agent.pause',
+                        'background-agent.stop',
+                        'background-agent.cancel',
+                        'background-agent.resume',
+                ]) {
+                        assert.ok(wired.includes(path), path);
+                        assert.equal(refused.includes(path), false, path);
+                }
+        });
+
+        // C50
+        test('cancel posts a control notice to the agent inbox', async () => {
+                const root = await freshMutationRoot();
+                const runId = await launchViaCli(root);
+                const context = await contextFor(root);
+                await routeCommand(context, requestFor(root, 'background-agent.cancel', { runId }));
+                const seams = await seamsFor(root);
+                const messages = seams.bus.collect({ agentId: 'agent-alpha', consume: false }).messages;
+                assert.equal(messages.length, 2);
+                const notice = messages[1] as { payload: { message: string } };
+                assert.equal((JSON.parse(notice.payload.message) as { control: string }).control, 'cancel');
+        });
+});
+
 let harnessContext: Awaited<ReturnType<typeof loadHarnessContext>>;
 let fixtureRoot: string;
 let freshRoot: string;
@@ -389,4 +668,3 @@ suiteSetup(async () => {
         });
         freshRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-fresh-'));
 });
-
