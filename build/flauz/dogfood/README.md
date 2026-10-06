@@ -1,4 +1,4 @@
-# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2 + W6 exercise design + W7 agent-with-tools)
+# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2 + W6 exercise design + W7 agent-with-tools + W8 deeper-dogfood)
 
 The W1 harness for A-PROD-003 (dogfooding): the driver machinery + the
 friction-log contract + the exercise lanes that the station then runs
@@ -219,6 +219,55 @@ dogfooded work) — TWO new exercises, additive harness code only:
   friction log, and the driver-level evidence (the answer + the
   verification + every receipt's transcript, hash-pinned).
 
+**environments-lifecycle** (W8, A-PROD-003-W8) — the deeper-dogfood
+environments lane: a REAL `EnvironmentRegistry` + the REAL
+`LocalProcessExecutor` (the FIXED `fixtures/env-agent.ts` harness — the
+ONLY sanctioned executable; descriptor-supplied execution is forbidden)
+spawned as a REAL child process with the stdio ready-line handshake,
+driven through the REAL `EnvironmentLifecycleManager` over the PIN-2
+siblings (`.flauz/environments-lifecycle.json` +
+`.flauz/environments-ops.jsonl`). The typed state machine is asserted at
+EVERY step (registered -> created -> running -> `running/attached` ->
+snapshot-preserving -> stopped -> destroyed); the failure legs are the
+typed ILLEGAL_TRANSITION (stop on a destroyed id) and the fail-closed
+TRUST_POSTURE_REJECTED (an untrusted-posture start); the ops ledger is
+asserted append-only (one canonical row per op, provenance actor
+recorded) and the PIN-2 envelope shape pinned (the exact entry key set
++ the lastOpRef invariant). The P2-FIX-119 ask embeds the op-sequence
+facts at ask time (the ledger rows verbatim); the driver verifies the
+answer INDEPENDENTLY against the real manager's entries()/ops() (the
+map CHECKED, never trusted). Receipts:
+`environments-lifecycle.report.json`, the friction log (4
+manual-intervention rows, 2 with recovery accounts), and the
+driver-level evidence rows.
+
+**workspace-continuity** (W8, A-PROD-003-W8) — the deeper-dogfood
+continuity lane: the REAL `ContinuityManager` (export -> carry ->
+restore -> verify -> status) over the closed 22-surface canon (the
+N-8 16-surface canon + the 6 post-canon state surfaces, CLOSED and
+deterministic) + the append-only hash-chained ops ledger
+(`flauz.continuity-ops/v0`). The REAL `.flauz/` source state is built
+through REAL product seams (a TaskService task envelope, EvidenceLedger
+rows with the fixture ed25519 signer, MemoryStore records, the models
+providers file, the environments registry envelope, and a browser
+session journal record whose navigation URL is at-record redacted).
+The SECRET-REDACTION LAW is checked, never trusted: the captured-class
+surfaces (evidence ledger + artifacts + browser journal) export as
+typed `redacted` entries — presence + sha256 of the PATH, the payload
+NEVER copied — and restore NOTHING on the target. The legs: the fresh-root
+restore (byte-identical carried payloads), the un-gated restore onto
+the non-empty target (the typed RESTORE_TARGET_NOT_EMPTY), the
+force-gated re-restore, the tamper leg (one bundle artifact tampered on
+the target -> the per-surface `mismatch` verdict + VERIFY_FAILED), and
+the export defense-in-depth leg (a runtime-assembled canary planted in
+a carried `never`-class surface -> EXPORT_SECRET_DETECTED, fail-closed,
+the bundle never committed). The P2-FIX-119 ask embeds the surface-map
+facts at ask time; the driver verifies the answer INDEPENDENTLY against
+the real manifest + the real restore result. Receipts:
+`workspace-continuity.report.json`, the friction log (4
+manual-intervention rows, 3 with recovery accounts), and the
+driver-level evidence rows.
+
 ## Files
 
 | File | Role |
@@ -235,7 +284,10 @@ dogfooded work) — TWO new exercises, additive harness code only:
 | `exercises/agent-delegation.task.ts` | W7 EXERCISE 3 (multi-agent delegation + approvals/takeover + implementation/tests as dogfooded work): the golden path with its refusal leg, the delegation edge over the real a2a/orchestration seams, the worker session's real implementation-and-test act, the takeover transition, the 10 human-gate friction rows, the session report + the session-state evidence bundle. |
 | `exercises/tools-exploration.task.ts` | W7 EXERCISE 4 (the deferred P2-FIX-122 full-tree question, agent-with-tools): the tool-carrying protocol (the ask prompt + the tool-results conversation + the directive/answer schemas), the bounded turn loop, the receipt-contract verification (`verifyToolsReceipts`), the driver-side ground-truth verification (reused from explore-repo), the exercise. |
 | `exercises/browser-policy.task.ts` | W7 LEG 1 (the browser-work dogfood exercise, PR #156): BrowserPolicyEngine's B1c firing model (the agent path driver+webRequest, the user path willNavigate+webRequest), FakeBrowserState/FakeCdpTransport over CdpEndpointHost, the tab pipeline, the in-memory session journal, the at-record URL redaction — the scripted matrix n1..n7 + the drop/recovery drill. |
+| `exercises/environments-lifecycle.task.ts` | W8 EXERCISE 5 (the deeper-dogfood environments-lifecycle lane): the REAL EnvironmentRegistry + LocalProcessExecutor (the FIXED env-agent.ts harness — the ONLY sanctioned executable — spawned as a REAL child with the stdio ready-line handshake) + EnvironmentLifecycleManager over the PIN-2 siblings: the typed state machine asserted at every step (registered -> created -> running -> running/attached -> snapshot-preserving -> stopped -> destroyed), the real sha256 snapshot manifest, the illegal-transition + trust-gate failure legs, the append-only ops ledger + the envelope shape pins, and the P2-FIX-119 ask over the op-sequence facts (verified independently against the real manager entries()/ops()). |
+| `exercises/workspace-continuity.task.ts` | W8 EXERCISE 6 (the deeper-dogfood workspace-continuity lane): the REAL ContinuityManager (export -> carry -> restore -> verify -> status) over the closed 22-surface canon + the hash-chained ops ledger, with the REAL .flauz/ source state built through the REAL TaskService/EvidenceLedger/MemoryStore/writeProviderOverrides/EnvironmentRegistry/FileSystemSessionJournal seams; the SECRET-REDACTION LAW (presence + path hash, the payload NEVER), the fresh-root restore + the force gate, the un-gated + tamper/VERIFY_FAILED + EXPORT_SECRET_DETECTED failure legs, the G8 runtime-assembled canary law, and the P2-FIX-119 ask over the surface-map facts (verified independently against the real manifest + restore result). |
 | `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests; + the W3.2 suites: P2-FIX-121 the knob's default/env/fail-closed parsing + the finish-reason surfacing incl. the fixture-level scripted stream carrying finish_reason `length` through the REAL adapter → the VISIBLE TRUNCATED marker in the receipt detail; + the W6 suites: P2-FIX-122 the excerpt builder's determinism/seed-sensitivity/consumer-guarantee, the excerpt-scoped verification logic (fixture excerpts with known consumers — hallucination detection against the excerpt, the completeness bar), the question/prompt round-trip, and the exercise's excerpt-mode wiring in live-provider mode incl. the fake-lane-unchanged pins; + the W7 suites: the real tool surface + the tool-receipt contract shapes (executed/denied), the golden path + the approval-gate refusal over the REAL session machinery, the delegation edge + the takeover transition over the real orchestration seams, the delegation exercise wiring (the 10 human-gate friction rows), the tools-lane protocol parsing (raw + fenced), the receipt-contract verification logic (coverage/hallucination/denied/failed citations), the scripted agent brain's turn policy, the provider branch over the real SSE wire, the tools exercise wiring (happy path + the hallucinating stub + the refusing human + the unknown tool) and the G8 privacy-canary pins for both lanes). |
+| `environments-continuity.dogfood.test.ts` | The W8 sibling mocha tdd suite (the browser-policy.dogfood.test.ts precedent): the answer-parser mutation matrices for BOTH lanes (swapped verdict/final state, fabricated entries, wrong schema each FAIL), the marker-protocol failures (missing + unterminated facts sections, malformed facts), the state-machine legality pins against the REAL product transition table, the secret-redaction law + the closed canon + the G8 committed-literal scan, the two fake-lane answer computations + the provider branches over the real SSE wire, the full exercise wiring for BOTH lanes (pinned check ids + friction censuses + the legs census), and the driver's seven-exercise registration pin. |
 
 ## How to run
 
@@ -243,11 +295,11 @@ dogfooded work) — TWO new exercises, additive harness code only:
 node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs \
      [--repo <dir>]      # default: the repo containing this harness
      [--out <dir>]       # default: <workspace-root>/.flauz/dogfood-records
-     [--exercise <id>]   # explore-repo | provider-switch | browser-policy | agent-delegation | tools-exploration (default: all five)
+     [--exercise <id>]   # explore-repo | provider-switch | browser-policy | agent-delegation | tools-exploration | environments-lifecycle | workspace-continuity (default: all seven)
 ```
 
 Exit `0` = every selected exercise PASSes (the G4 shape: every friction
-log non-empty-or-honest, the explore-repo map 100% verified, the five
+log non-empty-or-honest, the explore-repo map 100% verified, the seven
 exercise verdicts PASS). Exit `1` = an exercise verdict FAILed (read
 the receipts). Exit `2` = usage / fail-closed env-contract error.
 
@@ -400,19 +452,26 @@ real defects into registry items).
 
 ```sh
 mkdir -p /tmp/labrun && cd /tmp/labrun && npm init -y >/dev/null && \
-  npm i --silent --no-audit --no-fund mocha tsx
+  npm i --silent --no-audit --no-fund mocha@11 tsx
 cd <repo-root>
 NODE_OPTIONS="--import file:///tmp/labrun/node_modules/tsx/dist/loader.mjs" \
-  /tmp/labrun/node_modules/.bin/mocha --ui tdd build/flauz/dogfood/dogfood.test.ts
+  /tmp/labrun/node_modules/.bin/mocha --ui tdd \
+  build/flauz/dogfood/dogfood.test.ts \
+  build/flauz/dogfood/browser-policy.dogfood.test.ts \
+  build/flauz/dogfood/environments-continuity.dogfood.test.ts
 ```
+
+(The lab pins are binding: mocha@11 + the tsx loader; typescript 5.9.3
+for the G7 typecheck — a newer typescript is drift.)
 
 ## The scoped typecheck (the G7 recipe)
 
-Isolated global typescript, never a repo install; `--types node,mocha`
-for the test files; typeRoots outside the repo:
+Isolated typescript (5.9.3 — the pin), never a repo install;
+`--types node,mocha` for the test files; typeRoots outside the repo;
+the dogfood file set + `shims-node-g7.d.ts` + the flauz-agent
+vscode-dts in the program:
 
 ```sh
-npm i -g typescript                                   # or any isolated install
 mkdir -p /tmp/tsclab && cd /tmp/tsclab && npm init -y >/dev/null && \
   npm i --silent --no-audit --no-fund @types/node @types/mocha
 tsc --noEmit --target ES2022 --lib ES2022 --module NodeNext \
@@ -420,9 +479,19 @@ tsc --noEmit --target ES2022 --lib ES2022 --module NodeNext \
     --skipLibCheck --types node,mocha \
     --typeRoots /tmp/tsclab/node_modules/@types \
     build/flauz/dogfood/harnessTypes.ts \
+    build/flauz/dogfood/agentTools.ts \
     build/flauz/dogfood/exercises/explore-repo.task.ts \
     build/flauz/dogfood/exercises/provider-switch.task.ts \
-    build/flauz/dogfood/dogfood.test.ts
+    build/flauz/dogfood/exercises/browser-policy.task.ts \
+    build/flauz/dogfood/exercises/agent-delegation.task.ts \
+    build/flauz/dogfood/exercises/tools-exploration.task.ts \
+    build/flauz/dogfood/exercises/environments-lifecycle.task.ts \
+    build/flauz/dogfood/exercises/workspace-continuity.task.ts \
+    build/flauz/dogfood/dogfood.test.ts \
+    build/flauz/dogfood/browser-policy.dogfood.test.ts \
+    build/flauz/dogfood/environments-continuity.dogfood.test.ts \
+    build/flauz/dogfood/shims-node-g7.d.ts \
+    extensions/flauz-agent/vscode-dts/vscode.d.ts
 ```
 
 ## Honest evidence levels (never promoted)

@@ -36,6 +36,19 @@
  *                      results embedded in the conversation -- the
  *                      receipts the harness minted for the approved
  *                      invocations; never canned, never a scan.
+ *   environments-      the A-PROD-003-W8 environments-lifecycle
+ *   lifecycle lane     question (the ENVIRONMENT-LIFECYCLE FACTS
+ *                      markers): the scripted lane reads the op-
+ *                      sequence facts FROM THE PROMPT and computes the
+ *                      final-state map + the ops census + the failure-
+ *                      leg verdicts from them (never canned).
+ *   workspace-         the A-PROD-003-W8 workspace-continuity question
+ *   continuity lane    (the CONTINUITY FACTS markers): the scripted
+ *                      lane reads the exported surface map + the
+ *                      restore outcomes + the failure legs FROM THE
+ *                      PROMPT and computes the per-surface outcome
+ *                      report + the redacted set with the law's
+ *                      pinned wording (never canned).
  *   scripted-failing   POST /fail/chat/completions  -- ALWAYS HTTP 500
  *   lane              with an OpenAI-shaped error body: the REAL
  *                      adapter maps it onto the TYPED provider
@@ -55,6 +68,8 @@ import * as http from 'node:http';
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
 import { TOOLS_LANE_MARKER, TOOL_RESULTS_BEGIN, TOOL_RESULTS_END, TOOLS_DIRECTIVE_SCHEMA, TOOLS_ANSWER_SCHEMA, TOOLS_EXPLORATION_QUESTION, readCommandFile } from './exercises/tools-exploration.task.ts';
+import { ENVIRONMENTS_LIFECYCLE_FACTS_BEGIN, ENVIRONMENTS_LIFECYCLE_FACTS_END, ENVIRONMENTS_LIFECYCLE_ANSWER_SCHEMA } from './exercises/environments-lifecycle.task.ts';
+import { WORKSPACE_CONTINUITY_FACTS_BEGIN, WORKSPACE_CONTINUITY_FACTS_END, WORKSPACE_CONTINUITY_ANSWER_SCHEMA } from './exercises/workspace-continuity.task.ts';
 
 /** The repo-relative module the exploration question is about (the canonical evidence ledger). */
 export const CANONICAL_LEDGER_MODULE = 'extensions/flauz-workspace/src/ledger.ts';
@@ -425,6 +440,106 @@ export function answerBrowserPolicyFromPrompt(prompt) {
         };
 }
 
+/** W8 (A-PROD-003-W8): the environments-lifecycle answer, COMPUTED from
+ *  the prompt-carried op-sequence facts (the P2-FIX-119 doctrine: both
+ *  lanes answer from the prompt). The final state per environment is the
+ *  LAST ledger row's toState per id; the census counts the rows; the
+ *  failure legs derive from the error rows exactly as the driver-side
+ *  verifier does (TRUST_POSTURE_REJECTED -> untrusted-<op> / rejected;
+ *  everything else -> illegal-<op> / illegal). Never canned. */
+export function answerEnvironmentsLifecycleFromPrompt(prompt) {
+        const beginIdx = prompt.indexOf(ENVIRONMENTS_LIFECYCLE_FACTS_BEGIN);
+        if (beginIdx < 0) {
+                return { ok: false, error: 'the prompt carries no environment-lifecycle facts section (the question must embed the op-sequence facts)' };
+        }
+        const contentStart = prompt.indexOf('\n', beginIdx) + 1;
+        const endIdx = prompt.indexOf(ENVIRONMENTS_LIFECYCLE_FACTS_END, contentStart);
+        if (endIdx < 0) {
+                return { ok: false, error: 'the environment-lifecycle facts section is unterminated' };
+        }
+        let facts;
+        try {
+                facts = JSON.parse(prompt.slice(contentStart, endIdx).trim());
+        } catch (err) {
+                return { ok: false, error: `the embedded environment-lifecycle facts are not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+        }
+        if (facts === null || typeof facts !== 'object' || !Array.isArray(facts.operations)) {
+                return { ok: false, error: 'the embedded environment-lifecycle facts carry no operations array' };
+        }
+        const environments = {};
+        const kinds = {};
+        const failureLegs = [];
+        for (const row of facts.operations) {
+                if (row === null || typeof row !== 'object' || typeof row.envId !== 'string' || typeof row.op !== 'string') {
+                        return { ok: false, error: 'an embedded operations row is malformed (envId/op must be strings)' };
+                }
+                environments[row.envId] = String(row.toState ?? '');
+                kinds[row.op] = (kinds[row.op] ?? 0) + 1;
+                if (row.result === 'error' && typeof row.error === 'string') {
+                        const rejected = row.error === 'TRUST_POSTURE_REJECTED';
+                        failureLegs.push({ leg: rejected ? `untrusted-${row.op}` : `illegal-${row.op}`, verdict: rejected ? 'rejected' : 'illegal', code: row.error });
+                }
+        }
+        failureLegs.sort((a, b) => (a.leg < b.leg ? -1 : a.leg > b.leg ? 1 : 0));
+        return {
+                ok: true,
+                answer: {
+                        schema: ENVIRONMENTS_LIFECYCLE_ANSWER_SCHEMA,
+                        question: 'report the final lifecycle state per environment, the ops-ledger census, and the failure-leg verdicts from the prompt-carried facts',
+                        method: 'read of the prompt-carried environment-lifecycle facts (the fake lane answers from the prompt; fixture-level intelligence, never promoted)',
+                        environments,
+                        opsLedger: { rows: facts.operations.length, kinds },
+                        failureLegs,
+                },
+        };
+}
+
+/** W8 (A-PROD-003-W8): the workspace-continuity answer, COMPUTED from
+ *  the prompt-carried continuity facts (the P2-FIX-119 doctrine: both
+ *  lanes answer from the prompt). The per-surface restore outcomes are
+ *  the embedded restore result; the redacted set is derived from the
+ *  embedded manifest surface map with the law's pinned wording (the
+ *  embedded redactedNote). Never canned. */
+export function answerWorkspaceContinuityFromPrompt(prompt) {
+        const beginIdx = prompt.indexOf(WORKSPACE_CONTINUITY_FACTS_BEGIN);
+        if (beginIdx < 0) {
+                return { ok: false, error: 'the prompt carries no continuity facts section (the question must embed the exported surface map + the restore outcomes)' };
+        }
+        const contentStart = prompt.indexOf('\n', beginIdx) + 1;
+        const endIdx = prompt.indexOf(WORKSPACE_CONTINUITY_FACTS_END, contentStart);
+        if (endIdx < 0) {
+                return { ok: false, error: 'the continuity facts section is unterminated' };
+        }
+        let facts;
+        try {
+                facts = JSON.parse(prompt.slice(contentStart, endIdx).trim());
+        } catch (err) {
+                return { ok: false, error: `the embedded continuity facts are not valid JSON: ${err instanceof Error ? err.message : String(err)}` };
+        }
+        if (facts === null || typeof facts !== 'object' || typeof facts.bundleId !== 'string' || !Array.isArray(facts.surfaces) || !Array.isArray(facts.restoreOutcomes)) {
+                return { ok: false, error: 'the embedded continuity facts carry no { bundleId, surfaces, restoreOutcomes }' };
+        }
+        const redactedNote = typeof facts.redactedNote === 'string' ? facts.redactedNote : '';
+        const redactedSurfaces = facts.surfaces
+                .filter(row => row !== null && typeof row === 'object' && row.status === 'redacted' && typeof row.id === 'string')
+                .map(row => ({ surface: String(row.id), why: redactedNote }))
+                .sort((a, b) => (a.surface < b.surface ? -1 : a.surface > b.surface ? 1 : 0));
+        return {
+                ok: true,
+                answer: {
+                        schema: WORKSPACE_CONTINUITY_ANSWER_SCHEMA,
+                        question: 'report the per-surface restore outcomes and the redacted surfaces (with the law\'s wording) from the prompt-carried facts',
+                        method: 'read of the prompt-carried continuity facts (the fake lane answers from the prompt; fixture-level intelligence, never promoted)',
+                        bundleId: facts.bundleId,
+                        restoreOutcomes: facts.restoreOutcomes.map(row => (row === null || typeof row !== 'object' ? { surface: '', outcome: '' } : { surface: String(row.surface ?? ''), outcome: String(row.outcome ?? '') })),
+                        redactedSurfaces,
+                        failureLegs: Array.isArray(facts.failureLegs)
+                                ? facts.failureLegs.map(row => (row === null || typeof row !== 'object' ? { leg: '', code: '' } : { leg: String(row.leg ?? ''), code: String(row.code ?? '') }))
+                                : [],
+                },
+        };
+}
+
 /** One OpenAI-shaped SSE completion body (the wire shape the REAL adapter parses). */
 function openAiSseBody(model, content) {
         const id = 'chatcmpl-dogfood-1';
@@ -477,7 +592,7 @@ function lastUserPrompt(body) {
  * god-view.
  *
  * @param {{ repoRoot: string, workspaceRoot: string, port?: number }} options
- * @returns {Promise<{ port: number, chatCalls: number, failCalls: number, exploreComputations: number, configPromptReads: number, toolsComputations: number, close: () => void }>}
+ * @returns {Promise<{ port: number, chatCalls: number, failCalls: number, exploreComputations: number, configPromptReads: number, toolsComputations: number, environmentsComputations: number, continuityComputations: number, close: () => void }>}
  */
 export function startFakeProvider(options) {
         const repoRoot = options.repoRoot;
@@ -486,6 +601,8 @@ export function startFakeProvider(options) {
         let exploreComputations = 0;
         let configPromptReads = 0;
         let toolsComputations = 0;
+        let environmentsComputations = 0;
+        let continuityComputations = 0;
         const server = http.createServer((request, response) => {
                 const url = request.url ?? '/';
                 const method = request.method ?? 'GET';
@@ -534,6 +651,32 @@ export function startFakeProvider(options) {
                                         toolsComputations += 1;
                                         response.writeHead(200, { 'content-type': 'text/event-stream' });
                                         response.end(openAiSseBody(model, toolsAgentTurn(prompt)));
+                                        return;
+                                }
+                                if (prompt.includes(ENVIRONMENTS_LIFECYCLE_FACTS_BEGIN)) {
+                                        // A-PROD-003-W8: the environments-lifecycle lane's scripted answer FROM
+                                        // THE PROMPT-CARRIED FACTS (the op-sequence facts embedded at ask time;
+                                        // computed from them, never canned).
+                                        environmentsComputations += 1;
+                                        const outcome = answerEnvironmentsLifecycleFromPrompt(prompt);
+                                        const answer = outcome.ok
+                                                ? outcome.answer
+                                                : { schema: 'flauz.dogfood-environments-lifecycle-answer-error/v1', error: outcome.error };
+                                        response.writeHead(200, { 'content-type': 'text/event-stream' });
+                                        response.end(openAiSseBody(model, JSON.stringify(answer)));
+                                        return;
+                                }
+                                if (prompt.includes(WORKSPACE_CONTINUITY_FACTS_BEGIN)) {
+                                        // A-PROD-003-W8: the workspace-continuity lane's scripted answer FROM
+                                        // THE PROMPT-CARRIED FACTS (the surface map + the restore outcomes +
+                                        // the failure legs embedded at ask time; computed from them, never canned).
+                                        continuityComputations += 1;
+                                        const outcome = answerWorkspaceContinuityFromPrompt(prompt);
+                                        const answer = outcome.ok
+                                                ? outcome.answer
+                                                : { schema: 'flauz.dogfood-workspace-continuity-answer-error/v1', error: outcome.error };
+                                        response.writeHead(200, { 'content-type': 'text/event-stream' });
+                                        response.end(openAiSseBody(model, JSON.stringify(answer)));
                                         return;
                                 }
                                 if (lower.includes('every consumer of the evidence ledger')) {
@@ -617,6 +760,12 @@ export function startFakeProvider(options) {
                                 },
                                 get toolsComputations() {
                                         return toolsComputations;
+                                },
+                                get environmentsComputations() {
+                                        return environmentsComputations;
+                                },
+                                get continuityComputations() {
+                                        return continuityComputations;
                                 },
                                 close: () => server.close(),
                         });

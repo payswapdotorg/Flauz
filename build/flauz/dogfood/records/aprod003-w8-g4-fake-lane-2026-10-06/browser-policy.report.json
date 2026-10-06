@@ -1,0 +1,113 @@
+{
+	"schema": "flauz.dogfood-browser-policy-report/v1",
+	"exerciseId": "browser-policy",
+	"mode": "fake-lane",
+	"scenarioHash": "b2d0058021bf9c6b4c4ee71cae36d94d71fdb98154f6ebf5086c19f73225a67f",
+	"ask": {
+		"kind": "ok",
+		"decisionId": "rd-000009",
+		"finishReason": "stop",
+		"fenceStripped": false,
+		"text": "{\"schema\":\"flauz.dogfood-browser-policy-answer/v1\",\"question\":\"report the browser session outcome map from the prompt-carried facts\",\"method\":\"read of the prompt-carried browser-session facts (the fake lane answers from the prompt; simulated evidence, never promoted)\",\"navigations\":[{\"id\":\"n1\",\"targetUrl\":\"https://ok.example.com/page\",\"verdict\":\"allow\",\"decidingLayer\":\"webRequest\",\"navigateCommandReachedTransport\":true,\"committedUrl\":\"https://ok.example.com/page\",\"journalRequestedUrl\":\"https://ok.example.com/page\",\"journalSent\":true},{\"id\":\"n2\",\"targetUrl\":\"https://blocked-driver.example.com/x\",\"verdict\":\"deny\",\"decidingLayer\":\"driver\",\"navigateCommandReachedTransport\":false,\"journalRequestedUrl\":\"https://blocked-driver.example.com/x\",\"journalSent\":false},{\"id\":\"n3\",\"targetUrl\":\"https://blocked-webreq.example.org/y\",\"verdict\":\"deny\",\"decidingLayer\":\"webRequest\",\"navigateCommandReachedTransport\":false,\"journalRequestedUrl\":\"https://blocked-webreq.example.org/y\",\"journalSent\":false},{\"id\":\"n4\",\"targetUrl\":\"https://blocked-nav.example.com/z\",\"verdict\":\"deny\",\"decidingLayer\":\"willNavigate\",\"navigateCommandReachedTransport\":false,\"journalRequestedUrl\":\"\",\"journalSent\":false},{\"id\":\"n5\",\"targetUrl\":\"https://ok.example.com/partitioned\",\"verdict\":\"deny\",\"decidingLayer\":\"partition\",\"navigateCommandReachedTransport\":false,\"journalRequestedUrl\":\"https://ok.example.com/partitioned\",\"journalSent\":false},{\"id\":\"n6\",\"targetUrl\":\"https://ok.example.com/after-rejected-policy\",\"verdict\":\"deny\",\"decidingLayer\":\"driver\",\"navigateCommandReachedTransport\":false,\"journalRequestedUrl\":\"https://ok.example.com/after-rejected-policy\",\"journalSent\":false},{\"id\":\"n7\",\"targetUrl\":\"https://ok.example.com/secret?token=sk-live-abcdefghijklmnop&x=1\",\"verdict\":\"allow\",\"decidingLayer\":\"webRequest\",\"navigateCommandReachedTransport\":true,\"committedUrl\":\"https://ok.example.com/secret?token=[redacted]&x=1\",\"journalRequestedUrl\":\"https://ok.example.com/secret?token=[redacted]&x=1\",\"journalSent\":true}],\"dropRecovery\":{\"journalRowsBeforeDrop\":7,\"journalRowsAfterReattach\":9,\"reattachedNavigation\":{\"targetUrl\":\"https://ok.example.com/after-reattach\",\"verdict\":\"allow\",\"navigateCommandReachedTransport\":true}}}"
+	},
+	"askPromptExcerpt": "Report the browser session's outcome map for the scripted navigation scenario that just ran under the real Flauz browser policy runtime (a fake CDP transport: simulated evidence).\nYou are a bare chat completion with NO tool or file access, so the session facts are embedded below, computed at ask time from the real state (the policy engine verdicts, the CDP sentCommands record, the session journal rows).\n=== BROWSER-SESSION FACT: the scripted outcome map, computed at ask time from the real state (policy engine verdicts + the CDP sentCommands record + the session journal) ===\n{\n  \"schema\": \"flauz.dogfood-browser-policy-answer/v1\",\n  \"navigations\": [\n    {\n      \"id\": \"n1\",\n      \"targetUrl\": \"https://ok.example.com/page\",\n      \"verdict\": \"allow\",\n      \"decidingLayer\": \"webRequest\",\n      \"navigateCommandReachedTransport\": true,\n      \"committedUrl\": \"https://ok.example.com/page\",\n      \"journalRequestedUrl\": \"https://ok.example.com/page\",\n      \"journalSent\": true\n    },\n    {\n      \"id\": \"n2\",\n      \"targetUrl\": \"https://blocked-driver.example.com/x\",\n      \"verdict\": \"deny\",\n      \"decidingLayer\": \"driver\",\n      \"navigateCommandReachedTransport\": false,\n      \"journalRequestedUrl\": \"https://blocked-driver.example.com/x\",\n      \"journalSent\": false\n    },\n    {\n      \"id\": \"n3\",\n      \"targetUrl\": \"https://blocked-webreq.example.org/y\",\n      \"verdict\": \"deny\",\n      \"decidingLayer\": \"webRequest\",\n      \"navigateCommandReachedTransport\": false,\n      \"journalRequestedUrl\": \"https://blocked-webreq.example.org/y\",\n      \"journalSent\": false\n    },\n    {\n      \"id\": \"n4\",\n      \"targetUrl\": \"https://blocked-nav.example.com/z\",\n      \"verdict\": \"deny\",\n      \"decidingLayer\": \"willNavigate\",\n      \"navigateCommandReachedTransport\": false,\n      \"journalRequestedUrl\": \"\",\n      \"journalSent\": false\n    },\n    {\n      \"id\": \"n5\",\n      \"targetUrl\": \"https://ok.example.com/partitioned\",\n      \"verdict\": \"deny\",\n      \"decidingLayer\": \"partition\",\n      \"navigateCommandRea",
+	"excerpted": false,
+	"groundTruthSha256": "eae96cfa35cf36010bff3f11c01e6ed29fbb3083ce7933f9a807276614fba10e",
+	"groundTruth": {
+		"navigations": [
+			{
+				"id": "n1",
+				"targetUrl": "https://ok.example.com/page",
+				"verdict": "allow",
+				"decidingLayer": "webRequest",
+				"navigateCommandReachedTransport": true,
+				"committedUrl": "https://ok.example.com/page",
+				"journalRequestedUrl": "https://ok.example.com/page",
+				"journalSent": true,
+				"journalRowPresent": true
+			},
+			{
+				"id": "n2",
+				"targetUrl": "https://blocked-driver.example.com/x",
+				"verdict": "deny",
+				"decidingLayer": "driver",
+				"navigateCommandReachedTransport": false,
+				"committedUrl": null,
+				"journalRequestedUrl": "https://blocked-driver.example.com/x",
+				"journalSent": false,
+				"journalRowPresent": true
+			},
+			{
+				"id": "n3",
+				"targetUrl": "https://blocked-webreq.example.org/y",
+				"verdict": "deny",
+				"decidingLayer": "webRequest",
+				"navigateCommandReachedTransport": false,
+				"committedUrl": null,
+				"journalRequestedUrl": "https://blocked-webreq.example.org/y",
+				"journalSent": false,
+				"journalRowPresent": true
+			},
+			{
+				"id": "n4",
+				"targetUrl": "https://blocked-nav.example.com/z",
+				"verdict": "deny",
+				"decidingLayer": "willNavigate",
+				"navigateCommandReachedTransport": false,
+				"committedUrl": null,
+				"journalRequestedUrl": "",
+				"journalSent": false,
+				"journalRowPresent": false
+			},
+			{
+				"id": "n5",
+				"targetUrl": "https://ok.example.com/partitioned",
+				"verdict": "deny",
+				"decidingLayer": "partition",
+				"navigateCommandReachedTransport": false,
+				"committedUrl": null,
+				"journalRequestedUrl": "https://ok.example.com/partitioned",
+				"journalSent": false,
+				"journalRowPresent": true
+			},
+			{
+				"id": "n6",
+				"targetUrl": "https://ok.example.com/after-rejected-policy",
+				"verdict": "deny",
+				"decidingLayer": "driver",
+				"navigateCommandReachedTransport": false,
+				"committedUrl": null,
+				"journalRequestedUrl": "https://ok.example.com/after-rejected-policy",
+				"journalSent": false,
+				"journalRowPresent": true
+			},
+			{
+				"id": "n7",
+				"targetUrl": "https://ok.example.com/secret?token=sk-live-abcdefghijklmnop&x=1",
+				"verdict": "allow",
+				"decidingLayer": "webRequest",
+				"navigateCommandReachedTransport": true,
+				"committedUrl": "https://ok.example.com/secret?token=[redacted]&x=1",
+				"journalRequestedUrl": "https://ok.example.com/secret?token=[redacted]&x=1",
+				"journalSent": true,
+				"journalRowPresent": true
+			}
+		],
+		"dropRecovery": {
+			"journalRowsBeforeDrop": 7,
+			"journalRowsAfterReattach": 9,
+			"preDropRowsSurvived": true,
+			"reattachedNavigation": {
+				"targetUrl": "https://ok.example.com/after-reattach",
+				"verdict": "allow",
+				"navigateCommandReachedTransport": true
+			}
+		}
+	},
+	"answerProblems": [],
+	"verification": {
+		"ok": true,
+		"soundnessViolations": 0,
+		"completenessViolations": 0
+	}
+}

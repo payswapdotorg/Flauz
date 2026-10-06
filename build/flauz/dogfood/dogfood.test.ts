@@ -1728,7 +1728,7 @@ suite('W7 agent-delegation: the delegation edge + the takeover transition (the R
                         assert.strictEqual(takeoverRows.map(row => row.type).join(','), 'takeover-requested,takeover-accepted,takeover-completed');
                         assert.ok(takeoverRows.every(row => row.actor === 'human'), 'every takeover row carries the human attribution');
                         assert.ok(!fresh.journalRows.some(row => row.type === 'step-started' && row.graphId === submitted.graphId), 'the gated step NEVER started (no agent execution)');
-                        const state = fresh.stateOf(submitted.graphId) as { steps: Record<string, { status: string; takeover?: { state: string } }> };
+                        const state = fresh.stateOf(submitted.graphId) as unknown as { steps: Record<string, { status: string; takeover?: { state: string } }> };
                         assert.strictEqual(state.steps['S-01']?.status, 'succeeded');
                         assert.strictEqual(state.steps['S-01']?.takeover?.state, 'completed');
                         assert.strictEqual(fresh.verifyJournal().ok, true, 'the journal chain verifies');
@@ -1781,7 +1781,7 @@ suite('W7 agent-delegation: the exercise wiring (the full lane, stubbed driver s
                 const interventions = rows.filter(row => row.type === 'friction');
                 assert.strictEqual(interventions.length, 10, 'the 10 human interventions (2 plan approvals, the denial, the grant, the sign-off, 2 graph approvals, the step approval, the worker confirmation, the takeover)');
                 assert.ok(interventions.every(row => row.kind === 'manual-intervention'));
-                assert.strictEqual(interventions.filter(row => row.recovery.length > 0).length, 2, 'the denial\'s re-run + the takeover\'s completion carry recovery accounts');
+                assert.strictEqual(interventions.filter(row => (row as { recovery: string }).recovery.length > 0).length, 2, 'the denial\'s re-run + the takeover\'s completion carry recovery accounts');
                 assert.strictEqual(receipt.frictionRows.friction, 10);
                 assert.strictEqual(receipt.frictionRows.recovery, 2);
                 const report = JSON.parse(await fs.readFile(path.join(recordsDir, 'agent-delegation.report.json'), { encoding: 'utf-8' })) as {
@@ -2089,8 +2089,8 @@ suite('W7 tools-exploration: the exercise wiring (the full lane)', () => {
                 assert.ok(!receipt.checks.find(check => check.id === 'tools.answer-cites-reads')?.ok, 'the coverage check failed');
                 assert.ok(!receipt.checks.find(check => check.id === 'tools.map-sound')?.ok, 'the invented entry fails soundness');
                 const rows = await (harness.friction as FrictionLog).readAll();
-                assert.ok(rows.some(row => row.type === 'friction' && row.kind === 'evidence-gap' && row.detail.includes('tool-receipt contract failed')));
-                assert.ok(rows.some(row => row.type === 'friction' && row.kind === 'failed-task' && row.detail.includes('not 100% verified')));
+                assert.ok(rows.some(row => row.type === 'friction' && row.kind === 'evidence-gap' && (row as { detail: string }).detail.includes('tool-receipt contract failed')));
+                assert.ok(rows.some(row => row.type === 'friction' && row.kind === 'failed-task' && (row as { detail: string }).detail.includes('not 100% verified')));
         });
 
         test('the refusing human: a non-read-only command is DENIED at the exercise\'s approval gate -- every denial a manual-intervention friction row, the loop fails closed at the turn bound', async () => {
@@ -2103,7 +2103,7 @@ suite('W7 tools-exploration: the exercise wiring (the full lane)', () => {
                 assert.strictEqual(receipt.verdict, 'FAIL');
                 assert.ok(!receipt.checks.find(check => check.id === 'tools.answer-parses')?.ok, 'the agent never answered (the loop hit the turn bound)');
                 const rows = await (harness.friction as FrictionLog).readAll();
-                const denials = rows.filter(row => row.type === 'friction' && row.kind === 'manual-intervention' && row.detail.includes('DENIED'));
+                const denials = rows.filter(row => row.type === 'friction' && row.kind === 'manual-intervention' && (row as { detail: string }).detail.includes('DENIED'));
                 assert.strictEqual(denials.length, MAX_TOOL_TURNS, `every one of the ${String(MAX_TOOL_TURNS)} turns' refusals is logged as a human intervention`);
                 const verification = JSON.parse(await fs.readFile(path.join(recordsDir, 'tools-exploration.verification.json'), { encoding: 'utf-8' })) as { receiptVerification: { totals: { receipts: number; deniedReceipts: number } } };
                 assert.strictEqual(verification.receiptVerification.totals.receipts, MAX_TOOL_TURNS);
@@ -2119,7 +2119,7 @@ suite('W7 tools-exploration: the exercise wiring (the full lane)', () => {
                 assert.strictEqual(receipt.verdict, 'FAIL');
                 assert.ok(!receipt.checks.find(check => check.id === 'tools.tool-surface-known')?.ok, 'the unknown tool is flagged');
                 const rows = await (harness.friction as FrictionLog).readAll();
-                assert.ok(rows.some(row => row.type === 'friction' && row.detail.includes('unknown tool')));
+                assert.ok(rows.some(row => row.type === 'friction' && (row as { detail: string }).detail.includes('unknown tool')));
         });
 
         test('G8 privacy canary: fixture-planted ghp_/sk_-shaped canaries NEVER appear in any receipt or friction row of the tools lane', async () => {

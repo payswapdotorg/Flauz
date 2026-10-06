@@ -1,0 +1,96 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "environments-lifecycle",
+	"title": "environments lifecycle: the typed state machine + real child-process environment + ops ledger over the real manager",
+	"dimensions": [
+		"environments lifecycle",
+		"typed state machine legality",
+		"failure/recovery",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "el.state-machine-every-step",
+			"ok": true,
+			"detail": "the typed state machine held at every step: registered -> created -> running -> running/attached -> running/attached -> stopped -> destroyed (the /attached connection substate; snapshot state-preserving)"
+		},
+		{
+			"id": "el.real-child-process",
+			"ok": true,
+			"detail": "the REAL env-agent harness child ran (pid 12364, ready-line handshake confirmed by the ok start; state.json carries the pid + status running; describe healthy at the real pid; after stop+destroy the pid is reaped: alive=false; forcedSignal SIGTERM)"
+		},
+		{
+			"id": "el.snapshot-manifest",
+			"ok": true,
+			"detail": "the snapshot is a REAL fs copy with the sha256 manifest (1 file: state.json, the manifest hash matches the snapshot's own copy 16bd96d65fa89e4aaf1ff3dae5dafb6a0ae6e55aff3dd968f7107cf08034168c, under /tmp/flauz-dogfood-envlife-2nTkPb/.flauz/env-snapshots/env-dogfood-w8-main/1760000449000)"
+		},
+		{
+			"id": "el.ops-ledger-append-only",
+			"ok": true,
+			"detail": "the ops ledger is append-only on disk (10 canonical rows, one per op, provenance actor on every row: census {\"create\":2,\"start\":2,\"attach\":1,\"snapshot\":1,\"stop\":2,\"destroy\":2}; ok=8, error=2)"
+		},
+		{
+			"id": "el.pin2-envelope-shape",
+			"ok": true,
+			"detail": "the PIN-2 siblings hold the exact envelope shape (entries {state, updatedAt, executorKind, lastOpRef}, schema flauz.environments-lifecycle/v0, executorKind local-process; every lastOpRef references its own environment's ledger record; both tombstones destroyed)"
+		},
+		{
+			"id": "el.illegal-transition-leg",
+			"ok": true,
+			"detail": "the stop-on-destroyed attempt was a typed ledger-recorded rejection (ILLEGAL_TRANSITION naming the legal ops; fromState/toState destroyed; the tombstone held; the attempt is row 10)"
+		},
+		{
+			"id": "el.trust-gate-leg",
+			"ok": true,
+			"detail": "the fail-closed trust gate rejected the untrusted start (TRUST_POSTURE_REJECTED, posture named; state untouched at created) and the teardown destroy proceeded (not trust-gated) to the tombstone"
+		},
+		{
+			"id": "el.describe-verdicts",
+			"ok": true,
+			"detail": "the describe probes: healthy at the real pid while running, the /attached lease surfaced ({\"leaseId\":\"lease-env-dogfood-w8-main-1\",\"heldSince\":1760000448000}), destroyed tombstone after teardown"
+		},
+		{
+			"id": "el.answer-verified-100",
+			"ok": true,
+			"detail": "the model's answer matched the independently re-derived ground truth 100% (sound + complete; facts sha256 c0d72be00e9c4ab51248fa6f3920c333fe8f9792d0df39f15c1496db0591b4f8)"
+		},
+		{
+			"id": "el.ask-prompt-carries-facts",
+			"ok": true,
+			"detail": "the ask prompt embedded the op-sequence facts at ask time (P2-FIX-119 doctrine)"
+		},
+		{
+			"id": "el.report-evidence-minted",
+			"ok": true,
+			"detail": "the environments-lifecycle report is hash-pinned into the evidence ledger (E-000077)"
+		}
+	],
+	"evidenceIds": [
+		"E-000077"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-006/environments-lifecycle-report.json",
+			"sha256": "49c3e3d121d4c6f8f98dfc361d8d582b3bb3cef1d602a7265f09ac1d58ca3a51"
+		}
+	],
+	"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/environments-lifecycle.friction.jsonl",
+	"frictionRows": {
+		"friction": 4,
+		"timing": 1,
+		"recovery": 2
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"evidence: the seams are LOCAL-REAL (the REAL EnvironmentRegistry + LocalProcessExecutor spawning the FIXED env-agent harness child + the REAL EnvironmentLifecycleManager over the PIN-2 store); the model intelligence is fixture-level (the fake lane answers from the prompt-carried facts), never promoted",
+		"the verifier re-derives the ground truth from the real manager entries()/ops() (never the prompt) and checks the answer 100% sound+complete; PASS only at 100%",
+		"P2-FIX-119 doctrine: both lanes answer from the prompt-carried op-sequence facts (embedded at ask time, the ledger rows verbatim)",
+		"the fixed harness executable is extensions/flauz-environments/fixtures/env-agent.ts (the ONLY sanctioned executable -- descriptor-supplied execution is forbidden); a real /bin child with the stdio ready-line handshake"
+	]
+}

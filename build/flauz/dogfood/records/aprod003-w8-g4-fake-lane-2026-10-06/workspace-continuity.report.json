@@ -1,0 +1,158 @@
+{
+	"schema": "flauz.dogfood-workspace-continuity-report/v1",
+	"exerciseId": "workspace-continuity",
+	"mode": "fake-lane",
+	"scenarioHash": "285cd116288a4866e580a63c14e6165c3eefcc4846a1361053e44f798e017453",
+	"ask": {
+		"kind": "ok",
+		"decisionId": "rd-000014",
+		"finishReason": "stop",
+		"fenceStripped": false,
+		"text": "{\"schema\":\"flauz.dogfood-workspace-continuity-answer/v1\",\"question\":\"report the per-surface restore outcomes and the redacted surfaces (with the law's wording) from the prompt-carried facts\",\"method\":\"read of the prompt-carried continuity facts (the fake lane answers from the prompt; fixture-level intelligence, never promoted)\",\"bundleId\":\"flauz:continuity:0000000000000000\",\"restoreOutcomes\":[{\"surface\":\"flauz-tasks-envelope\",\"outcome\":\"carried\"},{\"surface\":\"flauz-evidence-ledger\",\"outcome\":\"redacted\"},{\"surface\":\"flauz-evidence-artifacts\",\"outcome\":\"redacted\"},{\"surface\":\"flauz-environments-registry\",\"outcome\":\"carried\"},{\"surface\":\"scm-working-tree\",\"outcome\":\"lost\"},{\"surface\":\"chat-sessions\",\"outcome\":\"lost\"},{\"surface\":\"chat-editing-checkpoints\",\"outcome\":\"lost\"},{\"surface\":\"edit-sessions\",\"outcome\":\"lost\"},{\"surface\":\"agent-sessions\",\"outcome\":\"lost\"},{\"surface\":\"flauz-task-state-machine\",\"outcome\":\"lost\"},{\"surface\":\"persisted-approvals\",\"outcome\":\"lost\"},{\"surface\":\"terminal-scrollback\",\"outcome\":\"lost\"},{\"surface\":\"browser-pane-state\",\"outcome\":\"lost\"},{\"surface\":\"inflight-chat-streams\",\"outcome\":\"lost\"},{\"surface\":\"window-layout\",\"outcome\":\"lost\"},{\"surface\":\"resolver-connection-state\",\"outcome\":\"lost\"},{\"surface\":\"flauz-browser-session-journal\",\"outcome\":\"redacted\"},{\"surface\":\"flauz-environments-lifecycle\",\"outcome\":\"lost\"},{\"surface\":\"flauz-environments-ops\",\"outcome\":\"lost\"},{\"surface\":\"flauz-resources-graph\",\"outcome\":\"lost\"},{\"surface\":\"flauz-resources-ops\",\"outcome\":\"lost\"},{\"surface\":\"flauz-workflow-state\",\"outcome\":\"lost\"}],\"redactedSurfaces\":[{\"surface\":\"flauz-browser-session-journal\",\"why\":\"secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)\"},{\"surface\":\"flauz-evidence-artifacts\",\"why\":\"secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)\"},{\"surface\":\"flauz-evidence-ledger\",\"why\":\"secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)\"}],\"failureLegs\":[{\"leg\":\"ungated-restore\",\"code\":\"RESTORE_TARGET_NOT_EMPTY\"},{\"leg\":\"tamper-verify\",\"code\":\"VERIFY_FAILED\"}]}"
+	},
+	"askPromptExcerpt": "Report the workspace continuity outcome of the scripted scenario that just ran under the real Flauz continuity manager (local-real seams).\nYou are a bare chat completion with NO tool or file access, so the continuity facts are embedded below, computed at ask time from the real manager state (the bundle manifest surfaces map + the restore result + the failure legs).\n=== CONTINUITY FACT: the exported bundle + the restore outcomes, computed at ask time from the real manager state (the manifest surfaces map + the restore result + the failure legs) ===\n{\n  \"bundleId\": \"flauz:continuity:0000000000000000\",\n  \"surfaces\": [\n    {\n      \"id\": \"flauz-tasks-envelope\",\n      \"status\": \"carried\"\n    },\n    {\n      \"id\": \"flauz-evidence-ledger\",\n      \"status\": \"redacted\"\n    },\n    {\n      \"id\": \"flauz-evidence-artifacts\",\n      \"status\": \"redacted\"\n    },\n    {\n      \"id\": \"flauz-environments-registry\",\n      \"status\": \"carried\"\n    },\n    {\n      \"id\": \"scm-working-tree\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"chat-sessions\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"chat-editing-checkpoints\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"edit-sessions\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"agent-sessions\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"flauz-task-state-machine\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"persisted-approvals\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"terminal-scrollback\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"browser-pane-state\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"inflight-chat-streams\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"window-layout\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"resolver-connection-state\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"flauz-browser-session-journal\",\n      \"status\": \"redacted\"\n    },\n    {\n      \"id\": \"flauz-environments-lifecycle\",\n      \"status\": \"lost\"\n    },\n    {\n      \"id\": \"flauz-environments-ops\",\n      \"stat",
+	"bundleId": "flauz:continuity:0000000000000000",
+	"surfaceCensus": {
+		"carried": [
+			"flauz-environments-registry",
+			"flauz-tasks-envelope"
+		],
+		"redacted": [
+			"flauz-browser-session-journal",
+			"flauz-evidence-artifacts",
+			"flauz-evidence-ledger"
+		],
+		"lostCount": 17,
+		"total": 22
+	},
+	"groundTruth": {
+		"bundleId": "flauz:continuity:0000000000000000",
+		"restoreOutcomes": [
+			{
+				"surface": "flauz-tasks-envelope",
+				"outcome": "carried"
+			},
+			{
+				"surface": "flauz-evidence-ledger",
+				"outcome": "redacted"
+			},
+			{
+				"surface": "flauz-evidence-artifacts",
+				"outcome": "redacted"
+			},
+			{
+				"surface": "flauz-environments-registry",
+				"outcome": "carried"
+			},
+			{
+				"surface": "scm-working-tree",
+				"outcome": "lost"
+			},
+			{
+				"surface": "chat-sessions",
+				"outcome": "lost"
+			},
+			{
+				"surface": "chat-editing-checkpoints",
+				"outcome": "lost"
+			},
+			{
+				"surface": "edit-sessions",
+				"outcome": "lost"
+			},
+			{
+				"surface": "agent-sessions",
+				"outcome": "lost"
+			},
+			{
+				"surface": "flauz-task-state-machine",
+				"outcome": "lost"
+			},
+			{
+				"surface": "persisted-approvals",
+				"outcome": "lost"
+			},
+			{
+				"surface": "terminal-scrollback",
+				"outcome": "lost"
+			},
+			{
+				"surface": "browser-pane-state",
+				"outcome": "lost"
+			},
+			{
+				"surface": "inflight-chat-streams",
+				"outcome": "lost"
+			},
+			{
+				"surface": "window-layout",
+				"outcome": "lost"
+			},
+			{
+				"surface": "resolver-connection-state",
+				"outcome": "lost"
+			},
+			{
+				"surface": "flauz-browser-session-journal",
+				"outcome": "redacted"
+			},
+			{
+				"surface": "flauz-environments-lifecycle",
+				"outcome": "lost"
+			},
+			{
+				"surface": "flauz-environments-ops",
+				"outcome": "lost"
+			},
+			{
+				"surface": "flauz-resources-graph",
+				"outcome": "lost"
+			},
+			{
+				"surface": "flauz-resources-ops",
+				"outcome": "lost"
+			},
+			{
+				"surface": "flauz-workflow-state",
+				"outcome": "lost"
+			}
+		],
+		"redactedSurfaces": [
+			{
+				"surface": "flauz-browser-session-journal",
+				"why": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+			},
+			{
+				"surface": "flauz-evidence-artifacts",
+				"why": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+			},
+			{
+				"surface": "flauz-evidence-ledger",
+				"why": "secret-shaped surface: presence + sha256 of the path recorded; the payload is never copied into a continuity bundle (the secret-redaction law)"
+			}
+		],
+		"failureLegs": [
+			{
+				"leg": "tamper-verify",
+				"code": "VERIFY_FAILED"
+			},
+			{
+				"leg": "ungated-restore",
+				"code": "RESTORE_TARGET_NOT_EMPTY"
+			}
+		]
+	},
+	"journalRedactedAtRecord": true,
+	"legs": {
+		"ungatedRestore": "RESTORE_TARGET_NOT_EMPTY",
+		"forceRestore": "ok",
+		"tamperVerify": "VERIFY_FAILED",
+		"secretScanExport": "EXPORT_SECRET_DETECTED"
+	},
+	"answerProblems": [],
+	"verification": {
+		"ok": true,
+		"soundnessViolations": 0,
+		"completenessViolations": 0
+	}
+}
