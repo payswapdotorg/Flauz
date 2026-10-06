@@ -1,0 +1,30 @@
+{
+	"name": "flauz-acceptance",
+	"displayName": "Flauz Acceptance",
+	"description": "Flauz launch + post-release-acceptance plane (A-PROD-006-W2, DL-87): the closing receipts of the incidents loop's last two stages. Three commands, one fail-closed launch act, one append-only receipt journal. flauz.acceptance.launch (the launch-act law, fail-closed: mints a release-acceptance record ONLY over a GREEN, FRESH flauz.release.checklist artifact -- reads .flauz/release/checklist-<stamp>.json through the contract-pinned parser; refuses typed on red/absent/torn/stale; never a silent green. The record carries the acceptance id flauz:acc:<16-hex> from an explicit rng/seed input, the bound checklist artifact path VERBATIM + its checklistId -- the release identity the incidents loop carries -- the pinned product state (the version-inventory + census snapshot shapes, contract-pinned from flauz-release), and the NAMED OWNING CHECKS set -- the checklist row kinds + the incident's named regression test when launched to close an incident loop; the incident binding resolves against the incidents ledger or is a TYPED DISCLOSURE, never a fabricated link. Persisted .flauz/acceptance/acceptances.json (flauz.acceptance/v1), append-only (the unique-id law: re-launching an id appends a NEW revision), census-visible, swept + banked -- taskId 'flauz-acceptance'; the two-registry separation applies: acceptance records never mint registry items); flauz.acceptance.verify (the closing receipt: re-runs the named owning checks against the released state and banks the receipt -- pass or FAIL, both typed, both banked. A FAILED receipt is the typed failure record the incidents reopen law consumes (the closed loop never hides a regression). The self-evaluable named checks are genuinely re-run over the workspace state (the bound checklist artifact re-read + checklistId re-derived; the pinned product state re-read -- presence + detected format version + parse cleanliness, the append-only growth honestly disclosed); a check the acceptance plane cannot itself evaluate is a TYPED DISCLOSURE row naming its owning surface (the honest-scope law), never a silent green. The receipt's evidence label comes from the frozen ladder and is never promoted by wording. Journal .flauz/acceptance/verify-<acceptance>.jsonl (flauz.acceptance-verification/v1), append-only, one row per verify run with actor + timestampIso via the INJECTED clock -- no Date.now/new Date() in src, grep-clean); flauz.acceptance.status (the ledger view -- the verdict table over every acceptance record: per-record bound checklist identity, revision count, owning-checks count, incident-binding state, latest receipt verdict pass | fail | none with its disclosure/fail counts. Record .flauz/acceptance/status-<stamp>.json (flauz.acceptance-status/v1), swept + banked census-visible).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": { "vscode": "^1.140.0" },
+	"categories": ["Other"],
+	"activationEvents": [
+		"onCommand:flauz.acceptance.launch",
+		"onCommand:flauz.acceptance.verify",
+		"onCommand:flauz.acceptance.status"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{ "command": "flauz.acceptance.launch", "title": "Acceptance: Launch Release Acceptance (Fail-Closed)", "category": "Flauz" },
+			{ "command": "flauz.acceptance.verify", "title": "Acceptance: Verify Released State (Closing Receipt)", "category": "Flauz" },
+			{ "command": "flauz.acceptance.status", "title": "Acceptance: The Ledger Verdict (Status)", "category": "Flauz" }
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": { "typescript": "5.9.3" }
+}

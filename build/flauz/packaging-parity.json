@@ -2126,6 +2126,103 @@
 				}
 			],
 			"recoveryPath": "Implement the IncidentsFsPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs (the flauz-durability wiring-row precedent)."
+		},
+		{
+			"surface": "extensions/flauz-acceptance",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. Command-only activation (onCommand:flauz.acceptance.launch + onCommand:flauz.acceptance.verify + onCommand:flauz.acceptance.status), no views, no proposed APIs. Row added by A-PROD-006-W2 (the launch + post-release-acceptance plane; DL-87) with the extension's first landing.",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-acceptance/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-acceptance/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-acceptance/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command surface itself is host-agnostic (the AcceptanceFsPort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-acceptance",
+			"capability": "acceptance core: the launch + post-release-acceptance plane -- the fail-closed launch act over the GREEN, FRESH flauz.release.checklist artifact with the contract-pinned parser + the typed refusal lattice absent/torn/red/stale/not-found + the checklist enumeration (launch.ts), the closing-receipt verify with the self-evaluable named-check re-run + the typed disclosure rows naming their owning surfaces + the product-state pin comparison (verify.ts), the pinned product state reader over the contract-duplicated SURFACES registry with the version-source law + the census snapshot (productState.ts), the ledger verdict table (status.ts), the acceptance/verification/status record contracts + the row-contract parsers + chain hashes (api.ts, DL-32), the census-visible banking with watermark resync (ledger.ts), the secret-shape canary sweep with the actor/seed fail-closed law (privacy.ts, the W1/W2 posture), the pure-arithmetic ISO stamp formatter with the determinism law (format.ts), command surface (port-injected)",
+			"class": "web-full",
+			"reason": "The A-PROD-006-W2 core is node-free and port-injected: the durable-state surface paths + contract shapes + canonical serialization + the pure-TS sha256 (api.ts, duplicated by the DL-32 convention and pinned against the flauz-release/flauz-incidents owning modules + node:crypto), the fail-closed launch act + the checklist enumeration + the incident-binding resolver (launch.ts), the closing receipt with the pin comparison (verify.ts), the pinned product state reader (productState.ts), the ledger verdict (status.ts), the banking core (ledger.ts), the privacy canary (privacy.ts), the pure-arithmetic formatter (format.ts) and the command surface (commands.ts, globals.ts). Every effect is a port (AcceptanceFsPort/Clock/OutputChannelPort); the node wiring lives exclusively in the wiring row below -- the flauz-incidents core-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/api.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/commands.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/format.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/globals.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/launch.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/ledger.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/privacy.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/productState.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/status.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-acceptance/src/verify.ts"
+				}
+			],
+			"recoveryPath": "The core is host-agnostic: add the browser entrypoint + a workspace.fs-backed AcceptanceFsPort and the whole launch + post-release-acceptance plane ships unchanged (the closing receipts never need node)."
+		},
+		{
+			"surface": "extensions/flauz-acceptance",
+			"capability": "durable-state wiring + acceptance ledger/verification journal/status record writes + census-visible evidence banking (node AcceptanceFsPort over the workspace .flauz/ tree)",
+			"class": "web-blocked",
+			"reason": "extension.ts wires the AcceptanceFsPort to node:fs/promises (readFileUtf8/readdir over the workspace tree + the read-only flauz-release checklist subjects, the writes over the acceptance ledger, the per-acceptance verification journals, the status records and the census-visible evidence ledger banking). The node dependency is confined to this wiring row; the core row above is node-free. The host wall clock is wired here with the determinism grep exemption comment (no host-clock calls anywhere else in src/).",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-acceptance/src/extension.ts",
+					"module": "fs/promises"
+				}
+			],
+			"recoveryPath": "Implement the AcceptanceFsPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs (the flauz-incidents wiring-row precedent)."
 		}
 	]
 }
