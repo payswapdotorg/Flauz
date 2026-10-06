@@ -10,6 +10,11 @@ Additive, versioned contract set for the six ZC-001 pattern families. Contract v
 zero-import law forbids a shared base module, and the tests pin every declaration to
 the exact same value).
 
+This tree also carries the sibling Phase C contract subtrees (hook-bus,
+observatory, memory, cli, parity) and the activation spine (`activation/` — the
+CR-001 Phase C-R typed wiring map from every ZC capability to its owning
+authority, machine-checked by `activation/test/common/wiring.test.ts`).
+
 ## Projections, not authorities
 
 Every type in this tree describes a READ-MODEL or REQUEST shape over the EXISTING
