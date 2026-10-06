@@ -1,0 +1,35 @@
+{
+	// The full program (src + the suite). The suite consumes REAL sibling
+	// sources at test time (the session-battery pattern); those files are
+	// compiled under THIS project's flags, and their owning tsconfigs
+	// deliberately do not enable noUnusedLocals (flauz-release, for one).
+	// Enabling it here would fail the program on a sibling file this wave
+	// may not edit (the boundary law) -- so the two lint-shaped flags are
+	// relaxed HERE ONLY; tsconfig.json (the src-only program, the G5 scoped
+	// tsc) keeps them on for every file this wave owns.
+	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["ES2022"],
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"strict": true,
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"forceConsistentCasingInFileNames": true,
+		"useUnknownInCatchVariables": false,
+		"exactOptionalPropertyTypes": false,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"types": []
+	},
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.d.ts",
+		"shims/**/*.d.ts",
+		"test/**/*.ts",
+		"vscode-dts/vscode.d.ts"
+	]
+}
