@@ -1,0 +1,330 @@
+{
+	"schema": "flauz.dogfood-run/v1",
+	"wo": "A-PROD-003-W1",
+	"runId": "dogfood-2026-10-06T12-45-43-799Z",
+	"mode": "fake-lane",
+	"modelIntelligence": "fixture (the fake/scripted lanes; never wording-promoted)",
+	"startedAt": "2026-10-06T12:45:43.813Z",
+	"durationMs": 2115,
+	"wallClockBudget": {
+		"configuredMs": 15000,
+		"defaultMs": 15000,
+		"source": "default",
+		"wiredThrough": "AdapterConfig.requestTimeoutMs (the product request wall-clock budget surface; the typed TIMEOUT + bounded-retry semantics unchanged)"
+	},
+	"liveCompletionBudget": {
+		"configuredTokens": 32768,
+		"defaultTokens": 32768,
+		"source": "default",
+		"wiredThrough": "ChatRequest.maxOutputTokens -> the openAiCompat adapter wire body max_tokens (the LIVE lane's ask requests only; the fake lanes' request shape unchanged)"
+	},
+	"workspaceRoot": "/tmp/flauz-dogfood-5AbYYN",
+	"repoRoot": "/tmp/w8-replay",
+	"recordsDir": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06",
+	"exercises": [
+		{
+			"exerciseId": "explore-repo",
+			"title": "repository exploration: map every consumer of the evidence ledger",
+			"dimensions": [
+				"repository exploration",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000003",
+				"E-000004"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/explore-repo.friction.jsonl",
+			"frictionRows": {
+				"friction": 0,
+				"timing": 2,
+				"recovery": 0
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the fake lane computed its map live from the tree (the provider's own scan); the driver verified every receipt independently (regex scanner + per-entry re-read)",
+				"model intelligence: fixture (the scripted fake lane); seams: local-real (task envelope, session claim, routing decision, adapter stream, evidence ledger)"
+			]
+		},
+		{
+			"exerciseId": "provider-switch",
+			"title": "provider switching: fake -> scripted-failing -> fake with typed failure + recovery",
+			"dimensions": [
+				"provider switching",
+				"failure/recovery",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 6,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000011"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/provider-switch.friction.jsonl",
+			"frictionRows": {
+				"friction": 1,
+				"timing": 5,
+				"recovery": 1
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the typed failure classes are the product's real code paths (the adapter's error taxonomy + the product's bounded-retry bound); the failing wire itself is the harness's scripted lane",
+				"model intelligence: fixture (the scripted lanes); seams: local-real (providers-file enablement, routing policy, durable decisions, adapter stream, evidence ledger)",
+				"P2-FIX-119: both lanes answer from the prompt-carried workspace facts (providers file content + routing-decision tail, embedded at ask time); the fake lane's server-side computation path for this question is retired; the verification stays strict (checked against the real state files)",
+				"P2-FIX-118: live-lane answers parse through the fence-tolerant path (strip-fence-then-parse; malformed JSON inside a fence still fails); machine lanes keep the raw-JSON default",
+				"P2-FIX-121: every ok ask's receipt record carries the finish reason (finishReason + the visible finishDetail line); a `length` finish renders as TRUNCATED -- a visible truncation, never a silent ok"
+			]
+		},
+		{
+			"exerciseId": "browser-policy",
+			"title": "browser work: layered policy verdicts, deny-never-navigates, drop/recovery over the fake CDP transport",
+			"dimensions": [
+				"browser work",
+				"policy layering",
+				"failure/recovery",
+				"artifacts/evidence",
+				"url redaction"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 11,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000015"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/browser-policy.friction.jsonl",
+			"frictionRows": {
+				"friction": 1,
+				"timing": 1,
+				"recovery": 1
+			},
+			"evidenceLevels": {
+				"seams": "simulated",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"evidence: SIMULATED (the fake CDP transport + the in-memory journal); the policy engine, tab pipeline, host, journal record builder and redaction are the REAL product seams",
+				"the verifier re-derives ground truth from the primitives (fresh engine.evaluate per target, the sentCommands record, the journal rows) and checks the answer 100% sound+complete; PASS only at 100%",
+				"P2-FIX-119 doctrine: both lanes answer from the prompt-carried session facts (embedded at ask time); the excerpt doctrine (P2-FIX-122 pattern) scopes the live bar when the outcome map exceeds the prompt budget",
+				"the rejected-policy-file engine runs the deny-all builtin default (source workspace-file); the n6 deciding layer is recorded VERBATIM from the real verdict, never assumed",
+				"honest seams (station must confirm): the FakeBrowserState/FakeCdpTransport/attachTab internals and the BrowserPolicyEngine body were digest-elided -- the drill closes the live transport (CdpTransport.close) and re-attaches a fresh transport sharing the state; if FakeBrowserState exposes a dedicated drop(reason) the station should prefer it; the fake provider lane's recognition of this question marker was not verifiable from the provided digests (the prompt-carried-facts posture makes both lanes answer from the prompt)"
+			]
+		},
+		{
+			"exerciseId": "agent-delegation",
+			"title": "agent delegation: golden path + approvals/takeover + a delegated implementation-and-test session",
+			"dimensions": [
+				"multi-agent delegation",
+				"approvals/takeover",
+				"implementation/tests as dogfooded work",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 11,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000019",
+				"E-000020"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/agent-delegation.friction.jsonl",
+			"frictionRows": {
+				"friction": 10,
+				"timing": 6,
+				"recovery": 2
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the seams are the product's own golden-path machinery: the REAL core-service child process over stdio, the REAL orchestrator/participant/terminal-tool wiring, the REAL a2a bus owned by the service, the REAL orchestration store/mediator/takeover port -- all local-real",
+				"model intelligence: fixture (the golden-path orchestrator's deterministic plan over the mock model selection -- the product's documented v0 simplification); no live model is claimed by this exercise",
+				"every human intervention is logged as a manual-intervention friction row: each plan approval, each tool confirmation (granted AND denied), the sign-off, each graph/step approval, and the takeover",
+				"the delegated sub-task performed real work: the module + test authored in the session workspace, the test run through the approved flauz_terminal invocation in a real /bin/sh child, the output evidenced as a command-output ledger row through the real service"
+			]
+		},
+		{
+			"exerciseId": "tools-exploration",
+			"title": "tools exploration: the deferred full-tree ledger-consumer map through the agent-with-tools lane",
+			"dimensions": [
+				"repository exploration",
+				"agent-with-tools",
+				"tool receipts",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 8,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000024",
+				"E-000025",
+				"E-000026",
+				"E-000027",
+				"E-000028",
+				"E-000029",
+				"E-000030",
+				"E-000031",
+				"E-000032",
+				"E-000033",
+				"E-000034",
+				"E-000035",
+				"E-000036",
+				"E-000037",
+				"E-000038",
+				"E-000039",
+				"E-000040",
+				"E-000041",
+				"E-000042",
+				"E-000043",
+				"E-000044",
+				"E-000045",
+				"E-000046",
+				"E-000047",
+				"E-000048",
+				"E-000049",
+				"E-000050",
+				"E-000051",
+				"E-000052",
+				"E-000053",
+				"E-000054",
+				"E-000055",
+				"E-000056",
+				"E-000057",
+				"E-000058",
+				"E-000059",
+				"E-000060",
+				"E-000061",
+				"E-000062",
+				"E-000063",
+				"E-000064",
+				"E-000065",
+				"E-000066",
+				"E-000067",
+				"E-000068",
+				"E-000069",
+				"E-000070",
+				"E-000071",
+				"E-000072",
+				"E-000073"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/tools-exploration.friction.jsonl",
+			"frictionRows": {
+				"friction": 0,
+				"timing": 4,
+				"recovery": 0
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"the deferred P2-FIX-122 full-tree question asked through the TOOL-CARRYING lane: 3 ask(s), 48 approved flauz_terminal invocation(s) (47 numbered-line reads), the answer citing its receipts",
+				"the verification is the driver's independent ground-truth scan (scanLedgerConsumers + verifyConsumersMap -- the same sound+complete 100% bar as the fake lane's full-tree check) PLUS the tool-receipt contract (every claimed consumer covered by a read receipt that really streamed that file:line)",
+				"model intelligence: fixture (the fake lane's scripted agent policy computes its answer FROM THE TOOL RESULTS carried in the conversation -- never a server-side scan, never canned)",
+				"seams: local-real (the real routing + adapter stream per ask, the real flauz_terminal tool over a real /bin/sh child on the repo root, the HumanApproval gate in front of every invocation)"
+			]
+		},
+		{
+			"exerciseId": "environments-lifecycle",
+			"title": "environments lifecycle: the typed state machine + real child-process environment + ops ledger over the real manager",
+			"dimensions": [
+				"environments lifecycle",
+				"typed state machine legality",
+				"failure/recovery",
+				"artifacts/evidence",
+				"slow-path timing"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 11,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000077"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/environments-lifecycle.friction.jsonl",
+			"frictionRows": {
+				"friction": 4,
+				"timing": 1,
+				"recovery": 2
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"evidence: the seams are LOCAL-REAL (the REAL EnvironmentRegistry + LocalProcessExecutor spawning the FIXED env-agent harness child + the REAL EnvironmentLifecycleManager over the PIN-2 store); the model intelligence is fixture-level (the fake lane answers from the prompt-carried facts), never promoted",
+				"the verifier re-derives the ground truth from the real manager entries()/ops() (never the prompt) and checks the answer 100% sound+complete; PASS only at 100%",
+				"P2-FIX-119 doctrine: both lanes answer from the prompt-carried op-sequence facts (embedded at ask time, the ledger rows verbatim)",
+				"the fixed harness executable is extensions/flauz-environments/fixtures/env-agent.ts (the ONLY sanctioned executable -- descriptor-supplied execution is forbidden); a real /bin child with the stdio ready-line handshake"
+			]
+		},
+		{
+			"exerciseId": "workspace-continuity",
+			"title": "workspace continuity: export/carry/restore/verify over the closed surface canon + the secret-redaction law",
+			"dimensions": [
+				"workspace continuity",
+				"secret redaction",
+				"destructive-class gates",
+				"failure/recovery",
+				"artifacts/evidence"
+			],
+			"verdict": "PASS",
+			"assertions": {
+				"pass": 15,
+				"fail": 0
+			},
+			"evidenceIds": [
+				"E-000081"
+			],
+			"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/workspace-continuity.friction.jsonl",
+			"frictionRows": {
+				"friction": 4,
+				"timing": 2,
+				"recovery": 3
+			},
+			"evidenceLevels": {
+				"seams": "local-real",
+				"modelIntelligence": "fixture"
+			},
+			"notes": [
+				"evidence: the seams are LOCAL-REAL (the REAL ContinuityManager over the REAL bundle manifest + hash-chained ops ledger; the source .flauz/ state built through the REAL TaskService/EvidenceLedger/MemoryStore/writeProviderOverrides/EnvironmentRegistry/FileSystemSessionJournal seams); the model intelligence is fixture-level (the fake lane answers from the prompt-carried facts), never promoted",
+				"the SECRET-REDACTION LAW is checked, never trusted: the captured-class surfaces export as typed redacted entries (presence + sha256 of the PATH; the payload NEVER copied) and restore nothing; the journal line itself carries the at-record redacted URL (the product write path)",
+				"P2-FIX-119 doctrine: both lanes answer from the prompt-carried continuity facts (embedded at ask time: the manifest surfaces map + the restore outcomes + the failure legs)",
+				"the G8 canary is runtime-assembled from fragments (never a committed literal) and is asserted absent from every receipt and friction row; the export defense-in-depth leg (EXPORT_SECRET_DETECTED) proves the fail-closed scan end to end",
+				"the carry act is a real fs copy of the bundle dir to the fresh target root (the v0 boundary: restore re-hydrates the target root's .flauz/ state; the trust gate on targetEnvironmentId is exercised by the environments-lifecycle lane)"
+			]
+		}
+	],
+	"localLaneCensus": {
+		"chatCalls": 9,
+		"failCalls": 3,
+		"exploreComputations": 1,
+		"configPromptReads": 2,
+		"toolsComputations": 3,
+		"environmentsComputations": 1,
+		"continuityComputations": 1,
+		"note": "the local wire census (the live lane, when selected, talks to the vendor directly and never appears here); the provider-configuration answers are read from the prompt-carried workspace facts (P2-FIX-119: the server-side computation path is retired for that question); the tools-lane turns are the A-PROD-003-W7 tool-carrying exploration asks; the environments-lifecycle + workspace-continuity turns are the A-PROD-003-W8 prompt-facts asks"
+	}
+}

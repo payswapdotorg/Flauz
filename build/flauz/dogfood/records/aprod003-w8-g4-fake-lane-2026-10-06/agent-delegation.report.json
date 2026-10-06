@@ -1,0 +1,291 @@
+{
+	"schema": "flauz.dogfood-delegation-report/v1",
+	"exerciseId": "agent-delegation",
+	"mode": "fake-lane",
+	"sessionRoot": "/tmp/flauz-dogfood-5AbYYN/w7-agent-delegation-session",
+	"golden": {
+		"refusal": {
+			"taskId": "T-001",
+			"status": "failed",
+			"failEventError": "tool flauz_terminal invocation rejected by user (confirmation denied)",
+			"ledgerRowsAfter": 0,
+			"receipt": {
+				"schema": "flauz.dogfood-tool-receipt/v1",
+				"receiptId": "R-1",
+				"tool": "flauz_terminal",
+				"input": {
+					"command": "echo flauz-golden-path-ok"
+				},
+				"approval": {
+					"asked": true,
+					"granted": false,
+					"title": "Flauz terminal command",
+					"message": "Allow Flauz Agent to run `echo flauz-golden-path-ok` in the integrated terminal?"
+				},
+				"execution": null,
+				"refusal": "the human DENIED the flauz_terminal confirmation at the tool approval gate (the invocation was refused before execution)",
+				"evidence": null,
+				"evidenceLevel": "local-real",
+				"ts": 1791290744781
+			}
+		},
+		"path": {
+			"taskId": "T-002",
+			"status": "done",
+			"eventTrail": [
+				"agent/created",
+				"agent/submit-plan",
+				"human/approve",
+				"agent/report",
+				"tool/verify-pass",
+				"human/sign-off"
+			],
+			"ledgerOk": true,
+			"ledgerRows": 2,
+			"command": "echo flauz-golden-path-ok",
+			"execution": {
+				"command": "echo flauz-golden-path-ok",
+				"stdout": "flauz-golden-path-ok\n",
+				"stderr": "",
+				"exitCode": 0,
+				"durationMs": 4,
+				"at": 1791290744786
+			},
+			"receipt": {
+				"schema": "flauz.dogfood-tool-receipt/v1",
+				"receiptId": "R-2",
+				"tool": "flauz_terminal",
+				"input": {
+					"command": "echo flauz-golden-path-ok"
+				},
+				"approval": {
+					"asked": true,
+					"granted": true,
+					"title": "Flauz terminal command",
+					"message": "Allow Flauz Agent to run `echo flauz-golden-path-ok` in the integrated terminal?"
+				},
+				"execution": {
+					"exitCode": 0,
+					"stdout": "flauz-golden-path-ok\n",
+					"stdoutSha256": "48aa87c6311cdb2b4740ab4bb12916c958f064e6a7b5faeee39d689ddd0d01e1",
+					"stdoutBytes": 21,
+					"durationMs": 4
+				},
+				"refusal": null,
+				"evidence": null,
+				"evidenceLevel": "local-real",
+				"ts": 1791290744786
+			}
+		}
+	},
+	"delegation": {
+		"graphId": "G-001",
+		"taskId": "T-003",
+		"decisionRowId": "R-000005",
+		"delegationSentRowId": "R-000007",
+		"messageId": "M-000001",
+		"attempt": 1,
+		"workerMailboxMessages": [
+			"M-000001"
+		],
+		"parentMailboxMessages": [
+			"M-000002"
+		],
+		"resultReportMessageId": "M-000002",
+		"resultReceivedRowId": "R-000010",
+		"graphStatus": "completed",
+		"stepStatus": "succeeded",
+		"evidenceIds": [
+			"E-000006"
+		]
+	},
+	"delegatedWork": {
+		"module": "scratch/w7-delegated-gcd.mjs",
+		"test": "scratch/w7-delegated-gcd.test.mjs",
+		"command": "node scratch/w7-delegated-gcd.test.mjs",
+		"output": "w7 delegated module test: PASS (gcd 12/18=6, 7/13=1, 0/9=9, -4/6=2)",
+		"exitCode": 0,
+		"evidenceId": "E-6",
+		"artifactUri": ".flauz/artifacts/T-003/command-output-1.txt",
+		"receipt": {
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-3",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "node scratch/w7-delegated-gcd.test.mjs"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `node scratch/w7-delegated-gcd.test.mjs` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "w7 delegated module test: PASS (gcd 12/18=6, 7/13=1, 0/9=9, -4/6=2)\n",
+				"stdoutSha256": "05457d1ef157a3134e9c1b055051403222f73db3aaa9b13ea9c8a1520bff497b",
+				"stdoutBytes": 68,
+				"durationMs": 35
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000006",
+				"uri": ".flauz/artifacts/T-003/command-output-1.txt",
+				"sha256": "5005208eb832e803d4b88727e72cd300f6831ee952849ed039bd1f7fd830d6fe"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791290744845
+		}
+	},
+	"takeover": {
+		"graphId": "G-002",
+		"taskId": "T-004",
+		"stuckBefore": {
+			"state": "stuck",
+			"graphId": "G-002",
+			"stepId": "S-02",
+			"stepTitle": "the final release decision"
+		},
+		"rows": [
+			{
+				"type": "takeover-requested",
+				"rowId": "R-000016",
+				"actor": "human"
+			},
+			{
+				"type": "takeover-accepted",
+				"rowId": "R-000017",
+				"actor": "human"
+			},
+			{
+				"type": "takeover-completed",
+				"rowId": "R-000018",
+				"actor": "human"
+			}
+		],
+		"stepStatus": "succeeded",
+		"journalOk": true,
+		"note": "the human completed the gated release decision personally (the A-PROD-003-W7 takeover leg)",
+		"markdown": [
+			"Step **S-02** (the final release decision) of **G-002** is taken over by you — completed as the human (human gate).\n\n- Takeover sequence: `takeover-requested` → `takeover-accepted` → `takeover-completed` — every journal row is attributed to you (actor **human**); the agent never runs this step.\n- Evidence in the shared ledger: `flauz-orch-takeover://G-002/S-02` (E-000011) — journaled with human attribution.\n- Completion summary: the human completed the gated release decision personally (the A-PROD-003-W7 takeover leg)\n\nThe takeover is journaled in the orchestration journal and evidence-bearing in the ledger — the Agent Sessions view shows the live state."
+		]
+	},
+	"shared": {
+		"ledgerRows": 12,
+		"ledgerOk": true,
+		"a2aMessages": [
+			{
+				"$schema": "flauz.a2a/v0",
+				"from": "flauz.agent.primary",
+				"id": "M-000001",
+				"inReplyTo": null,
+				"kind": "task-delegation",
+				"payload": {
+					"prompt": "Create the scratch module scratch/w7-delegated-gcd.mjs and its test scratch/w7-delegated-gcd.test.mjs in the session workspace, then run the test through the flauz_terminal tool and evidence the output.",
+					"taskDescription": "implement the delegated scratch module and run its test through the terminal tool",
+					"taskId": "T-003"
+				},
+				"seq": 1,
+				"to": "flauz.agent.worker",
+				"ts": 1791290744803
+			},
+			{
+				"$schema": "flauz.a2a/v0",
+				"from": "flauz.agent.worker",
+				"id": "M-000002",
+				"inReplyTo": null,
+				"kind": "result-report",
+				"payload": {
+					"evidenceIds": [
+						"E-000006"
+					],
+					"outcome": "ok",
+					"summary": "the delegated implementation-and-test act completed: node scratch/w7-delegated-gcd.test.mjs passed (exit 0) and its output is evidenced as .flauz/artifacts/T-003/command-output-1.txt",
+					"taskId": "T-003"
+				},
+				"seq": 2,
+				"to": "flauz.agent.primary",
+				"ts": 1791290744847
+			}
+		]
+	},
+	"toolReceipts": [
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-1",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "echo flauz-golden-path-ok"
+			},
+			"approval": {
+				"asked": true,
+				"granted": false,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `echo flauz-golden-path-ok` in the integrated terminal?"
+			},
+			"execution": null,
+			"refusal": "the human DENIED the flauz_terminal confirmation at the tool approval gate (the invocation was refused before execution)",
+			"evidence": null,
+			"evidenceLevel": "local-real",
+			"ts": 1791290744781
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-2",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "echo flauz-golden-path-ok"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `echo flauz-golden-path-ok` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "flauz-golden-path-ok\n",
+				"stdoutSha256": "48aa87c6311cdb2b4740ab4bb12916c958f064e6a7b5faeee39d689ddd0d01e1",
+				"stdoutBytes": 21,
+				"durationMs": 4
+			},
+			"refusal": null,
+			"evidence": null,
+			"evidenceLevel": "local-real",
+			"ts": 1791290744786
+		},
+		{
+			"schema": "flauz.dogfood-tool-receipt/v1",
+			"receiptId": "R-3",
+			"tool": "flauz_terminal",
+			"input": {
+				"command": "node scratch/w7-delegated-gcd.test.mjs"
+			},
+			"approval": {
+				"asked": true,
+				"granted": true,
+				"title": "Flauz terminal command",
+				"message": "Allow Flauz Agent to run `node scratch/w7-delegated-gcd.test.mjs` in the integrated terminal?"
+			},
+			"execution": {
+				"exitCode": 0,
+				"stdout": "w7 delegated module test: PASS (gcd 12/18=6, 7/13=1, 0/9=9, -4/6=2)\n",
+				"stdoutSha256": "05457d1ef157a3134e9c1b055051403222f73db3aaa9b13ea9c8a1520bff497b",
+				"stdoutBytes": 68,
+				"durationMs": 35
+			},
+			"refusal": null,
+			"evidence": {
+				"evidenceId": "E-000006",
+				"uri": ".flauz/artifacts/T-003/command-output-1.txt",
+				"sha256": "5005208eb832e803d4b88727e72cd300f6831ee952849ed039bd1f7fd830d6fe"
+			},
+			"evidenceLevel": "local-real",
+			"ts": 1791290744845
+		}
+	],
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture (the golden-path orchestrator's deterministic plan over the mock model selection -- the product's documented v0 simplification; never wording-promoted)"
+	}
+}

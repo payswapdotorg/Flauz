@@ -1,0 +1,58 @@
+{
+	"schema": "flauz.dogfood-environments-lifecycle-report/v1",
+	"exerciseId": "environments-lifecycle",
+	"mode": "fake-lane",
+	"scenarioHash": "f6f54cb8b77e611eebf34e84369cd439f9f214dbafb41281c1c5abaf60a5b7d1",
+	"ask": {
+		"kind": "ok",
+		"decisionId": "rd-000013",
+		"finishReason": "stop",
+		"fenceStripped": false,
+		"text": "{\"schema\":\"flauz.dogfood-environments-lifecycle-answer/v1\",\"question\":\"report the final lifecycle state per environment, the ops-ledger census, and the failure-leg verdicts from the prompt-carried facts\",\"method\":\"read of the prompt-carried environment-lifecycle facts (the fake lane answers from the prompt; fixture-level intelligence, never promoted)\",\"environments\":{\"env-dogfood-w8-main\":\"destroyed\",\"env-dogfood-w8-untrusted\":\"destroyed\"},\"opsLedger\":{\"rows\":10,\"kinds\":{\"create\":2,\"start\":2,\"attach\":1,\"snapshot\":1,\"stop\":2,\"destroy\":2}},\"failureLegs\":[{\"leg\":\"illegal-stop\",\"verdict\":\"illegal\",\"code\":\"ILLEGAL_TRANSITION\"},{\"leg\":\"untrusted-start\",\"verdict\":\"rejected\",\"code\":\"TRUST_POSTURE_REJECTED\"}]}"
+	},
+	"askPromptExcerpt": "Report the environment lifecycle outcome of the scripted scenario that just ran under the real Flauz environments lifecycle manager (a REAL local child process; local-real seams).\nYou are a bare chat completion with NO tool or file access, so the lifecycle facts are embedded below, computed at ask time from the real manager state (the ops-ledger rows verbatim + the executor kind).\n=== ENVIRONMENT-LIFECYCLE FACT: the scripted op sequence, computed at ask time from the real manager state (the ops ledger rows verbatim + the executor kind) ===\n{\n  \"executorKind\": \"local-process\",\n  \"operations\": [\n    {\n      \"envId\": \"env-dogfood-w8-main\",\n      \"op\": \"create\",\n      \"actor\": \"human\",\n      \"result\": \"ok\",\n      \"fromState\": \"registered\",\n      \"toState\": \"created\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-main\",\n      \"op\": \"start\",\n      \"actor\": \"agent\",\n      \"result\": \"ok\",\n      \"fromState\": \"created\",\n      \"toState\": \"running\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-main\",\n      \"op\": \"attach\",\n      \"actor\": \"agent\",\n      \"result\": \"ok\",\n      \"fromState\": \"running\",\n      \"toState\": \"running/attached\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-main\",\n      \"op\": \"snapshot\",\n      \"actor\": \"tool\",\n      \"result\": \"ok\",\n      \"fromState\": \"running/attached\",\n      \"toState\": \"running/attached\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-main\",\n      \"op\": \"stop\",\n      \"actor\": \"human\",\n      \"result\": \"ok\",\n      \"fromState\": \"running/attached\",\n      \"toState\": \"stopped\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-main\",\n      \"op\": \"destroy\",\n      \"actor\": \"human\",\n      \"result\": \"ok\",\n      \"fromState\": \"stopped\",\n      \"toState\": \"destroyed\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-untrusted\",\n      \"op\": \"create\",\n      \"actor\": \"human\",\n      \"result\": \"ok\",\n      \"fromState\": \"registered\",\n      \"toState\": \"created\"\n    },\n    {\n      \"envId\": \"env-dogfood-w8-untrusted\",\n      \"op\": \"start\",\n      \"actor\": \"agent\",\n      \"result\": \"error\",\n",
+	"groundTruth": {
+		"environments": {
+			"env-dogfood-w8-main": "destroyed",
+			"env-dogfood-w8-untrusted": "destroyed"
+		},
+		"opsRows": 10,
+		"opsKinds": {
+			"create": 2,
+			"start": 2,
+			"attach": 1,
+			"snapshot": 1,
+			"stop": 2,
+			"destroy": 2
+		},
+		"failureLegs": [
+			{
+				"leg": "illegal-stop",
+				"verdict": "illegal",
+				"code": "ILLEGAL_TRANSITION"
+			},
+			{
+				"leg": "untrusted-start",
+				"verdict": "rejected",
+				"code": "TRUST_POSTURE_REJECTED"
+			}
+		]
+	},
+	"observedStates": [
+		"registered",
+		"created",
+		"running",
+		"running/attached",
+		"running/attached",
+		"stopped",
+		"destroyed"
+	],
+	"startPid": 12364,
+	"opsLedgerRows": 10,
+	"answerProblems": [],
+	"verification": {
+		"ok": true,
+		"soundnessViolations": 0,
+		"completenessViolations": 0
+	}
+}

@@ -1,0 +1,375 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "tools-exploration",
+	"title": "tools exploration: the deferred full-tree ledger-consumer map through the agent-with-tools lane",
+	"dimensions": [
+		"repository exploration",
+		"agent-with-tools",
+		"tool receipts",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "tools.model-calls-ok",
+			"ok": true,
+			"detail": "the tool loop ran 3 ask(s) over 3 turn(s) (#1:directive, #2:directive, #3:answer) and produced the final answer"
+		},
+		{
+			"id": "tools.answer-parses",
+			"ok": true,
+			"detail": "the final answer document carries 32 claimed consumers citing 48 tool receipts"
+		},
+		{
+			"id": "tools.tool-receipts-real",
+			"ok": true,
+			"detail": "every one of the 48 tool invocations passed the approval gate (asked + granted) and really executed (exit 0; every receipt transcript hash-pinned as an evidence row); 47 of them are numbered-line reads"
+		},
+		{
+			"id": "tools.answer-cites-reads",
+			"ok": true,
+			"detail": "every claimed consumer is covered by a read receipt whose real execution streamed that file:line (32/32 covered; 48 receipts cited)"
+		},
+		{
+			"id": "tools.map-sound",
+			"ok": true,
+			"detail": "every claimed entry re-reads as a real ledger import (32/32 sound)"
+		},
+		{
+			"id": "tools.map-complete",
+			"ok": true,
+			"detail": "the map misses 0 of the 32 real consumers"
+		},
+		{
+			"id": "tools.map-100-percent",
+			"ok": true,
+			"detail": "claimed 32 vs real 32; verified=true (the driver's independent scan: the map CHECKED, never trusted)"
+		},
+		{
+			"id": "tools.evidence-minted",
+			"ok": true,
+			"detail": "the answer + the verification receipt + every one of the 48 approved tool receipts' transcripts are hash-pinned into the evidence ledger (50 evidence rows); every receipt carries its minted evidence row"
+		}
+	],
+	"evidenceIds": [
+		"E-000024",
+		"E-000025",
+		"E-000026",
+		"E-000027",
+		"E-000028",
+		"E-000029",
+		"E-000030",
+		"E-000031",
+		"E-000032",
+		"E-000033",
+		"E-000034",
+		"E-000035",
+		"E-000036",
+		"E-000037",
+		"E-000038",
+		"E-000039",
+		"E-000040",
+		"E-000041",
+		"E-000042",
+		"E-000043",
+		"E-000044",
+		"E-000045",
+		"E-000046",
+		"E-000047",
+		"E-000048",
+		"E-000049",
+		"E-000050",
+		"E-000051",
+		"E-000052",
+		"E-000053",
+		"E-000054",
+		"E-000055",
+		"E-000056",
+		"E-000057",
+		"E-000058",
+		"E-000059",
+		"E-000060",
+		"E-000061",
+		"E-000062",
+		"E-000063",
+		"E-000064",
+		"E-000065",
+		"E-000066",
+		"E-000067",
+		"E-000068",
+		"E-000069",
+		"E-000070",
+		"E-000071",
+		"E-000072",
+		"E-000073"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-1.json",
+			"sha256": "6b2a32f6bf64a7703c863c5c47ca51dd787cd6fed5c03a0dee256b56aa9cf794"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-2.json",
+			"sha256": "cb5eae83b855df78181e715190c6a41b2634934d4022796597c373bed51e1770"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-3.json",
+			"sha256": "e369bbf3dfaf515829bac0cf7ad4ccbca4f5ab8700728c28ce8f5d0a6b12e12b"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-4.json",
+			"sha256": "03948b9f4b06774246562c1e17b07841e4c14f2bb968622212f23c6b9aba7ff0"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-5.json",
+			"sha256": "021c745efeb467c674bfd622c8ce734018cf4c07c8a6b5f6fee5077ed9dd9dd8"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-6.json",
+			"sha256": "402835f175ed22607773026487cfb183bd38eb0753603395cdd9e03f2c6b6c0b"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-7.json",
+			"sha256": "a58002c34a80658b3bf98403aa332ab9b05c1b898c1c01ff7e896a3c35107e67"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-8.json",
+			"sha256": "d121f58263f7932d0c8c7631d2641e3e421bee8e3e3400e17640c4732b61d044"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-9.json",
+			"sha256": "eefc9014c363378454bc2b3cc0521bbe10f18ded3548251b1bc4cc2186398ce6"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-10.json",
+			"sha256": "da6df3aed9f5f4d7b458d0815c605eeb99e86a264305d558100641b96a80b459"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-11.json",
+			"sha256": "ea741c4513660ef801d8bf37fc4947bd92ae24a7ca22bd89582ef92d76990976"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-12.json",
+			"sha256": "2bb7b3812078fddbe72967e7ffe5e702c6e8cd905dfdf30dc5d0651ef865a663"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-13.json",
+			"sha256": "e89458e7bc358afe0b5d7de8c808e198d23dd647af8286658c7a720765a0e9e2"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-14.json",
+			"sha256": "b9afe473c48aeed161363a666fdfafaf11c5bc400bd2cbffdb7a7ff14a8774fc"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-15.json",
+			"sha256": "eb5d3838ad75704c576f5daa5adace6b52fb9b50765033f2bab0492e566c90d2"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-16.json",
+			"sha256": "1c594a16d86db73fd2b93cf3106710c6eb9a5b09c8cdba1d17bf50f05cd03dfa"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-17.json",
+			"sha256": "2c68f2a1ea547846208963a4a0c918eadf787b4aa9376beff99e220cff4d7af9"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-18.json",
+			"sha256": "383045c7796f8903bcab4a94cac072b059f1c9196b8991ec8b44bc1376e65f4f"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-19.json",
+			"sha256": "6788a66956fc0e9a637153eb39c57614396033db071c41935e253fb26023f9b0"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-20.json",
+			"sha256": "b59c64106a84dccb737b90dbea0dab0cbabfbe51a250759cba28899560dd1d14"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-21.json",
+			"sha256": "a43cc8c1ce7a6c79ee753b575f8eabc62e674d1329781ea2188f4d4c2d4a2b9d"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-22.json",
+			"sha256": "a74a0a049428d165245413f0f362da8828bd6ffe31fe39deefc63c5a6587b98b"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-23.json",
+			"sha256": "8583c4289075465cfcd3544b6a7dc3a66582b827047067f44409e914cd539fd5"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-24.json",
+			"sha256": "59b6aff8c70b0df37a05756d1714fc268a1d504f84d625074fef573479bbd552"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-25.json",
+			"sha256": "7351228afed8c1b8e5986f939753bf13bebcd0cc8cd1b451148a7ae8dba78be6"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-26.json",
+			"sha256": "7fa461824c1b7bc5984396bf47ddcdfe79498ad46d766ba58e5dcb0b02919241"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-27.json",
+			"sha256": "b955fc7b3dc15c99dccb61144daadcc0725991e61cf179e85652a9d8a1d4c624"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-28.json",
+			"sha256": "487d1c6b85a457db5c488b92ab3ae8844d4490d9e4d3354c27dd7aec5706a6e8"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-29.json",
+			"sha256": "49d1d43dbba2aaeb56dfd4110c4636e9c84c612e9bbfe2be2bc6f4595c9b55e2"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-30.json",
+			"sha256": "524bd5e99dbeede28ce35ef00ee981736ab6e64e5a4ddb49cb98f9ecd310c908"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-31.json",
+			"sha256": "b5370ece1b9683518819db4fd0a48b44f65aacffac1bd57e52883a5dc0974834"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-32.json",
+			"sha256": "9ca1f661e86565c287e5cda719a25ae93387900a4cc7847d26627dbd57be67de"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-33.json",
+			"sha256": "58a2100f704e16972a9b1c3d09e5e34b515acc6ddb18676cca3ec9667951a92e"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-34.json",
+			"sha256": "70c4007c626d0202ec65cb9e1fb57b9b4db4d162e01a9403bd70ad158c9d0fbc"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-35.json",
+			"sha256": "878f36012c7897872de6f79f616fdf78d81cd796c40ddb5644a14f0b6ab4d22e"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-36.json",
+			"sha256": "c6d69b6d21320498c849f58154903934254984fa2af5c05809fb87ad254517d8"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-37.json",
+			"sha256": "b4290c615852525378f04eeed59d0f9c36b2ef19f56cfc9d900175dd21f9016f"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-38.json",
+			"sha256": "aeda2b33f8bb733b241a86a0d4937a631b03a71595998450017c209e567fe072"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-39.json",
+			"sha256": "87dfbf59cb3204a7fe7a1f908f814ffbdf0d40dd4c29256ed42e9d21ca6718c1"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-40.json",
+			"sha256": "9bdb2ea99d36e3066bdc1d94a1a5c6c9cee395ee89fa8880094fc5bfd80792ad"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-41.json",
+			"sha256": "02dedb2d5dbde5aa9f1618c3b75451ec39dc6ac1b8a7a0b98c3cb683801b85ce"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-42.json",
+			"sha256": "216282a7a8004c6572bd5df2f9ea8ac8f35221c11c5b785845f02bf341268c34"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-43.json",
+			"sha256": "41c58c7d4c54a847c67c92d5321158f51965aa23fe94208ee7c4f16144182171"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-44.json",
+			"sha256": "cd40f9888117c5bfa358aea61c4a0430673827a28b0d4bf4f9f1465b8e5f4e59"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-45.json",
+			"sha256": "7acbfa1bfc144ea4817115a816d29523da17ba3e1fabb905c8520093b7ebaf3e"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-46.json",
+			"sha256": "c4ae66cc0eb4d922cc918d8838f8b6de11b3800344161c244cd7289912221f78"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-47.json",
+			"sha256": "e638f175dc056ba1713bc6c06f0796f9b88e2de2391b32b8e337133b0fb05609"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tool-receipt-R-48.json",
+			"sha256": "868b93fd65be02fcb5e30becb9bf07825d479298cb7cc02383c337b72f375c53"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tools-exploration-answer.json",
+			"sha256": "30767b976e6ae2a12cbc1a8819cbbcfd6e425703538ececdd1ed65460935f034"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-005/tools-exploration-verification.json",
+			"sha256": "748cba611a1d44f7645912e7e16c06249356becd66c829e79ddf79d6463ea1f0"
+		}
+	],
+	"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/tools-exploration.friction.jsonl",
+	"frictionRows": {
+		"friction": 0,
+		"timing": 4,
+		"recovery": 0
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"the deferred P2-FIX-122 full-tree question asked through the TOOL-CARRYING lane: 3 ask(s), 48 approved flauz_terminal invocation(s) (47 numbered-line reads), the answer citing its receipts",
+		"the verification is the driver's independent ground-truth scan (scanLedgerConsumers + verifyConsumersMap -- the same sound+complete 100% bar as the fake lane's full-tree check) PLUS the tool-receipt contract (every claimed consumer covered by a read receipt that really streamed that file:line)",
+		"model intelligence: fixture (the fake lane's scripted agent policy computes its answer FROM THE TOOL RESULTS carried in the conversation -- never a server-side scan, never canned)",
+		"seams: local-real (the real routing + adapter stream per ask, the real flauz_terminal tool over a real /bin/sh child on the repo root, the HumanApproval gate in front of every invocation)"
+	]
+}

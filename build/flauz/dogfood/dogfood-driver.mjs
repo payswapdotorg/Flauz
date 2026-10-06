@@ -75,6 +75,14 @@
  * The existing exercises' receipts stay byte-compatible in shape (their
  * code paths are untouched).
  *
+ * W8 (A-PROD-003-W8): the deeper-dogfood lanes -- the exercise list
+ * grows to SEVEN (environments-lifecycle + workspace-continuity join
+ * the five W7 exercises, canonical order); the run summary's
+ * localLaneCensus grows the additive environmentsComputations +
+ * continuityComputations counters (the two new prompt-facts lanes). The
+ * existing exercises' receipts stay byte-compatible in shape (their
+ * code paths are untouched).
+ *
  * Harness module (build/flauz/dogfood/**): NOT a gate instrument.
  */
 
@@ -106,6 +114,8 @@ import { PROVIDER_SWITCH_EXERCISE } from './exercises/provider-switch.task.ts';
 import { BROWSER_POLICY_EXERCISE } from './exercises/browser-policy.task.ts';
 import { AGENT_DELEGATION_EXERCISE } from './exercises/agent-delegation.task.ts';
 import { TOOLS_EXPLORATION_EXERCISE } from './exercises/tools-exploration.task.ts';
+import { ENVIRONMENTS_LIFECYCLE_EXERCISE } from './exercises/environments-lifecycle.task.ts';
+import { WORKSPACE_CONTINUITY_EXERCISE } from './exercises/workspace-continuity.task.ts';
 
 // ---------------------------------------------------------------------------
 // Constants, environment, small utilities
@@ -671,7 +681,7 @@ async function main() {
         const outDir = nodePath.resolve(argMap.get('--out') ?? nodePath.join(root, '.flauz', 'dogfood-records'));
         await nodeFsPromises.mkdir(outDir, { recursive: true });
 
-        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE, BROWSER_POLICY_EXERCISE, AGENT_DELEGATION_EXERCISE, TOOLS_EXPLORATION_EXERCISE];
+        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE, BROWSER_POLICY_EXERCISE, AGENT_DELEGATION_EXERCISE, TOOLS_EXPLORATION_EXERCISE, ENVIRONMENTS_LIFECYCLE_EXERCISE, WORKSPACE_CONTINUITY_EXERCISE];
         const only = argMap.get('--exercise');
         if (only !== undefined) {
                 const selected = exercises.filter(exercise => exercise.id === only);
@@ -783,7 +793,9 @@ async function main() {
                         exploreComputations: fakeProvider.exploreComputations,
                         configPromptReads: fakeProvider.configPromptReads,
                         toolsComputations: fakeProvider.toolsComputations,
-                        note: 'the local wire census (the live lane, when selected, talks to the vendor directly and never appears here); the provider-configuration answers are read from the prompt-carried workspace facts (P2-FIX-119: the server-side computation path is retired for that question)',
+                        environmentsComputations: fakeProvider.environmentsComputations,
+                        continuityComputations: fakeProvider.continuityComputations,
+                        note: 'the local wire census (the live lane, when selected, talks to the vendor directly and never appears here); the provider-configuration answers are read from the prompt-carried workspace facts (P2-FIX-119: the server-side computation path is retired for that question); the tools-lane turns are the A-PROD-003-W7 tool-carrying exploration asks; the environments-lifecycle + workspace-continuity turns are the A-PROD-003-W8 prompt-facts asks',
                 },
         };
         await writeJson(nodePath.join(outDir, 'run-summary.json'), summary);

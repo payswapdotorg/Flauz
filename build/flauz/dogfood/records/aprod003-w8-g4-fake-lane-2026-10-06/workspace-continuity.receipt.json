@@ -1,0 +1,117 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "workspace-continuity",
+	"title": "workspace continuity: export/carry/restore/verify over the closed surface canon + the secret-redaction law",
+	"dimensions": [
+		"workspace continuity",
+		"secret redaction",
+		"destructive-class gates",
+		"failure/recovery",
+		"artifacts/evidence"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "wc.closed-surface-table",
+			"ok": true,
+			"detail": "the manifest covers the CLOSED table exactly (22 surfaces: carried 2, redacted 3, lost 17; bundleId flauz:continuity:0000000000000000)"
+		},
+		{
+			"id": "wc.carried-payloads-byte-real",
+			"ok": true,
+			"detail": "every carried surface is a byte-real copy (source == bundle artifact; sha256 + bytes recorded): flauz-environments-registry, flauz-tasks-envelope"
+		},
+		{
+			"id": "wc.secret-redaction-law",
+			"ok": true,
+			"detail": "the SECRET-REDACTION LAW held: the captured-class surfaces (flauz-browser-session-journal, flauz-evidence-artifacts, flauz-evidence-ledger) exported as typed redacted entries (presence + sha256 of the PATH, the pinned note, no payload artifact in the bundle) and restored NOTHING on the target; the journal line itself carries the at-record redacted URL"
+		},
+		{
+			"id": "wc.lost-surfaces-typed",
+			"ok": true,
+			"detail": "every absent surface is a TYPED lost entry with its why-note (17 of 22; never dropped, never fabricated)"
+		},
+		{
+			"id": "wc.verify-verdicts",
+			"ok": true,
+			"detail": "verify re-derived the integrity verdicts on BOTH roots (source: 2 verified / 3 redacted / 17 lost; target: ok after the carry)"
+		},
+		{
+			"id": "wc.status-report",
+			"ok": true,
+			"detail": "status() listed the complete bundle + the ops ledger (the source root: 2 row(s) at that point)"
+		},
+		{
+			"id": "wc.restore-fresh-root",
+			"ok": true,
+			"detail": "the fresh-root restore re-hydrated the carried bytes byte-identically (tasks.json, environments.json) and typed every surface outcome (carried 2 / redacted 3 / lost 17)"
+		},
+		{
+			"id": "wc.ungated-restore-leg",
+			"ok": true,
+			"detail": "the un-gated restore onto the non-empty target was the typed RESTORE_TARGET_NOT_EMPTY rejection (the message names the occupied carried surfaces and the force requirement; nothing written)"
+		},
+		{
+			"id": "wc.force-restore-leg",
+			"ok": true,
+			"detail": "the force-gated re-restore completed (the explicit destructive overwrite; every carried surface re-written atomically)"
+		},
+		{
+			"id": "wc.mismatch-leg",
+			"ok": true,
+			"detail": "the tampered artifact on the target surfaced as the per-surface mismatch verdict + the typed VERIFY_FAILED error (note: \"flauz.continuity/v0: hash mismatch (manifest 897c5b428e1903fdac4a0867621b4760bc0\")"
+		},
+		{
+			"id": "wc.export-secret-detected-leg",
+			"ok": true,
+			"detail": "the export defense-in-depth scan failed CLOSED on the planted secret-shaped payload (EXPORT_SECRET_DETECTED; the second bundle was never committed -- status still lists exactly the one real bundle)"
+		},
+		{
+			"id": "wc.answer-verified-100",
+			"ok": true,
+			"detail": "the model's answer matched the independently re-derived ground truth 100% (sound + complete; facts sha256 82d5586e0dcde1ab08976f8f81537168804fd4b47552516aec7cbf3695ef45e4)"
+		},
+		{
+			"id": "wc.ask-prompt-carries-facts",
+			"ok": true,
+			"detail": "the ask prompt embedded the continuity facts at ask time (P2-FIX-119 doctrine)"
+		},
+		{
+			"id": "wc.report-evidence-minted",
+			"ok": true,
+			"detail": "the workspace-continuity report is hash-pinned into the evidence ledger (E-000081)"
+		},
+		{
+			"id": "wc.g8-canary-never-in-receipts",
+			"ok": true,
+			"detail": "the G8 canary law held: the planted secret-shaped token never appears in the exercise report or any friction row (runtime-assembled, contained by the redaction law and the fail-closed export scan)"
+		}
+	],
+	"evidenceIds": [
+		"E-000081"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-007/workspace-continuity-report.json",
+			"sha256": "9ca2c438fd0ae3a38e36a80176a5aab07d337fa3a4e323205c6910a3318bf211"
+		}
+	],
+	"frictionLogPath": "/tmp/w8-replay/build/flauz/dogfood/records/aprod003-w8-g4-fake-lane-2026-10-06/workspace-continuity.friction.jsonl",
+	"frictionRows": {
+		"friction": 4,
+		"timing": 2,
+		"recovery": 3
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"evidence: the seams are LOCAL-REAL (the REAL ContinuityManager over the REAL bundle manifest + hash-chained ops ledger; the source .flauz/ state built through the REAL TaskService/EvidenceLedger/MemoryStore/writeProviderOverrides/EnvironmentRegistry/FileSystemSessionJournal seams); the model intelligence is fixture-level (the fake lane answers from the prompt-carried facts), never promoted",
+		"the SECRET-REDACTION LAW is checked, never trusted: the captured-class surfaces export as typed redacted entries (presence + sha256 of the PATH; the payload NEVER copied) and restore nothing; the journal line itself carries the at-record redacted URL (the product write path)",
+		"P2-FIX-119 doctrine: both lanes answer from the prompt-carried continuity facts (embedded at ask time: the manifest surfaces map + the restore outcomes + the failure legs)",
+		"the G8 canary is runtime-assembled from fragments (never a committed literal) and is asserted absent from every receipt and friction row; the export defense-in-depth leg (EXPORT_SECRET_DETECTED) proves the fail-closed scan end to end",
+		"the carry act is a real fs copy of the bundle dir to the fresh target root (the v0 boundary: restore re-hydrates the target root's .flauz/ state; the trust gate on targetEnvironmentId is exercised by the environments-lifecycle lane)"
+	]
+}
