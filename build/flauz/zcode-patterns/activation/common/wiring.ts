@@ -281,7 +281,16 @@ export const WIRING: WiringEntry[] = [
                 contractModules: [
                         'build/flauz/capabilities/sources/common/source.ts',
                         'build/flauz/capabilities/sources/common/adapter.ts',
-                        'build/flauz/capabilities/sources/common/import.ts'
+                        'build/flauz/capabilities/sources/common/import.ts',
+                        // CR-007 wave-2 additions (station repair 2026-10-06, R28):
+                        // the four deterministic fixture adapters + the kit's adapter
+                        // surface module are non-test .ts modules under this subtree,
+                        // so the orphan law requires them to be cited here.
+                        'build/flauz/capabilities/sources/adapters/sources/adapters.ts',
+                        'build/flauz/capabilities/sources/adapters/sources/composio.ts',
+                        'build/flauz/capabilities/sources/adapters/sources/direct.ts',
+                        'build/flauz/capabilities/sources/adapters/sources/mcpSkills.ts',
+                        'build/flauz/capabilities/sources/adapters/sources/printingPress.ts'
                 ],
                 authority: 'CAPABILITY_EXCHANGE',
                 state: 'gap',
