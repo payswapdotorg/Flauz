@@ -2,11 +2,17 @@
 	"$schema": "flauz.bundle-manifest/v1",
 	"manifestVersion": 1,
 	"status": "PINNED",
-	"baseCommit": "c28f46ce5efabdfe635488e586d2743c8d5d534c",
-	"generatedAt": "2026-10-05T02:00:53.390Z",
+	"baseCommit": "0c014a7522d345c1ccc8933fac2697376b7c0683",
+	"generatedAt": "2026-10-06T04:38:09.711Z",
 	"generationCommand": "node build/flauz/scripts/security-runtime-gate.mjs --root . --generate",
 	"notes": "Pinned by --generate from a fresh double-bundle run (byte-identical passes). VERIFY mode re-bundles on every CI run and exits 1 on ANY drift (supply-chain tamper signal). Regeneration is PR-reviewed diff-by-diff; any PR that changes bundle bytes regenerates this manifest in the same PR.",
 	"bundles": {
+		"flauz-acceptance": {
+			"version": "0.1.0",
+			"artifacts": {
+				"dist/extension.js": "f590880b9258c529f4d0282a6dd509e901dca2f8ff8dad0135f150092094fd07"
+			}
+		},
 		"flauz-agent": {
 			"version": "0.1.0",
 			"artifacts": {
@@ -52,7 +58,7 @@
 		"flauz-incidents": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "b6d0d89540ccec0202764e3627f40dbbf0c843ded434aef11c78e39afd2303e6"
+				"dist/extension.js": "3f71304d12116fd8a57aa25ac0f6165be4501dd9fb364bd002194f894904de86"
 			}
 		},
 		"flauz-integrity": {
