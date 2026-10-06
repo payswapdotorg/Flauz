@@ -1,0 +1,102 @@
+{
+	"schema": "flauz.dogfood-exercise-receipt/v1",
+	"exerciseId": "agent-delegation",
+	"title": "agent delegation: golden path + approvals/takeover + a delegated implementation-and-test session",
+	"dimensions": [
+		"multi-agent delegation",
+		"approvals/takeover",
+		"implementation/tests as dogfooded work",
+		"artifacts/evidence",
+		"slow-path timing"
+	],
+	"verdict": "PASS",
+	"checks": [
+		{
+			"id": "delegation.session-booted",
+			"ok": true,
+			"detail": "the REAL core service seam (protocol flauz.seam/v1) + the flauz.agent participant + the flauz_terminal tool (real /bin/sh terminal on /tmp/flauz-dogfood-L6TAW1/w7-agent-delegation-session) booted through the product's own golden-path wiring"
+		},
+		{
+			"id": "delegation.golden-refusal-fail-closed",
+			"ok": true,
+			"detail": "the DENIED flauz_terminal confirmation failed task T-001 fail-closed (status failed, the fail event carries \"rejected by user\") and NO evidence rows were minted (ledger rows after the refusal: 0); receipt R-1 records the denied gate"
+		},
+		{
+			"id": "delegation.golden-path-completed",
+			"ok": true,
+			"detail": "task T-002 completed the golden path (status done; the event trail agent/created | agent/submit-plan | human/approve | agent/report | tool/verify-pass | human/sign-off; 2 evidence rows: command-output + changeset; the ledger verified through the real seam)"
+		},
+		{
+			"id": "delegation.golden-tool-real",
+			"ok": true,
+			"detail": "the golden command really executed in the real /bin/sh terminal (exit 0, stdout \"flauz-golden-path-ok\", 4 ms) and its output is the hash-pinned command-output artifact; receipt R-2 records the granted confirmation gate (asked=true, granted=true)"
+		},
+		{
+			"id": "delegation.edge-routed",
+			"ok": true,
+			"detail": "the delegation edge landed: route-decided (R-000005: WHY flauz.agent.worker, reason capability-match) + startStep (runner flauz.agent.worker) + the a2a task-delegation message M-000001 posted through the REAL service bus + the delegation-sent receipt linking them; the worker's mailbox delivered it (1 message(s))"
+		},
+		{
+			"id": "delegation.delegated-work-real",
+			"ok": true,
+			"detail": "the delegated sub-task performed a REAL implementation-and-test act: the module scratch/w7-delegated-gcd.mjs + its test were authored in the session workspace, the test ran through the approved flauz_terminal invocation (exit 0, 35 ms) and its output was evidenced as the command-output row E-6 (receipt R-3)"
+		},
+		{
+			"id": "delegation.result-ingested",
+			"ok": true,
+			"detail": "the worker's a2a result-report M-000002 was collected by the parent and ingested (result-received row R-000010 carrying the evidence id E-000006; step S-01 succeeded with runner flauz.agent.worker; the graph completed; the worker's claim was acquired + released)"
+		},
+		{
+			"id": "delegation.takeover-transition",
+			"ok": true,
+			"detail": "the stuck gated step S-02 of G-002 was taken over through the participant /takeover human gate (request -> accept -> complete, every journal row actor human, the step NEVER started by an agent, the takeover evidence row flauz-orch-takeover://G-002/S-02 minted into the shared ledger, the journal chain verifies, the probe reports nothing stuck afterwards)"
+		},
+		{
+			"id": "delegation.shared-state-consistent",
+			"ok": true,
+			"detail": "the session's shared surfaces stayed consistent: the evidence ledger verified through the real seam (12 rows) and the a2a journal carries exactly the typed task-delegation + result-report pair (M-000001, M-000002)"
+		},
+		{
+			"id": "delegation.evidence-minted",
+			"ok": true,
+			"detail": "the exercise report + the session-state bundle are hash-pinned into the driver-level evidence ledger (E-000019, E-000020); the three tool receipts (R-1 denied gate, R-2 golden run, R-3 delegated test run) are embedded in the report"
+		},
+		{
+			"id": "delegation.human-gates-logged",
+			"ok": true,
+			"detail": "every human intervention is a first-class friction row: 10 manual-intervention rows (the T-001 plan approval, the DENIED tool confirmation, the T-002 plan approval, the GRANTED tool confirmation, the sign-off, the delegation-graph approval, the delegated-step approval grant, the worker's tool confirmation, the takeover-graph approval, the takeover itself) with the 2 recovery accounts (the denial's re-run, the takeover's completion)"
+		}
+	],
+	"evidenceIds": [
+		"E-000019",
+		"E-000020"
+	],
+	"evidenceItems": [
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-004/agent-delegation-report.json",
+			"sha256": "4c75ace92b1f25f49ad8ecf2c5c72cc2faf7322bbf3405f8e09b65dd3deb5664"
+		},
+		{
+			"kind": "note",
+			"uri": ".flauz/artifacts/T-004/agent-delegation-session-state.json",
+			"sha256": "c1fca250aa979837cef262f09ae9dc44a927d8efbcbc1b7504bb98e079cb544e"
+		}
+	],
+	"frictionLogPath": "/tmp/w7-port/build/flauz/dogfood/records/aprod003-w7-g4-fake-lane-2026-10-06/agent-delegation.friction.jsonl",
+	"frictionRows": {
+		"friction": 10,
+		"timing": 6,
+		"recovery": 2
+	},
+	"evidenceLevels": {
+		"seams": "local-real",
+		"modelIntelligence": "fixture"
+	},
+	"notes": [
+		"the seams are the product's own golden-path machinery: the REAL core-service child process over stdio, the REAL orchestrator/participant/terminal-tool wiring, the REAL a2a bus owned by the service, the REAL orchestration store/mediator/takeover port -- all local-real",
+		"model intelligence: fixture (the golden-path orchestrator's deterministic plan over the mock model selection -- the product's documented v0 simplification); no live model is claimed by this exercise",
+		"every human intervention is logged as a manual-intervention friction row: each plan approval, each tool confirmation (granted AND denied), the sign-off, each graph/step approval, and the takeover",
+		"the delegated sub-task performed real work: the module + test authored in the session workspace, the test run through the approved flauz_terminal invocation in a real /bin/sh child, the output evidenced as a command-output ledger row through the real service"
+	]
+}

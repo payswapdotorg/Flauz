@@ -28,7 +28,14 @@
  *                          run exposed); the fake lane extracts them
  *                          with its own independent parser (pinned by
  *                          the round-trip tests);
- *                        - anything else gets a deterministic echo.
+ *                        - anything else gets a deterministic echo;
+ *   tools lane         the A-PROD-003-W7 tool-carrying exploration
+ *                      question (the TOOLS_LANE_MARKER protocol): the
+ *                      scripted agent directs real tool calls (search,
+ *                      reads) and computes its answer from the tool
+ *                      results embedded in the conversation -- the
+ *                      receipts the harness minted for the approved
+ *                      invocations; never canned, never a scan.
  *   scripted-failing   POST /fail/chat/completions  -- ALWAYS HTTP 500
  *   lane              with an OpenAI-shaped error body: the REAL
  *                      adapter maps it onto the TYPED provider
@@ -47,6 +54,7 @@
 import * as http from 'node:http';
 import * as nodeFs from 'node:fs/promises';
 import * as nodePath from 'node:path';
+import { TOOLS_LANE_MARKER, TOOL_RESULTS_BEGIN, TOOL_RESULTS_END, TOOLS_DIRECTIVE_SCHEMA, TOOLS_ANSWER_SCHEMA, TOOLS_EXPLORATION_QUESTION, readCommandFile } from './exercises/tools-exploration.task.ts';
 
 /** The repo-relative module the exploration question is about (the canonical evidence ledger). */
 export const CANONICAL_LEDGER_MODULE = 'extensions/flauz-workspace/src/ledger.ts';
@@ -54,6 +62,106 @@ export const CANONICAL_LEDGER_MODULE = 'extensions/flauz-workspace/src/ledger.ts
 /** Source extensions the scanners consider (both implementations share this contract rule). */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts']);
 
+/**
+ * A-PROD-003-W7 -- the TOOL-CARRYING lane's scripted agent policy (the
+ * fake lane's brain). The fake agent sees ONLY the conversation (exactly
+ * like a real model): the question + the protocol + the TOOL RESULTS the
+ * harness embedded after executing the agent's directed calls through the
+ * approved invocation path. Its policy is a sound search-then-read-then-
+ * answer strategy; its answer is computed FROM THE READ RECEIPTS'
+ * streamed lines (never a server-side scan -- the W2 god-view stays
+ * retired; never canned -- nothing is pre-baked, the map is derived at
+ * request time from the tool outputs this conversation carries).
+ *
+ * The search command is a SOUND superset search: every ledger consumer's
+ * import line carries a relative `from '...ledger'` specifier, so the
+ * pattern matches every consumer file (plus false positives the reads
+ * filter precisely).
+ */
+export const TOOLS_LANE_SEARCH_COMMAND = 'grep -rlE -- "(import|export)[^;]*from [\'\\"][^\'\\"]*ledger" extensions/flauz-*';
+
+/** Builds one candidate-file read command (numbered import/export lines). */
+function toolsLaneReadCommand(file) {
+        return `grep -nE -- 'import|export' ${file}`;
+}
+
+/** Parses the receipts embedded in the conversation's tool-results block (the protocol the exercise renders). */
+function parseConversationReceipts(prompt) {
+        const beginIdx = prompt.indexOf(TOOL_RESULTS_BEGIN);
+        if (beginIdx < 0) {
+                return [];
+        }
+        const start = prompt.indexOf('\n', beginIdx) + 1;
+        const endIdx = prompt.indexOf(TOOL_RESULTS_END, start);
+        const block = endIdx < 0 ? prompt.slice(start) : prompt.slice(start, endIdx);
+        const receipts = [];
+        let current = null;
+        for (const line of block.split('\n')) {
+                const header = /^\[receipt (R-\d+) \| tool (\S+) \| (approved|denied) \| command: (.*) \| (?:exit (-?\d+)|refused before execution)\]$/.exec(line);
+                if (header !== null) {
+                        current = { id: header[1], tool: header[2], granted: header[3] === 'approved', command: header[4], exit: header[5] !== undefined ? Number(header[5]) : null, output: [] };
+                        receipts.push(current);
+                        continue;
+                }
+                if (current !== null && line.length > 0 && !line.startsWith('(')) {
+                        current.output.push(line);
+                }
+        }
+        return receipts;
+}
+
+/**
+ * The scripted agent turn: given the conversation state (the prompt with
+ * the embedded tool results), answers with EXACTLY ONE JSON document --
+ * the search directive (no results yet), the read directives (the search
+ * landed, candidates remain unread), or the final answer (every candidate
+ * read: the consumer map computed from the streamed read lines).
+ *
+ * @param {string} prompt the ask prompt (the question + the protocol + the tool results so far)
+ * @returns {string} the completion text (the directive or the answer document, raw JSON -- the machine-lane wire shape)
+ */
+export function toolsAgentTurn(prompt) {
+        const receipts = parseConversationReceipts(prompt);
+        const approved = receipts.filter(receipt => receipt.granted === true && receipt.exit === 0);
+        const searchReceipts = approved.filter(receipt => /^grep\s+-rl/.test(receipt.command));
+        const readReceipts = approved.filter(receipt => /^grep\s+-n/.test(receipt.command));
+        if (searchReceipts.length === 0) {
+                return JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: [{ tool: 'flauz_terminal', input: { command: TOOLS_LANE_SEARCH_COMMAND } }] });
+        }
+        const search = searchReceipts[0];
+        const candidates = search.output.map(line => line.trim()).filter(line => line.startsWith('extensions/flauz-') && [...SOURCE_EXTENSIONS].some(ext => line.endsWith(ext)));
+        const readFiles = readReceipts.map(receipt => readCommandFile(receipt.command));
+        const unread = candidates.filter(file => !readFiles.includes(file));
+        if (unread.length > 0) {
+                return JSON.stringify({ schema: TOOLS_DIRECTIVE_SCHEMA, calls: unread.map(file => ({ tool: 'flauz_terminal', input: { command: toolsLaneReadCommand(file) } })) });
+        }
+        // every candidate read: the answer computed FROM THE READ RECEIPTS' streamed lines
+        const consumers = [];
+        for (const receipt of readReceipts) {
+                const file = readCommandFile(receipt.command);
+                for (const row of receipt.output) {
+                        const match = /^(\d+):(.*)$/.exec(row);
+                        if (match === null) {
+                                continue;
+                        }
+                        const parsed = parseImportLine(match[2]);
+                        if (parsed === null) {
+                                continue;
+                        }
+                        if (specifierNamesLedger(file, parsed.specifier, CANONICAL_LEDGER_MODULE)) {
+                                consumers.push({ file, line: Number(match[1]), consumes: parsed.symbols });
+                        }
+                }
+        }
+        consumers.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.line - b.line));
+        return JSON.stringify({
+                schema: TOOLS_ANSWER_SCHEMA,
+                question: TOOLS_EXPLORATION_QUESTION,
+                method: `agent-with-tools: the approved search command ${TOOLS_LANE_SEARCH_COMMAND} over extensions/flauz-* (a sound superset search), then numbered-line reads (grep -nE 'import|export') of every candidate file; the consumer map is computed from the read receipts' streamed lines only -- the tool outputs this conversation carried (never a server-side scan, never canned)`,
+                receipts: receipts.map(receipt => receipt.id),
+                consumers,
+        });
+}
 /** One consumer entry of the map (the answer's shape -- the driver verifies it independently). */
 function toPosix(target) {
         return target.split(nodePath.sep).join('/');
@@ -369,7 +477,7 @@ function lastUserPrompt(body) {
  * god-view.
  *
  * @param {{ repoRoot: string, workspaceRoot: string, port?: number }} options
- * @returns {Promise<{ port: number, chatCalls: number, failCalls: number, exploreComputations: number, configPromptReads: number, close: () => void }>}
+ * @returns {Promise<{ port: number, chatCalls: number, failCalls: number, exploreComputations: number, configPromptReads: number, toolsComputations: number, close: () => void }>}
  */
 export function startFakeProvider(options) {
         const repoRoot = options.repoRoot;
@@ -377,6 +485,7 @@ export function startFakeProvider(options) {
         let failCalls = 0;
         let exploreComputations = 0;
         let configPromptReads = 0;
+        let toolsComputations = 0;
         const server = http.createServer((request, response) => {
                 const url = request.url ?? '/';
                 const method = request.method ?? 'GET';
@@ -414,6 +523,19 @@ export function startFakeProvider(options) {
                                 }
                                 const prompt = lastUserPrompt(body);
                                 const lower = prompt.toLowerCase();
+                                if (prompt.includes(TOOLS_LANE_MARKER)) {
+                                        // A-PROD-003-W7: the TOOL-CARRYING lane's scripted agent (fixture-level
+                                        // intelligence, honestly claimed): it directs REAL tool calls -- the harness
+                                        // executes them through the approved invocation path (the HumanApproval gate)
+                                        // and embeds the minted receipts + their outputs back into the next ask; the
+                                        // agent's answer is computed FROM THOSE TOOL RESULTS carried in the
+                                        // conversation (never a server-side scan -- the W2 god-view stays retired;
+                                        // never canned -- nothing is pre-baked).
+                                        toolsComputations += 1;
+                                        response.writeHead(200, { 'content-type': 'text/event-stream' });
+                                        response.end(openAiSseBody(model, toolsAgentTurn(prompt)));
+                                        return;
+                                }
                                 if (lower.includes('every consumer of the evidence ledger')) {
                                         // THE REAL COMPUTATION over the REAL clone (checked by the driver, never trusted)
                                         exploreComputations += 1;
@@ -492,6 +614,9 @@ export function startFakeProvider(options) {
                                 },
                                 get configPromptReads() {
                                         return configPromptReads;
+                                },
+                                get toolsComputations() {
+                                        return toolsComputations;
                                 },
                                 close: () => server.close(),
                         });

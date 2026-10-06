@@ -1,4 +1,4 @@
-# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2 + W6 exercise design)
+# build/flauz/dogfood/ — the A-PROD-003 dogfood harness (W1 + W2.1 realism fixes + W3.1 + W3.2 + W6 exercise design + W7 agent-with-tools)
 
 The W1 harness for A-PROD-003 (dogfooding): the driver machinery + the
 friction-log contract + the exercise lanes that the station then runs
@@ -142,6 +142,83 @@ as a harness-side exercise-design fix:
   the fake-lane run (the credential-free law — live evidence is
   claimed only by the station).
 
+**W7 (A-PROD-003-W7, legs 1+2 — the browser-policy exercise landed first
+as PR #156 `7ca629fbd40`, then exercises 3+4 on the post-leg-1 head)**
+implements the DEFERRED agent-with-tools lanes (the P2-FIX-122
+candidate acceptance's tools lane + the remaining dogfood dimensions:
+multi-agent delegation, approvals/takeover, implementation/tests as
+dogfooded work) — TWO new exercises, additive harness code only:
+
+- **EXERCISE 3 — `agent-delegation`:** drives the REAL flauz-agent
+  orchestration pipeline the way the product's own golden path does
+  (`extensions/flauz-agent/test/goldenPath.test.ts` +
+  `takeover.p2fix204.test.ts` — the sanctioned test-time cross-extension
+  imports): the REAL core-service child process over stdio, the REAL
+  orchestrator/participant/`flauz_terminal`-tool wiring (the fidelity
+  vscode mock's `lm.invokeTool` implements the platform's HumanApproval
+  gate — the tool's REAL `prepareInvocation` → `confirmationMessages` →
+  the confirmation policy), and a PRODUCTION-SHAPED terminal (a real
+  `/bin/sh -c` child on a real cwd — the terminal factory the tool's own
+  deps contract designs for injection). The arc: the golden path WITH a
+  refusal leg (the human DENIES the first tool confirmation → the task
+  fails fail-closed with NO evidence rows → a fresh task whose approved
+  execution REALLY runs the golden command → command-output + changeset
+  evidence rows → verify-pass → sign-off); a DELEGATION edge (an
+  orchestration graph whose step passes the step-level approval gate,
+  then the real composed ops `delegateStep`/`ingestResultReport` from
+  `core/routing.mjs`: route-decided + startStep + the typed a2a
+  task-delegation message posted through the REAL service's `flauz.a2a`
+  seam + the delegation-sent receipt); a SECOND agent session (the
+  worker: mailbox collection + session-tier memory + the exclusive
+  claim) performing a REAL implementation-and-test act (it authors a
+  scratch module + test and runs the test through the approved tool
+  invocation, evidencing the output as a command-output ledger row); and
+  a TAKEOVER transition (a gated step stuck on a pending approval,
+  taken over through the participant `/takeover` command → the real
+  takeover port → request → accept → complete, every journal row actor
+  `human`, the step NEVER started by an agent). EVERY human intervention
+  (each approval, each confirmation — granted AND denied — each
+  sign-off, the takeover) is a first-class `manual-intervention` friction
+  row; the two recoveries (the denial's re-run, the takeover's
+  completion) carry their recovery accounts. Receipts:
+  `agent-delegation.report.json` (the full session report embedding the
+  three tool receipts R-1 denied / R-2 golden / R-3 delegated test run),
+  the friction log, and the driver-level evidence (the report + the
+  session-state bundle — the orchestration journal + the a2a journal +
+  the evidence ledger, verbatim).
+- **EXERCISE 4 — `tools-exploration` (the deferred P2-FIX-122 full-tree
+  question, agent-with-tools):** the exploration exercise that asks for
+  EVERY consumer of the evidence ledger across the real ~20k-file tree —
+  THROUGH THE TOOL-CARRYING LANE: the ask carries the real tool surface
+  (the `flauz_terminal` tool: file read/search as commands, every
+  invocation through the approved invocation path — the HumanApproval
+  gate in front), the agent answers by DIRECTING tool calls in a bounded
+  turn loop (a tool-call directive JSON or the final answer JSON —
+  fence-tolerant on live lanes), and its answer MUST cite what it
+  ACTUALLY read: the dogfood tool receipts (schema
+  `flauz.dogfood-tool-receipt/v1`, one per approved invocation:
+  approval asked/granted + the real execution's exit code + the hashed
+  stdout + the minted ledger row). The verification stays the driver's
+  INDEPENDENT ground-truth scan (`scanLedgerConsumers` +
+  `verifyConsumersMap` — the SAME sound+complete 100% bar as the fake
+  lane's full-tree check; the map CHECKED, never trusted) PLUS the
+  tool-receipt contract check (`verifyToolsReceipts`: every claimed
+  consumer covered by a READ receipt whose real execution streamed that
+  file:line, every cited receipt approved with exit 0 — a hallucinated
+  consumer fails exactly as W5 proved it must). The fake lane's agent
+  brain lives in `fake-provider.mjs` (`toolsAgentTurn`: the scripted
+  search-then-read-then-answer policy — a SOUND superset search
+  (`grep -rlE` for relative `from '…ledger'` specifiers) followed by
+  numbered-line reads of every candidate; the answer is computed FROM
+  THE TOOL RESULTS carried in the conversation — never a server-side
+  scan, the W2 god-view stays retired; never canned). The live lane
+  (station-side) speaks the same text protocol against a real vendor —
+  the model gets the tools and must genuinely use them. Receipts:
+  `tools-exploration.verification.json` (the checked map + the
+  receipt-contract verification + every tool receipt, embedded), the
+  friction log, and the driver-level evidence (the answer + the
+  verification + every receipt's transcript, hash-pinned).
+
 ## Files
 
 | File | Role |
@@ -154,7 +231,11 @@ as a harness-side exercise-design fix:
 | `liveBudget.mjs` (+ `liveBudget.d.mts`) | P2-FIX-121: the live completion-budget knob (`FLAUZ_DOGFOOD_LIVE_MAX_TOKENS`, default 32 768, pure fail-closed parser `parseLiveMaxTokens`) + the finish-reason surfacing (`consumeAskStream` — the ask-stream consumption joining the text deltas AND capturing the terminal finish event's reason; `finishReasonDetail`/`answerParseFailDetail` — a `length` finish renders as the VISIBLE TRUNCATED marker). The `.d.mts` is the hand-written declaration (the frictionlog.d.mts zero-dependency discipline). |
 | `exercises/explore-repo.task.ts` | EXERCISE 1 (repository exploration): the question, the driver-side INDEPENDENT scanner + verifier, the exercise (live-lane answers parse through the P2-FIX-118 tolerant path; P2-FIX-122: the live lane answers the EXCERPT-mode question — `buildTreeExcerpt`/`buildExcerptQuestion`/`verifyExcerptConsumersMap`, the excerpt-scoped 100% bar, the banked excerpt; the fake lane keeps the full-tree question, UNCHANGED). |
 | `exercises/provider-switch.task.ts` | EXERCISE 2 (provider switching + failure/recovery): the switch plan, the ask-time facts-carrying question builder (P2-FIX-119), the workspace-state verification (strict, unchanged), the friction policy, the exercise. |
-| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests; + the W3.2 suites: P2-FIX-121 the knob's default/env/fail-closed parsing + the finish-reason surfacing incl. the fixture-level scripted stream carrying finish_reason `length` through the REAL adapter → the VISIBLE TRUNCATED marker in the receipt detail; + the W6 suites: P2-FIX-122 the excerpt builder's determinism/seed-sensitivity/consumer-guarantee, the excerpt-scoped verification logic (fixture excerpts with known consumers — hallucination detection against the excerpt, the completeness bar), the question/prompt round-trip, and the exercise's excerpt-mode wiring in live-provider mode incl. the fake-lane-unchanged pins). |
+| `agentTools.ts` | W7: the REAL tool-carrying surface both new exercises drive — the fidelity vscode mock (the sanctioned test-time cross-extension import) + the REAL `flauz_terminal` tool registered against it with a PRODUCTION-SHAPED terminal factory (a real `/bin/sh -c` child on a real cwd), the confirmation-gate recording (every asked/granted/denied decision verbatim), and the dogfood TOOL-RECEIPT contract builder (`flauz.dogfood-tool-receipt/v1`). |
+| `exercises/agent-delegation.task.ts` | W7 EXERCISE 3 (multi-agent delegation + approvals/takeover + implementation/tests as dogfooded work): the golden path with its refusal leg, the delegation edge over the real a2a/orchestration seams, the worker session's real implementation-and-test act, the takeover transition, the 10 human-gate friction rows, the session report + the session-state evidence bundle. |
+| `exercises/tools-exploration.task.ts` | W7 EXERCISE 4 (the deferred P2-FIX-122 full-tree question, agent-with-tools): the tool-carrying protocol (the ask prompt + the tool-results conversation + the directive/answer schemas), the bounded turn loop, the receipt-contract verification (`verifyToolsReceipts`), the driver-side ground-truth verification (reused from explore-repo), the exercise. |
+| `exercises/browser-policy.task.ts` | W7 LEG 1 (the browser-work dogfood exercise, PR #156): BrowserPolicyEngine's B1c firing model (the agent path driver+webRequest, the user path willNavigate+webRequest), FakeBrowserState/FakeCdpTransport over CdpEndpointHost, the tab pipeline, the in-memory session journal, the at-record URL redaction — the scripted matrix n1..n7 + the drop/recovery drill. |
+| `dogfood.test.ts` | The mocha tdd suite (the friction-log schema + the exercise verification logic + the W2.1 suites: P2-FIX-117 timing-row budgets, P2-FIX-118 fenced/malformed-fenced/raw shapes, P2-FIX-119 prompt-carried facts round-trip; + the W3.1 suite: P2-FIX-120 trailing-prose/leading-prose/clean-fence/multiple-fences/no-fence/malformed-inside-fence + the module unit tests; + the W3.2 suites: P2-FIX-121 the knob's default/env/fail-closed parsing + the finish-reason surfacing incl. the fixture-level scripted stream carrying finish_reason `length` through the REAL adapter → the VISIBLE TRUNCATED marker in the receipt detail; + the W6 suites: P2-FIX-122 the excerpt builder's determinism/seed-sensitivity/consumer-guarantee, the excerpt-scoped verification logic (fixture excerpts with known consumers — hallucination detection against the excerpt, the completeness bar), the question/prompt round-trip, and the exercise's excerpt-mode wiring in live-provider mode incl. the fake-lane-unchanged pins; + the W7 suites: the real tool surface + the tool-receipt contract shapes (executed/denied), the golden path + the approval-gate refusal over the REAL session machinery, the delegation edge + the takeover transition over the real orchestration seams, the delegation exercise wiring (the 10 human-gate friction rows), the tools-lane protocol parsing (raw + fenced), the receipt-contract verification logic (coverage/hallucination/denied/failed citations), the scripted agent brain's turn policy, the provider branch over the real SSE wire, the tools exercise wiring (happy path + the hallucinating stub + the refusing human + the unknown tool) and the G8 privacy-canary pins for both lanes). |
 
 ## How to run
 
@@ -162,13 +243,13 @@ as a harness-side exercise-design fix:
 node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs \
      [--repo <dir>]      # default: the repo containing this harness
      [--out <dir>]       # default: <workspace-root>/.flauz/dogfood-records
-     [--exercise <id>]   # explore-repo | provider-switch (default: both)
+     [--exercise <id>]   # explore-repo | provider-switch | browser-policy | agent-delegation | tools-exploration (default: all five)
 ```
 
-Exit `0` = both exercises PASS (the G4 shape: both friction logs
-non-empty, the explore-repo map 100% verified). Exit `1` = an exercise
-verdict FAILed (read the receipts). Exit `2` = usage / fail-closed
-env-contract error.
+Exit `0` = every selected exercise PASSes (the G4 shape: every friction
+log non-empty-or-honest, the explore-repo map 100% verified, the five
+exercise verdicts PASS). Exit `1` = an exercise verdict FAILed (read
+the receipts). Exit `2` = usage / fail-closed env-contract error.
 
 ## Modes and the env-variable contract (the credential-free law)
 

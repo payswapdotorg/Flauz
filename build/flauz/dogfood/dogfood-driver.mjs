@@ -68,6 +68,13 @@
  *   node --experimental-strip-types build/flauz/dogfood/dogfood-driver.mjs \
  *        [--repo <dir>] [--out <dir>] [--exercise <id>]
  *
+ * W7 (A-PROD-003-W7): the agent-with-tools lanes -- the exercise list
+ * grows to FIVE (agent-delegation + tools-exploration join explore-repo
+ * + provider-switch + browser-policy); the run summary's localLaneCensus
+ * grows the additive toolsComputations counter (the tools-lane turns).
+ * The existing exercises' receipts stay byte-compatible in shape (their
+ * code paths are untouched).
+ *
  * Harness module (build/flauz/dogfood/**): NOT a gate instrument.
  */
 
@@ -97,6 +104,8 @@ import { consumeAskStream, DEFAULT_LIVE_MAX_TOKENS, LIVE_MAX_TOKENS_ENV, parseLi
 import { EXPLORE_EXERCISE } from './exercises/explore-repo.task.ts';
 import { PROVIDER_SWITCH_EXERCISE } from './exercises/provider-switch.task.ts';
 import { BROWSER_POLICY_EXERCISE } from './exercises/browser-policy.task.ts';
+import { AGENT_DELEGATION_EXERCISE } from './exercises/agent-delegation.task.ts';
+import { TOOLS_EXPLORATION_EXERCISE } from './exercises/tools-exploration.task.ts';
 
 // ---------------------------------------------------------------------------
 // Constants, environment, small utilities
@@ -662,7 +671,7 @@ async function main() {
         const outDir = nodePath.resolve(argMap.get('--out') ?? nodePath.join(root, '.flauz', 'dogfood-records'));
         await nodeFsPromises.mkdir(outDir, { recursive: true });
 
-        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE, BROWSER_POLICY_EXERCISE];
+        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE, BROWSER_POLICY_EXERCISE, AGENT_DELEGATION_EXERCISE, TOOLS_EXPLORATION_EXERCISE];
         const only = argMap.get('--exercise');
         if (only !== undefined) {
                 const selected = exercises.filter(exercise => exercise.id === only);
@@ -773,6 +782,7 @@ async function main() {
                         failCalls: fakeProvider.failCalls,
                         exploreComputations: fakeProvider.exploreComputations,
                         configPromptReads: fakeProvider.configPromptReads,
+                        toolsComputations: fakeProvider.toolsComputations,
                         note: 'the local wire census (the live lane, when selected, talks to the vendor directly and never appears here); the provider-configuration answers are read from the prompt-carried workspace facts (P2-FIX-119: the server-side computation path is retired for that question)',
                 },
         };
