@@ -57,8 +57,8 @@ suite('flauz.isolation.audit — the classification semantics', () => {
 			assert.equal(record.registry.extensionCount, 18);
 			assert.equal(record.counts.extensionsKnown, 18);
 			assert.equal(record.counts.extensionsUnknown, 0);
-			assert.equal(record.counts.surfaces, 31);
-			assert.equal(record.counts.workspaceBound, 27);
+			assert.equal(record.counts.surfaces, 32);
+			assert.equal(record.counts.workspaceBound, 28);
 			assert.equal(record.counts.workspaceExportable, 3);
 			assert.equal(record.counts.portOwned, 1);
 			// every row carries a classification from the law's closed vocabulary

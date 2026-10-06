@@ -209,6 +209,7 @@ suite('contract — the isolation law table is pinned byte-equal to the REAL own
                 // note: release + integrity SHARE the 'verify-' prefix (both lawfully own verify-<stamp>.json
                 // records under their own dirs) -- the derived set is the DEDUPED union, sorted
                 assert.deepEqual(lawRecordPrefixes(), [
+                        'acceptance-',
                         'audit-',
                         OWNER_PRODUCTION_CENSUS_PREFIX,
                         OWNER_RELEASE_CHECKLIST_PREFIX,
@@ -218,6 +219,7 @@ suite('contract — the isolation law table is pinned byte-equal to the REAL own
                         OWNER_INTEGRITY_LEDGER_PREFIX,
                         'loop-',
                         OWNER_PRODUCTION_MATRIX_PREFIX,
+                        'receipt-',
                         'status-',
                         'verify-',
                 ]);

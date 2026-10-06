@@ -428,6 +428,16 @@ export const CAPABILITY_CATALOG: readonly CapabilityDef[] = [
                 supported: 'the closed-loop machinery of the A6 law: the typed incident intake (four source bindings -- manual | telemetry-census | durability-escalation | dogfood-friction; the append-only ledger .flauz/incidents/incidents.json with the unique-id law), the frozen-stage loop state machine (incident -> reproducible-finding -> registry-item -> fix -> regression -> release -> post-release-verification; typed forward transitions ONLY, each evidence-bearing with its frozen-ladder label; the fail-closed closure law -- regression requires the passing regression receipt, release requires the release identity, the loop closes ONLY on post-release verification evidence; the ONE reopen law), and the verdict ledger (the per-incident loop state + evidence history).',
                 unsupported: 'the loop RECORDS, it never EXECUTES: the extension never runs the regression, cuts the release, or re-runs the owning checks itself -- the operator (or the owning wave\'s machinery) supplies the evidence, the loop binds and verifies it (the record-keeping-vs-execution boundary, disclosed in every render); evidence labels are never promoted by wording (the frozen ladder is the law); a missing stage-evidence is a typed REFUSAL naming the exact missing kind, never a silent skip.',
         },
+        // --- flauz-acceptance (A-PROD-006-W2 -- the station catalog integration) ---
+        {
+                id: 'release-acceptance-plane',
+                owner: 'flauz-acceptance',
+                commands: ['flauz.acceptance.launch', 'flauz.acceptance.verify'],
+                wave: 'A-PROD-006-W2 (the launch + post-release-acceptance plane) -- the DL-87 adopted decision',
+                gate: 'the flauz-acceptance suite (41 tests: launch 12 / verify 7 / api 16 / privacy 4 / determinism 4 -- station-executed receipts)',
+                supported: 'the launch plane proper: the launch-act law mints a release-acceptance record ONLY over a GREEN, FRESH flauz.release.checklist artifact (contract-pinned parser; typed refusals on red/absent/torn/stale; the record carries the acceptance id, the bound checklist artifact path VERBATIM, the pinned product state, and the NAMED OWNING CHECKS set), and the post-release-acceptance law re-runs the named owning checks against the released state and banks the closing receipt -- pass or FAIL, both typed, both banked (a FAILED receipt is the typed failure record the incidents reopen law consumes; a check the plane cannot itself evaluate is a TYPED DISCLOSURE row naming the owning surface).',
+                unsupported: 'the gate vocabulary does NOT grow: the eleven prove-items stay verbatim and the plane binds the gate by READING the checklist verdict, never redefining it; the acceptance records never mint registry items (the two-registry separation -- WORK-REGISTRY.md stays the control plane); the plane reads flauz-release and flauz-incidents state through contract-pinned parsers and edits neither sibling.',
+        },
 ];
 
 // ---------------------------------------------------------------------------

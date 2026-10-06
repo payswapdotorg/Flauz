@@ -1,0 +1,42 @@
+{
+	"name": "flauz-acceptance",
+	"displayName": "Flauz Acceptance",
+	"description": "Flauz launch + post-release-acceptance plane (A-PROD-006-W2, DL-87): the machinery that makes the incidents loop's last two stages REAL -- the regression->release transition's release-identity evidence and the release->post-release-verification closure's post-release-verification-receipt evidence. Two commands, one launch law, one closing receipt. flauz.acceptance.launch (the launch-act law, fail-closed: mints a release-acceptance record ONLY over a GREEN, FRESH flauz.release.checklist artifact read through the contract-pinned parser -- typed refusals on red/absent/torn/stale, never a silent default; the record carries the deterministic acceptance id flauz:acc:<16-hex> (fnv1a32-style derivation from the bound content), the bound checklist artifact path VERBATIM (the release identity the incidents loop carries), the pinned product state (the version-inventory + census snapshot shapes, contract-pinned from flauz-release) and the NAMED OWNING CHECKS set (the release's acceptance set -- the checklist row kinds + the incident's named regression test when launched to close an incident loop; the incident binding is validated through the contract-pinned loop-journal reader -- the incident must sit at the release stage); persisted .flauz/acceptance/acceptance-<id>.json (flauz.acceptance/v1), census-visible, swept + banked (taskId 'flauz-acceptance'); the gate vocabulary does NOT grow -- the eleven prove-items stay verbatim, the launch plane binds the gate by READING its verdict from the checklist artifacts, never by redefining it; the two-registry separation: acceptance records NEVER mint registry items, WORK-REGISTRY.md stays the control plane); flauz.acceptance.verify (the post-release-acceptance law: re-runs the named owning checks against the released state and banks the closing receipt -- pass or FAIL, both typed, both banked; a FAILED receipt is the typed failure record the incidents reopen law consumes -- a closed loop never hides a regression; the receipt's evidence label comes from the frozen ladder (local-real over real workspace state) and is never promoted by wording; a check the acceptance plane cannot itself evaluate is a TYPED DISCLOSURE row naming its owning surface (the honest-scope law), never a silent green; the evaluable core re-reads + re-derives the bound checklist binding, re-pins the product inventory and re-checks the durable census integrity; persisted .flauz/acceptance/receipt-<id>.json, census-visible, swept + banked).",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:flauz.acceptance.launch",
+		"onCommand:flauz.acceptance.verify"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "flauz.acceptance.launch",
+				"title": "Acceptance: Launch Release Acceptance (Bind a GREEN Fresh Checklist)",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.acceptance.verify",
+				"title": "Acceptance: Verify Post-Release (Bank the Closing Receipt)",
+				"category": "Flauz"
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"typecheck-tests": "tsc --noEmit -p tsconfig.test.json",
+		"test": "mocha --ui tdd test/*.test.ts"
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
+}

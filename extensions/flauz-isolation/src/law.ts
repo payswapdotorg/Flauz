@@ -210,6 +210,9 @@ export const LAW_SURFACES: readonly LawSurface[] = [
         // --- the incident/problem registry plane (A-PROD-006-W1; the station law-table
         //     growth: the closed-loop ledger + the per-incident loop records) ---
         { id: 'incidentsRecords', owner: 'flauz-incidents', classification: 'workspace-bound', files: ['.flauz/incidents/incidents.json'], dirs: ['.flauz/incidents'], recordPrefixes: ['loop-'], dirPrefixes: [] },
+        // --- the launch + post-release-acceptance plane (A-PROD-006-W2; the station
+        //     law-table growth: the acceptance records + receipts + the ledger row) ---
+        { id: 'acceptanceRecords', owner: 'flauz-acceptance', classification: 'workspace-bound', files: ['.flauz/acceptance/acceptance-flauz:acc:*.json', '.flauz/acceptance/receipt-flauz:rcp:*.json'], dirs: ['.flauz/acceptance'], recordPrefixes: ['acceptance-', 'receipt-'], dirPrefixes: [] },
 ];
 
 /**
@@ -221,6 +224,7 @@ export const LAW_SURFACES: readonly LawSurface[] = [
  */
 export const KNOWN_EXTENSIONS: readonly string[] = [
         'flauz-agent',
+        'flauz-acceptance',
         'flauz-backup',
         'flauz-browser',
         'flauz-diagnostics',
