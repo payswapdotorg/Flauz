@@ -96,6 +96,7 @@ import { startFakeProvider } from './fake-provider.mjs';
 import { consumeAskStream, DEFAULT_LIVE_MAX_TOKENS, LIVE_MAX_TOKENS_ENV, parseLiveMaxTokens } from './liveBudget.mjs';
 import { EXPLORE_EXERCISE } from './exercises/explore-repo.task.ts';
 import { PROVIDER_SWITCH_EXERCISE } from './exercises/provider-switch.task.ts';
+import { BROWSER_POLICY_EXERCISE } from './exercises/browser-policy.task.ts';
 
 // ---------------------------------------------------------------------------
 // Constants, environment, small utilities
@@ -661,7 +662,7 @@ async function main() {
         const outDir = nodePath.resolve(argMap.get('--out') ?? nodePath.join(root, '.flauz', 'dogfood-records'));
         await nodeFsPromises.mkdir(outDir, { recursive: true });
 
-        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE];
+        const exercises = [EXPLORE_EXERCISE, PROVIDER_SWITCH_EXERCISE, BROWSER_POLICY_EXERCISE];
         const only = argMap.get('--exercise');
         if (only !== undefined) {
                 const selected = exercises.filter(exercise => exercise.id === only);
