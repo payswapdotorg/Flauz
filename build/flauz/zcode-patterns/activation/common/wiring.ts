@@ -207,17 +207,31 @@ export const WIRING: WiringEntry[] = [
                         'build/flauz/zcode-patterns/hook-bus/common/registration.ts',
                         'build/flauz/zcode-patterns/hook-bus/common/dispatch.ts',
                         'build/flauz/zcode-patterns/hook-bus/common/effects.ts',
-                        'build/flauz/zcode-patterns/hook-bus/common/policy.ts'
+                        'build/flauz/zcode-patterns/hook-bus/common/policy.ts',
+                        /* station repair (wave-3): the CR-003 runtime module is a
+                         * contract-module-class .ts under the hook-bus subtree —
+                         * the walk-law cites it (the R28 orphan-law class). */
+                        'build/flauz/zcode-patterns/hook-bus/runtime/hookBus.ts'
                 ],
                 authority: 'AGENT_OS',
-                state: 'gap',
-                entryPoints: [],
-                stateSource: 'build/flauz/zcode-patterns/hook-bus/** - contract-only; the runtime has no live emission points yet',
-                projection: 'none yet - CR-003',
-                tests: [],
-                evidence: 'fixture',
-                gapOwner: 'CR-003',
-                gapNote: 'The registration/dispatch/effects/policy families have no live emission points in the runtime today. CR-003 owns wiring the bus into the agent core emission seams.'
+                state: 'wired',
+                entryPoints: [
+                        {
+                                path: 'build/flauz/zcode-patterns/hook-bus/runtime/hookBus.ts',
+                                exportName: 'bindHookBus',
+                                role: 'the live runtime over the real OrchestrationStore journal + A2ABus: bind/register/dispatch/receipts/cursors'
+                        }
+                ],
+                stateSource: 'build/flauz/zcode-patterns/hook-bus/runtime/hookBus.ts - the live runtime over the real OrchestrationStore journal + A2ABus (bind/register/dispatch/receipts/cursors; the CR-003 landing 44739d49df6)',
+                projection: 'the DispatchReport (translated HookEventRefs + contract-composed plans + receipts + the unmapped census) + the durable .flauz/hooks/ artifacts',
+                tests: [
+                        'build/flauz/zcode-patterns/hook-bus/runtime/hookBus.test.ts'
+                ],
+                evidence: 'local-real',
+                /* the deliberate flip per the R28 map-staleness routing: CR-003
+                 * (the gap owner) landed its runtime consumer — the entry point
+                 * is cited, the tests are local-real (real store/bus/fs +
+                 * injected clock, 54/54). */
         },
         {
                 capabilityId: 'ZC-004',
