@@ -454,3 +454,80 @@ Expose workspace, background-agent, workflow, approval, evidence, replay, Lab an
 ### ZC-010 — ZCode parity and quality gate
 
 Run documented comparisons for coding, exploration, background delegation, plan/execute, browser/computer use, memory, hooks, workflow monitoring, replay/recovery and capability discovery. Phase C is complete only when targeted tests, evidence labels, discovery/a11y checks and existing gates remain green.
+
+
+## Current frontier — Phase C-R runtime activation + domain-harness direction
+
+The original Phase C contract layer ZC-001..ZC-010 is complete. Phase C-R runtime activation is now the active TL-B runtime lane.
+
+### Phase C-R — Runtime activation
+
+Completed on current `main`:
+- CR-001 runtime activation spine;
+- CR-006 capability-exchange registry runtime;
+- CR-010/CR-011 CLI/headless and journey-battery shell;
+- CR-002 background-agent runtime;
+- CR-007 external capability-source adapter kit;
+- CR-010b CLI capability/approval runtime;
+- CR-001 activation-map repair and 36/36 verification.
+
+Next unless current `main` has already advanced:
+- CR-003 live Hook Bus;
+- CR-004 Plan/Run Observatory + replay;
+- CR-005 persistent memory runtime;
+- CR-008 capability verification / permission gate;
+- CR-009 bounded agent-native command execution;
+- remaining CR-010/011 runtime parity and journey legs;
+- CR-012 large-scale simulation/gap closure;
+- CR-013 final Phase-C-R acceptance.
+
+### Strategic product direction — Domain Harness OS
+
+Flauz must be able to transform into the domain-specific work harness selected by a user during onboarding.
+
+The model is:
+
+`industry selection -> harness instantiation -> domain ontology/roles/workflows/capabilities/policy/evidence/UI -> real execution -> observation -> Engineering Lab optimization -> increasingly specialized harness`.
+
+A harness is composable configuration over the universal Flauz core, not an industry-specific fork.
+
+Initial harness composition must be capable of representing:
+- industry;
+- company/work type;
+- one or more user roles;
+- primary workloads/task types;
+- domain ontology and terminology;
+- agent organizations / Agent Bodies;
+- workflows;
+- documents/artifacts;
+- capability packs;
+- model preferences;
+- approval/policy rules;
+- evidence requirements;
+- KPIs;
+- benchmark/simulation worlds;
+- UI/navigation projections.
+
+### Strategic product direction — Free Inference Fabric
+
+The Free plan promise is **unlimited Flauz usage**, not literally unlimited third-party model tokens.
+
+TL-B owns the inference-fabric architecture and adapters. TL-A owns production/security/release validation.
+
+Use the tactics demonstrated by `tashfeenahmed/freellmapi` as a reference/optional integration path:
+- provider catalog;
+- health scoring;
+- quota/cooldown tracking;
+- retry/backoff;
+- failover;
+- capability/context-window matching;
+- provenance;
+- transparent capacity/reset state.
+
+Preferred topology:
+
+`Flauz -> per-user inference fabric -> user-owned/direct provider accounts and permitted local/free providers`.
+
+Do not create a public Flauz gateway that pools other people's free-tier provider API keys. Verify each upstream license and each provider's current terms before enabling a source.
+
+FreeLLMAPI is replaceable infrastructure, not a Flauz authority. Model/provider authorization remains owned by Model Fabric; policy/approval remains authoritative; inference routing must not grant permissions.
