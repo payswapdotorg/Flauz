@@ -16,10 +16,10 @@
 		},
 		"component": {
 			"type": "application",
-			"bom-ref": "pkg:generic/flauz@0.1.0",
-			"name": "Flauz",
-			"version": "0.1.0",
-			"purl": "pkg:generic/flauz@0.1.0",
+			"bom-ref": "pkg:generic/flauz@0.0.0-fixture",
+			"name": "flauz-fixture-product",
+			"version": "0.0.0-fixture",
+			"purl": "pkg:generic/flauz@0.0.0-fixture",
 			"properties": [
 				{
 					"name": "flauz:component-kind",
@@ -130,7 +130,7 @@
 	],
 	"dependencies": [
 		{
-			"ref": "pkg:generic/flauz@0.1.0",
+			"ref": "pkg:generic/flauz@0.0.0-fixture",
 			"dependsOn": [
 				"pkg:generic/flauz/flauz-gamma@3.1.4",
 				"pkg:generic/flauz/flauz-omega@0.2.0",
