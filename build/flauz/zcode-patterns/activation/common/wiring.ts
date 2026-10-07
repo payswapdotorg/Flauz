@@ -259,17 +259,31 @@ export const WIRING: WiringEntry[] = [
                         'build/flauz/zcode-patterns/memory/common/scoping.ts',
                         'build/flauz/zcode-patterns/memory/common/enablement.ts',
                         'build/flauz/zcode-patterns/memory/common/entry.ts',
-                        'build/flauz/zcode-patterns/memory/common/lifecycle.ts'
+                        'build/flauz/zcode-patterns/memory/common/lifecycle.ts',
+                        /* station flip (wave-4): the CR-005 runtime module is a
+                         * contract-module-class .ts under the memory subtree —
+                         * the walk-law cites it (the ZC-003 orphan-law precedent). */
+                        'build/flauz/zcode-patterns/memory/runtime/memoryRuntime.ts'
                 ],
                 authority: 'MEMORY',
-                state: 'gap',
-                entryPoints: [],
-                stateSource: 'extensions/flauz-memory/src/memory.ts - the real store; the contracts are not consumed by it yet',
-                projection: 'none yet - CR-005',
-                tests: [],
-                evidence: 'fixture',
-                gapOwner: 'CR-005',
-                gapNote: 'The real store lives at extensions/flauz-memory/src/memory.ts; the scoping/enablement/entry/lifecycle families are not yet consumed or enforced by it. CR-005 owns the store-side activation.'
+                state: 'wired',
+                entryPoints: [
+                        {
+                                path: 'build/flauz/zcode-patterns/memory/runtime/memoryRuntime.ts',
+                                exportName: 'MemoryRuntime',
+                                role: 'the live runtime over the real tiered MemoryStore: the enablement gate, the disclosed scope-tier bridge, fail-closed admission, retention/export over the sanctioned lanes'
+                        }
+                ],
+                stateSource: 'build/flauz/zcode-patterns/memory/runtime/memoryRuntime.ts - the live runtime over the real tiered MemoryStore (extensions/flauz-memory/src/memory.ts; the enablement gate + the scope-tier bridge + fail-closed admission + retention/export; the CR-005 landing)',
+                projection: 'the enablement audit journal + the bridge-disclosed read models + the retention/export receipts over the store journals',
+                tests: [
+                        'build/flauz/zcode-patterns/memory/runtime/memoryRuntime.test.ts'
+                ],
+                evidence: 'local-real',
+                /* the deliberate flip per the R28 map-staleness routing: CR-005
+                 * (the gap owner) landed its runtime consumer — the entry point
+                 * is cited, the tests are local-real (real store/fs + injected
+                 * clock, 66/66). */
         },
         {
                 capabilityId: 'ZC-006',
