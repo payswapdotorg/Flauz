@@ -63,3 +63,12 @@ src/vs/base/common/lit-html/**
 src/vs/base/common/signals-core/**
 **/test/fixtures/compat-l3/**
 **/test/fixtures/browser-policy-driver/**
+# The Flauz estate (the station-authored runtime trees: build/flauz/**,
+# extensions/flauz-*/**) has its own code style — the 2026-10-07 station
+# audit: eslint's findings there (2,922) are style-class throughout
+# (unexternalized double-quotes, headers, curly, eqeqeq, duplicate-imports);
+# the estate's semantic quality is enforced by the station's own suites
+# (the CR-wave batteries). The existence law stays binding regardless
+# (.eslint-allowed-javascript-files / checkNoNewJavaScriptFiles).
+**/build/flauz/**
+**/extensions/flauz-*/**
