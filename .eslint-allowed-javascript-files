@@ -249,3 +249,18 @@ build/flauz/discovery/audit.mjs
 # Flauz TL4 P2-002 acceptance journey gate (zero-dep .mjs gate runner, the
 # session-battery/agentos-battery CLI precedent; build/flauz/README.md conventions)
 build/flauz/journey/p2-002-journey.mjs
+
+# Flauz Phase C-R station runtime modules (the zero-dep .mjs doctrine, the
+# build/flauz/README.md conventions) — the 2026-10-07 station audit's finding:
+# these landed across the CR waves (registry/bgAgent/adapterKit/dogfood) without
+# allowlist entries, failing checkNoNewJavaScriptFiles and keeping the Flauz
+# Hygiene gate red at the fast-fail step since the estate began landing. The
+# existence law stays binding: every estate .mjs must appear here (station census).
+build/flauz/capabilities/background-agent/runtime/bgAgent.mjs
+build/flauz/capabilities/registry/registry.mjs
+build/flauz/capabilities/registry/state.mjs
+build/flauz/capabilities/sources/adapters/adapterKit.mjs
+build/flauz/dogfood/dogfood-driver.mjs
+build/flauz/dogfood/fake-provider.mjs
+build/flauz/dogfood/frictionlog.mjs
+build/flauz/dogfood/liveBudget.mjs
