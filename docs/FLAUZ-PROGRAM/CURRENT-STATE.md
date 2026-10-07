@@ -97,3 +97,23 @@ When this file conflicts with `main`, `ARCHITECTURE-LOCK.md`, `MASTER-ROADMAP.md
 ## TL-B Phase C status — ZCode-derived product patterns + Capability Exchange
 
 LAB-001..011 are complete. TL-B is authorized to begin Phase C independently of TL-A. The protected productionization surfaces remain TL-A-owned; Phase C uses additive build/ext surfaces, stable contracts and station-owned generated artifacts only.
+
+
+## Fresh-chat continuation state — 2026-10-07
+
+The active reconstruction documents are now:
+- `docs/FLAUZ-PROGRAM/FRESH-CHAT-TL-A-HANDOFF.md`
+- `docs/FLAUZ-PROGRAM/FRESH-CHAT-TL-B-HANDOFF.md`
+
+Verified frontier at this handoff:
+- TL-A: A-PROD-006 sustained production-operation closure remains the main production frontier.
+- TL-B: Phase C-R waves 1-2 are landed; the next runtime frontier is CR-003/004/005/008/009 plus remaining CR-010/011/012/013 unless current main has advanced.
+- TL-B strategic next layer: Domain Harness OS plus Free Inference Fabric.
+- There are no active assumptions that a chat transcript is required for reconstruction.
+
+Free-tier decision:
+- Free plan = unlimited Flauz usage, not unlimited provider tokens.
+- Prefer per-user/direct/local inference capacity.
+- Do not pool third-party free-tier API keys into a shared public Flauz gateway.
+- FreeLLMAPI is a reference/optional adapter, not an authority or required dependency.
+
