@@ -73,7 +73,7 @@ export const unicodeFilter = Object.freeze<string[]>([
 	// The Flauz estate (the station-authored runtime trees) has its own code style
 	// — the 2026-10-07 station audit: the 'Flauz build + upstream hygiene' gate had
 	//   been red since run #168 (2026-09-30) because the estate is space-indented,
-	//   Flauz-headed, and §/─-bearing by its own conventions (build/flauz/README.md).
+	//   Flauz-headed, and non-ASCII-bearing by its own conventions (build/flauz/README.md).
 	//   Full upstream conformance is a deferred, disclosed work order — the style
 	//   streams scope the estate out the same way upstream scopes copilot out;
 	//   eslint (the semantic law) deliberately still covers the estate.
@@ -155,7 +155,7 @@ export const indentationFilter = Object.freeze<string[]>([
 	// The Flauz estate (the station-authored runtime trees) has its own code style
 	// — the 2026-10-07 station audit: the 'Flauz build + upstream hygiene' gate had
 	//   been red since run #168 (2026-09-30) because the estate is space-indented,
-	//   Flauz-headed, and §/─-bearing by its own conventions (build/flauz/README.md).
+	//   Flauz-headed, and non-ASCII-bearing by its own conventions (build/flauz/README.md).
 	//   Full upstream conformance is a deferred, disclosed work order — the style
 	//   streams scope the estate out the same way upstream scopes copilot out;
 	//   eslint (the semantic law) deliberately still covers the estate.
@@ -252,7 +252,7 @@ export const copyrightFilter = Object.freeze<string[]>([
 	// The Flauz estate (the station-authored runtime trees) has its own code style
 	// — the 2026-10-07 station audit: the 'Flauz build + upstream hygiene' gate had
 	//   been red since run #168 (2026-09-30) because the estate is space-indented,
-	//   Flauz-headed, and §/─-bearing by its own conventions (build/flauz/README.md).
+	//   Flauz-headed, and non-ASCII-bearing by its own conventions (build/flauz/README.md).
 	//   Full upstream conformance is a deferred, disclosed work order — the style
 	//   streams scope the estate out the same way upstream scopes copilot out;
 	//   eslint (the semantic law) deliberately still covers the estate.
@@ -285,7 +285,7 @@ export const tsFormattingFilter = Object.freeze<string[]>([
 	// The Flauz estate (the station-authored runtime trees) has its own code style
 	// — the 2026-10-07 station audit: the 'Flauz build + upstream hygiene' gate had
 	//   been red since run #168 (2026-09-30) because the estate is space-indented,
-	//   Flauz-headed, and §/─-bearing by its own conventions (build/flauz/README.md).
+	//   Flauz-headed, and non-ASCII-bearing by its own conventions (build/flauz/README.md).
 	//   Full upstream conformance is a deferred, disclosed work order — the style
 	//   streams scope the estate out the same way upstream scopes copilot out;
 	//   eslint (the semantic law) deliberately still covers the estate.
