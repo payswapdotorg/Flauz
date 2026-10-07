@@ -353,3 +353,45 @@ Capability Packs are versioned descriptions of agent-facing artifacts (CLI, skil
 Hooks may enrich context or request existing approval behavior but may not bypass policy or leases. Persistent agent memory is subordinate to Workspace OS and tenant policy. Plan mode, run observability and replay are projections over the canonical Flauz journal. Compound commands and local mirrors are allowed only as bounded optimizations that preserve provenance and side-effect visibility.
 
 Phase-C placement: `build/flauz/zcode-patterns/**`, `build/flauz/capabilities/**`, `extensions/flauz-capabilities/**`. No `src/vs/**` change without an explicit architecture decision.
+
+
+## 12. Free Inference Fabric and Domain-Harness Law
+
+### 12.1 Free-plan semantics
+
+The product may promise **unlimited Flauz usage** on the Free plan. It must not promise literally unlimited third-party model tokens.
+
+Provider capacity, quotas, model availability, rate limits and terms remain external constraints and must be disclosed.
+
+### 12.2 Per-user capacity law
+
+Preferred topology:
+`Flauz -> per-user inference fabric -> user-owned/direct provider accounts and permitted local/free providers`.
+
+Flauz must not operate a shared public gateway that pools third-party free-tier API keys unless the relevant provider terms explicitly authorize the arrangement.
+
+### 12.3 FreeLLMAPI boundary
+
+`tashfeenahmed/freellmapi` may be used as reference architecture, optional per-user/local sidecar or adapter source. It is not a Flauz execution authority, permission authority or required runtime dependency.
+
+Verify its current upstream license and each provider's current terms before enabling any live source.
+
+### 12.4 Inference routing law
+
+Routing may select permitted models/providers using capability, context window, health, quota/cooldown, latency, reliability, user policy and cost/plan rules.
+
+Routing must never grant permissions, bypass approval, bypass model authorization or silently substitute a materially different provider/model. The selected provider/model and fallback path must be provenance-bearing.
+
+### 12.5 Domain-harness law
+
+Industry specialization is a harness over the universal Flauz core, not a fork.
+
+A harness may compose ontology/terminology, user roles, Agent Bodies/organizations, workflows/task types, capability packs, model preferences, policies/approvals, evidence requirements, KPIs, benchmark/simulation worlds and UI/navigation projections.
+
+A user may hold multiple roles/specializations.
+
+The Engineering Lab may optimize a harness, but Agent OS remains execution authority; Workspace OS remains workspace/state authority; Model Fabric remains provider/model authority; capability registry remains capability authority; approval/policy remains permission authority.
+
+### 12.6 No-new-authority law
+
+Free inference and domain-harness layers must not create a second scheduler, workflow journal, permission broker, model router, resource registry or persistence authority.

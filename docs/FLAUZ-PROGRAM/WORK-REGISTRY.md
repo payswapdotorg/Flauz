@@ -1457,3 +1457,83 @@ Initial source classes: Printing Press/Printing Press Library; Composio; MCP/ski
 - **The worker lane (honest record):** chat `c14ceabe` (a fresh off-peak plain-dispatch session, turn 1 = the disciplined paste request with zero seams invented). The station's paste-protocol flow: PASTE BATCH 1/2 (the registry family bytes — registry.d.mts + state.mjs with the REFUSALS law strings + registry.mjs full bodies, then the pattern bytes + the design confirmations A/B/C + the delivery go-signal) — each batch digested with a turn; the emission (528K batch-store blocks) delivered after the go-signal. The emission turn's stream crashed mid-flight (a platform renderer crash under memory pressure); the reload re-subscribed and the server-side turn completed — the batch store carried the complete delivery.
 - **Station seam-completions (the honest list):** the stream-corruption fix (one dropped `>` in the `Promise<Record<string,unknown>[]>` signature — the platform's batch-store stream substituted `]`; single-character repair, the intent unambiguous), the fsp.mkdir void-typing seam (the FsPort interface), the approval.at tick arithmetic (the shared injected clock reads register@1001000 / decide@1002000 / approve@1003000 — the worker's 1004000 expectation miscounted one tick), the purity test's over-specified fs-read expectation (the summary reads through registry.inspect — the authority's maintained state, not the disk; freshness pinned by the state assertion). All four disclosed in the commit.
 - **Effect on the frontier:** the CR-006 registry now has its SECOND runtime consumer (after CR-007's adapters): the verification + permission gate. CR-012's simulation harness can drive the honest gate flow (the pending-gate branch it designed is now the LANDED-gate branch). Wave 3 remaining: CR-003 (B1, the hook-bus runtime — paste-protocol in flight), CR-012 (B3, the large-scale simulation — paste-protocol in flight).
+
+
+## 2026-10-07 continuation frontier — production, inference fabric and domain harness
+
+### TL-A — A-PROD-006
+Status: ACTIVE
+
+Production closure:
+- production deployment verification;
+- production smoke / critical journey battery;
+- operational observability;
+- incident/problem lifecycle;
+- rollback/failure drills;
+- upgrade/migration verification;
+- security/data-isolation operations;
+- support/diagnostics workflow;
+- post-release acceptance;
+- reliability review;
+- sustained production-operation closure.
+
+TL-A also owns production/security/release validation of any new inference-fabric path that reaches production, but not its architecture.
+
+### TL-B — Phase C-R runtime activation
+Status: ACTIVE
+
+Completed/landed:
+- CR-001;
+- CR-006;
+- CR-010/CR-011 shell;
+- CR-002;
+- CR-007;
+- CR-010b;
+- CR-001 activation-map repair (36/36);
+- current main advancement through CR-008.
+
+Inspect current main and the registry for the exact remaining CR frontier before implementation.
+
+### TL-B — INF: Free Inference Fabric
+Status: TODO / strategic next workstream
+
+Purpose: make the Free plan provide unlimited Flauz usage by aggregating permitted user-owned/direct/local inference capacity without promising unlimited provider tokens.
+
+Initial items:
+- INF-001 Free-plan semantics and capacity disclosure;
+- INF-002 provider catalog/capability matrix;
+- INF-003 per-user/direct provider adapters;
+- INF-004 optional per-user/local FreeLLMAPI-compatible adapter/sidecar;
+- INF-005 health/quota/cooldown/retry/failover routing;
+- INF-006 context-window/capability matching;
+- INF-007 credential isolation and provider-term eligibility;
+- INF-008 provenance/capacity/reset UI;
+- INF-009 live-provider acceptance and failure drills.
+
+Safety law: do not create a shared public Flauz gateway pooling third-party free-tier API keys. FreeLLMAPI is reference/optional adapter technology, not an authority or required dependency.
+
+### TL-B — DH: Domain Harness OS
+Status: TODO / strategic product direction
+
+Purpose: transform Flauz into the domain-specific work harness selected by the user during onboarding.
+
+Initial items:
+- DH-001 DomainHarness contract;
+- DH-002 industry/company/work-type onboarding;
+- DH-003 multi-role user composition;
+- DH-004 domain ontology/terminology layer;
+- DH-005 domain task/workflow templates;
+- DH-006 domain Agent Body/organization defaults;
+- DH-007 domain capability-pack population;
+- DH-008 policy/approval/evidence/KPI profiles;
+- DH-009 domain benchmark/simulation worlds;
+- DH-010 domain UI/navigation projections;
+- DH-011 onboarding -> harness proposal -> approval -> activation;
+- DH-012 Lab-driven harness optimization loop;
+- DH-013 cross-industry harness acceptance.
+
+The harness is configuration/composition over universal Flauz authorities, never an industry fork.
+
+### Fresh-chat bootstrap
+
+Use `FLAUZ-START-HERE.md`, `MASTER-ROADMAP.md`, `ARCHITECTURE-LOCK.md`, this registry, `CURRENT-STATE.md`, and the two fresh-chat handoffs. Current `main` remains authoritative over chat history.
