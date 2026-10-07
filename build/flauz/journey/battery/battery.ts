@@ -505,8 +505,15 @@ interface CliLeg {
 }
 
 const CLI_LEGS: readonly CliLeg[] = [
-        { stepId: 'j6-s1-cli', argv: [] },
-        { stepId: 'j6-s2-task', argv: ['workflow.phases'], commandPath: 'workflow.phases' },
+        /* The usage-surface legs (A-PROD-006-W4 audit find): the designed outcome of these
+     * legs IS the CLI's usage answer (exit 2, the parse layer's usage surface -- the
+     * battery's own suite pins those exit codes). They must carry expectExit so their
+     * verdict is green when the CLI answers exactly as designed; without it the green
+     * condition fell to response !== undefined, which the usage class never carries
+     * -- journey-6 has been red since the CR-010b authoring and nothing asserted the
+     * journey verdict until CR-012's gap-closure ledger asked for the battery leg. */
+    { stepId: 'j6-s1-cli', argv: [], expectExit: 2 },
+        { stepId: 'j6-s2-task', argv: ['workflow.phases'], commandPath: 'workflow.phases', expectExit: 2 },
         { stepId: 'j6-s3-agent', argv: ['--root', 'ROOT', 'background-agent.roster'], commandPath: 'background-agent.roster' },
         { stepId: 'j6-s4-approval', argv: ['--root', 'ROOT', 'approval.respond', 'ap-1', 'approved'], commandPath: 'approval.respond', expectExit: 3 },
         { stepId: 'j6-s5-evidence', argv: ['evidence.list', 'task-1'], commandPath: 'evidence.list', expectExit: 1 },

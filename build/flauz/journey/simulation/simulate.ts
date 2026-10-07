@@ -582,6 +582,15 @@ async function driveStoreLegs(input: {
         const store = binding.binding.store;
         const actor = binding.binding.vocabulary.actor;
         const runnerId = binding.binding.vocabulary.from;
+        /* The executor-side actor: the frozen STEP_TRANSITIONS law (orchestration.mjs)
+         * admits agent|tool|service for step-started/step-succeeded and graph-completed —
+         * the vocabulary actor (human, the operator-side submit/approve acts) is NOT
+         * step-legal. The simulation drives the executor side itself, so the steps and
+         * complete legs speak as 'service' (the harness-as-runner disclosure).
+         * (The A-PROD-006-W4 audit find: the landed code drove startStep/finishStep/
+         * completeGraph with the human actor -- the store correctly refused every
+         * step-started transition, so the store legs could never go green.) */
+        const stepActor = 'service';
         const receipts: SimLegReceipt[] = [];
         const graphIds: string[] = [];
         const graphSizes = splitSteps(storeSteps);
@@ -649,14 +658,14 @@ async function driveStoreLegs(input: {
                                         let started = 0;
                                         let succeeded = 0;
                                         for (const def of stepDefs) {
-                                                const start = await store.startStep({ graphId, stepId: def.stepId, runnerId, actor, origin: SIM_ORIGIN });
+                                                const start = await store.startStep({ graphId, stepId: def.stepId, runnerId, actor: stepActor, origin: SIM_ORIGIN });
                                                 started += 1;
                                                 await store.finishStep({
                                                         graphId,
                                                         stepId: def.stepId,
                                                         attempt: start.attempt,
                                                         outcome: 'succeeded',
-                                                        actor,
+                                                        actor: stepActor,
                                                         origin: SIM_ORIGIN,
                                                         output: 'sim-output:' + profile.id + ':' + runIndex + ':' + graphId + ':' + def.stepId,
                                                 });
@@ -676,7 +685,7 @@ async function driveStoreLegs(input: {
                                 disclosure: STORE_DISCLOSURE,
                                 stepper,
                                 drive: async () => {
-                                        await store.completeGraph({ graphId, actor, origin: SIM_ORIGIN });
+                                        await store.completeGraph({ graphId, actor: stepActor, origin: SIM_ORIGIN });
                                         const rows = store.rowsFor(graphId);
                                         return { detail: 'complete ' + graphId + ' (' + rows.length + ' rows)', facts: { graphId, rowsForGraph: rows.length } };
                                 },

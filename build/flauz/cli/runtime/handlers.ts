@@ -175,6 +175,16 @@ async function readGraphState(context: CliContext, request: CliRequest): Promise
         try {
                 state = store.binding.getGraphState(workflowId);
         } catch (error) {
+                /* The typed not-found law (A-PROD-006-W4 audit find): the store throws
+                 * OrchestrationError('unknown graph', code 'unknown-graph') for an absent
+                 * graph -- a PREDICTABLE typed condition, not a seam failure. The CLI's
+                 * exit-code contract classes not-found as 3 (the battery's j6-s7 leg and
+                 * the bg runtime's NOT_FOUND -> absent mapping establish the pattern);
+                 * classing it seam-unavailable (exit 2, no response) broke the typed
+                 * refusal discipline. Shape-based code check -- the structural law. */
+                if (error instanceof Error && (error as { code?: unknown }).code === 'unknown-graph') {
+                        return absent(request);
+                }
                 return edgeFailure('seam-unavailable', 'getGraphState failed: ' + describeError(error));
         }
         if (state === undefined || state === null) {
