@@ -1,7 +1,7 @@
 {
 	"nameShort": "Flauz",
 	"nameLong": "Flauz",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"applicationName": "flauz",
 	"dataFolderName": ".flauz",
 	"sharedDataFolderName": ".flauz-shared",
