@@ -37,6 +37,23 @@ what it must refuse, and how the records compose.
   injected clock delta), typed `DeleteReceipt` deletion evidence
   (`deleteEntry`), and the `ExportBundle` (level-enabled gated,
   integrity-pinned by a bundle digest).
+- `runtime/memoryRuntime.ts` — the live runtime binding the frozen
+  contracts onto the REAL tiered store
+  (`extensions/flauz-memory/src/memory.ts`, bound through
+  `MemoryStoreOptions` with an injected clock + fs port): the DEFAULT-OFF
+  enablement gate with the durable audit-trail journal + fold re-derivation
+  at `<root>/.flauz/memory-runtime/enablement/changes.jsonl`, the disclosed
+  scope-tier bridge (user→session / project→task / workspace→project, every
+  bridged write/read naming its `MemoryScopeAddress` + tier + table row),
+  fail-closed secret-exclusion admission onto the store's no-fabrication
+  `record()`, lattice-gated reads (`resolveScope` + `mayRead`), the
+  revision-append chain landing as the store's own journal appends, TTL
+  retention verdicts + expire-receipts over real records executed through
+  the store's sanctioned lanes (pin/compact) with the honest-gap disclosure,
+  level-enabled export bundles with the digest round-trip, the typed
+  HONEST-GAP refusal for the contract's delete surface, and the dispose law
+  (its mocha tdd suite lives beside it at
+  `runtime/memoryRuntime.test.ts`).
 
 Tests live in `test/common/*.test.ts` (mocha tdd, mirroring the
 labContracts test style).
