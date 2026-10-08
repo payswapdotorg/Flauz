@@ -1,9 +1,14 @@
 name: Code OSS (node_modules)
 
 on:
-  push:
-    branches:
-      - main
+  # FLAUZ FORK NOTE (2026-10-08, TL-A station — see pr.yml): the 1ES.Pool
+  # compile/linux/windows cache-warmers queue forever on this fork and the
+  # macOS leg (macos-26-xlarge) fails at runner assignment on every push
+  # to main. The fork's own CI restores node_modules via actions/cache on
+  # GitHub-hosted runners and never consumes this pipeline's artifacts.
+  # Manual-dispatch only; re-enable per-job if 1ES-class runners are ever
+  # provisioned.
+  workflow_dispatch:
 
 permissions: {}
 

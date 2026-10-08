@@ -1,10 +1,17 @@
 name: Code OSS
 
 on:
-  pull_request:
-    branches:
-      - main
-      - 'release/*'
+  # FLAUZ FORK NOTE (2026-10-08, TL-A station — the long-standing "macOS
+  # matrix red" root-caused): the upstream CI matrix (1ES.Pool self-hosted
+  # pools, macos-26-xlarge, vscode-large-runners) cannot start on
+  # GitHub-hosted runners — those jobs queue forever or fail at runner
+  # assignment (the 7-second zero-step macOS failures seen at every head
+  # since the first release). The fork's CI is the flauz-* suite
+  # (hygiene/security/compat/acceptance/agentos, ubuntu-latest, green).
+  # This workflow stays in-tree verbatim otherwise for upstream sync;
+  # manual-dispatch only in the fork, per-job re-enable if 1ES-class
+  # runners are ever provisioned.
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
