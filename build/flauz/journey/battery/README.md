@@ -168,7 +168,7 @@ D10 Verification battery not executed in the text-only lane — commands + expec
 - Never promoted anywhere; the map stays the only wired/gap authority.
 
 ## THE LEDGER SUMMARY (the map's current shape; pinned by tests)
-10 WiringMap entries — 4 closed (the ZC-003/ZC-004/ZC-005 station flips + the ZC-008 wave-6 flip), 4 exercised-still-gap, 2 unexercised-still-gap:
+10 WiringMap entries — 5 closed (the ZC-003/ZC-004/ZC-005 station flips + the ZC-008 wave-6 flip + the ZC-009 CR-013 terminal-walk flip), 3 exercised-still-gap, 2 unexercised-still-gap:
   ZC-001 (CR-002) exercised — store legs + battery driver baseline (AGENT_OS orchStore stateSource)
   ZC-002 (CR-002) exercised — store + roster legs via the CR-002 runtime binding
   ZC-003 (CR-003) closed — the hook-bus runtime landed (54/54 local-real); the map state is wired
@@ -180,9 +180,13 @@ D10 Verification battery not executed in the text-only lane — commands + expec
         registry + the real CR-008 gate + the real approval lane); the map state is wired
         (the wave-routing disclosure: the entry's stale gapOwner 'CR-008' predates the wave
         replanning — the CR-009 wave landed the runtime consumer)
-  ZC-009 (CR-009) exercised — CLI legs + battery j6 baseline (the map-vs-runtime delta the ledger exists to expose)
+  ZC-009 (CR-013 flip) closed — the CLI runtime landed as its own consumer of the
+        grammar/wire/exitcodes contracts (the CLI bin VALUE-imports them; 60/60 local-real);
+        the parity family's consumer is the journey battery — the parity view's designed
+        surface (the terminal-walk flip: the stale 'service-side' gapNote predates the
+        CLI's own landing)
   ZC-010 (CR-010) unexercised — parity contracts untouched
-Owners: CR-002 ×2; CR-006/007/009/010 ×1 each. Lab legs map to no entry (no LAB
+Owners: CR-002 ×2; CR-006/007/010 ×1 each. Lab legs map to no entry (no LAB
 authority in the map) — recorded, never dropped.
 
 ## SCALE
