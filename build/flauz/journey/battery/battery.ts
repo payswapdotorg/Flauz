@@ -62,6 +62,7 @@ import {
 } from '../../cli/runtime/context.ts';
 import { runCli } from '../../cli/bin/flauz.ts';
 import { createRegistry } from '../../capabilities/registry/registry.mjs';
+import { ObservatoryRuntime } from '../../zcode-patterns/observatory/runtime/observatory.ts';
 
 export const BATTERY_VERSION = '1.0.0';
 
@@ -175,7 +176,12 @@ export const JOURNEYS: readonly BatteryJourney[] = [
                         runnable('j5-s1-long-task', 'a long task runs (the journal is live at the root)', 'desktop', 'local-real'),
                         runnable('j5-s2-interruption', 'the session is interrupted (the store is disposed without completing)', 'desktop', 'local-real'),
                         runnable('j5-s3-restart', 'the runtime restarts (the journal is loaded again from the same root)', 'desktop', 'local-real'),
-                        pending('j5-s4-replay', 'the interrupted run is cold-replayed', 'desktop', 'CR-004'),
+                        /* CR-004 (wave-5): the cold-replay leg graduated -- the
+                         * interrupted run is cold-replayed through the CR-004
+                         * observatory runtime over the REAL execution journal
+                         * (the reload-drill pattern: run the drill once over a
+                         * battery-local root, map the leg onto its verdict). */
+                        runnable('j5-s4-replay', 'the interrupted run is cold-replayed', 'desktop', 'local-real'),
                         runnable('j5-s5-reconstruct', 'the state is reconstructed (the byte-equal reload compare)', 'desktop', 'local-real'),
                         runnable('j5-s6-resume', 'the work resumes from the reconstructed state', 'desktop', 'local-real'),
                         runnable('j5-s7-complete', 'the task completes (the drill final verdict)', 'desktop', 'local-real'),
@@ -251,6 +257,7 @@ export interface BatteryRunRecord {
         readonly driver?: DriverRunRecord;
         readonly journeys: readonly BatteryJourneyReceipt[];
         readonly reloadDrill: ReloadDrillResult;
+        readonly coldReplay: ColdReplayDrillRecord;
         readonly capability: CapabilityRunRecord;
         readonly parity: readonly { journey: string; verdict: string }[];
 }
@@ -521,6 +528,107 @@ const CLI_LEGS: readonly CliLeg[] = [
         { stepId: 'j6-s8-resume', argv: ['background-agent.resume', 'ag-1'], commandPath: 'background-agent.resume', expectExit: 3 },
 ];
 
+// ---------------------------------------------------------------------------
+// CR-004 (wave-5): the J5 cold-replay drill through the observatory runtime
+// (the interrupted run is cold-replayed over the REAL execution journal).
+// The journal is seeded through the store's own appendRow ONLY when absent,
+// so repeated drills over the same root stay byte-deterministic (the reload
+// drill's own law). Fixed deterministic clock + the clock-derived minter;
+// never the wall clock, never randomness.
+// ---------------------------------------------------------------------------
+
+export interface ColdReplayDrillRecord {
+        readonly journalRows: number;
+        readonly headRowId: string;
+        readonly journalDigest: string;
+        readonly admissionOk: boolean;
+        readonly restartJournalDigest: string;
+        readonly restartEqual: boolean;
+        readonly detail: string;
+}
+
+const COLD_REPLAY_DRILL_SCOPE = { workspaceId: 'flauz-battery-observatory', tenantId: 'flauz-battery' };
+
+/**
+ * THE J5 COLD-REPLAY DRILL (CR-004): the interrupted run's journal (its task
+ * resource acquired, then lost at the interruption) is cold-replayed
+ * through the CR-004 observatory runtime -- the cursor pinned to the
+ * journal's OWN head hash, the contract's replayDigest folded over the
+ * covered slice, and a FRESH runtime over the same root re-deriving the
+ * identical digest (the restart-determinism pin).
+ */
+async function runColdReplayDrill(root: string): Promise<ColdReplayDrillRecord> {
+        let clockMs = 1_000_000;
+        const clock = (): number => (clockMs += 1000);
+        const runtime = new ObservatoryRuntime({ root, clock });
+        if (runtime.journal.rowsAll().length === 0) {
+                const acquisitionId = runtime.journal.mintAcquisitionId();
+                runtime.journal.appendRow('resource-acquired', {
+                        graphId: 'G-901',
+                        stepId: 'S-01',
+                        attempt: 1,
+                        idempotencyKey: 'flauz-orch/G-901/S-01/run/1',
+                        acquisitionId,
+                        actor: 'agent',
+                        origin: 'flauz-battery-cold-replay-drill',
+                        payload: {
+                                purpose: 'the interrupted run drill acquisition',
+                                resource: { resourceClass: 'logical-resource', kind: 'task', id: 'flauz:task:drill-0001' },
+                        },
+                });
+                runtime.journal.appendRow('resource-lost', {
+                        graphId: 'G-901',
+                        stepId: 'S-01',
+                        attempt: 1,
+                        idempotencyKey: 'flauz-orch/G-901/S-01/run/1',
+                        acquisitionId,
+                        actor: 'agent',
+                        origin: 'flauz-battery-cold-replay-drill',
+                        payload: {
+                                detectedBy: 'manager-report',
+                                failureClass: 'executor-death',
+                                message: 'the interruption lost the acquired resource',
+                        },
+                });
+        }
+        const drill = runtime.coldReplayDrill(COLD_REPLAY_DRILL_SCOPE);
+        const restart = new ObservatoryRuntime({ root, clock });
+        const restartDrill = restart.coldReplayDrill(COLD_REPLAY_DRILL_SCOPE);
+        if (drill.kind !== 'drilled') {
+                return {
+                        journalRows: 0,
+                        headRowId: '',
+                        journalDigest: '',
+                        admissionOk: false,
+                        restartJournalDigest: '',
+                        restartEqual: false,
+                        detail: 'cold replay refused: ' + drill.violatedLaw + ' (' + drill.detail + ')',
+                };
+        }
+        const restartDigest = restartDrill.kind === 'drilled' ? restartDrill.result.replay.journalDigest : '';
+        return {
+                journalRows: drill.result.journalRows,
+                headRowId: drill.result.headRowId,
+                journalDigest: drill.result.replay.journalDigest,
+                admissionOk: true,
+                restartJournalDigest: restartDigest,
+                restartEqual: restartDigest === drill.result.replay.journalDigest,
+                detail: 'cold replay pinned at ' + drill.result.headRowId + ' (digest ' + drill.result.replay.journalDigest + ')',
+        };
+}
+
+function coldReplayReceipt(record: ColdReplayDrillRecord): BatteryStepReceipt {
+        const green = record.admissionOk && record.restartEqual && record.journalRows > 0 && record.journalDigest.length > 0;
+        return {
+                stepId: 'j5-s4-replay',
+                status: 'runnable-now',
+                evidenceLabel: 'local-real',
+                verdict: green ? 'green' : 'typed-failure',
+                detail: green ? record.detail : 'the cold-replay drill did not verify: ' + record.detail,
+                durationMs: 0,
+        };
+}
+
 export async function runBattery(options: RunBatteryOptions): Promise<BatteryRunRecord> {
         const root = resolve(options.root);
         const clock = options.clock ?? (() => 0);
@@ -532,6 +640,7 @@ export async function runBattery(options: RunBatteryOptions): Promise<BatteryRun
         const reloadRoot = join(root, 'reload');
         await mkdir(reloadRoot, { recursive: true });
         const drill = await runReloadDrill(reloadRoot);
+        const coldReplay = await runColdReplayDrill(join(root, 'observatory'));
         const capability = await runCapabilityPipeline(root, scope);
         const projections: RegisteredProjection[] = [];
         const receipts: BatteryJourneyReceipt[] = [];
@@ -579,6 +688,10 @@ export async function runBattery(options: RunBatteryOptions): Promise<BatteryRun
                                 }
                         }
                         if (journey.id === 'journey-5-recovery') {
+                                if (step.stepId === 'j5-s4-replay') {
+                                        executed.push(coldReplayReceipt(coldReplay));
+                                        continue;
+                                }
                                 executed.push(drillReceipt(step.stepId, drill, clock));
                                 continue;
                         }
@@ -634,6 +747,7 @@ export async function runBattery(options: RunBatteryOptions): Promise<BatteryRun
                 driver,
                 journeys: receipts,
                 reloadDrill: drill,
+                coldReplay,
                 capability,
                 parity,
         };

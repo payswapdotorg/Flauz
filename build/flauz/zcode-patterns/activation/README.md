@@ -83,9 +83,9 @@ the evidence; gap rows name the CR wave that owns the activation.
 |---|---|---|---|---|
 | ZC-001 common families | gap | AGENT_OS | fixture | CR-002 |
 | ZC-002 background agent | gap | AGENT_OS | fixture | CR-002 |
-| ZC-003 hook bus | gap | AGENT_OS | fixture | CR-003 |
-| ZC-004 observatory | gap | EXECUTION | fixture | CR-004 |
-| ZC-005 memory | gap | MEMORY | fixture | CR-005 |
+| ZC-003 hook bus | wired | AGENT_OS | local-real | — (the CR-003 landing) |
+| ZC-004 observatory | wired | EXECUTION | local-real | — (the CR-004 landing) |
+| ZC-005 memory | wired | MEMORY | local-real | — (the wave-4 landing) |
 | ZC-006 packs | gap | CAPABILITY_EXCHANGE | fixture | CR-006 |
 | ZC-007 sources | gap | CAPABILITY_EXCHANGE | fixture | CR-007 |
 | ZC-008 commands | gap | RESOURCES | fixture | CR-008 |
