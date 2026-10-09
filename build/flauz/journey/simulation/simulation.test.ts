@@ -575,7 +575,7 @@ suite('flauz simulation: the gap-closure ledger', () => {
                 assert.equal(JSON.stringify(WIRING), before);
         });
 
-        test('the deliberate ZC-003 + ZC-005 + ZC-004 + ZC-008 flips close four entries and the two untouched entries stay unexercised', async function () {
+        test('the deliberate ZC-003 + ZC-005 + ZC-004 + ZC-008 + ZC-009 flips close five entries and the two untouched entries stay unexercised', async function () {
                 this.timeout(120000);
                 const report = okReport(await tinyRun());
                 const verdicts = new Map(report.ledger.entries.map((entry) => [entry.capabilityId, entry.closureVerdict]));
@@ -600,15 +600,23 @@ suite('flauz simulation: the gap-closure ledger', () => {
                  * approval lane), its verdict is closed, and the untouched-gap
                  * group shrinks to two -- the pin updated to the map's own
                  * current truth. */
-                assert.equal(report.ledger.summary.closed, 4);
+                /* The wave-7 CR-013 terminal-walk flip repeats the class for
+                 * ZC-009: the CLI landed as its own runtime consumer of the
+                 * grammar/wire/exitcodes contracts (the CLI bin VALUE-imports
+                 * them; the 60-test pinning suite is local-real over the real
+                 * seams), its verdict is closed, and the exercised-still-gap
+                 * group shrinks to three -- the pin updated to the map's own
+                 * post-walk truth (the terminal census). */
+                assert.equal(report.ledger.summary.closed, 5);
                 assert.equal(verdicts.get('ZC-003'), 'closed', 'ZC-003');
                 assert.equal(verdicts.get('ZC-005'), 'closed', 'ZC-005');
                 assert.equal(verdicts.get('ZC-004'), 'closed', 'ZC-004');
                 assert.equal(verdicts.get('ZC-008'), 'closed', 'ZC-008');
+                assert.equal(verdicts.get('ZC-009'), 'closed', 'ZC-009');
                 for (const id of ['ZC-007', 'ZC-010']) {
                         assert.equal(verdicts.get(id), 'unexercised-still-gap', id);
                 }
-                for (const id of ['ZC-001', 'ZC-002', 'ZC-006', 'ZC-009']) {
+                for (const id of ['ZC-001', 'ZC-002', 'ZC-006']) {
                         assert.equal(verdicts.get(id), 'exercised-still-gap', id);
                 }
         });
@@ -629,6 +637,10 @@ suite('flauz simulation: the gap-closure ledger', () => {
                  * entry carries no legs (the frozen LEG_SURFACES mapping has no
                  * commands-facade lane; its verdict derives from the map's wired
                  * state, never from exercise). */
+                /* The CR-013 terminal-walk flip disclosure: ZC-009 is now wired
+                 * (closed) and STILL carries its cli legs -- exercise is evidence
+                 * of surface contact, never a promotion, so the legs stay named
+                 * here exactly as the verdict derives from the map's state. */
                 assert.ok(kindsOf('ZC-009').includes('cli:local-real'));
                 assert.ok(kindsOf('ZC-001').includes('store:local-real'));
                 assert.ok(kindsOf('ZC-001').includes('battery:simulated'));
@@ -763,11 +775,13 @@ suite('flauz simulation: the gap-closure ledger', () => {
                 const summary = report.ledger.summary;
                 assert.equal(summary.total, 10);
                 assert.equal(summary.closed + summary.exercisedStillGap + summary.unexercisedStillGap, summary.total);
-                /* Post-flip: ZC-003 + ZC-005 + ZC-004 + ZC-008 closed, so none counts
+                /* Post-flip: ZC-003 + ZC-005 + ZC-004 + ZC-008 + ZC-009 closed, so none counts
                  * as a gap owner (a closed entry is owned by its landed runtime, not
-                 * a pending CR); CR-008 retires from the byGapOwner census with the
-                 * CR-009 wave-5 flip. */
-                assert.deepEqual(summary.byGapOwner, { 'CR-002': 2, 'CR-006': 1, 'CR-007': 1, 'CR-009': 1, 'CR-010': 1 });
+                 * a pending CR); CR-008 retired from the byGapOwner census with the
+                 * CR-009 wave-5 flip, and CR-009 retires with the CR-013 wave-7
+                 * terminal-walk flip (ZC-009 is wired; it stays in
+                 * exercisedCapabilityIds because exercise never promotes). */
+                assert.deepEqual(summary.byGapOwner, { 'CR-002': 2, 'CR-006': 1, 'CR-007': 1, 'CR-010': 1 });
                 assert.deepEqual(summary.exercisedCapabilityIds, ['ZC-001', 'ZC-002', 'ZC-006', 'ZC-009']);
         });
 });

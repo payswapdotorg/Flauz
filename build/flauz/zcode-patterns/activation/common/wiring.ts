@@ -177,7 +177,7 @@ export const WIRING: WiringEntry[] = [
                 ],
                 evidence: 'fixture',
                 gapOwner: 'CR-002',
-                gapNote: 'the six projection modules exist and their ZC-001 suite pins them against the authorities (fixture evidence), but no runtime module imports them; activation lands with the CR-002/CR-004/CR-005 runtimes that consume these projections'
+                gapNote: 'Terminal CR-013 walk verdict: the runtimes routed as these projections\' consumers all landed binding their own authorities DIRECTLY and none imports any of the six modules -- the CR-002 background-agent runtime (bgAgent.mjs over the real OrchestrationStore + A2ABus), the CR-004 observatory (over the real TaskService + ExecJournalStore), the CR-005 memory runtime (over the real tiered MemoryStore); the projection family remains test-pinned only (zcode-patterns/test/common/*.test.ts, fixture evidence). This is the map-vs-runtime delta the gap ledger exists to expose -- recorded by CR-013 as the terminal state.'
         },
         {
                 capabilityId: 'ZC-002',
@@ -198,7 +198,7 @@ export const WIRING: WiringEntry[] = [
                 tests: [],
                 evidence: 'fixture',
                 gapOwner: 'CR-002',
-                gapNote: 'The launch/inspect/message/control/outcome/registryView families are contract-only today: no extensions/flauz-agent runtime module consumes or enforces them. CR-002 owns activating them against the agent core seams (service.mjs, runtime.mjs, orchMediator.mjs).'
+                gapNote: 'Terminal CR-013 walk verdict: the CR-002 runtime landed self-contained -- capabilities/background-agent/runtime/bgAgent.mjs binds the real OrchestrationStore + A2ABus directly through validated non-literal dynamic imports and imports NONE of the six launch/inspect/message/control/outcome/registryView families; they remain test-pinned only (fixture evidence). This is the map-vs-runtime delta the gap ledger exists to expose -- recorded by CR-013 as the terminal state.'
         },
         {
                 capabilityId: 'ZC-003',
@@ -315,7 +315,7 @@ export const WIRING: WiringEntry[] = [
                 tests: [],
                 evidence: 'fixture',
                 gapOwner: 'CR-006',
-                gapNote: 'The pack/verification/catalog families are contract-only today; no exchange runtime consumes them. CR-006 owns the activation.'
+                gapNote: 'Terminal CR-013 walk verdict: the exchange runtimes landed binding the authorities DIRECTLY, not through this family -- the CR-006 registry runtime (registry.mjs over its own frozen state.mjs tables) and the CR-008 gate (gate.ts imports only registry.mjs; its packs references are transcribed comments, never imports); the pack/verification/catalog families remain test-pinned only (fixture evidence). This is the map-vs-runtime delta the gap ledger exists to expose -- recorded by CR-013 as the terminal state.'
         },
         {
                 capabilityId: 'ZC-007',
@@ -342,7 +342,7 @@ export const WIRING: WiringEntry[] = [
                 tests: [],
                 evidence: 'fixture',
                 gapOwner: 'CR-007',
-                gapNote: 'The source/adapter/import families are contract-only today; no exchange runtime consumes them. CR-007 owns the activation.'
+                gapNote: 'Terminal CR-013 walk verdict: the CR-007 adapter kit (sources/adapters/sources/*.ts -- the four deterministic fixture adapters + the kit surface) landed binding the source seams directly and is itself consumed only by its own tests; the source/adapter/import families remain test-pinned only (fixture evidence) with zero non-test consumers. This is the map-vs-runtime delta the gap ledger exists to expose -- recorded by CR-013 as the terminal state.'
         },
         {
                 capabilityId: 'ZC-008',
@@ -390,14 +390,40 @@ export const WIRING: WiringEntry[] = [
                         'build/flauz/zcode-patterns/cli/common/parity.ts'
                 ],
                 authority: 'AGENT_OS',
-                state: 'gap',
-                entryPoints: [],
-                stateSource: 'build/flauz/zcode-patterns/cli/** - contract-only',
-                projection: 'none yet - CR-009',
-                tests: [],
-                evidence: 'fixture',
-                gapOwner: 'CR-009',
-                gapNote: 'The CLI families are a client of the service journeys; no service module consumes or enforces them yet. CR-009 owns the service-side activation.'
+                state: 'wired',
+                entryPoints: [
+                        {
+                                path: 'build/flauz/cli/bin/flauz.ts',
+                                exportName: 'runCli',
+                                role: 'the live CLI runtime entry: the grammar-driven parse layer, the typed wire builder, the exitcodes reconciliation, and the deterministic renders (json/table/digest), routing every command through the real service-context port (cli/runtime/context.ts: the real registry read surface + the real OrchestrationStore/A2ABus seams) with the CR-009 observatory handlers over the real ExecJournalStore'
+                        }
+                ],
+                stateSource: 'build/flauz/cli/bin/flauz.ts - the live CLI runtime (runCli): the bin entry VALUE-imports the frozen grammar/wire/exitcodes contracts; cli/runtime/handlers.ts additionally TYPE-imports wire.ts; cli/runtime/context.ts TYPE-imports exitcodes.ts (HeadlessMode); the parity family is consumed by the journey battery harness (journey/battery/battery.ts: CLI_COMMAND_GRAMMAR + projectParity) -- the parity view\'s designed surface; the CR-010/CR-010b CLI landing with the CR-009 observatory handlers riding the same runtime; the CR-013 terminal-walk flip',
+                projection: 'the rendered CLI responses (the canonical json wire shape + the deterministic table + the sha256 digest render) + the typed-refusal battery (16 wired + 13 typed refusals, no drift) + the parity view projection over run receipts',
+                tests: [
+                        'build/flauz/cli/cli.test.ts'
+                ],
+                evidence: 'local-real',
+                /* the deliberate flip per the wave-2 record's routed-forward
+                 * decision ("flipping it is an evidence-label decision the next
+                 * wave should make deliberately when it cites the runtimes as
+                 * entry points") -- CR-013 is that wave and the disk walk is
+                 * the evidence: the CLI bin (a non-test runtime module)
+                 * VALUE-imports grammar.ts + wire.ts + exitcodes.ts, the
+                 * pinning suite cli/cli.test.ts runs 60/60 local-real over
+                 * the real seams (real store/registry/journal/observatory +
+                 * injected clock), and the parity nuance is disclosed:
+                 * parity.ts's consumer is the journey battery harness -- the
+                 * parity view's designed surface (projectParity over run
+                 * receipts), not the bin. The stale gapNote's "service-side"
+                 * phrasing predates the CLI's own landing (CR-010/CR-010b):
+                 * the wave replanning superseded the service-side activation
+                 * it named -- the CLI landed as its own runtime consumer of
+                 * these contracts, exactly as the ZC-008 flip disclosed its
+                 * own stale-owner routing. The runtime module itself lives
+                 * under build/flauz/cli (outside the map's cited subtree
+                 * zcode-patterns/cli), so the orphan law does not cite it in
+                 * contractModules -- it is cited here and in entryPoints. */
         },
         {
                 capabilityId: 'ZC-010',
@@ -416,6 +442,6 @@ export const WIRING: WiringEntry[] = [
                 tests: [],
                 evidence: 'fixture',
                 gapOwner: 'CR-010',
-                gapNote: 'The discovery/evidence/gate/matrix families are contract-only today. Judged against ACCEPTANCE/INTEGRITY with ACCEPTANCE holding gate ownership (see REPORT deviations). CR-010 owns the activation.'
+                gapNote: 'Terminal CR-013 walk verdict: zero non-test consumers of the discovery/evidence/gate/matrix families -- the runtime parity surface that landed is the CLI\'s own parity view (ZC-009\'s cli/common/parity.ts, projected by the CLI runtime and the journey battery), a different family; these four remain test-pinned only (fixture evidence). This is the map-vs-runtime delta the gap ledger exists to expose -- recorded by CR-013 as the terminal state.'
         }
 ];
