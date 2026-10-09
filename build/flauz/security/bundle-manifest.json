@@ -2,8 +2,8 @@
 	"$schema": "flauz.bundle-manifest/v1",
 	"manifestVersion": 1,
 	"status": "PINNED",
-	"baseCommit": "0c014a7522d345c1ccc8933fac2697376b7c0683",
-	"generatedAt": "2026-10-06T04:38:09.711Z",
+	"baseCommit": "fd8ce9dab20031a7d0720e19b3720951a0a583c2",
+	"generatedAt": "2026-10-09T18:38:33.900Z",
 	"generationCommand": "node build/flauz/scripts/security-runtime-gate.mjs --root . --generate",
 	"notes": "Pinned by --generate from a fresh double-bundle run (byte-identical passes). VERIFY mode re-bundles on every CI run and exits 1 on ANY drift (supply-chain tamper signal). Regeneration is PR-reviewed diff-by-diff; any PR that changes bundle bytes regenerates this manifest in the same PR.",
 	"bundles": {
@@ -46,7 +46,7 @@
 		"flauz-environments": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "fe7066ec0c3f267d76c7bc9e1f86950c61e6ba6cd03cdcdb04f7360d3866b047"
+				"dist/extension.js": "38e7be4b2e9a007ea3eb8027304a869e8a700166750f41abc6e6c5db9fb846fd"
 			}
 		},
 		"flauz-execution": {
