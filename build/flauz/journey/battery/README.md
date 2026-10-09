@@ -14,6 +14,10 @@ Sibling index: `../simulation/` -- CR-012, the large-scale cross-industry
 simulation + gap-closure ledger over the same real seams
 (`industries.ts` / `simulate.ts` / `gapClosure.ts` / `simulation.test.ts`).
 
+Sibling index: `../acceptance/` -- CR-013, the final Phase-C-R acceptance
+runner over the same wiring map + battery manifest
+(`acceptanceRunner.ts` / `acceptanceRunner.test.ts`).
+
 ## The journeys
 
 | id | steps | runnable | pending | labels |

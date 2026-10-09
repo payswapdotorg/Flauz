@@ -1,66 +1,63 @@
-CR-009 (B2, Phase C-R wave 5): THE COMPOUND COMMANDS — delivery manifest (final, v2)
-Pinned base: 0b0ec4321f759d18827c25dfd0182d8c410a5a2c (Flauz main)
-Branch (human-applied): flauz-tlb/cr009-compound-commands, one commit on top of the base
+CR-013 (B3, Phase C-R wave 6): THE FINAL PHASE-C-R ACCEPTANCE — delivery manifest
+Pinned base: 0db8bd52ef2e33b5d4ac2e68003b81dc9870950a (Flauz main, post CR-004 + CR-009 landings)
+Branch (human-applied): flauz-tlb/cr013-final-acceptance, one commit on top of the base
 
-FILES DELIVERED (additions only; zero modifications to landed files):
+FILES DELIVERED (additions under build/flauz/journey/acceptance/** + ONE README row):
 
-  build/flauz/cli/runtime/compounds.ts
-    The three compound capabilities (onboard / gate-flow / teardown) as
-    library surface over the REAL registry + REAL gate authorities.
-    Imports: registry.mjs (createRegistry + declared types),
-    gate.ts (createGate, GateError + declared types), context.ts
-    (deriveScope, realRegistryFsPort, registryRootFor). No other
-    imports. No clock, no randomness, no state literals, no refusal
-    vocabulary of its own. Unchanged through the v2 audit (re-verified
-    against the re-pasted authority bytes).
+  build/flauz/journey/acceptance/acceptanceRunner.ts
+    The pure buildAcceptanceReport(inputs) in the buildGapLedger image +
+    the thin emitAcceptanceReport/runAcceptance emission (DEFAULT-A,
+    station-approved): map census via coverage.ts's own resolvers with
+    wiringInvariant instrumentation; J-leg census from the confirmed
+    JOURNEYS manifest; exercise census through the disclosed frozen
+    BATTERY_LEG_SURFACES table (the gapClosure method); verdicts that
+    defer to the map; verbatim gapOwner/gapNote carry; station-injected
+    gate receipts echoed with the no-receipt-yet disclosure. Census
+    only — nothing executes. No clock, no randomness. Imports: wiring.ts,
+    coverage.ts, battery.ts, cli/runtime/context.ts (canonicalJson,
+    sha256Hex) — the family precedents' own paths.
 
-  build/flauz/cli/compound.test.ts   (v2, audit-corrected)
-    The mocha tdd suite: 41 tests over real node fs temp roots with
-    the injected fixed clock. Happy paths; typed intermediate-state
-    refusals (verbatim where pasted, differential against a LOADED
-    fresh authority instance everywhere else); the partial-failure
-    ledger disclosure; journal/gate-records byte accounting; the
-    cross-instance laws; the terminal-state laws (including the
-    approved-only disable refusal — disable is granted only from
-    enabled/available); gate-record survival after teardown; the torn
-    gate-records construction refusal; determinism by the battery's
-    own wipe-and-rerun idiom (same root; cross-root byte-equality is
-    NOT asserted — the entryId derivation was never pasted); and the
-    dual-tolerant Q11 partial-verification leg.
+  build/flauz/journey/acceptance/acceptanceRunner.test.ts
+    44 mocha tdd tests over six suites: the map census (verbatim-carry
+    pins, resolver cross-pins, invariant instrumentation with synthetic
+    lawbreakers), the leg census (the confirmed manifest arithmetic),
+    the exercise census + verdicts (deference proof, pending-exercises-
+    nothing), the suite inventory (echo / no-receipt-yet / unknown-
+    receipt disclosure), purity + determinism (live-array no-mutation,
+    double-run equality, byte-identical cross-root emission,
+    root-independent content, containment), the README row pin.
 
-  MANIFEST.txt (this file) — workspace root per the delivery clause.
-  REPORT.md — workspace root per the delivery clause. Carries the D8
-    arbitration verbatim, the station-final grammar/battery rulings,
-    the J4/J6 compound-relevance future-work citation, and the full
-    verbatim D-register (D1..D27).
+  build/flauz/journey/acceptance/tsconfig.json
+    Verbatim copy of the battery's scoped strict config (the CR-012
+    tsconfig precedent).
 
-STATION-FINAL RULINGS APPLIED:
-  - Grammar FINAL-NO stands (fail-closed; no frozen-table rows added).
-  - Battery J-leg upgrades OUT OF SCOPE: zero battery file changes;
-    the J4/J6 compound-relevance is cited in REPORT.md as future work
-    (the battery's own amendment path).
-  - The D8 supersession governs the compound family's mutations
-    (authorities' public operations only; typed pass-through; the
-    arbitration quoted verbatim in REPORT.md).
+  build/flauz/journey/battery/README.md
+    The ONE sibling-index row for ../acceptance/ (CR-013), mirrored in
+    the landed CR-012 sibling-index line's form and position — the ONLY
+    edit outside the new subtree. Delivered as a scoped insertion block
+    (the README's on-disk tail extent was never confirmed; D45).
 
-PLACEMENT:
-  - Scoped tsc: both delivered .ts files live under build/flauz/cli/**
-    and are swept by the scoped tsconfig's include **/*.ts.
-  - mocha: the station wires the compound suite invocation, per its
-    own instruction (explicit-file style; no runner edit).
+  MANIFEST.txt (this file) and REPORT.md — workspace root.
+
+PLACEMENT RULINGS APPLIED:
+  - Grammar/wire/exitcodes/battery/map/coverage: ZERO edits (the runner
+    is a measurement instrument over their published fields).
+  - The coverage walk's SUBTREES (wiring.test.ts bytes) do not span
+    build/flauz/journey/** — the additive acceptance files cannot be
+    walk orphans (QA7, resolved by bytes).
 
 APPLY (human, at a shell):
   git clone https://github.com/payswapdotorg/Flauz.git
-  git checkout 0b0ec4321f759d18827c25dfd0182d8c410a5a2c
-  git checkout -b flauz-tlb/cr009-compound-commands
-  # place the four files at the paths above, verbatim from this delivery
-  git add build/flauz/cli/runtime/compounds.ts build/flauz/cli/compound.test.ts MANIFEST.txt REPORT.md
-  git commit -m "CR-009: the compound capability commands (wave 5)"
+  git checkout 0db8bd52ef2e33b5d4ac2e68003b81dc9870950a
+  git checkout -b flauz-tlb/cr013-final-acceptance
+  # place the three acceptance files; apply the one README row per File 4
+  git add build/flauz/journey/acceptance/ build/flauz/journey/battery/README.md MANIFEST.txt REPORT.md
+  git commit -m "CR-013: the final Phase-C-R acceptance runner (wave 6)"
 
 STATION GATES (station-run; see REPORT.md section 9):
-  node_modules/.bin/tsc -p build/flauz/cli/tsconfig.json            # EXIT 0
-  node_modules/.bin/mocha --ui tdd build/flauz/cli/cli.test.ts      # baseline 56/56, untouched
-  node_modules/.bin/mocha --ui tdd build/flauz/cli/compound.test.ts # expect 41/41
-  # the journey battery: unchanged at the pinned surface (station-final)
-  # the determinism grep over the two delivered modules
-  git diff --stat                                                   # additions-only: 4 new files, 0 modified
+  node_modules/.bin/tsc -p build/flauz/journey/acceptance/tsconfig.json   # EXIT 0
+  node_modules/.bin/mocha --ui tdd build/flauz/journey/acceptance/acceptanceRunner.test.ts  # expect 44/44
+  node_modules/.bin/mocha --ui tdd build/flauz/journey/battery/battery.test.ts             # baseline 29/29, untouched
+  # the determinism grep over the delivered modules (no Date.now / Math.random / new Date()
+  # — the runner and suite read no clock of any kind)
+  git diff --stat   # additions-only: 5 new files + the one-line README row
