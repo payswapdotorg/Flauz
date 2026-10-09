@@ -28,6 +28,10 @@
 //                                   tripwire complements this log-side)
 //   driver.activation-triggered     the executeCommand above activated the
 //                                   built-in (isActive=true)
+//   driver.registry-ready           flauz.env.list answered within the
+//                                   readiness budget (the bootstrap-race
+//                                   cure's guard row: the registry booted
+//                                   before the registry-dependent rows)
 //   driver.resolve-malformed        a non-flauz authority -> AUTHORITY_MALFORMED
 //   driver.resolve-absent           an unregistered flauz-env authority ->
 //                                   ENVIRONMENT_ABSENT
@@ -53,6 +57,13 @@ const FLAUZ_ENV_ID = 'flauz.flauz-environments';
 const REPORT_SCHEMA = 'flauz.cenv-resolver-boot-driver/v0';
 const EXTENSION_WAIT_MS = 60000;
 const EXTENSION_POLL_MS = 500;
+// The registry-readiness budget (the C-ENV bootstrap-race cure): the
+// product gate now makes registry-dependent commands AWAIT the in-flight
+// bootstrap, so flauz.env.list answers as soon as the boot settles; this
+// poll bounds the wait honestly (a FAILED bootstrap keeps rejecting with
+// the inactive error and fails the row -- never a fake pass).
+const REGISTRY_WAIT_MS = 240000;
+const REGISTRY_POLL_MS = 500;
 
 const rows = [];
 const observed = {};
@@ -89,6 +100,25 @@ async function waitForFlauzExtension(vscode) {
 			return undefined;
 		}
 		await sleep(EXTENSION_POLL_MS);
+	}
+}
+
+async function waitForRegistry(vscode) {
+	const startedAt = Date.now();
+	for (;;) {
+		try {
+			await vscode.commands.executeCommand('flauz.env.list');
+			return { ok: true, waitedMs: Date.now() - startedAt };
+		} catch (err) {
+			const message = err !== undefined && err.message !== undefined ? String(err.message) : String(err);
+			if (!/registry inactive/.test(message)) {
+				return { ok: false, reason: 'flauz.env.list failed with a non-bootstrap error: ' + message.slice(0, 300) };
+			}
+			if (Date.now() - startedAt >= REGISTRY_WAIT_MS) {
+				return { ok: false, reason: 'flauz.env.list still rejects with the inactive-bootstrap error after ' + REGISTRY_WAIT_MS + 'ms: ' + message.slice(0, 200) };
+			}
+			await sleep(REGISTRY_POLL_MS);
+		}
 	}
 }
 
@@ -160,6 +190,29 @@ async function runDrill(vscode) {
 		row('driver.resolve-absent', false, 'no resolver surface to resolve through (the registration row failed)');
 		row('driver.trust-refused-unproven', false, 'no resolver surface to resolve through (the registration row failed)');
 		row('driver.trust-refused-untrusted', false, 'no resolver surface to resolve through (the registration row failed)');
+		return;
+	}
+
+	// driver.registry-ready: the workspace bootstrap races this drill's
+	// registry-dependent rows on a loaded CI runner (the C-ENV CI flake
+	// family, PRs #172/#176: commands fired between activation and the
+	// detached bootstrap's completion used to fail with 'registry
+	// inactive'). The product gate now makes those commands AWAIT the
+	// in-flight bootstrap; this row keeps the drill honest -- it waits for
+	// a live flauz.env.list within the readiness budget and records the
+	// observed wait, guarding the gate against regression.
+	const ready = await waitForRegistry(vscode);
+	row('driver.registry-ready', ready.ok, ready.ok
+		? 'flauz.env.list answered after ' + ready.waitedMs + 'ms (the workspace bootstrap completed; the registry-dependent rows follow)'
+		: 'the registry never became ready: ' + ready.reason);
+	if (!ready.ok) {
+		// Without a live registry the resolution rows would only echo the
+		// same failure; fail them loudly with the reason and write the report
+		// (never leave the evaluator waiting).
+		row('driver.resolve-malformed', false, 'no ready registry to resolve through (the registry-ready row failed)');
+		row('driver.resolve-absent', false, 'no ready registry to resolve through (the registry-ready row failed)');
+		row('driver.trust-refused-unproven', false, 'no ready registry to resolve through (the registry-ready row failed)');
+		row('driver.trust-refused-untrusted', false, 'no ready registry to resolve through (the registry-ready row failed)');
 		return;
 	}
 

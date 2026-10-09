@@ -61,6 +61,7 @@ import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { ENVIRONMENT_KINDS, type FileSystemPort } from './api.ts';
 import { EnvironmentRegistry } from './registry.ts';
+import { createBootGate, type BootGate } from './bootGate.ts';
 import { planSwitch } from './continuity.ts';
 import { registerEnvironmentsView, type EnvironmentsViewApi } from './views.ts';
 import {
@@ -192,6 +193,11 @@ const state: {
 	secrets: vscode.SecretStorage | undefined;
 	/** TL3-H1: the authority-resolver registration surface (set at activation). */
 	resolver: { readonly registered: boolean; readonly prefix?: string; readonly reason?: string } | undefined;
+	/** The activation bootstrap gate: registry-dependent callers racing the
+	 * detached workspace bootstrap AWAIT it instead of failing with the
+	 * misleading 'failed bootstrap' error (the C-ENV CI bootstrap-race root
+	 * cause, PRs #171/#172/#176). */
+	boot: BootGate;
 } = {
 	registry: undefined,
 	lifecycle: undefined,
@@ -203,6 +209,7 @@ const state: {
 	clock: () => Date.now(),
 	secrets: undefined,
 	resolver: undefined,
+	boot: createBootGate(),
 };
 
 function currentRegistry(): EnvironmentRegistry {
@@ -224,6 +231,18 @@ function currentContinuity(): ContinuityManager {
 		throw new Error('flauz.continuity: continuity inactive (no workspace folder or failed bootstrap)');
 	}
 	return state.continuity;
+}
+
+/**
+ * Awaits the in-flight workspace bootstrap (if any) so a registry-dependent
+ * command or authority resolution that races the async boot WAITS for it
+ * instead of failing with the misleading 'failed bootstrap' error (the
+ * C-ENV CI bootstrap-race root cause). Never fabricates readiness: after the
+ * wait each caller re-reads its own state and keeps the fail-closed behavior
+ * when nothing booted or the boot failed.
+ */
+async function awaitBoot(): Promise<void> {
+	await state.boot.settled();
 }
 
 /** Builds the registry + lifecycle manager pair for a workspace root. */
@@ -320,18 +339,21 @@ async function retryBootstrap(): Promise<void> {
 		state.error = undefined;
 		return;
 	}
-	try {
-		const fresh = await bootManagers(state.workspaceRoot);
-		state.registry = fresh.registry;
-		state.lifecycle = fresh.lifecycle;
-		state.continuity = fresh.continuity;
-		state.error = undefined;
-	} catch (err) {
-		state.registry = undefined;
-		state.lifecycle = undefined;
-		state.continuity = undefined;
-		state.error = err instanceof Error ? err.message : String(err);
-	}
+	const root = state.workspaceRoot;
+	await state.boot.run(async () => {
+		try {
+			const fresh = await bootManagers(root);
+			state.registry = fresh.registry;
+			state.lifecycle = fresh.lifecycle;
+			state.continuity = fresh.continuity;
+			state.error = undefined;
+		} catch (err) {
+			state.registry = undefined;
+			state.lifecycle = undefined;
+			state.continuity = undefined;
+			state.error = err instanceof Error ? err.message : String(err);
+		}
+	});
 }
 
 /** Refreshes the view after a mutation (or a state change). */
@@ -403,6 +425,7 @@ function preflightError(err: unknown): LifecycleCommandResult {
 
 /** Wraps one lifecycle op as a typed command result (never a raw throw). */
 async function runLifecycleCommand(command: string, op: 'create' | 'start' | 'stop' | 'attach' | 'detach' | 'snapshot' | 'destroy', arg: unknown): Promise<LifecycleCommandResult> {
+	await awaitBoot();
 	const parsed = parseLifecycleArg(command, arg);
 	if (!parsed.ok) {
 		return { ok: false, error: parsed.error };
@@ -468,6 +491,7 @@ function continuityPreflightError(err: unknown): ContinuityCommandResult {
 }
 
 async function runContinuityExport(arg: unknown): Promise<ContinuityCommandResult> {
+	await awaitBoot();
 	const record = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown; environmentId?: unknown; switchPlanRef?: unknown }) : {};
 	try {
 		const outcome = await currentContinuity().export({
@@ -489,6 +513,7 @@ async function runContinuityExport(arg: unknown): Promise<ContinuityCommandResul
 }
 
 async function runContinuityRestore(arg: unknown): Promise<ContinuityCommandResult> {
+	await awaitBoot();
 	const bundleId = typeof arg === 'string' && arg.length > 0 ? arg : (arg as { bundleId?: unknown } | undefined)?.bundleId;
 	const record = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown; targetEnvironmentId?: unknown; force?: unknown }) : {};
 	if (typeof bundleId !== 'string' || bundleId.length === 0) {
@@ -514,6 +539,7 @@ async function runContinuityRestore(arg: unknown): Promise<ContinuityCommandResu
 }
 
 async function runContinuityVerify(arg: unknown): Promise<ContinuityCommandResult> {
+	await awaitBoot();
 	const bundleId = typeof arg === 'string' && arg.length > 0 ? arg : (arg as { bundleId?: unknown } | undefined)?.bundleId;
 	const actor = typeof arg === 'object' && arg !== null ? (arg as { actor?: unknown }).actor : undefined;
 	if (typeof bundleId !== 'string' || bundleId.length === 0) {
@@ -534,6 +560,7 @@ async function runContinuityVerify(arg: unknown): Promise<ContinuityCommandResul
 }
 
 async function runContinuityStatus(): Promise<ContinuityCommandResult> {
+	await awaitBoot();
 	try {
 		const report: ContinuityStatusReport = await currentContinuity().status();
 		void vscode.window.showInformationMessage(`flauz-environments: ${report.bundles.length} continuity bundle(s), ${report.ops.length} recorded op(s)`);
@@ -555,7 +582,15 @@ async function runContinuityStatus(): Promise<ContinuityCommandResult> {
  */
 async function resolveEnvironment(authority: string, resolveAttempt: number): Promise<ResolverOutcome> {
 	if (state.registry === undefined || state.lifecycle === undefined) {
-		return { ok: false, failure: new ResolverFailure('ENVIRONMENT_ABSENT', `the environment registry is inactive (no workspace folder or failed bootstrap) — authority ${JSON.stringify(authority)} cannot resolve (fail-closed)`) };
+		// A remote window can resolve a flauz-env authority milliseconds
+		// after activation, while the detached bootstrap is still in flight:
+		// wait for it once (bounded by the boot itself -- local .flauz/ I/O)
+		// before the fail-closed return, so a booting registry is never
+		// reported as a missing one (the C-ENV bootstrap-race root cause).
+		await awaitBoot();
+		if (state.registry === undefined || state.lifecycle === undefined) {
+			return { ok: false, failure: new ResolverFailure('ENVIRONMENT_ABSENT', `the environment registry is inactive (no workspace folder or failed bootstrap) — authority ${JSON.stringify(authority)} cannot resolve (fail-closed)`) };
+		}
 	}
 	const cloudBaseUrl = vscode.workspace.getConfiguration('flauz.environments').get<string>('cloudApiBaseUrl', '');
 	const resolver = new FlauzEnvResolver({
@@ -655,7 +690,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		return;
 	}
 
-	void (async () => {
+	void state.boot.run(async () => {
 		try {
 			const managers = await bootManagers(workspaceRoot);
 			state.registry = managers.registry;
@@ -665,16 +700,18 @@ export function activate(context: vscode.ExtensionContext): void {
 			void vscode.window.showErrorMessage(`flauz-environments: failed to bootstrap .flauz state: ${err instanceof Error ? err.message : String(err)}`);
 		}
 		refreshView();
-	})();
+	});
 
 	const commands: [string, (arg?: unknown) => unknown][] = [
-		['flauz.env.list', () => {
+		['flauz.env.list', async () => {
+			await awaitBoot();
 			const list = currentRegistry().list();
 			const activeId = currentRegistry().activeId();
 			return list.map(descriptor => describeEnvironment({ id: descriptor.id, label: descriptor.label, kind: descriptor.kind, enabled: descriptor.enabled, active: descriptor.id === activeId }));
 		}],
 		['flauz.env.register', async (arg?: unknown) => {
 			// arg: EnvironmentRegistration (id/kind/label/connection/trust/capabilities[/enabled])
+			await awaitBoot();
 			const reg = currentRegistry();
 			const descriptor = await reg.register(arg as never);
 			refreshView();
@@ -686,6 +723,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			if (typeof id !== 'string') {
 				throw new Error('flauz.env.unregister: expected the environment id (string or { id })');
 			}
+			await awaitBoot();
 			await currentRegistry().unregister(id);
 			refreshView();
 			void vscode.window.showInformationMessage(`flauz-environments: unregistered ${id}`);
@@ -695,6 +733,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			if (typeof id !== 'string') {
 				throw new Error('flauz.env.activate: expected the environment id (string or { id })');
 			}
+			await awaitBoot();
 			const reg = currentRegistry();
 			const plan = await reg.activate(id);
 			const descriptor = reg.get(id)!;
@@ -703,14 +742,16 @@ export function activate(context: vscode.ExtensionContext): void {
 			return plan;
 		}],
 		['flauz.env.deactivate', async () => {
+			await awaitBoot();
 			await currentRegistry().deactivate();
 			refreshView();
 		}],
-		['flauz.env.showPlan', (arg?: unknown) => {
+		['flauz.env.showPlan', async (arg?: unknown) => {
 			const id = typeof arg === 'string' ? arg : (arg as { id?: string } | undefined)?.id;
 			if (typeof id !== 'string') {
 				throw new Error('flauz.env.showPlan: expected the environment id (string or { id })');
 			}
+			await awaitBoot();
 			return currentRegistry().planFor(id);
 		}],
 		['flauz.env.switch', async (arg?: unknown) => {
@@ -722,6 +763,7 @@ export function activate(context: vscode.ExtensionContext): void {
 			if (rawBundleId !== undefined && typeof rawBundleId !== 'string') {
 				throw new Error(`flauz.env.switch: continuityBundleId must be a continuity bundle id string (got ${JSON.stringify(rawBundleId)})`);
 			}
+			await awaitBoot();
 			const reg = currentRegistry();
 			const target = reg.get(id);
 			if (target === undefined) {
@@ -777,6 +819,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		['flauz.env.resolve', async (arg?: unknown) => {
 			// arg: '<envId>' | { id } | { authority } — resolves through the
 			// SAME pure core the workbench authority path drives.
+			await awaitBoot();
 			const rawAuthority = typeof arg === 'object' && arg !== null ? (arg as { authority?: unknown }).authority : undefined;
 			const rawId = typeof arg === 'string' && arg.length > 0 && !arg.includes('+')
 				? arg

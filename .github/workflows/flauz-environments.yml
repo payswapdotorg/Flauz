@@ -322,9 +322,14 @@ jobs:
           # (registration surface, typed resolution failures, the
           # both-directions trust gate). The process tree is killed ALWAYS.
           status=0
+          # 360s report budget (was 180s): the #171 boot-timeout flake mode --
+          # a loaded public runner once missed the whole 180s window before the
+          # test-driver extension even ran. The job's own timeout (60m) dwarfs
+          # this; the driver's internal budgets (60s extension wait + 240s
+          # registry readiness) fit inside with headroom.
           node build/flauz/scripts/cenv-resolver-boot-drill.mjs \
             --report "$WS/.flauz/resolver-drill/driver-report.json" \
-            --report-timeout 180000 \
+            --report-timeout 360000 \
             --log artifacts/cenv-resolver-boot.log \
             --log-dir "$UD/logs" \
             --json --out artifacts/cenv-resolver-drill-report.json || status=$?
