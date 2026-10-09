@@ -88,8 +88,8 @@ the evidence; gap rows name the CR wave that owns the activation.
 | ZC-005 memory | wired | MEMORY | local-real | — (the wave-4 landing) |
 | ZC-006 packs | gap | CAPABILITY_EXCHANGE | fixture | CR-006 |
 | ZC-007 sources | gap | CAPABILITY_EXCHANGE | fixture | CR-007 |
-| ZC-008 commands | gap | RESOURCES | fixture | CR-008 |
-| ZC-009 cli | gap | AGENT_OS | fixture | CR-009 |
+| ZC-008 commands | wired | RESOURCES | local-real | — (the CR-009 landing) |
+| ZC-009 cli | wired | AGENT_OS | local-real | — (the CR-013 terminal-walk flip) |
 | ZC-010 parity | gap | ACCEPTANCE | fixture | CR-010 |
 
 ## Reconciliation record (station)
