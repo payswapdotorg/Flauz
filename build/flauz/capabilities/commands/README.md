@@ -23,6 +23,18 @@ carried by every module and stamped on every persisted record.
   routing verdict through the existing authorities),
   `SideEffectDisclosure` (side effects are always visible),
   `FacadeReceipt` and `deriveFacadeReceiptsDigest` (deterministic).
+- `runtime/commandFacade.ts` - the CR-009 live runtime (local-real
+  evidence): `CommandFacadeRuntime` binds the REAL authorities - the
+  CR-006 registry (the read surface the mirrors serve + the availability
+  truth + the journal-position freshness anchor), the CR-008 gate (the
+  permission truth) and the approval lane (the CR-002 orchStore
+  approval-requested -> approval-decided transitions) - and routes every
+  request through the three frozen contract modules; the provenance-
+  bearing compound execution records, the safe local mirrors with their
+  typed invalidations, and the facade receipts carry
+  `COMMAND_FACADE_CONTRACTS_VERSION`. Pinning suite:
+  `runtime/commandFacade.test.ts` (real registry + real gate + the real
+  approval lane over temp roots, injected clock).
 - `test/common/*.test.ts` - mocha tdd suites: behavioral tests on
   synthetic `fixture.`-prefixed values (never authority values),
   cross-module agreement pins, and SEAM-PIN suites that activate when

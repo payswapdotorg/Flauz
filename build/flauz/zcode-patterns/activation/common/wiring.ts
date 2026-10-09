@@ -350,17 +350,35 @@ export const WIRING: WiringEntry[] = [
                 contractModules: [
                         'build/flauz/capabilities/commands/common/compound.ts',
                         'build/flauz/capabilities/commands/common/mirror.ts',
-                        'build/flauz/capabilities/commands/common/facade.ts'
+                        'build/flauz/capabilities/commands/common/facade.ts',
+                        /* station flip (wave-5): the CR-009 runtime module is a
+                         * contract-module-class .ts under the commands subtree —
+                         * the walk-law cites it (the ZC-003 orphan-law precedent,
+                         * exactly as the ZC-004 flip cited the observatory runtime). */
+                        'build/flauz/capabilities/commands/runtime/commandFacade.ts'
                 ],
                 authority: 'RESOURCES',
-                state: 'gap',
-                entryPoints: [],
-                stateSource: 'build/flauz/capabilities/commands/** - contract-only',
-                projection: 'none yet - CR-008',
-                tests: [],
-                evidence: 'fixture',
-                gapOwner: 'CR-008',
-                gapNote: 'The compound/mirror/facade families are contract-only today. Judged against AGENT_OS + RESOURCES with RESOURCES holding the single runtime ownership of tool/resource execution (see REPORT deviations). CR-008 owns the activation.'
+                state: 'wired',
+                entryPoints: [
+                        {
+                                path: 'build/flauz/capabilities/commands/runtime/commandFacade.ts',
+                                exportName: 'CommandFacadeRuntime',
+                                role: 'the live runtime over the real CR-006 registry + the real CR-008 gate + the real approval lane (the CR-002 orchStore pattern): the facade routing/admission/receipt layer with the safe local mirrors anchored on the registry journal position'
+                        }
+                ],
+                stateSource: 'build/flauz/capabilities/commands/runtime/commandFacade.ts - the live runtime over the real capability-exchange registry (registry.mjs: the read surface the mirrors serve + the availability truth + the journal-position freshness anchor, read through fresh instances per operation) + the real verification/permission gate (gate.ts: the permission truth, one instance per binding per the gate law 4.1) + the real approval lane (extensions/flauz-agent/core/orchStore.mjs: the CR-002 approval-requested -> approval-decided transitions with the frozen actor vocabulary); every table/guard/verdict rides the three frozen contract modules (compound/mirror/facade, namespace-imported with .ts specifiers); the CR-009 landing',
+                projection: 'the facade receipts (the contract routing verdicts + the deterministic deriveFacadeReceiptsDigest fold) + the provenance-bearing compound execution records (the step receipt trails with their SideEffectDisclosures + the approval-lane rows over the runtime\'s own graphs) + the local mirrors with their typed invalidateMirror receipts over the registry journal position',
+                tests: [
+                        'build/flauz/capabilities/commands/runtime/commandFacade.test.ts'
+                ],
+                evidence: 'local-real',
+                /* the deliberate flip per the R28 map-staleness routing: the entry's
+                 * stale gapOwner 'CR-008' predates the wave replanning — the CR-008
+                 * wave landed the gate (the permission truth this runtime derives),
+                 * and the CR-009 wave lands the runtime consumer. The entry point
+                 * is cited, the tests are local-real (real registry + real gate +
+                 * the real approval lane + injected clock, 38/38), exactly as the
+                 * ZC-003/ZC-004/ZC-005 flips disclosed their own routings. */
         },
         {
                 capabilityId: 'ZC-009',
