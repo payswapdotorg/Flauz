@@ -25,13 +25,13 @@ runner over the same wiring map + battery manifest
 | journey-1-coding | 8 | 8 | 0 | 8 simulated (driver: agent-delegation) |
 | journey-2-research | 8 | 7 | 1 (CR-005, memory) | 7 simulated (driver: tools-exploration) |
 | journey-3-multi-agent | 7 | 7 | 0 | 7 simulated (driver: agent-delegation) |
-| journey-4-capability | 9 | 0 | 9 (CR-006 x5, CR-007 x1, CR-008 x3) | -- |
+| journey-4-capability | 9 | 5 | 4 (CR-006 x2, CR-008 x2) | 5 local-real (the capability-discovery legs over the real registry) |
 | journey-5-recovery | 7 | 7 | 0 | 7 local-real (the reload drill + the CR-004 cold-replay drill) |
 | journey-6-cli | 8 | 8 | 0 | 8 local-real (the in-process CLI legs) |
 | journey-7-unsafe-capability | 5 | 0 | 5 (CR-008) | -- |
 
-Totals: 52 steps -- 36 runnable-now (22 simulated, 14 local-real),
-16 pending-wiring.
+Totals: 52 steps -- 42 runnable-now (22 simulated, 20 local-real),
+10 pending-wiring.
 
 ## The evidence-label law
 
