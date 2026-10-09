@@ -60,7 +60,7 @@ with no live-provider contract present).
 
 ## Tests
 
-	NODE_OPTIONS=--import tsx npx mocha --ui tdd build/flauz/journey/battery/battery.test.ts
+        NODE_OPTIONS=--import tsx npx mocha --ui tdd build/flauz/journey/battery/battery.test.ts
 CR-012 — THE LARGE-SCALE CROSS-INDUSTRY SIMULATION + GAP-CLOSURE LEDGER
 Branch: flauz-tlb/cr012-large-scale-simulation (one commit, no merges, no rebases)
 Base:   51a95088575e2afdeedd183ad208c42c151e9e2b (main, station rev-parse'd)
@@ -164,7 +164,7 @@ D10 Verification battery not executed in the text-only lane — commands + expec
 - Never promoted anywhere; the map stays the only wired/gap authority.
 
 ## THE LEDGER SUMMARY (the map's current shape; pinned by tests)
-10 WiringMap entries — 3 closed (the ZC-003/ZC-004/ZC-005 station flips), 4 exercised-still-gap, 3 unexercised-still-gap:
+10 WiringMap entries — 4 closed (the ZC-003/ZC-004/ZC-005 station flips + the ZC-008 wave-6 flip), 4 exercised-still-gap, 2 unexercised-still-gap:
   ZC-001 (CR-002) exercised — store legs + battery driver baseline (AGENT_OS orchStore stateSource)
   ZC-002 (CR-002) exercised — store + roster legs via the CR-002 runtime binding
   ZC-003 (CR-003) closed — the hook-bus runtime landed (54/54 local-real); the map state is wired
@@ -172,11 +172,13 @@ D10 Verification battery not executed in the text-only lane — commands + expec
   ZC-005 (CR-005) closed — the memory runtime landed (66/66 local-real); the map state is wired
   ZC-006 (CR-006) exercised — registry + query legs + battery j4 baseline
   ZC-007 (CR-007) unexercised — sources contracts untouched
-  ZC-008 (CR-008) unexercised — gate.mjs NOT LANDED (item 11): verify/approve/enable driven directly;
-        the pending-gate disclosure is pinned on the ZC-008 entry
+  ZC-008 (CR-009) closed — the command-facade runtime landed (38/38 local-real over the real
+        registry + the real CR-008 gate + the real approval lane); the map state is wired
+        (the wave-routing disclosure: the entry's stale gapOwner 'CR-008' predates the wave
+        replanning — the CR-009 wave landed the runtime consumer)
   ZC-009 (CR-009) exercised — CLI legs + battery j6 baseline (the map-vs-runtime delta the ledger exists to expose)
   ZC-010 (CR-010) unexercised — parity contracts untouched
-Owners: CR-002 ×2; CR-006/007/008/009/010 ×1 each. Lab legs map to no entry (no LAB
+Owners: CR-002 ×2; CR-006/007/009/010 ×1 each. Lab legs map to no entry (no LAB
 authority in the map) — recorded, never dropped.
 
 ## SCALE
