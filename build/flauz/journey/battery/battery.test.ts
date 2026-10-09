@@ -152,12 +152,14 @@ suite('flauz journey battery: the manifest', () => {
                 assert.equal(journey?.execution, 'in-process');
         });
 
-        test('journey-5: six runnable local-real steps plus the CR-004 replay leg', () => {
+        test('journey-5: seven runnable local-real steps (the CR-004 cold-replay leg graduated)', () => {
                 const steps = stepsOf('journey-5-recovery');
                 assert.equal(steps.length, 7);
                 const replay = steps.find((step) => step.stepId === 'j5-s4-replay');
-                assert.equal(replay?.pendingOwner, 'CR-004');
-                assert.equal(steps.filter((step) => step.status === 'runnable-now').length, 6);
+                assert.equal(replay?.status, 'runnable-now');
+                assert.equal(replay?.evidenceLabel, 'local-real');
+                assert.equal(replay?.pendingOwner, undefined);
+                assert.equal(steps.filter((step) => step.status === 'runnable-now').length, 7);
                 assert.ok(
                         steps
                                 .filter((step) => step.status === 'runnable-now')
@@ -211,6 +213,34 @@ suite('flauz journey battery: the runner (stubbed driver)', () => {
                 assert.equal(record.reloadDrill.byteEqual, true);
                 assert.equal(record.reloadDrill.loadedFirst, true);
                 assert.equal(record.reloadDrill.loadedSecond, true);
+        });
+
+        test('the J5 cold-replay leg executes green through the CR-004 observatory runtime', async function () {
+                this.timeout(60000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-battery-'));
+                const record = await runBattery({ root, driverRunner: stubDriver(root) });
+                const j5 = record.journeys.find((receipt) => receipt.journeyId === 'journey-5-recovery');
+                assert.equal(j5?.executed.length, 7);
+                assert.equal(j5?.pending.length, 0);
+                const replay = j5!.executed.find((step) => step.stepId === 'j5-s4-replay');
+                assert.notEqual(replay, undefined);
+                assert.equal(replay!.evidenceLabel, 'local-real');
+                assert.equal(replay!.verdict, 'green');
+                assert.ok(replay!.detail.includes('cold replay pinned at X-000002'), replay!.detail);
+                assert.ok(record.coldReplay.admissionOk);
+                assert.ok(record.coldReplay.restartEqual);
+                assert.equal(record.coldReplay.journalRows, 2);
+                assert.match(record.coldReplay.journalDigest, /^[0-9a-f]{8}$/);
+        });
+
+        test('the J5 cold-replay drill is restart-deterministic and reuses the journal over the same root', async function () {
+                this.timeout(60000);
+                const root = await mkdtemp(join(tmpdir(), 'flauz-battery-'));
+                const first = await runBattery({ root, runId: 'run-a', driverRunner: stubDriver(root) });
+                const second = await runBattery({ root, runId: 'run-b', driverRunner: stubDriver(root) });
+                assert.deepEqual(second.coldReplay, first.coldReplay);
+                assert.equal(first.coldReplay.journalRows, 2, 'the drill journal is seeded exactly once and reused');
+                assert.equal(first.coldReplay.restartJournalDigest, first.coldReplay.journalDigest);
         });
 
         test('the J6 CLI legs execute with the typed refusal legs exact', async function () {

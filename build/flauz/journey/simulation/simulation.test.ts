@@ -575,7 +575,7 @@ suite('flauz simulation: the gap-closure ledger', () => {
                 assert.equal(JSON.stringify(WIRING), before);
         });
 
-        test('the deliberate ZC-003 + ZC-005 flips close two entries and the four untouched entries stay unexercised', async function () {
+        test('the deliberate ZC-003 + ZC-005 + ZC-004 flips close three entries and the three untouched entries stay unexercised', async function () {
                 this.timeout(120000);
                 const report = okReport(await tinyRun());
                 const verdicts = new Map(report.ledger.entries.map((entry) => [entry.capabilityId, entry.closureVerdict]));
@@ -589,10 +589,16 @@ suite('flauz simulation: the gap-closure ledger', () => {
                  * CR-005 landed the memory runtime (the 66-test pinning suite,
                  * local-real), its verdict is closed, and the untouched-gap group
                  * shrinks to four -- the pin updated to the map's own current truth. */
-                assert.equal(report.ledger.summary.closed, 2);
+                /* The wave-5 station flip repeats the class for ZC-004: CR-004
+                 * landed the observatory runtime (the 49-test pinning suite,
+                 * local-real over the real TaskService + the real ExecJournalStore),
+                 * its verdict is closed, and the untouched-gap group shrinks to
+                 * three -- the pin updated to the map's own current truth. */
+                assert.equal(report.ledger.summary.closed, 3);
                 assert.equal(verdicts.get('ZC-003'), 'closed', 'ZC-003');
                 assert.equal(verdicts.get('ZC-005'), 'closed', 'ZC-005');
-                for (const id of ['ZC-004', 'ZC-007', 'ZC-008', 'ZC-010']) {
+                assert.equal(verdicts.get('ZC-004'), 'closed', 'ZC-004');
+                for (const id of ['ZC-007', 'ZC-008', 'ZC-010']) {
                         assert.equal(verdicts.get(id), 'unexercised-still-gap', id);
                 }
                 for (const id of ['ZC-001', 'ZC-002', 'ZC-006', 'ZC-009']) {
@@ -613,6 +619,17 @@ suite('flauz simulation: the gap-closure ledger', () => {
                 assert.ok(kindsOf('ZC-009').includes('cli:local-real'));
                 assert.ok(kindsOf('ZC-001').includes('store:local-real'));
                 assert.ok(kindsOf('ZC-001').includes('battery:simulated'));
+                /* The CR-004 graduation (wave-5): the battery baseline's journey-5 now
+                 * runs the j5-s4-replay cold-replay leg LOCAL-REAL through the CR-004
+                 * observatory runtime over the real execution journal -- the leg is
+                 * named with the local-real label in the battery baseline the receipts
+                 * carry (the map's own ZC-004 entry is wired, so the ledger verdict is
+                 * closed and this pin is the label-side disclosure). */
+                const j5 = report.batteryBaseline.journeys.find((journey) => journey.journeyId === 'journey-5-recovery');
+                assert.notEqual(j5, undefined);
+                assert.equal(j5?.executed, 7);
+                assert.equal(j5?.pending, 0);
+                assert.deepEqual(j5?.labels, ['local-real']);
         });
 
         test('synthetic wired and gap inputs exercise all three verdict branches', () => {
@@ -720,9 +737,9 @@ suite('flauz simulation: the gap-closure ledger', () => {
                 const summary = report.ledger.summary;
                 assert.equal(summary.total, 10);
                 assert.equal(summary.closed + summary.exercisedStillGap + summary.unexercisedStillGap, summary.total);
-                /* Post-flip: ZC-003 + ZC-005 closed, so neither counts as a gap owner
-                 * (a closed entry is owned by its landed runtime, not a pending CR). */
-                assert.deepEqual(summary.byGapOwner, { 'CR-002': 2, 'CR-004': 1, 'CR-006': 1, 'CR-007': 1, 'CR-008': 1, 'CR-009': 1, 'CR-010': 1 });
+                /* Post-flip: ZC-003 + ZC-005 + ZC-004 closed, so none counts as a gap
+                 * owner (a closed entry is owned by its landed runtime, not a pending CR). */
+                assert.deepEqual(summary.byGapOwner, { 'CR-002': 2, 'CR-006': 1, 'CR-007': 1, 'CR-008': 1, 'CR-009': 1, 'CR-010': 1 });
                 assert.deepEqual(summary.exercisedCapabilityIds, ['ZC-001', 'ZC-002', 'ZC-006', 'ZC-009']);
         });
 });

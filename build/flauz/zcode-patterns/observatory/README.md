@@ -34,6 +34,18 @@ Modules:
 - `common/replay.ts` — deterministic cold replay: `ReplayCursor`,
   `ReplayPlan`, the pure + total `replayDigest` fold, and the fail-closed
   `coldReplayAdmissible` guard
+- `runtime/observatory.ts` — the CR-004 live runtime (wave-5): the typed
+  projection layer binding the REAL agent task authority (TaskService) and
+  the REAL execution journal authority (ExecJournalStore) through the four
+  frozen contract modules — the planMode views (the status table + the
+  evidence-edge trail + the typed drift verdicts), the phases view (a
+  graph's rows classed through `PHASE_STATE_ORDER` with the journal's own
+  row hashes as evidence), the runHealth gauge over the live task records
+  with the injected nowMs, and the deterministic cold-replay drill pinned to
+  the journal's own head hash (local-real evidence: 49/49 suite at
+  `runtime/observatory.test.ts`; the disclosed task-transition/plan-mode and
+  acquisition-event/phase-state bridge tables propose, the contract guards
+  dispose)
 
 Laws (enforced by gates):
 

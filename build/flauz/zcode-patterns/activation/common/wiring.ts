@@ -240,17 +240,31 @@ export const WIRING: WiringEntry[] = [
                         'build/flauz/zcode-patterns/observatory/common/planMode.ts',
                         'build/flauz/zcode-patterns/observatory/common/phases.ts',
                         'build/flauz/zcode-patterns/observatory/common/runHealth.ts',
-                        'build/flauz/zcode-patterns/observatory/common/replay.ts'
+                        'build/flauz/zcode-patterns/observatory/common/replay.ts',
+                        /* station flip (wave-5): the CR-004 runtime module is a
+                         * contract-module-class .ts under the observatory subtree —
+                         * the walk-law cites it (the ZC-003 orphan-law precedent). */
+                        'build/flauz/zcode-patterns/observatory/runtime/observatory.ts'
                 ],
                 authority: 'EXECUTION',
-                state: 'gap',
-                entryPoints: [],
-                stateSource: 'build/flauz/zcode-patterns/observatory/** - contract-only; the journal authority holds the real state',
-                projection: 'none yet - CR-004',
-                tests: [],
-                evidence: 'fixture',
-                gapOwner: 'CR-004',
-                gapNote: 'The planMode/phases/runHealth/replay families project the journal authority (extensions/flauz-execution/src/journal.ts), but no store read path consumes the contracts yet. CR-004 owns the journal-side activation.'
+                state: 'wired',
+                entryPoints: [
+                        {
+                                path: 'build/flauz/zcode-patterns/observatory/runtime/observatory.ts',
+                                exportName: 'ObservatoryRuntime',
+                                role: 'the live runtime over the real agent task authority (TaskService) + the real execution journal authority (ExecJournalStore): the planMode/phases/runHealth projections + the deterministic cold-replay drill'
+                        }
+                ],
+                stateSource: 'build/flauz/zcode-patterns/observatory/runtime/observatory.ts - the live runtime over the real TaskService (extensions/flauz-workspace/src/taskService.ts) + ExecJournalStore (extensions/flauz-execution/src/journal.ts) with the injected fs/clock ports; the planMode/phases/runHealth projections and the cold-replay drill ride the four frozen contract modules; the CR-004 landing',
+                projection: 'the plan-mode views with the evidence-edge trail + the typed drift verdicts + the phase descriptors over the graph journal rows + the stall/concurrency gauge over the live task records + the cold-replay drill pinned to the journal head hash (restart-deterministic)',
+                tests: [
+                        'build/flauz/zcode-patterns/observatory/runtime/observatory.test.ts'
+                ],
+                evidence: 'local-real',
+                /* the deliberate flip per the R28 map-staleness routing: CR-004
+                 * (the gap owner) landed its runtime consumer — the entry point
+                 * is cited, the tests are local-real (real TaskService + real
+                 * ExecJournalStore + injected clock, 49/49). */
         },
         {
                 capabilityId: 'ZC-005',
