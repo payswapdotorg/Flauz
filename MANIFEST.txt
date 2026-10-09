@@ -4,60 +4,60 @@ Branch (human-applied): flauz-tlb/cr013-final-acceptance, one commit on top of t
 
 FILES DELIVERED (additions under build/flauz/journey/acceptance/** + ONE README row):
 
-  build/flauz/journey/acceptance/acceptanceRunner.ts
-    The pure buildAcceptanceReport(inputs) in the buildGapLedger image +
-    the thin emitAcceptanceReport/runAcceptance emission (DEFAULT-A,
-    station-approved): map census via coverage.ts's own resolvers with
-    wiringInvariant instrumentation; J-leg census from the confirmed
-    JOURNEYS manifest; exercise census through the disclosed frozen
-    BATTERY_LEG_SURFACES table (the gapClosure method); verdicts that
-    defer to the map; verbatim gapOwner/gapNote carry; station-injected
-    gate receipts echoed with the no-receipt-yet disclosure. Census
-    only — nothing executes. No clock, no randomness. Imports: wiring.ts,
-    coverage.ts, battery.ts, cli/runtime/context.ts (canonicalJson,
-    sha256Hex) — the family precedents' own paths.
+	build/flauz/journey/acceptance/acceptanceRunner.ts
+		The pure buildAcceptanceReport(inputs) in the buildGapLedger image +
+		the thin emitAcceptanceReport/runAcceptance emission (DEFAULT-A,
+		station-approved): map census via coverage.ts's own resolvers with
+		wiringInvariant instrumentation; J-leg census from the confirmed
+		JOURNEYS manifest; exercise census through the disclosed frozen
+		BATTERY_LEG_SURFACES table (the gapClosure method); verdicts that
+		defer to the map; verbatim gapOwner/gapNote carry; station-injected
+		gate receipts echoed with the no-receipt-yet disclosure. Census
+		only — nothing executes. No clock, no randomness. Imports: wiring.ts,
+		coverage.ts, battery.ts, cli/runtime/context.ts (canonicalJson,
+		sha256Hex) — the family precedents' own paths.
 
-  build/flauz/journey/acceptance/acceptanceRunner.test.ts
-    44 mocha tdd tests over six suites: the map census (verbatim-carry
-    pins, resolver cross-pins, invariant instrumentation with synthetic
-    lawbreakers), the leg census (the confirmed manifest arithmetic),
-    the exercise census + verdicts (deference proof, pending-exercises-
-    nothing), the suite inventory (echo / no-receipt-yet / unknown-
-    receipt disclosure), purity + determinism (live-array no-mutation,
-    double-run equality, byte-identical cross-root emission,
-    root-independent content, containment), the README row pin.
+	build/flauz/journey/acceptance/acceptanceRunner.test.ts
+		44 mocha tdd tests over six suites: the map census (verbatim-carry
+		pins, resolver cross-pins, invariant instrumentation with synthetic
+		lawbreakers), the leg census (the confirmed manifest arithmetic),
+		the exercise census + verdicts (deference proof, pending-exercises-
+		nothing), the suite inventory (echo / no-receipt-yet / unknown-
+		receipt disclosure), purity + determinism (live-array no-mutation,
+		double-run equality, byte-identical cross-root emission,
+		root-independent content, containment), the README row pin.
 
-  build/flauz/journey/acceptance/tsconfig.json
-    Verbatim copy of the battery's scoped strict config (the CR-012
-    tsconfig precedent).
+	build/flauz/journey/acceptance/tsconfig.json
+		Verbatim copy of the battery's scoped strict config (the CR-012
+		tsconfig precedent).
 
-  build/flauz/journey/battery/README.md
-    The ONE sibling-index row for ../acceptance/ (CR-013), mirrored in
-    the landed CR-012 sibling-index line's form and position — the ONLY
-    edit outside the new subtree. Delivered as a scoped insertion block
-    (the README's on-disk tail extent was never confirmed; D45).
+	build/flauz/journey/battery/README.md
+		The ONE sibling-index row for ../acceptance/ (CR-013), mirrored in
+		the landed CR-012 sibling-index line's form and position — the ONLY
+		edit outside the new subtree. Delivered as a scoped insertion block
+		(the README's on-disk tail extent was never confirmed; D45).
 
-  MANIFEST.txt (this file) and REPORT.md — workspace root.
+	MANIFEST.txt (this file) and REPORT.md — workspace root.
 
 PLACEMENT RULINGS APPLIED:
-  - Grammar/wire/exitcodes/battery/map/coverage: ZERO edits (the runner
-    is a measurement instrument over their published fields).
-  - The coverage walk's SUBTREES (wiring.test.ts bytes) do not span
-    build/flauz/journey/** — the additive acceptance files cannot be
-    walk orphans (QA7, resolved by bytes).
+	- Grammar/wire/exitcodes/battery/map/coverage: ZERO edits (the runner
+		is a measurement instrument over their published fields).
+	- The coverage walk's SUBTREES (wiring.test.ts bytes) do not span
+		build/flauz/journey/** — the additive acceptance files cannot be
+		walk orphans (QA7, resolved by bytes).
 
 APPLY (human, at a shell):
-  git clone https://github.com/payswapdotorg/Flauz.git
-  git checkout 0db8bd52ef2e33b5d4ac2e68003b81dc9870950a
-  git checkout -b flauz-tlb/cr013-final-acceptance
-  # place the three acceptance files; apply the one README row per File 4
-  git add build/flauz/journey/acceptance/ build/flauz/journey/battery/README.md MANIFEST.txt REPORT.md
-  git commit -m "CR-013: the final Phase-C-R acceptance runner (wave 6)"
+	git clone https://github.com/payswapdotorg/Flauz.git
+	git checkout 0db8bd52ef2e33b5d4ac2e68003b81dc9870950a
+	git checkout -b flauz-tlb/cr013-final-acceptance
+	# place the three acceptance files; apply the one README row per File 4
+	git add build/flauz/journey/acceptance/ build/flauz/journey/battery/README.md MANIFEST.txt REPORT.md
+	git commit -m "CR-013: the final Phase-C-R acceptance runner (wave 6)"
 
 STATION GATES (station-run; see REPORT.md section 9):
-  node_modules/.bin/tsc -p build/flauz/journey/acceptance/tsconfig.json   # EXIT 0
-  node_modules/.bin/mocha --ui tdd build/flauz/journey/acceptance/acceptanceRunner.test.ts  # expect 44/44
-  node_modules/.bin/mocha --ui tdd build/flauz/journey/battery/battery.test.ts             # baseline 29/29, untouched
-  # the determinism grep over the delivered modules (no Date.now / Math.random / new Date()
-  # — the runner and suite read no clock of any kind)
-  git diff --stat   # additions-only: 5 new files + the one-line README row
+	node_modules/.bin/tsc -p build/flauz/journey/acceptance/tsconfig.json   # EXIT 0
+	node_modules/.bin/mocha --ui tdd build/flauz/journey/acceptance/acceptanceRunner.test.ts  # expect 44/44
+	node_modules/.bin/mocha --ui tdd build/flauz/journey/battery/battery.test.ts             # baseline 29/29, untouched
+	# the determinism grep over the delivered modules (no Date.now / Math.random / new Date()
+	# — the runner and suite read no clock of any kind)
+	git diff --stat   # additions-only: 5 new files + the one-line README row
