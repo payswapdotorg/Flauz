@@ -5,6 +5,14 @@
 /* Copyright (c) Flauz contributors.                                   */
 /* ------------------------------------------------------------------ */
 
+/* Station repair (CR-009 landing, deviation 2): `export *` re-exports but
+ * never binds names locally, so the Refusal/Disclosure type aliases below
+ * referenced undeclared symbols whenever a consumer compiled this file
+ * without skipLibCheck (surfaced by the CR-009 command-facade runtime
+ * importing registry.mjs into the commands-subtree compile graph). The
+ * explicit type import binds them; the re-export surface is unchanged. */
+import type { Disclosure, Refusal } from "./state.mjs";
+
 export * from "./state.mjs";
 
 export interface RegistryScope {

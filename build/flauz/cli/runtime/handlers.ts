@@ -16,7 +16,9 @@
  * - WIRED (wave 1, read-only over the real seams):
  *     background-agent.roster      a2a list() -- the roster view
  *     background-agent.inspect      a2 list() scoped to one agent
- *     workflow.phases / .view       orchStore getGraphState(id)
+ *     workflow.view                 orchStore getGraphState(id)
+ *     (workflow.phases rode getGraphState until the CR-009 wave-5
+ *     re-wire onto the observatory phases projection below)
  * - WIRED (wave 2, CR-010b):
  *     approval.list                the pending-approval derivation over
  *                                  the store journal (disclosed in every
@@ -31,8 +33,34 @@
  *     capability-discovery.search  registry load() + query() -- READ-ONLY
  *                                  over the live CR-006 registry; the CLI
  *                                  never mutates the registry
- * - REFUSAL CENSUS (wave 2): 7 wired + 22 typed refusals over the 29
- *   grammar paths. capability-discovery.inspect is NOT a grammar path
+ * - WIRED (wave 5, CR-009): the read-only observatory family over the
+ *     just-landed CR-004 ObservatoryRuntime (the context-binding
+ *     pattern: the runtime is an in-repo statically-typed module, bound
+ *     literally like the registry binding; read-only, no registry
+ *     mutation):
+ *     replay.plan                  the ReplayPlan projection pinned at the
+ *                                  execution journal's own head (validated
+ *                                  through the replay contract's admission
+ *                                  guard; an empty journal is the honest
+ *                                  typed refused verdict)
+ *     replay.run                   the cold-replay drill over the real
+ *                                  root (the runtime's own verdict rides
+ *                                  verbatim in the projection document)
+ *     replay.verify                the cursor verification verdict: the
+ *                                  run's recorded pinned digest (the
+ *                                  runRef) verified against the CURRENT
+ *                                  journal head through the drill's own
+ *                                  cursor-override lane (a mismatch is the
+ *                                  typed refusal carrying BOTH digests)
+ *     workflow.phases              RE-WIRED from the store's graph state to
+ *                                  the observatory phases projection over
+ *                                  the real execution journal (workflow.view
+ *                                  keeps the store's graph-state view)
+ * - REFUSAL CENSUS (wave 5): 16 wired + 13 typed refusals over the 29
+ *   grammar paths (the grammar's own truth: workflow.phases was already
+ *   wired at the wave-5 base, so the CR-009 wiring adds the three replay
+ *   paths and re-wires workflow.phases; 16 + 13 = 29).
+ *   capability-discovery.inspect is NOT a grammar path
  *   (sources/packs/search only); the registry's inspect() is exercised
  *   in-process by the journey battery, never as a CLI command.
  * - SCOPE ISOLATION: a request whose scope does not match the
@@ -64,6 +92,8 @@ import type {
         BgAgentLaunchSpec,
         BgAgentRuntime,
 } from '../../capabilities/background-agent/runtime/bgAgent.mjs';
+import { ObservatoryRuntime, ObservatoryRuntimeError } from '../../zcode-patterns/observatory/runtime/observatory.ts';
+import * as ReplayContract from '../../zcode-patterns/observatory/common/replay.ts';
 
 
 export type RoutedOutcome =
@@ -547,7 +577,153 @@ async function capabilitySearch(context: CliContext, request: CliRequest): Promi
 }
 
 // ---------------------------------------------------------------------------
-// the tables (7 wired + 22 typed refusals over the frozen 29)
+// CR-009 wave 5: the read-only observatory family over the CR-004
+// ObservatoryRuntime (the context-binding pattern; no registry mutation)
+// ---------------------------------------------------------------------------
+
+/** The observatory scope: the CLI's own derived scope (the registry's derivation, shared by construction). */
+function observatoryScopeOf(context: CliContext): { workspaceId: string; tenantId: string } {
+        const derived = deriveScope(context.root);
+        return { workspaceId: derived.workspaceId, tenantId: derived.tenantId };
+}
+
+type ObservatoryLoad = { bound: true; runtime: ObservatoryRuntime } | { bound: false; outcome: RoutedOutcome };
+
+/**
+ * The observatory binding (the context-binding pattern from context.ts):
+ * the ObservatoryRuntime is an in-repo statically-typed module, so it binds
+ * literally (the registry-binding precedent); the construction clock is the
+ * injected issuedAtIso (the CLI's own determinism law: Date.parse of a
+ * plain ISO string). A construction failure is the typed edge failure.
+ */
+function bindObservatory(context: CliContext): ObservatoryLoad {
+        try {
+                const runtime = new ObservatoryRuntime({
+                        root: context.root,
+                        clock: () => Date.parse(context.issuedAtIso),
+                });
+                return { bound: true, runtime };
+        } catch (error) {
+                return { bound: false, outcome: edgeFailure('seam-unavailable', 'observatory runtime: ' + describeError(error)) };
+        }
+}
+
+/** replay.plan <sessionId>: the ReplayPlan projection pinned at the execution journal's own head. */
+async function replayPlan(context: CliContext, request: CliRequest): Promise<RoutedOutcome> {
+        const sessionId = request.args['sessionId'] ?? '';
+        if (sessionId.length === 0) {
+                return absent(request);
+        }
+        const observatory = bindObservatory(context);
+        if (!observatory.bound) {
+                return observatory.outcome;
+        }
+        const scope = observatoryScopeOf(context);
+        const rows = observatory.runtime.journal.rowsAll();
+        const headHash = observatory.runtime.journal.headHash();
+        if (rows.length === 0 || headHash === null) {
+                // The honest empty-journal refusal (the drill's own verdict shape).
+                const document = {
+                        kind: 'replay-plan',
+                        sessionId,
+                        refused: {
+                                violatedLaw: 'replay-cursor-invalid' as const,
+                                detail: 'the journal is empty: no head event exists to pin a replay cursor to',
+                        },
+                };
+                return projected(request, sha256Hex(canonicalJson(document)), 'full');
+        }
+        const headCursor: ReplayContract.ReplayCursor = {
+                scope,
+                contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                journalPosition: rows.length,
+                pinnedEventDigest: headHash,
+        };
+        const plan: ReplayContract.ReplayPlan = {
+                scope,
+                contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                startCursor: headCursor,
+                endCursor: headCursor,
+                filter: { agentTaskStates: [], eventKinds: [] },
+        };
+        const admission = ReplayContract.replayPlanAdmissible(plan);
+        const document = {
+                kind: 'replay-plan',
+                sessionId,
+                plan,
+                ...(admission.admissible
+                        ? { admissible: true }
+                        : { admissible: false, violatedLaw: admission.violatedLaw, detail: admission.detail }),
+        };
+        return projected(request, sha256Hex(canonicalJson(document)), 'full');
+}
+
+/** replay.run <planRef>: the cold-replay drill over the real root (the runtime's own verdict rides verbatim). */
+async function replayRun(context: CliContext, request: CliRequest): Promise<RoutedOutcome> {
+        const planRef = request.args['planRef'] ?? '';
+        if (planRef.length === 0) {
+                return absent(request);
+        }
+        const observatory = bindObservatory(context);
+        if (!observatory.bound) {
+                return observatory.outcome;
+        }
+        const verdict = observatory.runtime.coldReplayDrill(observatoryScopeOf(context));
+        const document = { kind: 'replay-run', planRef, verdict };
+        return projected(request, sha256Hex(canonicalJson(document)), 'full');
+}
+
+/**
+ * replay.verify <runRef>: the cursor verification verdict. The run's
+ * recorded pinned digest (the runRef) is verified against the CURRENT
+ * journal head through the drill's own cursor-override lane: a match
+ * drills; a mismatch is the typed refusal carrying BOTH digests.
+ */
+async function replayVerify(context: CliContext, request: CliRequest): Promise<RoutedOutcome> {
+        const runRef = request.args['runRef'] ?? '';
+        if (runRef.length === 0) {
+                return absent(request);
+        }
+        const observatory = bindObservatory(context);
+        if (!observatory.bound) {
+                return observatory.outcome;
+        }
+        const scope = observatoryScopeOf(context);
+        const rows = observatory.runtime.journal.rowsAll();
+        const cursor: ReplayContract.ReplayCursor = {
+                scope,
+                contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                journalPosition: rows.length,
+                pinnedEventDigest: runRef,
+        };
+        const verdict = observatory.runtime.coldReplayDrill(scope, cursor);
+        const document = { kind: 'replay-verify', runRef, verdict };
+        return projected(request, sha256Hex(canonicalJson(document)), 'full');
+}
+
+/** workflow.phases <workflowId>: the phases projection over the real execution journal (the CR-004 observatory projection). */
+async function workflowPhases(context: CliContext, request: CliRequest): Promise<RoutedOutcome> {
+        const workflowId = request.args['workflowId'] ?? '';
+        if (workflowId.length === 0) {
+                return absent(request);
+        }
+        const observatory = bindObservatory(context);
+        if (!observatory.bound) {
+                return observatory.outcome;
+        }
+        try {
+                const view = observatory.runtime.phasesForGraph(observatoryScopeOf(context), workflowId);
+                return projected(request, sha256Hex(canonicalJson(view)), 'full');
+        } catch (error) {
+                if (error instanceof ObservatoryRuntimeError && error.code === 'INVALID-PARAMS') {
+                        return absent(request);
+                }
+                return edgeFailure('seam-unavailable', 'phasesForGraph failed: ' + describeError(error));
+        }
+}
+
+// ---------------------------------------------------------------------------
+// the tables (16 wired + 13 typed refusals over the frozen 29)
 // ---------------------------------------------------------------------------
 
 /*
@@ -721,10 +897,13 @@ const READ_HANDLERS: Readonly<
 > = {
         'background-agent.roster': readRoster,
         'background-agent.inspect': readAgentInspect,
-        'workflow.phases': readGraphState,
+        'workflow.phases': workflowPhases,
         'workflow.view': readGraphState,
         'approval.list': listApprovals,
         'capability-discovery.search': capabilitySearch,
+        'replay.plan': replayPlan,
+        'replay.run': replayRun,
+        'replay.verify': replayVerify,
 };
 
 /** The ONE CLI write surface of wave 2: the approval act through the store's own authority. */
@@ -742,9 +921,6 @@ const REFUSAL_CODES_BY_PATH: Readonly<Record<string, CliRefusalCode>> = {
         'evidence.attach': 'parity-projection-missing',
         'evidence.list': 'parity-projection-missing',
         'evidence.verify': 'parity-projection-missing',
-        'replay.plan': 'parity-projection-missing',
-        'replay.run': 'parity-projection-missing',
-        'replay.verify': 'parity-projection-missing',
         'lab.runs': 'parity-projection-missing',
         'lab.catalog': 'parity-projection-missing',
         'lab.calibration': 'parity-projection-missing',

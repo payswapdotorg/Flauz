@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 /*
- * CR-010 / CR-010b -- the CLI runtime suite (mocha tdd).
+ * CR-010 / CR-010b / CR-009 -- the CLI runtime suite (mocha tdd).
  *
  * Coverage: grammar pins, the parse layer, wired round trips over a
  * harness-backed fixture context, the typed-refusal battery (including
@@ -13,10 +13,13 @@
  * view projection, the real-seam loader's typeness, determinism
  * double-run byte-equality, the CR-010b approval family (the listed
  * derivation over the fixture journal; the grant / deny / fail-closed
- * expiry acts over the REAL store on temp roots), and the CR-010b
+ * expiry acts over the REAL store on temp roots), the CR-010b
  * capability-discovery search (READ-ONLY over a registry seeded
- * through the registry's own public API). No wall-clock reads, no
- * random.
+ * through the registry's own public API), and the CR-009 observatory
+ * family (replay.plan / replay.run / replay.verify / workflow.phases
+ * over the CR-004 ObservatoryRuntime bound to a real root with a real
+ * execution journal seeded through the store's own public appendRow).
+ * No wall-clock reads, no random.
  */
 
 import assert from 'node:assert/strict';
@@ -53,6 +56,9 @@ import {
         type Binding,
         type OrchestrationStoreBinding,
 } from './runtime/context.ts';
+import { ExecJournalStore } from '../../../extensions/flauz-execution/src/journal.ts';
+import { ObservatoryRuntime } from '../zcode-patterns/observatory/runtime/observatory.ts';
+import * as ReplayContract from '../zcode-patterns/observatory/common/replay.ts';
 
 /** Narrow a Binding to its bound payload (fail loudly on the unbound branch). */
 function mustBound(binding: Binding<OrchestrationStoreBinding>): OrchestrationStoreBinding {
@@ -404,13 +410,23 @@ suite('flauz cli: wired round trips over the harness fixture', () => {
                 assert.equal(result.response?.outcome, 'not-found');
         });
 
-        test('workflow.phases projects the graph state digest (exit 0)', async () => {
-                const result = await runCli(['workflow.phases', 'graph-1'], { context: harnessContext });
-                assert.equal(result.exitCode, EXIT_OK);
-                assert.equal(
-                        (result.response as { resultDigest?: string }).resultDigest,
-                        sha256Hex(canonicalJson(FIXTURE.graphs['graph-1'])),
-                );
+        test('workflow.phases projects the observatory phases view over the real execution journal (exit 0)', async () => {
+                // CR-009: workflow.phases is RE-WIRED from the store's graph
+                // state onto the CR-004 observatory phases projection; the
+                // expectation is derived from the real journal + the real
+                // runtime over the same root (the digest pins the document).
+                const seeded = await runCli(['workflow.phases', 'G-901'], { context: observatoryContext });
+                assert.equal(seeded.exitCode, EXIT_OK);
+                assert.equal(seeded.response?.outcome, 'ok');
+                const expectedSeeded = referenceObservatory.phasesForGraph(observatoryScope, 'G-901');
+                assert.equal(resultDigestOf(seeded), sha256Hex(canonicalJson(expectedSeeded)));
+                // The honest zero-row view (an unknown graph projects zero rows).
+                const unknown = await runCli(['workflow.phases', 'graph-none'], { context: observatoryContext });
+                assert.equal(unknown.exitCode, EXIT_OK);
+                assert.equal(unknown.response?.outcome, 'ok');
+                const expectedUnknown = referenceObservatory.phasesForGraph(observatoryScope, 'graph-none');
+                assert.equal(resultDigestOf(unknown), sha256Hex(canonicalJson(expectedUnknown)));
+                assert.equal(expectedUnknown.rows, 0);
         });
 
         test('workflow.view of an unknown graph is not-found (exit 3)', async () => {
@@ -491,8 +507,11 @@ suite('flauz cli: the typed-refusal battery', () => {
                 assert.equal(refusal.violatedLaw, refusalFor('parity-projection-missing')?.violatedLaw);
         });
 
-        test('replay.run is the parity-projection-missing refusal (exit 1)', async () => {
-                const result = await runCli(['replay.run', 'plan-1'], { context: harnessContext });
+        test('lab.runs is the parity-projection-missing refusal (exit 1)', async () => {
+                // [CR-009] The wave-5 wiring moved replay.run onto the
+                // observatory runtime; the parity-projection-missing leg is
+                // preserved over lab.runs (still unwired by law).
+                const result = await runCli(['lab.runs', '5'], { context: harnessContext });
                 assert.equal(result.exitCode, EXIT_TYPED_REFUSAL);
                 assert.equal(
                         (result.response as { refusalCode?: string }).refusalCode,
@@ -512,12 +531,17 @@ suite('flauz cli: the typed-refusal battery', () => {
                 );
         });
 
-        test('every grammar command routes: 13 wired + 16 typed refusals, no drift', async () => {
-                // The merged wave-2 census: 6 read handlers + approval.respond
-                // (CR-010b) + the six background-agent mutations (CR-002) wired;
-                // the remaining 16 paths stay typed refusals.
-                assert.equal(wiredCommandPaths().length, 13);
-                assert.equal(refusedCommandPaths().length, 16);
+        test('every grammar command routes: 16 wired + 13 typed refusals, no drift', async () => {
+                // The merged wave-5 census (CR-009): 9 read handlers (the 6 of
+                // wave-2 plus replay.plan/.run/.verify, with workflow.phases
+                // re-wired onto the observatory phases projection) +
+                // approval.respond (CR-010b) + the six background-agent
+                // mutations (CR-002) wired; the remaining 13 paths stay typed
+                // refusals. THE GRAMMAR'S OWN TRUTH: workflow.phases was
+                // already wired at the wave-5 base, so the CR-009 wiring adds
+                // the three replay paths net (16 + 13 = 29).
+                assert.equal(wiredCommandPaths().length, 16);
+                assert.equal(refusedCommandPaths().length, 13);
                 for (const entry of CLI_COMMAND_GRAMMAR) {
                         const routed = await routeCommand(harnessContext, {
                                 scope: { workspaceId: harnessContext.root.split('/').pop() ?? 'x', tenantId: 'local' },
@@ -1014,6 +1038,135 @@ suite('flauz cli: the registry binding', () => {
         });
 });
 
+suite('flauz cli: the CR-009 observatory round trips', () => {
+        suiteSetup(async function () {
+                this.timeout(30000);
+        });
+
+        test('replay.plan projects the head-pinned ReplayPlan (exit 0); an empty journal is the typed refused verdict', async () => {
+                const happy = await runCli(['replay.plan', 'session-1'], { context: observatoryContext });
+                assert.equal(happy.exitCode, EXIT_OK);
+                assert.equal(happy.response?.outcome, 'ok');
+                const headHash = referenceObservatory.journal.headHash();
+                assert.ok(headHash !== null);
+                const headCursor: ReplayContract.ReplayCursor = {
+                        scope: observatoryScope,
+                        contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                        journalPosition: 1,
+                        pinnedEventDigest: headHash,
+                };
+                const expected = {
+                        kind: 'replay-plan',
+                        sessionId: 'session-1',
+                        plan: {
+                                scope: observatoryScope,
+                                contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                                startCursor: headCursor,
+                                endCursor: headCursor,
+                                filter: { agentTaskStates: [], eventKinds: [] },
+                        },
+                        admissible: true,
+                };
+                assert.equal(resultDigestOf(happy), sha256Hex(canonicalJson(expected)));
+                // The typed refusal: an empty journal has no head event to pin.
+                const refused = await runCli(['replay.plan', 'session-1'], { context: harnessContext });
+                assert.equal(refused.exitCode, EXIT_OK);
+                assert.equal(refused.response?.outcome, 'ok');
+                const expectedRefused = {
+                        kind: 'replay-plan',
+                        sessionId: 'session-1',
+                        refused: {
+                                violatedLaw: 'replay-cursor-invalid',
+                                detail: 'the journal is empty: no head event exists to pin a replay cursor to',
+                        },
+                };
+                assert.equal(resultDigestOf(refused), sha256Hex(canonicalJson(expectedRefused)));
+        });
+
+        test('replay.run projects the cold-replay drill verdict (exit 0); an empty journal is the typed refused verdict', async () => {
+                const happy = await runCli(['replay.run', 'plan-1'], { context: observatoryContext });
+                assert.equal(happy.exitCode, EXIT_OK);
+                assert.equal(happy.response?.outcome, 'ok');
+                const expected = {
+                        kind: 'replay-run',
+                        planRef: 'plan-1',
+                        verdict: referenceObservatory.coldReplayDrill(observatoryScope),
+                };
+                assert.equal(expected.verdict.kind, 'drilled');
+                assert.equal(resultDigestOf(happy), sha256Hex(canonicalJson(expected)));
+                // The typed refusal: the drill over the empty harness root.
+                const refused = await runCli(['replay.run', 'plan-1'], { context: harnessContext });
+                assert.equal(refused.exitCode, EXIT_OK);
+                const harnessReference = new ObservatoryRuntime({
+                        root: fixtureRoot,
+                        clock: () => Date.parse(harnessContext.issuedAtIso),
+                });
+                const refusedVerdict = harnessReference.coldReplayDrill(deriveScope(fixtureRoot));
+                assert.equal(refusedVerdict.kind, 'refused');
+                if (refusedVerdict.kind === 'refused') {
+                        assert.equal(refusedVerdict.violatedLaw, 'replay-cursor-invalid');
+                }
+                const expectedRefused = { kind: 'replay-run', planRef: 'plan-1', verdict: refusedVerdict };
+                assert.equal(resultDigestOf(refused), sha256Hex(canonicalJson(expectedRefused)));
+        });
+
+        test('replay.verify projects the cursor verification verdict: a matching runRef drills; a stale runRef is the typed refusal carrying BOTH digests', async () => {
+                const headHash = referenceObservatory.journal.headHash();
+                assert.ok(headHash !== null);
+                const verified = await runCli(['replay.verify', headHash], { context: observatoryContext });
+                assert.equal(verified.exitCode, EXIT_OK);
+                assert.equal(verified.response?.outcome, 'ok');
+                const matchingCursor: ReplayContract.ReplayCursor = {
+                        scope: observatoryScope,
+                        contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                        journalPosition: 1,
+                        pinnedEventDigest: headHash,
+                };
+                const expectedVerified = {
+                        kind: 'replay-verify',
+                        runRef: headHash,
+                        verdict: referenceObservatory.coldReplayDrill(observatoryScope, matchingCursor),
+                };
+                assert.equal(expectedVerified.verdict.kind, 'drilled');
+                assert.equal(resultDigestOf(verified), sha256Hex(canonicalJson(expectedVerified)));
+                // The typed refusal: a stale recorded digest never matches the head.
+                const stale = 'a'.repeat(64);
+                const refused = await runCli(['replay.verify', stale], { context: observatoryContext });
+                assert.equal(refused.exitCode, EXIT_OK);
+                const staleCursor: ReplayContract.ReplayCursor = {
+                        scope: observatoryScope,
+                        contractVersion: ReplayContract.OBSERVATORY_CONTRACTS_VERSION,
+                        journalPosition: 1,
+                        pinnedEventDigest: stale,
+                };
+                const refusedVerdict = referenceObservatory.coldReplayDrill(observatoryScope, staleCursor);
+                assert.equal(refusedVerdict.kind, 'refused');
+                if (refusedVerdict.kind === 'refused') {
+                        assert.equal(refusedVerdict.violatedLaw, 'cold-replay-cursor-not-at-journal-head');
+                        assert.equal(refusedVerdict.cursorPinnedEventDigest, stale);
+                        assert.equal(refusedVerdict.journalHeadDigest, headHash);
+                }
+                const expectedRefused = { kind: 'replay-verify', runRef: stale, verdict: refusedVerdict };
+                assert.equal(resultDigestOf(refused), sha256Hex(canonicalJson(expectedRefused)));
+        });
+
+        test('the observatory family is deterministic: two identical invocations are byte-identical', async () => {
+                const argvs: readonly (readonly string[])[] = [
+                        ['replay.plan', 'session-1'],
+                        ['replay.run', 'plan-1'],
+                        ['replay.verify', 'a'.repeat(64)],
+                        ['workflow.phases', 'G-901'],
+                ];
+                for (const argv of argvs) {
+                        const first = await runCli([...argv], { context: observatoryContext });
+                        const second = await runCli([...argv], { context: observatoryContext });
+                        assert.equal(first.exitCode, EXIT_OK, argv.join(' '));
+                        assert.equal(first.stdout, second.stdout, argv.join(' '));
+                        assert.equal(first.response?.requestId, second.response?.requestId, argv.join(' '));
+                }
+        });
+});
+
 let harnessContext: Awaited<ReturnType<typeof loadHarnessContext>>;
 let fixtureRoot: string;
 let freshRoot: string;
@@ -1022,6 +1175,10 @@ let approvalFixtureRoot: string;
 let capabilityContext: Awaited<ReturnType<typeof loadRealContext>>;
 let capabilityRoot: string;
 let capabilityRegistry: RegistryRuntime;
+let observatoryContext: Awaited<ReturnType<typeof loadRealContext>>;
+let observatoryRoot: string;
+let referenceObservatory: ObservatoryRuntime;
+let observatoryScope: { workspaceId: string; tenantId: string };
 
 suiteSetup(async () => {
         fixtureRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-fixture-'));
@@ -1046,4 +1203,34 @@ suiteSetup(async () => {
                 root: capabilityRoot,
                 issuedAtIso: APPROVAL_ISSUED_AT,
         });
+        // CR-009: the observatory root -- a REAL execution journal seeded
+        // through the store's own public appendRow (the observatory suite's
+        // discipline), plus a reference runtime + the derived scope the
+        // handlers bind (the expectation source for the digest pins).
+        observatoryRoot = await mkdtemp(join(tmpdir(), 'flauz-cli-observatory-'));
+        const observatoryClockMs = 1_750_000_000_000;
+        const seedJournal = new ExecJournalStore(observatoryRoot, { clock: () => observatoryClockMs });
+        seedJournal.appendRow('resource-acquired', {
+                graphId: 'G-901',
+                stepId: 'S-01',
+                attempt: 1,
+                idempotencyKey: 'flauz-orch/G-901/S-01/run/1',
+                acquisitionId: 'flauz:exec:0123456789abcdef',
+                actor: 'agent',
+                origin: 'cr009-cli-suite',
+                ts: observatoryClockMs,
+                payload: {
+                        purpose: 'the CLI observatory round trip',
+                        resource: { resourceClass: 'logical-resource', kind: 'task', id: 'flauz:task:cr009-0001' },
+                },
+        });
+        observatoryContext = await loadRealContext({
+                root: observatoryRoot,
+                issuedAtIso: APPROVAL_ISSUED_AT,
+        });
+        referenceObservatory = new ObservatoryRuntime({
+                root: observatoryRoot,
+                clock: () => Date.parse(APPROVAL_ISSUED_AT),
+        });
+        observatoryScope = deriveScope(observatoryRoot);
 });
