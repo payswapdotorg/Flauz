@@ -63,13 +63,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run gulp vscode-web
 
-      - name: Receipts (the dist census + the index.html sha256)
+      - name: Receipts (the dist census + the entry HTML sha256)
         run: |
           # BUILD_ROOT = dirname(REPO_ROOT): the dist lands in the repo's PARENT dir
           echo "=== vscode-web dist census ==="
           find ../vscode-web -type f | wc -l
           du -sh ../vscode-web
-          sha256sum ../vscode-web/index.html
+          echo "=== the entry HTML files ==="
+          find ../vscode-web -maxdepth 2 -name "*.html" | head -10
+          for f in $(find ../vscode-web -maxdepth 1 -name "*.html" | head -3); do sha256sum "$f"; done
           ls -la ../vscode-web/ | head -20
 
       - name: Upload the web distribution
