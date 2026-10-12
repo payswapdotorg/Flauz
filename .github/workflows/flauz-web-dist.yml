@@ -65,16 +65,17 @@ jobs:
 
       - name: Receipts (the dist census + the index.html sha256)
         run: |
+          # BUILD_ROOT = dirname(REPO_ROOT): the dist lands in the repo's PARENT dir
           echo "=== vscode-web dist census ==="
-          find vscode-web -type f | wc -l
-          du -sh vscode-web
-          sha256sum vscode-web/index.html
-          ls -la vscode-web/ | head -20
+          find ../vscode-web -type f | wc -l
+          du -sh ../vscode-web
+          sha256sum ../vscode-web/index.html
+          ls -la ../vscode-web/ | head -20
 
       - name: Upload the web distribution
         uses: actions/upload-artifact@v4
         with:
           name: vscode-web-dist
-          path: vscode-web/
+          path: ../vscode-web/
           retention-days: 7
           compression-level: 6
