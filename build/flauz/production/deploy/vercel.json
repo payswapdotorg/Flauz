@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "outputDirectory": "vscode-web",
+  "cleanUrls": true,
+  "trailingSlash": false
+}
