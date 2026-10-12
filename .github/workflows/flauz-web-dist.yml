@@ -1,0 +1,77 @@
+name: Flauz web distribution build (W7 deploy leg)
+
+# The W7 deployment round's consequence: the workbench esbuild bundle needs
+# >2.5GB RSS (measured: the 4GB pods — station AND worker — OOM-kill it; the
+# kernel's global OOM terminates the esbuild service even maximally freed).
+# The GitHub-hosted runners (4 vCPU / 16GB) fit it. This workflow builds the
+# canonical web distribution (gulp vscode-web) and uploads it as an artifact
+# for the station's deploy-workspace assembly + the Vercel production deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'The ref to build (default: main)'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  web-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install (ignore-scripts — the native-keymap xkbfile headers are not on the image)
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Supplement the web-build toolchain
+        # The fork's lockfile lacks the web-build deps (a latent defect disclosed in
+        # the W7 records: the hygiene job never runs the web bundle). Station-proven batch.
+        run: npm install --no-save esbuild ternary-stream svgo jsonc-parser vscode-gulp-watch extract-zip gulp-merge-json gulp-sort @vscode/vsce vite zx
+
+      - name: Per-extension node_modules (the postinstall skipped by --ignore-scripts)
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node build/npm/postinstall.ts
+
+      - name: Build the web distribution (gulp vscode-web)
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run gulp vscode-web
+
+      - name: Receipts (the dist census + the index.html sha256)
+        run: |
+          echo "=== vscode-web dist census ==="
+          find vscode-web -type f | wc -l
+          du -sh vscode-web
+          sha256sum vscode-web/index.html
+          ls -la vscode-web/ | head -20
+
+      - name: Upload the web distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: vscode-web-dist
+          path: vscode-web/
+          retention-days: 7
+          compression-level: 6
