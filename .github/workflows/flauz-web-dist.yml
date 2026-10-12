@@ -46,6 +46,9 @@ jobs:
         # the W7 records: the hygiene job never runs the web bundle). Station-proven batch.
         run: npm install --no-save esbuild ternary-stream svgo jsonc-parser vscode-gulp-watch extract-zip gulp-merge-json gulp-sort @vscode/vsce vite zx
 
+      - name: Native build deps (the postinstall's kerberos needs libkrb5-dev)
+        run: sudo apt-get update && sudo apt-get install -y libkrb5-dev
+
       - name: Per-extension node_modules (the postinstall skipped by --ignore-scripts)
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
