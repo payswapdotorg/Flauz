@@ -264,3 +264,7 @@ build/flauz/dogfood/dogfood-driver.mjs
 build/flauz/dogfood/fake-provider.mjs
 build/flauz/dogfood/frictionlog.mjs
 build/flauz/dogfood/liveBudget.mjs
+
+# A-PROD-006-W7 production-real deployment surface (zero-dep node build tool, the
+# security-runtime-gate.mjs precedent class; station allowlist review 2026-10-12)
+build/flauz/production/deploy/assemble-deploy.mjs
