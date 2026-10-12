@@ -166,6 +166,7 @@ function getEntryPointsForTarget(target: BuildTarget): string[] {
 				...workerEntryPoints,
 				...webOnlyEntryPoints,
 				'vs/workbench/workbench.web.main.internal', // web workbench only (no browser shell)
+				'vs/code/browser/workbench/workbench', // the browser shell (the static-deploy bootstrap the workbench.html loads; the W7 static-completeness repair 2026-10-12)
 				...keyboardMapEntryPoints,
 			];
 		default:
@@ -195,6 +196,7 @@ function getCssBundleEntryPointsForTarget(target: BuildTarget): Set<string> {
 			return new Set([
 				'vs/workbench/workbench.web.main.internal',
 				'vs/sessions/sessions.web.main.internal',
+				'vs/code/browser/workbench/workbench', // the shell bundles the workbench css (the workbench.html link target; the W7 static-completeness repair)
 			]);
 		default:
 			throw new Error(`Unknown target: ${target}`);
