@@ -42,11 +42,11 @@ export default async function handler(
 	}
 	const sql = neon(databaseUrl);
 	const queryLike: ProductionQueryLike = async (statement: string, params?: readonly unknown[]) => {
-		if (params !== undefined && params.length > 0) {
-			const rows = await sql(statement, ...params);
-			return { rows: rows as unknown[] };
-		}
-		const rows = await sql(statement);
+		// A-PROD-006-W7 deploy-round fix (worker aprod007f, deploy-validated LIVE): the
+		// @neondatabase/serverless 1.2.0 neon() fn rejects the positional sql(stmt, ...params)
+		// form (a latent defect — the station's mock-queryLike battery never exercises the
+		// real driver); sql.query(stmt, [params]) is the working conventional form.
+		const rows = await sql.query(statement, params ?? []);
 		return { rows: rows as unknown[] };
 	};
 	const targetUrl = typeof process.env.FLAUZ_PRODUCTION_URL === 'string' ? process.env.FLAUZ_PRODUCTION_URL : '';
