@@ -74,10 +74,15 @@ jobs:
           for f in $(find ../vscode-web -maxdepth 1 -name "*.html" | head -3); do sha256sum "$f"; done
           ls -la ../vscode-web/ | head -20
 
+      - name: Stage the web distribution for upload
+        run: |
+          cp -r ../vscode-web ./vscode-web-dist-upload
+          du -sh ./vscode-web-dist-upload
+
       - name: Upload the web distribution
         uses: actions/upload-artifact@v4
         with:
           name: vscode-web-dist
-          path: ../vscode-web/
+          path: vscode-web-dist-upload/
           retention-days: 7
           compression-level: 6
