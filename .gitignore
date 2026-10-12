@@ -54,3 +54,8 @@ dist
 .v[0-9]*/
 # Local agent validation evidence
 .agent-validation/
+
+# A-PROD-006-W7 station build/deploy workspaces (build artifacts, never committed;
+# the canonical dist build lives on the GitHub Actions runners — the flauz-web-dist workflow)
+vscode-web/
+deploy-ws/

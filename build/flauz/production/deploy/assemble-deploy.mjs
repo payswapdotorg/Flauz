@@ -6,7 +6,11 @@
  * (node, zero-dep). Copies the built vscode-web distribution + the
  * deploy api functions + the ops common modules (the api imports) +
  * vercel.json + a minimal package.json (the @neondatabase/serverless
- * dep) into deploy-ws/. Prints the file census.
+ * dep) into deploy-ws/, then PRE-RENDERS the workbench shell html (the
+ * W7 round-2 discovery: the dist's workbench.html is the RAW TEMPLATE —
+ * unsubstituted {{WORKBENCH_*}} placeholders — and the shell boot js
+ * JSON.parse's the configuration meta strictly, so a static deploy
+ * serves a dead boot without this step). Prints the file census.
  *
  * Usage: node build/flauz/production/deploy/assemble-deploy.mjs
  * (run from the repo root after `npm run gulp vscode-web`)
@@ -82,6 +86,54 @@ const minimalPackageJson = {
 writeFileSync(join(deployWs, 'package.json'), JSON.stringify(minimalPackageJson, null, 2) + '\n');
 fileCount += 1;
 console.log(`  wrote package.json: ${join(deployWs, 'package.json')}`);
+
+// 6. The workbench shell PRE-RENDER (the W7 round-2 discovery, binding).
+//
+// The dist's out/vs/code/browser/workbench/workbench.html is the RAW
+// TEMPLATE the vscode web server would normally substitute at request
+// time. A STATIC deploy has no server: without this step the served
+// document carries {{WORKBENCH_WEB_BASE_URL}}/out/... module srcs that
+// never resolve and a configuration meta whose raw-quoted JSON the HTML
+// parser truncates at the first quote — the shell's JSON.parse throws
+// before the workbench ever boots. The pre-render applies the exact
+// substitutions the server would: the empty-workspace configuration
+// (entity-escaped — the parser decodes entities, JSON.parse then sees
+// valid JSON), the empty base URL (relative resolution from the deploy
+// origin), the empty nonce (no CSP header on static hosting), the NLS
+// URLs, and the icon/manifest hrefs remapped to the dist-root copies
+// (the dist carries favicon.ico/manifest.json/code-192.png at its root,
+// not under resources/server/).
+const workbenchHtmlPath = join(deployWs, 'vscode-web', 'out', 'vs', 'code', 'browser', 'workbench', 'workbench.html');
+if (!existsSync(workbenchHtmlPath)) {
+        throw new Error(`assemble-deploy: workbench shell html not found: ${workbenchHtmlPath} (build the 'web' target with the browser shell entry — the a7dd3094 completeness repair)`);
+}
+const substitutions = [
+        ['{{WORKBENCH_SCRIPT_NONCE}}', ''],
+        ['{{WORKBENCH_WEB_CONFIGURATION}}', '{&quot;workspaceId&quot;:&quot;&quot;,&quot;folders&quot;:[]}'],
+        ['{{WORKBENCH_WEB_BASE_URL}}', ''],
+        ['{{WORKBENCH_AUTH_SESSION}}', ''],
+        ['{{WORKBENCH_NLS_FALLBACK_URL}}', '/out/nls.messages.js'],
+        ['{{WORKBENCH_NLS_URL}}', '/out/nls.messages.js'],
+        ['href="/resources/server/code-192.png"', 'href="/code-192.png"'],
+        ['href="/resources/server/favicon.ico"', 'href="/favicon.ico"'],
+        ['href="/resources/server/manifest.json"', 'href="/manifest.json"'],
+];
+let html = readFileSync(workbenchHtmlPath, 'utf8');
+let applied = 0;
+for (const [placeholder, value] of substitutions) {
+        if (html.includes(placeholder)) {
+                html = html.split(placeholder).join(value);
+                applied += 1;
+        }
+}
+if (applied === 0 && html.includes('{{WORKBENCH_')) {
+        // An unsubstituted WORKBENCH placeholder survived the map above:
+        // the template grew a new placeholder — fail loudly rather than
+        // deploy a dead boot (the honest-surface law).
+        throw new Error('assemble-deploy: unknown {{WORKBENCH_*}} placeholder survived the pre-render map — extend the substitutions');
+}
+writeFileSync(workbenchHtmlPath, html);
+console.log(`  pre-rendered the workbench shell html: ${workbenchHtmlPath} (${applied}/9 substitution families applied)`);
 
 console.log('');
 console.log(`assemble-deploy: DONE - ${fileCount} files in deploy-ws/`);

@@ -2,5 +2,11 @@
   "version": 2,
   "outputDirectory": "vscode-web",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/out/vs/code/browser/workbench/workbench"
+    }
+  ]
 }

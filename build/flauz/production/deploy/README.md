@@ -85,11 +85,16 @@ Receipt: ensureSchema OK (production-real).
 ### 5. The production smoke battery (against the LIVE production URL)
 
 ```bash
-# 1. GET / -> 200 + the workbench HTML
+# 1. GET / -> 200 + the PRE-RENDERED workbench html (the root rewrite ->
+#    /out/vs/code/browser/workbench/workbench, cleanUrls serves the .html)
 curl -s https://<production-url>/ | head -3
 
-# 2. Static asset spot-check: the workbench HTML's first 2 script/css hrefs resolve (200)
-# (extract the hrefs from the HTML, curl each)
+# 2. The BOOT CHAIN (each must 200): workbench.js + workbench.css (the
+#    browser shell — the a7dd3094 static-completeness repair) +
+#    workbench.web.main.internal.js + nls.messages.js
+# (curl each; then open the URL in a real browser and confirm the
+#  workbench boots — the shell js JSON.parse's the configuration meta,
+#  so the pre-render below is a hard precondition, not a cosmetic step)
 
 # 3. GET /api/healthz -> the healthy JSON - dbConnectivity: "connected" (production-real)
 curl -s https://<production-url>/api/healthz
@@ -114,7 +119,13 @@ bunx --bun mocha --ui tdd 'build/flauz/production/ops/test/common/*.test.ts'
   "version": 2,
   "outputDirectory": "vscode-web",
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/out/vs/code/browser/workbench/workbench"
+    }
+  ]
 }
 ```
 
@@ -122,6 +133,9 @@ bunx --bun mocha --ui tdd 'build/flauz/production/ops/test/common/*.test.ts'
   distribution). See https://vercel.com/docs/projects/project-configuration#outputdirectory
 - `cleanUrls`: `/api/healthz` (not `/api/healthz.ts`). See
   https://vercel.com/docs/projects/project-configuration#cleanurls
+- `rewrites`: the dist carries no `index.html` at its root — the root
+  rewrite serves the workbench shell html at `/` (cleanUrls appends the
+  `.html`). See https://vercel.com/docs/projects/project-configuration#rewrites
 - The `api/` directory at the project root is auto-detected as
   serverless functions. See https://vercel.com/docs/functions/runtimes/node-js
 
@@ -135,10 +149,23 @@ Copies into `deploy-ws/`:
 - `vscode-web/*` - the built distribution (the workbench)
 - `api/**` - the serverless functions (healthz, status, evidence)
 - `ops/common/**` - the ops contract + kit (the api imports)
-- `vercel.json` - the deployment config
+- `vercel.json` - the deployment config (incl. the ROOT REWRITE: `/` ->
+  `/out/vs/code/browser/workbench/workbench` — the static dist carries no
+  index.html at its root; the rewrite serves the workbench shell at `/`)
 - `package.json` - the minimal deploy manifest (`@neondatabase/serverless` dep)
 
-Prints the file census.
+Then PRE-RENDERS the workbench shell html (the W7 round-2 discovery,
+binding): the dist's `out/vs/code/browser/workbench/workbench.html` is
+the RAW TEMPLATE (`{{WORKBENCH_*}}` placeholders) that the vscode web
+server would substitute at request time — a static deploy has no
+server. The pre-render applies the empty-workspace configuration
+(entity-escaped — the shell js `JSON.parse`s the meta strictly, and
+raw-quoted JSON truncates at the first quote in the HTML parser), the
+empty base URL, the empty nonce, the NLS URLs, and the icon/manifest
+hrefs remapped to the dist-root copies. Unknown surviving placeholders
+fail the assembly loudly (the honest-surface law).
+
+Prints the file census + the pre-render receipt.
 
 ## The NO-SECRET LAW (binding)
 
