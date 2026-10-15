@@ -517,3 +517,7 @@ Program state at `main` head `1430141c358f6460b437346bfc794076fc43b781`:
 The remaining TL-B roadmap sequence: DH-008 policy/approval/evidence/KPI profiles · DH-009 domain benchmark/simulation worlds · DH-010 domain UI/navigation projections · DH-011 end-to-end onboarding and activation · DH-012 Lab-driven harness optimization · DH-013 cross-industry harness acceptance.
 
 A domain harness remains composable configuration over the universal Flauz core, never an industry fork.
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 8 landed
+
+DH-008 + DH-009 are DONE (PRs #199/#200; 1252 DH family tests at the merged head). The remaining TL-B sequence: DH-010 · DH-011 · DH-012 · DH-013.

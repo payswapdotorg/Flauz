@@ -136,3 +136,7 @@ Remaining work:
 - Inference Fabric: the live-provider acceptance exchange remains UNVERIFIED (env-gated skip) — do not describe it as verified until a configured successful run is recorded.
 
 The work registry (`WORK-REGISTRY.md`) is the operational source of truth; this section reconciles this document to it as of 2026-10-15. Historical sections above are preserved unchanged.
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 8 landed
+
+DH-008 (policy/approval/evidence/KPI profiles, PR #199 `f83687163f`) and DH-009 (domain benchmark/simulation-worlds, PR #200 `75c239fa9a`) are DONE. The remaining TL-B sequence is now **DH-010 through DH-013**. The DH family test total is 1252 at the merged head (registry landing record at `ed06a93c074`).

@@ -151,3 +151,7 @@ DH-008 policy/approval/evidence/KPI profiles → DH-009 domain benchmark/simulat
 Every family binds to the REAL landed modules and the REAL Flauz authorities — no new permission broker, approval engine, evidence ledger, execution authority, scheduler, journal, model router, resource registry or persistence authority. The evidence law holds: fixture | simulated | local-real | runtime-real | live-provider | production-real, never promoted by wording.
 
 Consult `WORK-REGISTRY.md` and the family READMEs under `build/flauz/harness/` for the landed patterns (staged records, PIN-2 persistence, the import law, the no-dangling-ref boundaries).
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 8 landed
+
+DH-008 (profiles, PR #199) + DH-009 (benchmarks, PR #200) are DONE — see the registry wave-8 landing record. The outstanding TL-B sequence is now **DH-010 → DH-011 → DH-012 → DH-013**.
