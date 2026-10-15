@@ -3,19 +3,26 @@
  * Licensed under the MIT License; see LICENSE in the repository root for
  * additional information.
  *
- * DH-013 acceptance runner battery: the fail-closed factory (every
+ * DH-013 acceptance runner battery (re-pinned by the DH-GAP-2 wave:
+ * the closed-row gap registration, the two benchmark binding modes,
+ * the industry benchmark legs over the combined catalog, the doubled
+ * census): the fail-closed factory (every
  * option station, the one-clock/one-rng read law), THE CROSS-INDUSTRY
  * CROWN (the four industries journey-complete through the REAL kits -
  * the REAL DH-01 authority re-read at 'active' for every industry,
- * the DH-10 navigation models populated, the SE benchmark evaluated +
- * the REAL LAB closedLoop routed, the DH-12 optimization
+ * the DH-10 navigation models populated, every benchmark leg EVALUATED
+ * (the SE base-registry binding through the REAL DH-09 surfaces; the
+ * three industry-extension bindings through the combined-catalog
+ * composition over the REAL imported lab extension registry lookups)
+ * + the REAL LAB closedLoop routed, the DH-12 optimization
  * recommendations auditable, the twelve-version identity census green,
- * every gap-ledger row registered, the overall verdict green, the
+ * every gap-ledger row registered (the closed rows riding the ledger
+ * verbatim), the overall verdict green, the
  * canonical report emitted + re-parsed + byte-stable), THE FAIL-CLOSED
  * PINS (a refused journey leg fails the whole verdict - CORRUPT_SEAM
  * budget pin; the malformed-fixture pins with the contract's typed
  * rejection table carried verbatim; THE UNIQUE-INDUSTRY LAW; the
- * fresh-kit guard), THE COMPOSITION-NOT-FORK PINS (the census
+ * fresh-kit guard; THE COVERAGE LAW), THE COMPOSITION-NOT-FORK PINS (the census
  * identity, the pure-data fixture modules, the runner's NO
  * industry-string-branch source law, THE IMPORT LAW, the
  * fifth-industry data-only proof), THE PERSISTENCE MIRROR (the frozen
@@ -46,6 +53,7 @@ import type { AcceptanceRunner, AcceptanceRunnerRefusal, IndustryRunOutcome, Cro
 import {
         ACCEPTANCE_GAP_KEYS,
         ACCEPTANCE_INDUSTRIES,
+        ACCEPTANCE_CLOSED_GAP_KEYS,
         COMPOSITION_VERSION_FAMILY_KEYS,
         DOMAIN_NAVIGATION_SECTIONS,
         HARNESS_ACCEPTANCE_GAP_LEDGER,
@@ -70,6 +78,7 @@ import {
 } from '../../common/acceptanceContract.js';
 import { loadHarnessKit } from '../../../contract/common/domainHarnessKit.js';
 import type { HarnessFsPort } from '../../../contract/common/domainHarnessKit.js';
+import { generateTaskInstances, listIndustryWorlds } from '../../../../lab/common/industryTaskWorlds.js';
 import { SOFTWARE_ACCEPTANCE_FIXTURE } from '../../industries/software.js';
 import { FINANCE_ACCEPTANCE_FIXTURE } from '../../industries/finance.js';
 import { HEALTHCARE_ACCEPTANCE_FIXTURE } from '../../industries/healthcare.js';
@@ -95,6 +104,13 @@ const FAMILY_VERSIONS: Readonly<Record<string, string>> = {
         projections: PROJECTIONS_CONTRACTS_VERSION,
         activation: ACTIVATION_CONTRACTS_VERSION,
         optimization: OPTIMIZATION_CONTRACTS_VERSION,
+};
+
+/** The REAL industry-extension scenario ids per world (the lab industry extension registry's own descriptors - the industry legs' deterministic-measure pins' derivation input). */
+const INDUSTRY_SCENARIO_IDS: Readonly<Record<string, string[]>> = {
+        finance: listIndustryWorlds().find((world) => world.world.domain === 'finance')?.taskScenarios.map((scenario) => scenario.id) ?? [],
+        healthcare: listIndustryWorlds().find((world) => world.world.domain === 'healthcare')?.taskScenarios.map((scenario) => scenario.id) ?? [],
+        construction: listIndustryWorlds().find((world) => world.world.domain === 'construction')?.taskScenarios.map((scenario) => scenario.id) ?? [],
 };
 
 const LANE_FIXTURES: Readonly<Record<string, IndustryAcceptanceFixture>> = {
@@ -390,12 +406,12 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('THE ROLE-COMPOSITION LEG: the composed role keys are the fixture\'s own three roles (THE MULTI-ROLE LAW)', async () => {
+        test('THE ROLE-COMPOSITION LEG: the composed role keys are the fixture\'s own six roles (THE MULTI-ROLE LAW at the declared censused bar)', async () => {
                 const rig = await crown();
                 for (const row of rig.report.industries) {
                         assert.strictEqual(row.roleComposition.verdict, 'complete');
                         assert.deepStrictEqual([...row.roleComposition.roleKeys], LANE_FIXTURES[row.industry].roles.map((role) => role.roleKey), row.industry);
-                        assert.strictEqual(row.roleComposition.roleKeys.length, 3, `${row.industry}: the curated three-role composition`);
+                        assert.strictEqual(row.roleComposition.roleKeys.length, 6, `${row.industry}: the curated six-role composition (the DH-GAP-2 censused bar)`);
                         assert.ok(row.roleComposition.rolesSessionId.startsWith('flauz:rol:'), `${row.industry}: a REAL roles session id`);
                 }
         });
@@ -410,21 +426,23 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('THE POLICIES LEG: the composed permission refs and approval tiers are the fixture\'s own REAL members', async () => {
+        test('THE POLICIES LEG: the composed permission refs and approval tiers are the fixture\'s own REAL members (in the DH-08 record\'s own deterministically-sorted profile order - the two-profile census surfaces the owning family\'s sorted-record law)', async () => {
                 const rig = await crown();
                 for (const row of rig.report.industries) {
                         assert.strictEqual(row.policies.verdict, 'complete');
-                        assert.deepStrictEqual([...row.policies.profileKeys], LANE_FIXTURES[row.industry].profiles.map((profile) => profile.profileKey), row.industry);
-                        assert.deepStrictEqual([...row.policies.permissionRefs], [...new Set(LANE_FIXTURES[row.industry].profiles.flatMap((profile) => [...profile.permissionRefs]))], row.industry);
-                        assert.deepStrictEqual([...row.policies.approvalTiers], [...new Set(LANE_FIXTURES[row.industry].profiles.flatMap((profile) => [...profile.approvalTiers]))], row.industry);
+                        const sortedProfiles = [...LANE_FIXTURES[row.industry].profiles].sort((a, b) => (a.profileKey < b.profileKey ? -1 : a.profileKey > b.profileKey ? 1 : 0));
+                        assert.deepStrictEqual([...row.policies.profileKeys], sortedProfiles.map((profile) => profile.profileKey), row.industry);
+                        assert.deepStrictEqual([...row.policies.permissionRefs], [...new Set(sortedProfiles.flatMap((profile) => [...profile.permissionRefs]))], row.industry);
+                        assert.deepStrictEqual([...row.policies.approvalTiers], [...new Set(sortedProfiles.flatMap((profile) => [...profile.approvalTiers]))], row.industry);
                 }
         });
 
-        test('THE EVIDENCE LEG: the composed evidence floors are the fixture\'s own REAL ladder rungs', async () => {
+        test('THE EVIDENCE LEG: the composed evidence floors are the fixture\'s own REAL ladder rungs (the DH-08 record\'s sorted profile order)', async () => {
                 const rig = await crown();
                 for (const row of rig.report.industries) {
                         assert.strictEqual(row.evidence.verdict, 'complete');
-                        assert.deepStrictEqual([...row.evidence.evidenceFloors], LANE_FIXTURES[row.industry].profiles.map((profile) => profile.evidenceFloor), row.industry);
+                        const sortedProfiles = [...LANE_FIXTURES[row.industry].profiles].sort((a, b) => (a.profileKey < b.profileKey ? -1 : a.profileKey > b.profileKey ? 1 : 0));
+                        assert.deepStrictEqual([...row.evidence.evidenceFloors], sortedProfiles.map((profile) => profile.evidenceFloor), row.industry);
                 }
         });
 
@@ -443,15 +461,16 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('THE CAPABILITY-GAPS LEG: the software row registers the five non-world rows; the other three register all six (world-coverage included)', async () => {
+        test('THE CAPABILITY-GAPS LEG: every row registers exactly the four OPEN rows; the CLOSED rows 1-2 are registered by NONE (their closures ride the ledger verbatim)', async () => {
                 const rig = await crown();
-                const software = rig.report.industries[0];
-                assert.ok(!software.capabilityGaps.registeredGapKeys.includes('lab-task-worlds-coverage'), 'the software row does not register the world-coverage row (its benchmark leg IS evaluated)');
-                for (const row of rig.report.industries.slice(1)) {
-                        assert.ok(row.capabilityGaps.registeredGapKeys.includes('lab-task-worlds-coverage'), `${row.industry}: the honest world-coverage row`);
-                }
                 for (const row of rig.report.industries) {
-                        assert.strictEqual(row.capabilityGaps.verdict, 'complete');
+                        assert.strictEqual(row.capabilityGaps.verdict, 'complete', row.industry);
+                        assert.deepStrictEqual([...row.capabilityGaps.registeredGapKeys], [
+                                'no-live-provider-execution',
+                                'no-production-real-harness-deployment',
+                                'workbench-surface-runtime-binding',
+                                'cr-ledger-integration-gaps',
+                        ], `${row.industry}: exactly the four open rows`);
                         for (const gapRow of row.expectedGaps) {
                                 const frozen = HARNESS_ACCEPTANCE_GAP_LEDGER.find((ledgerRow) => ledgerRow.gapKey === gapRow.gapKey);
                                 assert.ok(frozen !== undefined);
@@ -462,33 +481,24 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('THE TASK-EXECUTION LEG (software): the LAB closedLoop fixture execution routed - four executions, the loop closed, the honest scores', async () => {
+        test('THE TASK-EXECUTION LEG (all four): the LAB closedLoop fixture execution routed - four executions, the loop closed, the honest per-binding scores', async () => {
                 const rig = await crown();
-                const software = rig.report.industries[0];
-                assert.strictEqual(software.taskExecution.verdict, 'complete');
-                assert.strictEqual(software.taskExecution.closedLoopExecutions, 4, 'the closedLoop execution count (the seeded instance count)');
-                assert.strictEqual(software.taskExecution.closedLoopLoopClosed, true, 'the ten-stage loop closed');
-                assert.deepStrictEqual(software.taskExecution.benchmarkScores?.map((score) => score.dimension), ['success', 'quality'], 'exactly the declared KPI dimensions (THE HONEST-MEASURE LAW)');
-                assert.ok(software.taskExecution.benchmarkEvidenceLevel === 'fixture', 'the honest evidence level');
-        });
-
-        test('THE TASK-EXECUTION LEG (non-software): the honest nulls + the execution disclosure carried verbatim', async () => {
-                const rig = await crown();
-                for (const row of rig.report.industries.slice(1)) {
-                        assert.strictEqual(row.taskExecution.closedLoopExecutions, null, `${row.industry}: no closedLoop claim without a curated benchmark`);
-                        assert.strictEqual(row.taskExecution.closedLoopLoopClosed, null);
-                        assert.strictEqual(row.taskExecution.benchmarkScores, null);
-                        assert.strictEqual(row.taskExecution.benchmarkEvidenceLevel, null);
+                for (const row of rig.report.industries) {
+                        assert.strictEqual(row.taskExecution.verdict, 'complete', row.industry);
+                        assert.strictEqual(row.taskExecution.closedLoopExecutions, 4, `${row.industry}: the closedLoop execution count (the seeded instance count)`);
+                        assert.strictEqual(row.taskExecution.closedLoopLoopClosed, true, `${row.industry}: the ten-stage loop closed`);
+                        assert.deepStrictEqual(row.taskExecution.benchmarkScores?.map((score) => score.dimension), ['success', 'quality'], `${row.industry}: exactly the declared KPI dimensions (THE HONEST-MEASURE LAW)`);
+                        assert.ok(row.taskExecution.benchmarkEvidenceLevel === 'fixture', `${row.industry}: the honest evidence level`);
                         assert.strictEqual(row.taskExecution.authorityState, 'active', `${row.industry}: the DH-01 authority pin still proven`);
-                        assert.ok(row.taskExecution.executionDisclosure.includes('fixture-level evidence, honestly labeled'));
+                        assert.ok(row.taskExecution.executionDisclosure.includes('fixture-level evidence, honestly labeled'), `${row.industry}: the honest execution disclosure`);
+                        assert.ok(row.taskExecution.executionDisclosure.includes('combined-catalog composition'), `${row.industry}: the disclosure names the industry-extension evaluation lane`);
                 }
         });
 
-        test('THE BENCHMARK STATUS: software evaluated; finance / healthcare / construction gap-registered', async () => {
+        test('THE BENCHMARK STATUS: all four industries evaluated (the SE base-registry binding + the three industry-extension bindings)', async () => {
                 const rig = await crown();
-                assert.strictEqual(rig.report.industries[0].benchmarkStatus, 'evaluated');
-                for (const row of rig.report.industries.slice(1)) {
-                        assert.strictEqual(row.benchmarkStatus, 'gap-registered', row.industry);
+                for (const row of rig.report.industries) {
+                        assert.strictEqual(row.benchmarkStatus, 'evaluated', row.industry);
                 }
         });
 
@@ -516,19 +526,22 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('the honest gap ledger rides the report VERBATIM (the six frozen rows)', async () => {
+        test('the honest gap ledger rides the report VERBATIM (the six frozen rows; rows 1-2 in their CLOSED successor states)', async () => {
                 const rig = await crown();
                 assert.deepStrictEqual(rig.report.gapLedger.map((row) => row.gapKey), [...ACCEPTANCE_GAP_KEYS]);
                 assert.deepStrictEqual(rig.report.gapLedger, HARNESS_ACCEPTANCE_GAP_LEDGER.map((row) => ({ gapKey: row.gapKey, description: row.description, evidenceLevel: row.evidenceLevel, owner: row.owner })));
+                assert.deepStrictEqual([...ACCEPTANCE_CLOSED_GAP_KEYS], ['lab-task-worlds-coverage', 'content-representativeness']);
         });
 
-        test('the four frozen disclosures ride the report (the content / evidence / composition / fail-closed laws)', async () => {
+        test('the five frozen disclosures ride the report (the content / evidence / composition / fail-closed / content-census laws)', async () => {
                 const rig = await crown();
-                assert.strictEqual(rig.report.disclosures.length, 4);
+                assert.strictEqual(rig.report.disclosures.length, 5);
                 assert.ok(rig.report.disclosures[0].includes('curated fixture-level acceptance content'));
                 assert.ok(rig.report.disclosures[1].includes('LAB closedLoop fixture execution'));
+                assert.ok(rig.report.disclosures[1].includes('combined-catalog composition over the REAL imported lab extension registry lookups'));
                 assert.ok(rig.report.disclosures[2].includes('the industries differ only in data'));
                 assert.ok(rig.report.disclosures[3].includes('fail-closed'));
+                assert.ok(rig.report.disclosures[4].includes('declared censused representativeness bar'));
         });
 
         test('THE HONEST RECEIPT: a fresh full cross run appends exactly the eight canonical lines', async () => {
@@ -562,15 +575,54 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 ]);
         });
 
-        test("THE REGISTRY-BOUND DERIVATION: the DH-09 family's own ledger carries the curated SE benchmark key and the three registry-bound non-SE keys (data-derived, never an industry branch)", async () => {
+        test('THE DETERMINISTIC MEASURES (the industry legs): the three industry-extension benchmarks\' scores are the reproducible combined-catalog-derived values (generateTaskInstances over the industry\'s own three scenarios, seed 11, count 4)', async () => {
+                const rig = await crown();
+                // the derivation: 12 instances per industry (three scenarios x four instances);
+                // success = the fraction at or below the 0.6 difficulty floor, quality = the
+                // complement of the mean difficulty - the same honest fixture proxy, over the
+                // REAL imported generateTaskInstances streams (deterministic: same seed -> the
+                // identical values on every run).
+                const expected: Readonly<Record<string, { readonly dimension: string; readonly value: number }[]>> = {
+                        finance: [
+                                { dimension: 'success', value: 0.167 },
+                                { dimension: 'quality', value: 0.352 },
+                        ],
+                        healthcare: [
+                                { dimension: 'success', value: 0.5 },
+                                { dimension: 'quality', value: 0.382 },
+                        ],
+                        construction: [
+                                { dimension: 'success', value: 0.25 },
+                                { dimension: 'quality', value: 0.344 },
+                        ],
+                };
+                for (const row of rig.report.industries.slice(1)) {
+                        assert.deepStrictEqual(row.taskExecution.benchmarkScores?.map((score) => ({ dimension: score.dimension, value: score.value })), expected[row.industry], row.industry);
+                }
+                // THE IMPORT LAW's reproducibility proof: the same seed regenerates the identical
+                // instance streams through the REAL imported engine entry point.
+                for (const [industry, scenarioIds] of Object.entries(INDUSTRY_SCENARIO_IDS)) {
+                        for (const scenarioId of scenarioIds) {
+                                assert.deepStrictEqual(generateTaskInstances(scenarioId, 11, 4), generateTaskInstances(scenarioId, 11, 4), `${industry}/${scenarioId}: same seed -> identical instances`);
+                                assert.strictEqual(generateTaskInstances(scenarioId, 12, 4).length, 4, `${industry}/${scenarioId}: a different seed, the same count`);
+                        }
+                }
+        });
+
+        test("THE HONEST SPLIT (the registry-bound floor + the curated industry legs): the DH-09 family's own ledger carries the curated SE benchmark key and the three registry-bound non-SE floor keys - and NONE of the curated industry-extension keys (the industry bindings ride the acceptance family's combined-catalog composition, never a forced DH-09 record entry)", async () => {
                 const rig = await crown();
                 const benchmarksLedger = rig.port.dump('ws/.flauz/harness/benchmarks-ops.jsonl');
                 assert.ok(benchmarksLedger !== undefined, 'the REAL DH-09 family ledger exists under the shared root');
-                assert.ok((benchmarksLedger as string).includes('regression-suite-health'), 'the software journey composed the CURATED benchmark (bound to the REAL three SE scenarios)');
+                assert.ok((benchmarksLedger as string).includes('regression-suite-health'), 'the software journey composed the CURATED base-registry benchmark (bound to the REAL three SE scenarios)');
                 for (const industry of ['finance', 'healthcare', 'construction']) {
-                        assert.ok((benchmarksLedger as string).includes(`${industry}-registry-bound-acceptance`), `the ${industry} journey composed the REGISTRY-BOUND benchmark (the honest compose floor over the only REAL scenarios)`);
+                        assert.ok((benchmarksLedger as string).includes(`${industry}-registry-bound-acceptance`), `the ${industry} journey composed the REGISTRY-BOUND floor entry (the DH-09 compose floor over the scenarios the landed binding law can carry)`);
+                }
+                for (const curatedKey of ['lending-operations-health', 'clinical-operations-health', 'site-delivery-health']) {
+                        assert.ok(!(benchmarksLedger as string).includes(curatedKey), `the curated industry key '${curatedKey}' never rides the DH-09 record (the landed binding law is never forced)`);
                 }
                 assert.ok(RUNNER_SOURCE.includes('journeyBenchmarkOf'), 'the derivation is uniform over the fixture data');
+                assert.ok(RUNNER_SOURCE.includes('generateTaskInstances'), 'the industry legs instantiate through the REAL imported combined-catalog engine entry point');
+                assert.ok(RUNNER_SOURCE.includes('ALL_TASK_WORLDS'), 'the activity corpus derives over the REAL combined catalog');
         });
 
         test("THE SINGLE-VERSION LAW at the report surface: the report version and every industry row's contractVersion are the family version", async () => {
@@ -634,7 +686,7 @@ suite('acceptanceRunner · the per-industry op surface', () => {
                 const outcome = await runner.runIndustryAcceptance(copy(FINANCE_ACCEPTANCE_FIXTURE));
                 assert.ok(outcome.ok, outcome.ok ? '' : outcome.refusal.message);
                 assert.strictEqual(outcome.verdict.industry, 'finance');
-                assert.strictEqual(outcome.verdict.benchmarkStatus, 'gap-registered');
+                assert.strictEqual(outcome.verdict.benchmarkStatus, 'evaluated');
                 assert.strictEqual(ledgerLines(port).length, 1, 'exactly one run-industry line');
                 const inspected = runner.inspectRun();
                 assert.ok(inspected.ok);
@@ -656,18 +708,22 @@ suite('acceptanceRunner · the per-industry op surface', () => {
                 runner.dispose();
         });
 
-        test('THE FIFTH-INDUSTRY PIN: a well-formed fixture for a REAL industry outside the four runs green through the SAME code path (a fifth industry is a new fixture module, never a code path)', async () => {
+        test('THE FIFTH-INDUSTRY PIN: a well-formed benchmark-absent fixture for a REAL UNCOVERED industry outside the four runs green through the SAME code path (a fifth industry is a new fixture module, never a code path)', async () => {
                 const port = new MemoryFsPort();
                 const seams = makeSeams();
                 const runner = createAcceptanceRunner({ clock: seams.clock, rng: seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
                 const legal = copy(FINANCE_ACCEPTANCE_FIXTURE);
                 legal.industry = 'legal';
+                legal.benchmark = null; // THE COVERAGE LAW: legal carries no task-world - the honest null is lawful (uncovered)
                 const outcome = await runner.runIndustryAcceptance(legal);
                 assert.ok(outcome.ok, outcome.ok ? '' : outcome.refusal.message);
                 assert.strictEqual(outcome.verdict.industry, 'legal');
                 assert.strictEqual(outcome.verdict.journey.verdict, 'complete');
                 assert.strictEqual(outcome.verdict.journey.harnessLifecycleEndState, 'active');
                 assert.strictEqual(outcome.verdict.benchmarkStatus, 'gap-registered');
+                assert.deepStrictEqual(outcome.verdict.capabilityGaps.registeredGapKeys, [
+                        'no-live-provider-execution', 'no-production-real-harness-deployment', 'workbench-surface-runtime-binding', 'cr-ledger-integration-gaps',
+                ], 'the uncovered fifth industry registers the four open rows - no closed row');
                 runner.dispose();
         });
 
@@ -698,15 +754,16 @@ suite('acceptanceRunner · the per-industry op surface', () => {
                 runner.dispose();
         });
 
-        test('a missing world-coverage gap row on a benchmark-absent fixture refuses (THE GAP-MUST-BE-REGISTERED LAW)', async () => {
+        test('a benchmark-absent fixture for a COVERED industry refuses (THE COVERAGE LAW - the updated fail-closed truth)', async () => {
                 const port = new MemoryFsPort();
                 const seams = makeSeams();
                 const runner = createAcceptanceRunner({ clock: seams.clock, rng: seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
                 const mutated = copy(FINANCE_ACCEPTANCE_FIXTURE);
-                mutated.expectedGaps = (mutated.expectedGaps as { gapKey: string }[]).filter((row) => row.gapKey !== 'lab-task-worlds-coverage');
+                mutated.benchmark = null; // the finance industry's task-world EXISTS - the coverage row is CLOSED
                 const refusal = mustRefuse(await runner.runIndustryAcceptance(mutated));
                 assert.strictEqual(refusal.reason, 'malformed-fixture');
                 assert.strictEqual(refusal.fixtureRejection?.reason, 'gap-registration-missing');
+                assert.ok(refusal.fixtureRejection?.message.includes('the coverage row is CLOSED'));
                 runner.dispose();
         });
 
@@ -883,12 +940,13 @@ suite('acceptanceRunner · THE COMPOSITION-NOT-FORK source pins', () => {
                         'loadHarnessKit', 'loadOnboardingKit', 'loadRolesKit', 'loadOntologyKit', 'loadTemplatesKit',
                         'loadBodiesKit', 'loadPacksKit', 'loadProfilesKit', 'loadBenchmarksKit', 'createActivationKit',
                         'loadActivationKit', 'createProjectionsKit', 'createOptimizationKit', 'loadOptimizationKit',
-                        'runClosedLoop', 'TASK_WORLDS',
+                        'runClosedLoop', 'TASK_WORLDS', 'ALL_TASK_WORLDS', 'generateTaskInstances',
                 ]) {
                         assert.ok(RUNNER_SOURCE.includes(realSurface), `the runner imports ${realSurface}`);
                 }
                 assert.ok(RUNNER_SOURCE.includes("from '../../activation/common/activationKit.js'"));
                 assert.ok(RUNNER_SOURCE.includes("from '../../../lab/common/closedLoop.js'"));
+                assert.ok(RUNNER_SOURCE.includes("from '../../../lab/common/industryTaskWorlds.js'"), 'the combined-catalog lookups are the REAL lab extension registry\'s own, imported by reference');
         });
 
         test('THE IMPORT LAW (versions): the twelve family versions are imported by reference, never transcribed', () => {
@@ -1085,6 +1143,143 @@ suite('acceptanceRunner · THE PERSISTENCE MIRROR (the append-only ledger + the 
                 const freshPort = new MemoryFsPort();
                 freshPort.refuseMkdirs = true;
                 assert.strictEqual(mustRefuse(await loadAcceptanceRunner({ clock: seams.clock, rng: seams.rng, fsPort: freshPort as unknown as HarnessFsPort, root: 'ws' })).reason, 'ACCEPTANCE_IO');
+        });
+});
+
+// --- the industry benchmark legs + the closed-row persistence laws (the DH-GAP-2 wave) ------------------------------
+
+suite('acceptanceRunner · THE INDUSTRY BENCHMARK LEGS + THE CLOSED-ROW LAWS (the DH-GAP-2 wave)', () => {
+        test('THE EXECUTION DISCLOSURE carries the two-lane truth on every row (the closedLoop drives the landed base-registry SE scenario; the evaluations ride the REAL DH-09 surfaces or the combined-catalog composition)', async () => {
+                const rig = await crown();
+                for (const row of rig.report.industries) {
+                        const disclosure = row.taskExecution.executionDisclosure;
+                        assert.ok(disclosure.includes('the landed closed-loop engine drives the base-registry SE scenario for every benchmark leg'), `${row.industry}: the closedLoop scenario limitation is disclosed`);
+                        assert.ok(disclosure.includes('the REAL DH-09 surfaces for the base-registry binding'), `${row.industry}: the base-registry evaluation lane is disclosed`);
+                        assert.ok(disclosure.includes('combined-catalog composition over the REAL imported lab extension registry lookups for the industry-extension bindings'), `${row.industry}: the industry-extension evaluation lane is disclosed`);
+                        assert.ok(disclosure.includes('never a live provider, never a production deployment'), `${row.industry}: the evidence ceiling is disclosed`);
+                }
+        });
+
+        test('THE BINDING-MODE COMPOSITION at the ops surface: the run-industry lines disclose each fixture\'s own binding mode (base-registry for software; industry-extension-registry for the three)', async () => {
+                const rig = await crown();
+                const lines = ledgerLines(rig.port).filter((line) => line.op === 'run-industry');
+                assert.strictEqual(lines.length, 4);
+                const expectedModes: Readonly<Record<string, string>> = {
+                        software: 'base-registry',
+                        finance: 'industry-extension-registry',
+                        healthcare: 'industry-extension-registry',
+                        construction: 'industry-extension-registry',
+                };
+                for (const line of lines) {
+                        const industry = line.industry as string;
+                        assert.ok(typeof line.detail === 'string' && (line.detail as string).includes(`the benchmark leg evaluated over the ${expectedModes[industry]} carrier`), `${industry}: the line's detail discloses the ${expectedModes[industry]} binding mode`);
+                }
+        });
+
+        test('THE REGISTER-GAPS op detail carries the closed-row truth (rows 1-2 closed - the closures recorded IN the rows; the closed rows registered by none)', async () => {
+                const rig = await crown();
+                const line = ledgerLines(rig.port).find((candidate) => candidate.op === 'register-gaps');
+                assert.ok(line !== undefined);
+                assert.ok(typeof line.detail === 'string');
+                assert.ok((line.detail as string).includes('rows 1-2 closed - the closures recorded IN the rows'));
+                assert.ok((line.detail as string).includes('the closed rows by none'));
+                assert.strictEqual(line?.law, 'THE CLOSED-ROW LAW');
+        });
+
+        test('THE EMITTED REPORT FILE carries the closed rows\' closure records verbatim (the report never carries a false registry claim)', async () => {
+                const rig = await crown();
+                const text = rig.port.dump('ws/.flauz/harness/acceptance-report.json') as string;
+                assert.ok(text.includes('CLOSED 2026-10-15: the three industry task-worlds (finance/healthcare/construction) landed at PR #205 in the lab extension registry'), 'the row-1 closure record rides the report verbatim');
+                assert.ok(text.includes('CLOSED 2026-10-16: the four industry content sets are deepened to the declared censused representativeness bar'), 'the row-2 closure record rides the report verbatim');
+                assert.ok(!text.includes('the LAB task-world registry covers the SE fixture world only'), 'the stale registry claim is carried by NONE (the report never carries a false registry claim)');
+        });
+
+        test('THE DH-09 RECORD\'S HONEST ENTRY SHAPE: exactly four add-benchmark entries ride the DH-09 family ledger, every one binding the REAL three SE scenarios (the landed binding law\'s own lane)', async () => {
+                const rig = await crown();
+                const benchmarksLedger = rig.port.dump('ws/.flauz/harness/benchmarks-ops.jsonl') as string;
+                const addLines = benchmarksLedger.split('\n').filter((line) => line.includes('"op":"add-benchmark"'));
+                assert.strictEqual(addLines.length, 4, 'one benchmark entry per journey (the no-second-entry composition)');
+                for (const line of addLines) {
+                        const parsed = JSON.parse(line) as { payload: { scenarioRefs: string[] } };
+                        assert.deepStrictEqual(parsed.payload.scenarioRefs, [
+                                'scenario-se-bugfix-regression',
+                                'scenario-se-feature-addition',
+                                'scenario-se-flaky-investigation',
+                        ], 'the DH-09 record carries ONLY base-registry-bound entries');
+                }
+        });
+
+        test('THE DH-12 RECOMMENDATION\'s honest split: the optimization ledger\'s recommendation additions carry the journey-legal floor entries - never the curated industry bindings (the DH-12 delta walk validates through the REAL DH-09 entry walk)', async () => {
+                const rig = await crown();
+                const optimizationLedger = rig.port.dump('ws/.flauz/harness/optimization-ops.jsonl') as string;
+                assert.ok(optimizationLedger !== undefined, 'the REAL DH-12 family ledger exists under the shared root');
+                for (const industry of ['finance', 'healthcare', 'construction']) {
+                        assert.ok(optimizationLedger.includes(`${industry}-registry-bound-acceptance`), `the ${industry} recommendation carries the registry-bound floor entry`);
+                }
+                for (const curatedKey of ['lending-operations-health', 'clinical-operations-health', 'site-delivery-health']) {
+                        assert.ok(!optimizationLedger.includes(curatedKey), `the curated industry key '${curatedKey}' never rides the DH-12 recommendation`);
+                }
+        });
+
+        test('THE COMBINED-CATALOG CORPUS: the DH-12 observe leg\'s learned profile derives from the combined catalog\'s own world mix (24 retained records - the twelve scenarios of the combined catalog, two records each)', async () => {
+                const rig = await crown();
+                const optimizationLedger = rig.port.dump('ws/.flauz/harness/optimization-ops.jsonl') as string;
+                const observeLines = optimizationLedger.split('\n').filter((line) => line.includes('"op":"observe-workload"'));
+                assert.strictEqual(observeLines.length, 4, 'one observation per industry journey');
+                for (const line of observeLines) {
+                        const parsed = JSON.parse(line) as { payload: { profile: { description: string } } };
+                        assert.ok(parsed.payload.profile.description.includes('from 24 retained activity record(s)'), `the observe leg learned over the combined catalog's 24 records (${parsed.payload.profile.description.slice(0, 60)}...)`);
+                }
+        });
+
+        test('THE FIFTH-INDUSTRY FLOOR ENTRY: the uncovered industry\'s journey composes the registry-bound floor entry over the SE scenarios (the honest compose floor for a world-less industry)', async () => {
+                const port = new MemoryFsPort();
+                const seams = makeSeams();
+                const runner = createAcceptanceRunner({ clock: seams.clock, rng: seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
+                const legal = copy(FINANCE_ACCEPTANCE_FIXTURE);
+                legal.industry = 'legal';
+                legal.benchmark = null;
+                const outcome = await runner.runIndustryAcceptance(legal);
+                assert.ok(outcome.ok, outcome.ok ? '' : outcome.refusal.message);
+                const benchmarksLedger = port.dump('ws/.flauz/harness/benchmarks-ops.jsonl') as string;
+                assert.ok(benchmarksLedger.includes('legal-registry-bound-acceptance'), 'the legal journey composed the registry-bound floor entry (keyed by its own industry, uniform over the fixture data)');
+                runner.dispose();
+        });
+
+        test('THE CLOSED-ROW LAW at the ledger replay: a tampered industry row registering a CLOSED row is the typed E_LEDGER_TORN (the row walk re-proves the law from the ledger alone)', async () => {
+                const rig = await crown();
+                const port = new MemoryFsPort();
+                for (const [path, text] of rig.port.files) {
+                        port.files.set(path, text);
+                }
+                const closedRow = HARNESS_ACCEPTANCE_GAP_LEDGER.find((row) => row.gapKey === 'lab-task-worlds-coverage');
+                assert.ok(closedRow !== undefined);
+                rewriteLedger(port, (lines) => lines.map((line, index) => (index === 1 ? { ...line, payload: { ...(line.payload as Record<string, unknown>), expectedGaps: [...((line.payload as { expectedGaps: unknown[] }).expectedGaps), { gapKey: closedRow.gapKey, description: closedRow.description, evidenceLevel: closedRow.evidenceLevel, owner: closedRow.owner }] } } : line)));
+                const refusal = await (async () => {
+                        const outcome = await loadAcceptanceRunner({ clock: rig.seams.clock, rng: rig.seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
+                        return mustRefuse(outcome);
+                })();
+                assert.strictEqual(refusal.reason, 'E_LEDGER_TORN');
+                assert.ok(refusal.message.includes('CLOSED ledger row'));
+        });
+
+        test('THE REGISTER-GAPS LANE LAW: a lane industry\'s row at gap-registered refuses the terminal gap registration (the lane industries all carry task-worlds - every lane benchmark leg must be evaluated)', async () => {
+                const port = new MemoryFsPort();
+                const seams = makeSeams();
+                const runner = createAcceptanceRunner({ clock: seams.clock, rng: seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
+                assert.ok((await runner.runIndustryAcceptance(copy(SOFTWARE_ACCEPTANCE_FIXTURE))).ok);
+                runner.dispose();
+                // tamper the landed software row to the gap-registered status (an un-exercised
+                // evaluable benchmark leg), regenerate the matching envelope, reload, resume
+                const kept = ledgerLines(port).map((line, index) => (index === 0 ? { ...line, payload: { ...(line.payload as Record<string, unknown>), benchmarkStatus: 'gap-registered' } } : line));
+                port.overwrite('ws/.flauz/harness/acceptance-ops.jsonl', `${kept.map((line) => JSON.stringify(line)).join('\n')}\n`);
+                port.overwrite('ws/.flauz/harness/acceptance-runs.json', expectedEnvelope(['software'], false, null, null, 1));
+                const reloaded = await loadAcceptanceRunner({ clock: seams.clock, rng: seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
+                assert.ok(reloaded.ok);
+                const refusal = mustRefuse(await reloaded.runner.runCrossIndustryAcceptance());
+                assert.strictEqual(refusal.reason, 'gap-registration-missing');
+                assert.ok(refusal.message.includes('benchmark-leg-not-evaluated'), 'the refusal names the un-exercised lane benchmark leg');
+                reloaded.runner.dispose();
         });
 });
 

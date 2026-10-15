@@ -35,22 +35,38 @@
  * framework test does not prove industry content exists or that an
  * end-to-end user journey is operational. The instrument registers
  * every uncovered gap honestly - six frozen rows, carried verbatim in
- * the report; the unproven is REGISTERED, never promoted.
+ * the report; the unproven is REGISTERED, never promoted. THE
+ * CLOSED-ROW LAW (the DH-GAP-2 wave's lawful ledger update, the
+ * frozen-ledger law's own subject): a row whose owning lane landed
+ * its closure is updated to its CLOSED successor state - the closure
+ * recorded IN the row's own description, never by silent removal -
+ * and a closed row can never again be registered as an open gap by a
+ * fixture (rows 1 and 2 are closed at this version: the lab
+ * task-worlds coverage closed 2026-10-15 when the three industry
+ * task-worlds landed at PR #205 in the lab extension registry; the
+ * content representativeness closed with this wave's declared
+ * censused content bar). Rows 3-6 remain open and are registered by
+ * every fixture.
  *
  * THE CONTENT DISCLOSURE (binding on the four curated fixture
  * modules): the industry content sets are CURATED FIXTURE-LEVEL
- * acceptance content - representative, deliberately modest, honestly
- * labeled. NOT a claim of comprehensive domain truth, NOT promoted
- * evidence.
+ * acceptance content - representative, honestly labeled at the
+ * DECLARED CENSUSED REPRESENTATIVENESS BAR (each industry at least
+ * six roles, ten terms, four tasks, four bodies, four packs and two
+ * profiles of real domain-shaped curated content; the census pinned
+ * by the battery, the content-census disclosure riding every report).
+ * NOT a claim of comprehensive domain truth, NOT promoted evidence.
  *
  * THE IMPORT LAW (binding): every vocabulary this contract names is
  * the OWNING real module's own, imported by reference - the twelve
  * prior family versions, the REAL LAB_CONTRACTS_VERSION, the REAL
  * industry / work-type / size-band vocabularies, the REAL permission /
  * tier / evidence-floor / eval-dimension vocabularies, the REAL
- * task-world scenario registry, the REAL family entry validators, the
- * REAL decision-mirror vocabularies. Never transcribed, never
- * re-declared.
+ * task-world scenario registries (the landed base registry through
+ * getScenario; the combined catalog through the lab industry
+ * extension registry's own getTaskScenario / getTaskWorld lookups),
+ * the REAL family entry validators, the REAL decision-mirror
+ * vocabularies. Never transcribed, never re-declared.
  *
  * THE DETERMINISM LAW: no Math.random, no Date.now, no new Date(...)
  * and no process.env in this module (law comments excepted) - the
@@ -73,8 +89,9 @@ import type { PackEntry } from '../../packs/common/packsContract.js';
 import { validateProfileEntry } from '../../profiles/common/profilesContract.js';
 import type { ProfileEntry } from '../../profiles/common/profilesContract.js';
 import { validateBenchmarkEntry } from '../../benchmarks/common/benchmarksContract.js';
-import type { BenchmarkEntry } from '../../benchmarks/common/benchmarksContract.js';
+import type { BenchmarkEntry, BenchmarksValidationOutcome } from '../../benchmarks/common/benchmarksContract.js';
 import { getScenario } from '../../../lab/common/taskWorlds.js';
+import { getTaskScenario, getTaskWorld, listIndustryWorlds } from '../../../lab/common/industryTaskWorlds.js';
 import { LAB_CONTRACTS_VERSION } from '../../../lab/common/labContracts.js';
 import type { LabEvidenceLevel } from '../../../lab/common/labContracts.js';
 import type { ActivationJourneyStage } from '../../activation/common/activationContract.js';
@@ -173,6 +190,33 @@ export function isAcceptanceGapKey(value: unknown): value is AcceptanceGapKey {
 }
 
 /**
+ * THE CLOSED-ROW LAW's frozen closed-key list (the DH-GAP-2 wave's
+ * lawful ledger update): the ledger rows whose owning lanes landed
+ * their closures - 'lab-task-worlds-coverage' (closed 2026-10-15: the
+ * three industry task-worlds landed at PR #205 in the lab industry
+ * extension registry, so all four acceptance-lane industries carry
+ * industry-specific simulation worlds) and
+ * 'content-representativeness' (closed with this wave: the four
+ * industry content sets deepened to the declared censused
+ * representativeness bar). A closed row rides the report VERBATIM -
+ * its closure recorded IN its own description - and can never be
+ * registered as an open gap by a fixture. The list is cross-pinned
+ * against the ledger by construction (every member is a frozen row)
+ * and by the battery (every closed row's description records its
+ * closure; no open row's description does).
+ */
+export const ACCEPTANCE_CLOSED_GAP_KEYS = [
+        'lab-task-worlds-coverage',
+        'content-representativeness',
+] as const satisfies readonly AcceptanceGapKey[];
+export type AcceptanceClosedGapKey = (typeof ACCEPTANCE_CLOSED_GAP_KEYS)[number];
+
+/** Pure predicate over the closed-key list (THE CLOSED-ROW LAW's state surface). */
+export function isAcceptanceClosedGapKey(value: unknown): value is AcceptanceClosedGapKey {
+        return (ACCEPTANCE_CLOSED_GAP_KEYS as readonly string[]).includes(value as string);
+}
+
+/**
  * One honest gap ledger row: the frozen gapKey, the description
  * (registered VERBATIM in the report, never paraphrased), the evidence
  * level of what IS proven today (a REAL ladder rung - the honest
@@ -193,18 +237,22 @@ export const ACCEPTANCE_GAP_ROW_SCHEMA_KEYS = ['gapKey', 'description', 'evidenc
  * THE HONEST GAP LEDGER: the six frozen rows, registered VERBATIM in
  * every acceptance report. The instrument never closes these rows by
  * passing a test - the report carries them so a green verdict can
- * never be read as a claim the ledger refutes.
+ * never be read as a claim the ledger refutes. THE CLOSED-ROW LAW
+ * (the DH-GAP-2 wave): rows 1 and 2 carry their CLOSED successor
+ * states - the closures recorded IN the rows' own descriptions (the
+ * truth of what landed, with the dates and the bounds), never by
+ * silent removal - and rows 3-6 remain the open registered residue.
  */
 export const HARNESS_ACCEPTANCE_GAP_LEDGER: readonly AcceptanceGapRow[] = Object.freeze([
         Object.freeze({
                 gapKey: 'lab-task-worlds-coverage',
-                description: 'the LAB task-world registry covers the SE fixture world only; finance/healthcare/construction lack industry-specific simulation worlds (the benchmark legs gap-registered)',
+                description: 'CLOSED 2026-10-15: the three industry task-worlds (finance/healthcare/construction) landed at PR #205 in the lab extension registry; the SE world plus three industry worlds - all four acceptance-lane industries carry industry-specific simulation worlds and their benchmark legs are bound; the coverage row is closed, recorded in the row (never by silent removal)',
                 evidenceLevel: 'fixture',
                 owner: 'TL-B (the Lab lane)',
         }),
         Object.freeze({
                 gapKey: 'content-representativeness',
-                description: 'the four industry content sets are curated fixture-level acceptance content, not comprehensive domain truth',
+                description: 'CLOSED 2026-10-16: the four industry content sets are deepened to the declared censused representativeness bar - each industry carries at least six roles, ten terms, four tasks, four bodies, four packs and two profiles of real domain-shaped curated content (the census pinned by the battery, the content-census disclosure riding every report); the fixture-level bound stays disclosed - curated acceptance content, never a domain-truth claim; the row is closed, recorded in the row (never by silent removal)',
                 evidenceLevel: 'fixture',
                 owner: 'TL-B (the harness acceptance family)',
         }),
@@ -256,6 +304,126 @@ export const INDUSTRY_ACCEPTANCE_FIXTURE_SCHEMA_KEYS = [
         'expectedGaps',
 ] as const;
 
+// --- the benchmark binding modes (the DH-GAP-2 wave's additive contract addition) ------------------------
+
+/**
+ * THE BENCHMARK BINDING MODES (the DH-GAP-2 wave's additive contract
+ * addition, disclosed in the wave's D-register): the two frozen lanes
+ * a curated benchmark binds its scenarioRefs through -
+ *   'base-registry'                - the plain BenchmarkEntry shape
+ *                                   (the landed binding: every
+ *                                   scenarioRef resolves against the
+ *                                   REAL landed base registry through
+ *                                   the imported getScenario; lawful
+ *                                   on the software fixture only -
+ *                                   THE REGISTRY FACT LAW, the base
+ *                                   registry carries the SE fixture
+ *                                   world, the software industry's
+ *                                   own);
+ *   'industry-extension-registry'  - the wrapped IndustryBenchmarkBinding
+ *                                   (the wave's extension: every
+ *                                   scenarioRef resolves against the
+ *                                   REAL combined catalog through the
+ *                                   lab industry extension registry's
+ *                                   own imported getTaskScenario and
+ *                                   binds the fixture industry's OWN
+ *                                   task-world - the world's declared
+ *                                   domain equals the fixture's
+ *                                   industry, never a neighbor's
+ *                                   world, never the SE world).
+ * The modes are dispatched over the carrier's OWN shape (the declared
+ * bindingMode field) - data-driven, never an industry-string branch.
+ */
+export const ACCEPTANCE_BENCHMARK_BINDING_MODES = ['base-registry', 'industry-extension-registry'] as const;
+export type AcceptanceBenchmarkBindingMode = (typeof ACCEPTANCE_BENCHMARK_BINDING_MODES)[number];
+
+/** Pure predicate over the closed binding-mode list. */
+export function isAcceptanceBenchmarkBindingMode(value: unknown): value is AcceptanceBenchmarkBindingMode {
+        return (ACCEPTANCE_BENCHMARK_BINDING_MODES as readonly string[]).includes(value as string);
+}
+
+/** The frozen industry-extension binding schema keys, in the canonical fixed-key-order. */
+export const INDUSTRY_BENCHMARK_BINDING_SCHEMA_KEYS = ['bindingMode', 'entry'] as const;
+
+/**
+ * THE INDUSTRY-EXTENSION BENCHMARK BINDING: the curated benchmark for
+ * an industry whose task-world lives in the lab industry extension
+ * registry - the frozen declared bindingMode plus the curated entry
+ * (the REAL DH-09 BenchmarkEntry shape, every scenarioRef binding the
+ * industry's OWN world through the combined catalog). The entry rides
+ * THE TWO-PHASE BINDING LAW below (the REAL DH-09 walk green in every
+ * station except the base-registry scenario binding, which this
+ * family re-binds through the combined catalog - the lawful lane,
+ * never a forced binding into the landed base-registry-bound record
+ * machinery).
+ */
+export interface IndustryBenchmarkBinding {
+        readonly bindingMode: 'industry-extension-registry';
+        readonly entry: BenchmarkEntry;
+}
+
+/**
+ * Pure classifier over the benchmark carrier (THE BINDING-MODE
+ * DISPATCH): the honest null, the wrapped industry-extension binding,
+ * or the plain base-registry BenchmarkEntry shape. Never an
+ * industry-string branch - the mode is declared by the carrier's own
+ * shape.
+ */
+export function benchmarkBindingModeOf(benchmark: unknown): AcceptanceBenchmarkBindingMode | null {
+        if (benchmark === null) {
+                return null;
+        }
+        if (isRecord(benchmark) && (benchmark as Record<string, unknown>).bindingMode === 'industry-extension-registry') {
+                return 'industry-extension-registry';
+        }
+        return 'base-registry';
+}
+
+/**
+ * The classified benchmark binding (the runner's benchmark-leg
+ * dispatch shape): the declared binding mode plus the curated entry
+ * (unwrapped for the industry-extension binding).
+ */
+export interface BenchmarkBinding {
+        readonly mode: AcceptanceBenchmarkBindingMode;
+        readonly entry: BenchmarkEntry;
+}
+
+/**
+ * Pure binding classifier: the dispatch shape over the benchmark
+ * carrier - the honest null, or { mode, entry } with the entry
+ * unwrapped for the industry-extension binding (THE BINDING-MODE
+ * DISPATCH; data-driven over the carrier's own shape).
+ */
+export function benchmarkBindingOf(benchmark: unknown): BenchmarkBinding | null {
+        const mode = benchmarkBindingModeOf(benchmark);
+        if (mode === null) {
+                return null;
+        }
+        if (mode === 'industry-extension-registry') {
+                return { mode, entry: (benchmark as IndustryBenchmarkBinding).entry };
+        }
+        return { mode, entry: benchmark as BenchmarkEntry };
+}
+
+/**
+ * THE CURATED CENSUS (the frozen per-fixture entry counts - the
+ * DH-GAP-2 wave's declared censused representativeness bar, the
+ * doubled composition): exactly six roles, ten terms, four tasks,
+ * four bodies, four packs and two profiles. The four curated fixture
+ * modules satisfy it by construction; a fixture outside the census is
+ * the typed fixture-count-law rejection (the curated set's shape law,
+ * never a runner code branch).
+ */
+export const FIXTURE_ENTRY_CENSUS = Object.freeze({
+        roles: Object.freeze({ min: 6, max: 6 }),
+        terms: Object.freeze({ min: 10, max: 10 }),
+        tasks: Object.freeze({ min: 4, max: 4 }),
+        bodies: Object.freeze({ min: 4, max: 4 }),
+        packs: Object.freeze({ min: 4, max: 4 }),
+        profiles: Object.freeze({ min: 2, max: 2 }),
+} as const);
+
 /**
  * THE CONTENT LAW's curated industry fixture: the caller-supplied
  * (curated, fixture-level) acceptance content for ONE industry. The
@@ -264,29 +432,35 @@ export const INDUSTRY_ACCEPTANCE_FIXTURE_SCHEMA_KEYS = [
  *   - companyProfile: the REAL DH-02 shape (a REAL COMPANY_SIZE_BANDS
  *     member);
  *   - workTypes: a non-empty ordered subset of the REAL ten;
- *   - roles: EXACTLY three named roles (the DH-03 shape - THE
- *     MULTI-ROLE LAW's representative composition; industry-meaningful
- *     roleKeys);
- *   - terms: EXACTLY five terms of art (the DH-04 shape);
- *   - tasks: EXACTLY two task templates (the DH-05 shape), every
+ *   - roles: EXACTLY six named roles (the DH-03 shape - THE
+ *     MULTI-ROLE LAW's representative composition at the declared
+ *     censused bar; industry-meaningful roleKeys);
+ *   - terms: EXACTLY ten terms of art (the DH-04 shape);
+ *   - tasks: EXACTLY four task templates (the DH-05 shape), every
  *     termRef resolving into THIS fixture's terms (THE
  *     INTERNAL-REF LAW);
- *   - bodies: EXACTLY two organization-default entries (the DH-06
+ *   - bodies: EXACTLY four organization-default entries (the DH-06
  *     shape), every roleRef resolving into THIS fixture's roles;
- *   - packs: EXACTLY two capability-pack entries (the DH-07 shape),
+ *   - packs: EXACTLY four capability-pack entries (the DH-07 shape),
  *     every bodyRef resolving into THIS fixture's bodies;
- *   - profiles: ONE or TWO policy profiles (the DH-08 shape:
+ *   - profiles: EXACTLY two policy profiles (the DH-08 shape:
  *     permissionRefs from the REAL catalog members, approvalTiers
  *     from the REAL tiers, evidenceFloor a REAL ladder rung,
  *     kpiDimensions REAL dims);
- *   - benchmark: the curated industry benchmark (the DH-09 shape,
- *     bound to the REAL task-world scenario registry) - PRESENT for
- *     the software fixture only (the registry fact: the LAB carries
- *     the SE fixture world only); a fixture with NO benchmark
- *     registers the honest gap (the 'lab-task-worlds-coverage' row
- *     MUST appear in expectedGaps - fail-closed);
+ *   - benchmark: the curated industry benchmark in ONE of the two
+ *     frozen binding modes - the plain base-registry BenchmarkEntry
+ *     (software only, THE REGISTRY FACT LAW: the landed base registry
+ *     carries the SE fixture world, the software industry's own) or
+ *     the wrapped industry-extension IndustryBenchmarkBinding (an
+ *     industry whose task-world lives in the lab industry extension
+ *     registry, binding its OWN world's REAL scenarios through the
+ *     combined catalog); a fixture whose industry carries NO
+ *     task-world carries the honest null (the benchmarkStatus
+ *     gap-registered path);
  *   - expectedGaps: the typed gap rows this industry HONESTLY
- *     registers (each a frozen ledger row, carried verbatim).
+ *     registers (each a frozen ledger row, carried verbatim; the
+ *     CLOSED rows 1-2 are registered by NONE - their closures are
+ *     recorded IN the ledger rows themselves).
  */
 export interface IndustryAcceptanceFixture {
         readonly industry: HarnessIndustry;
@@ -298,7 +472,7 @@ export interface IndustryAcceptanceFixture {
         readonly bodies: readonly BodyDefaultsEntry[];
         readonly packs: readonly PackEntry[];
         readonly profiles: readonly ProfileEntry[];
-        readonly benchmark: BenchmarkEntry | null;
+        readonly benchmark: BenchmarkEntry | IndustryBenchmarkBinding | null;
         readonly expectedGaps: readonly AcceptanceGapRow[];
 }
 
@@ -321,35 +495,55 @@ export interface IndustryAcceptanceFixture {
  *   invalid-work-types             - the work types fail the REAL
  *                                   DH-02 walk (surfaced verbatim);
  *   invalid-roles                  - the roles fail the REAL DH-03
- *                                   entry walk / the three-role
+ *                                   entry walk / the six-role
  *                                   curated census (surfaced
  *                                   verbatim);
  *   invalid-terms                  - the terms fail the REAL DH-04
- *                                   entry walk / the five-term census;
+ *                                   entry walk / the ten-term census;
  *   invalid-tasks                  - the tasks fail the REAL DH-05
- *                                   entry walk / the two-task census;
+ *                                   entry walk / the four-task census;
  *   invalid-bodies                 - the bodies fail the REAL DH-06
- *                                   entry walk / the two-body census;
+ *                                   entry walk / the four-body census;
  *   invalid-packs                  - the packs fail the REAL DH-07
- *                                   entry walk / the two-pack census;
+ *                                   entry walk / the four-pack census;
  *   invalid-profiles               - the profiles fail the REAL DH-08
- *                                   entry walk / the one-or-two census;
+ *                                   entry walk / the two-profile census;
  *   invalid-benchmark              - the benchmark fails the REAL
- *                                   DH-09 entry walk;
+ *                                   DH-09 entry walk (base-registry
+ *                                   mode), or the wrapped
+ *                                   industry-extension binding fails
+ *                                   its own strict two-key schema /
+ *                                   THE TWO-PHASE BINDING LAW (the
+ *                                   entry must be green in every REAL
+ *                                   DH-09 station except the
+ *                                   base-registry scenario binding,
+ *                                   refused with EXACTLY the
+ *                                   dangling-scenario-ref station);
  *   unknown-scenario-ref           - a benchmark scenarioRef does not
- *                                   resolve against the REAL LAB
- *                                   registry (imported through
- *                                   getScenario - never a transcribed
- *                                   list);
- *   benchmark-industry-mismatch    - a non-software fixture carries a
- *                                   curated benchmark (THE REGISTRY
- *                                   FACT LAW: the LAB registry carries
- *                                   the SE fixture world only - an
- *                                   industry-specific curated benchmark
- *                                   content claim the registry cannot
- *                                   back is refused, the honest gap is
- *                                   the row, never a fabricated
- *                                   benchmark);
+ *                                   resolve against the REAL registry
+ *                                   lane it binds through (the base
+ *                                   registry's getScenario for the
+ *                                   base-registry mode; the combined
+ *                                   catalog's getTaskScenario for the
+ *                                   industry-extension mode - never a
+ *                                   transcribed list);
+ *   benchmark-industry-mismatch    - THE INDUSTRY-MATCH LAW (the
+ *                                   registry fact, updated by the
+ *                                   DH-GAP-2 wave): a base-registry
+ *                                   binding on a non-software fixture
+ *                                   (the landed base registry carries
+ *                                   the SE fixture world, the software
+ *                                   industry's own), or an
+ *                                   industry-extension binding whose
+ *                                   scenarioRefs bind a world that is
+ *                                   NOT the fixture industry's own
+ *                                   (a neighbor's world or the SE
+ *                                   world - the world's declared
+ *                                   domain must equal the fixture's
+ *                                   industry); a curated benchmark
+ *                                   content claim the registries
+ *                                   cannot back is refused, never
+ *                                   fabricated;
  *   dangling-ref                   - THE INTERNAL-REF LAW: a task
  *                                   termRef / body roleRef / pack
  *                                   bodyRef does not resolve into THIS
@@ -358,29 +552,37 @@ export interface IndustryAcceptanceFixture {
  *                                   / terms / taskKeys / bodyKeys /
  *                                   packKeys / profileKeys);
  *   fixture-count-law              - the curated census counts
- *                                   violated (exactly three roles, five
- *                                   terms, two tasks, two bodies, two
- *                                   packs, one or two profiles, and the
+ *                                   violated (exactly six roles, ten
+ *                                   terms, four tasks, four bodies,
+ *                                   four packs, two profiles, and the
  *                                   profiles collectively declare at
  *                                   least one REAL KPI dimension - the
  *                                   registry-bound benchmark derivation
  *                                   floor);
- *   gap-registration-missing       - THE GAP-MUST-BE-REGISTERED LAW:
- *                                   the fixture carries NO benchmark
- *                                   and its expectedGaps do NOT carry
- *                                   the 'lab-task-worlds-coverage' row
- *                                   (fail-closed - the honest gap must
- *                                   be registered, never silently
- *                                   skipped);
- *   gap-registration-inconsistent  - the fixture carries a curated
- *                                   benchmark AND registers the
- *                                   'lab-task-worlds-coverage' row (a
- *                                   false statement: the benchmark leg
- *                                   IS evaluated), or an expectedGaps
- *                                   row is an unknown gap key, a
- *                                   duplicate, or a DRIFTED copy of its
- *                                   frozen ledger row (the rows are
- *                                   registered VERBATIM).
+ *   gap-registration-missing       - THE COVERAGE LAW (the updated
+ *                                   fail-closed truth): a fixture whose
+ *                                   industry carries a task-world
+ *                                   (software through the landed base
+ *                                   registry; finance / healthcare /
+ *                                   construction through the lab
+ *                                   industry extension registry)
+ *                                   carries NO curated benchmark - the
+ *                                   coverage row is CLOSED, there is no
+ *                                   honest registration for an
+ *                                   un-exercised evaluable benchmark
+ *                                   leg (fail-closed - never a silent
+ *                                   skip);
+ *   gap-registration-inconsistent  - THE CLOSED-ROW LAW: an
+ *                                   expectedGaps row is a CLOSED ledger
+ *                                   row ('lab-task-worlds-coverage' /
+ *                                   'content-representativeness') - a
+ *                                   closed row's closure is recorded
+ *                                   IN the ledger row and can never be
+ *                                   registered as an open gap; or an
+ *                                   expectedGaps row is an unknown gap
+ *                                   key, a duplicate, or a DRIFTED copy
+ *                                   of its frozen ledger row (the rows
+ *                                   are registered VERBATIM).
  */
 export const FIXTURE_REJECTION_REASONS = [
         'malformed-fixture',
@@ -431,23 +633,6 @@ export type FixtureValidationOutcome =
         | { readonly ok: false; readonly rejection: FixtureRejection };
 
 /**
- * THE CURATED CENSUS (the frozen per-fixture entry counts): exactly
- * three roles, five terms, two tasks, two bodies, two packs, one or
- * two profiles. The four curated fixture modules satisfy it by
- * construction; a fixture outside the census is the typed
- * fixture-count-law rejection (the curated set's shape law, never a
- * runner code branch).
- */
-export const FIXTURE_ENTRY_CENSUS = Object.freeze({
-        roles: Object.freeze({ min: 3, max: 3 }),
-        terms: Object.freeze({ min: 5, max: 5 }),
-        tasks: Object.freeze({ min: 2, max: 2 }),
-        bodies: Object.freeze({ min: 2, max: 2 }),
-        packs: Object.freeze({ min: 2, max: 2 }),
-        profiles: Object.freeze({ min: 1, max: 2 }),
-} as const);
-
-/**
  * The curated-fixture walk (pure): the strict-schema stations, then
  * the REAL vocabulary stations (industry, size band via the REAL
  * DH-02 company-profile walk, work types via the REAL DH-02
@@ -456,11 +641,15 @@ export const FIXTURE_ENTRY_CENSUS = Object.freeze({
  * reference, the first failure surfacing the family's COMPLETE typed
  * rejection table verbatim), then THE INTERNAL-REF LAW (task termRefs
  * -> terms, body roleRefs -> roles, pack bodyRefs -> bodies), the
- * curated census, the benchmark law (the REAL DH-09 walk + the REAL
- * scenario registry + THE REGISTRY FACT LAW) and THE GAP LAWS. Ok
- * carries the canonical fixed-key-order copy. First-failure-is-the-
- * verdict at the carrier stations; the law table collects every
- * violated count/ref law into one typed rejection.
+ * curated census, THE BINDING-MODE LAW (the base-registry walk: the
+ * REAL DH-09 walk + the REAL base-registry scenario binding + THE
+ * REGISTRY FACT LAW; the industry-extension walk: the strict two-key
+ * schema + THE TWO-PHASE BINDING LAW + the REAL combined-catalog
+ * scenario binding + THE INDUSTRY-MATCH LAW) and THE GAP LAWS (THE
+ * CLOSED-ROW LAW + THE COVERAGE LAW). Ok carries the canonical
+ * fixed-key-order copy. First-failure-is-the-verdict at the carrier
+ * stations; the law table collects every violated count/ref law into
+ * one typed rejection.
  */
 export function validateIndustryAcceptanceFixture(fixture: unknown): FixtureValidationOutcome {
         if (!isRecord(fixture)) {
@@ -532,25 +721,81 @@ export function validateIndustryAcceptanceFixture(fixture: unknown): FixtureVali
                         return fixtureRejected('invalid-profiles', `THE VERBATIM-CARRY LAW (profiles[${i}])`, `validateIndustryAcceptanceFixture: the profile entry ${i} fails the OWNING family's REAL validator (the permission/tier/evidence-floor/KPI vocabularies are the REAL imported ones; the family's typed rejection table is carried in the owning family's own refusal)`, [`profiles[${i}]`]);
                 }
         }
+        // ---- THE BINDING-MODE LAW (data-driven over the carrier's own shape; never an industry-string branch) ----
         if (candidate.benchmark !== null) {
-                const verdict = validateBenchmarkEntry(candidate.benchmark);
-                if (!verdict.ok) {
-                        return fixtureRejected('invalid-benchmark', 'THE VERBATIM-CARRY LAW (benchmark)', 'validateIndustryAcceptanceFixture: the curated benchmark fails the OWNING family\'s REAL DH-09 validator (the family\'s typed rejection table is carried in the owning family\'s own refusal)', ['benchmark']);
-                }
-                // THE SCENARIO-BINDING LAW: every scenarioRef resolves against the REAL imported registry.
-                const benchmark = candidate.benchmark as unknown as BenchmarkEntry;
-                const dangling: string[] = [];
-                for (const scenarioRef of benchmark.scenarioRefs) {
-                        if (getScenario(scenarioRef) === undefined) {
-                                dangling.push(scenarioRef);
+                if (benchmarkBindingModeOf(candidate.benchmark) === 'industry-extension-registry') {
+                        // ---- the industry-extension binding walk (the DH-GAP-2 wave's extension) ----
+                        // THE STRICT-SCHEMA LAW: the wrapped binding is the frozen two-key shape.
+                        const binding = candidate.benchmark as Record<string, unknown>;
+                        const unknownBindingKeys = Object.keys(binding).filter((key) => !(INDUSTRY_BENCHMARK_BINDING_SCHEMA_KEYS as readonly string[]).includes(key));
+                        if (unknownBindingKeys.length > 0) {
+                                return fixtureRejected('invalid-benchmark', 'THE STRICT-SCHEMA LAW (the industry-extension binding)', `validateIndustryAcceptanceFixture: the industry-extension benchmark binding schema is closed - the unknown key(s) ${showList(unknownBindingKeys)} are rejected (a binding is the declared mode plus the curated entry, never more)`, unknownBindingKeys);
                         }
-                }
-                if (dangling.length > 0) {
-                        return fixtureRejected('unknown-scenario-ref', 'THE SCENARIO-BINDING LAW', `validateIndustryAcceptanceFixture: every benchmark scenarioRef must resolve against the REAL LAB task-world registry (imported through getScenario - never a transcribed list); the dangling ref(s) ${showList(dangling)} are refused`, dangling);
-                }
-                // THE REGISTRY FACT LAW: the curated benchmark content claim is software-only (the registry carries the SE fixture world only).
-                if (candidate.industry !== 'software') {
-                        return fixtureRejected('benchmark-industry-mismatch', 'THE REGISTRY FACT LAW', `validateIndustryAcceptanceFixture: a curated benchmark on the '${showValue(candidate.industry)}' fixture is refused - the REAL LAB task-world registry carries the SE fixture world only (the honest gap is the 'lab-task-worlds-coverage' row, never a fabricated industry benchmark)`, ['benchmark', 'industry']);
+                        const missingBindingKeys = (INDUSTRY_BENCHMARK_BINDING_SCHEMA_KEYS as readonly string[]).filter((key) => !hasOwn(binding, key));
+                        if (missingBindingKeys.length > 0) {
+                                return fixtureRejected('invalid-benchmark', 'THE FAIL-CLOSED LAW (the industry-extension binding)', `validateIndustryAcceptanceFixture: the industry-extension benchmark binding requires both keys - the key(s) ${showList(missingBindingKeys)} are missing`, missingBindingKeys);
+                        }
+                        // THE TWO-PHASE BINDING LAW: the REAL DH-09 entry walk must refuse the
+                        // entry with EXACTLY the dangling-scenario-ref station - every other
+                        // REAL station green (the shapes, the text legs, the KPI vocabulary, the
+                        // evidence ceiling), and the binding genuinely extension-bound (the
+                        // refs do not resolve against the landed base registry). The family then
+                        // re-binds the same refs through the combined catalog below - the lawful
+                        // lane, never a forced binding into the landed base-registry-bound record
+                        // machinery (which would require re-opening landed laws).
+                        const entryWalk = validateBenchmarkEntry(binding.entry);
+                        if (entryWalk.ok || entryWalk.rejections.length !== 1 || entryWalk.rejections[0].reason !== 'dangling-scenario-ref') {
+                                const stationItems = entryWalk.ok ? ['the REAL DH-09 walk is green (a base-registry binding must be the plain BenchmarkEntry shape, never the wrapped binding)'] : entryWalk.rejections.map((rejection) => `${rejection.reason}:${(rejection.items ?? []).join(',')}`);
+                                return fixtureRejected('invalid-benchmark', 'THE TWO-PHASE BINDING LAW (THE VERBATIM-CARRY LAW)', `validateIndustryAcceptanceFixture: an industry-extension benchmark entry must fail the OWNING family's REAL DH-09 validator with EXACTLY the dangling-scenario-ref station (green in every other station, the refs genuinely extension-bound); the carried station(s) ${showList(stationItems)} refuse the wrapped binding`, stationItems);
+                        }
+                        const entry = binding.entry as unknown as BenchmarkEntry;
+                        // THE SCENARIO-BINDING LAW (the combined catalog): every scenarioRef resolves
+                        // through the REAL imported getTaskScenario (the lab industry extension
+                        // registry's own combined-catalog lookup - never a transcribed list).
+                        const unresolved: string[] = [];
+                        for (const scenarioRef of entry.scenarioRefs) {
+                                if (getTaskScenario(scenarioRef) === undefined) {
+                                        unresolved.push(scenarioRef);
+                                }
+                        }
+                        if (unresolved.length > 0) {
+                                return fixtureRejected('unknown-scenario-ref', 'THE SCENARIO-BINDING LAW (the combined catalog)', `validateIndustryAcceptanceFixture: every industry-extension benchmark scenarioRef must resolve against the REAL combined task-world catalog (imported through getTaskScenario from the lab industry extension registry - never a transcribed list); the unresolved ref(s) ${showList(unresolved)} are refused`, unresolved);
+                        }
+                        // THE INDUSTRY-MATCH LAW: every scenarioRef binds the fixture industry's OWN
+                        // task-world - the bound world's declared domain equals the fixture's
+                        // industry (never a neighbor's world, never the SE world).
+                        const mismatched: string[] = [];
+                        for (const scenarioRef of entry.scenarioRefs) {
+                                const scenario = getTaskScenario(scenarioRef);
+                                const world = scenario === undefined ? undefined : getTaskWorld(scenario.worldId);
+                                if (world === undefined || world.world.domain !== candidate.industry) {
+                                        mismatched.push(`${scenarioRef}->${world === undefined ? 'unknown-world' : world.world.domain}`);
+                                }
+                        }
+                        if (mismatched.length > 0) {
+                                return fixtureRejected('benchmark-industry-mismatch', 'THE INDUSTRY-MATCH LAW', `validateIndustryAcceptanceFixture: an industry-extension benchmark on the '${showValue(candidate.industry)}' fixture must bind the industry's OWN task-world (the bound world's declared domain equals the fixture's industry); the mismatched ref(s) ${showList(mismatched)} are refused - never a neighbor's world, never the SE world`, mismatched);
+                        }
+                } else {
+                        // ---- the base-registry binding walk (the landed law, re-worded to the registry fact) ----
+                        const verdict = validateBenchmarkEntry(candidate.benchmark);
+                        if (!verdict.ok) {
+                                return fixtureRejected('invalid-benchmark', 'THE VERBATIM-CARRY LAW (benchmark)', 'validateIndustryAcceptanceFixture: the curated benchmark fails the OWNING family\'s REAL DH-09 validator (the family\'s typed rejection table is carried in the owning family\'s own refusal)', ['benchmark']);
+                        }
+                        // THE SCENARIO-BINDING LAW: every scenarioRef resolves against the REAL imported base registry.
+                        const benchmark = candidate.benchmark as unknown as BenchmarkEntry;
+                        const dangling: string[] = [];
+                        for (const scenarioRef of benchmark.scenarioRefs) {
+                                if (getScenario(scenarioRef) === undefined) {
+                                        dangling.push(scenarioRef);
+                                }
+                        }
+                        if (dangling.length > 0) {
+                                return fixtureRejected('unknown-scenario-ref', 'THE SCENARIO-BINDING LAW', `validateIndustryAcceptanceFixture: every base-registry benchmark scenarioRef must resolve against the REAL landed LAB task-world registry (imported through getScenario - never a transcribed list); the dangling ref(s) ${showList(dangling)} are refused`, dangling);
+                        }
+                        // THE REGISTRY FACT LAW: the base-registry binding is software-only (the landed base registry carries the SE fixture world, the software industry's own world).
+                        if (candidate.industry !== 'software') {
+                                return fixtureRejected('benchmark-industry-mismatch', 'THE REGISTRY FACT LAW', `validateIndustryAcceptanceFixture: a base-registry benchmark on the '${showValue(candidate.industry)}' fixture is refused - the REAL landed LAB task-world registry carries the SE fixture world, the software industry's own (an industry whose task-world lives in the lab industry extension registry binds through the industry-extension mode; an industry with no task-world carries the honest null)`, ['benchmark', 'industry']);
+                        }
                 }
         }
         // THE INTERNAL-REF LAW + the duplicate identity keys + the curated census (one typed table).
@@ -621,7 +866,8 @@ export function validateIndustryAcceptanceFixture(fixture: unknown): FixtureVali
                 const law = reason === 'dangling-ref' ? 'THE INTERNAL-REF LAW' : reason === 'duplicate-key' ? 'THE UNIQUE-KEY LAW' : 'THE CURATED CENSUS LAW';
                 return fixtureRejected(reason, law, `validateIndustryAcceptanceFixture: the curated-fixture law table is violated - ${showList(lawItems)} (the internal refs resolve within the fixture; the identity keys are unique; the curated census is exact)`, lawItems);
         }
-        // THE GAP LAWS: the rows are frozen ledger rows, carried verbatim; the benchmark law and the registration law are fail-closed.
+        // THE GAP LAWS: the rows are frozen ledger rows, carried verbatim; THE CLOSED-ROW LAW and
+        // THE COVERAGE LAW are fail-closed (the DH-GAP-2 wave's updated truth).
         const gapItems: string[] = [];
         const seenKeys: string[] = [];
         for (const row of candidate.expectedGaps as unknown[]) {
@@ -638,21 +884,27 @@ export function validateIndustryAcceptanceFixture(fixture: unknown): FixtureVali
                         gapItems.push(`duplicate-gap-key:${gapRow.gapKey}`);
                 }
                 seenKeys.push(gapRow.gapKey as string);
+                if (isAcceptanceClosedGapKey(gapRow.gapKey)) {
+                        gapItems.push(`closed-gap-key:${gapRow.gapKey}`);
+                }
                 const ledgerRow = ledgerRowOf(gapRow.gapKey);
                 if (ledgerRow === undefined || gapRow.description !== ledgerRow.description || gapRow.evidenceLevel !== ledgerRow.evidenceLevel || gapRow.owner !== ledgerRow.owner) {
                         gapItems.push(`drifted-gap-row:${showValue(gapRow.gapKey)}`);
                 }
         }
         const carriesBenchmark = candidate.benchmark !== null;
-        const registersWorldGap = seenKeys.includes('lab-task-worlds-coverage');
-        if (!carriesBenchmark && !registersWorldGap) {
-                return fixtureRejected('gap-registration-missing', 'THE GAP-MUST-BE-REGISTERED LAW', 'validateIndustryAcceptanceFixture: a fixture carrying NO curated benchmark MUST register the honest \'lab-task-worlds-coverage\' gap row (the LAB registry has no industry-specific task worlds for it yet) - the gap is registered, never silently skipped', ['expectedGaps']);
-        }
-        if (carriesBenchmark && registersWorldGap) {
-                return fixtureRejected('gap-registration-inconsistent', 'THE GAP-MUST-BE-REGISTERED LAW', 'validateIndustryAcceptanceFixture: a fixture carrying a curated benchmark (whose benchmark leg IS evaluated against the REAL registry scenarios) must NOT register the \'lab-task-worlds-coverage\' row - that registration would be a false statement', ['expectedGaps']);
-        }
         if (gapItems.length > 0) {
-                return fixtureRejected('gap-registration-inconsistent', 'THE REGISTERED-VERBATIM LAW', `validateIndustryAcceptanceFixture: every expectedGaps row must be its frozen ledger row carried VERBATIM (the unknown/duplicate/drifted row(s) ${showList(gapItems)} are refused)`, gapItems);
+                return fixtureRejected('gap-registration-inconsistent', 'THE CLOSED-ROW LAW (THE REGISTERED-VERBATIM LAW)', `validateIndustryAcceptanceFixture: every expectedGaps row must be its OPEN frozen ledger row carried VERBATIM (a closed row's closure is recorded IN the ledger row and is never registered as an open gap; the unknown/duplicate/closed/drifted row(s) ${showList(gapItems)} are refused)`, gapItems);
+        }
+        // THE COVERAGE LAW (the updated fail-closed truth): a fixture whose industry carries a
+        // task-world (software through the landed base registry - the registry fact; an industry
+        // whose world lives in the lab industry extension registry - the domain match over the
+        // extension registry's own descriptors) MUST carry the curated benchmark - the coverage
+        // row is CLOSED, there is no honest registration for an un-exercised evaluable benchmark
+        // leg. A fixture whose industry carries NO task-world carries the honest null (the
+        // gap-registered benchmark status; the journey composes the registry-bound floor).
+        if (!carriesBenchmark && industryCarriesTaskWorld(candidate.industry)) {
+                return fixtureRejected('gap-registration-missing', 'THE COVERAGE LAW (THE CLOSED-ROW LAW)', `validateIndustryAcceptanceFixture: a fixture for the covered industry '${showValue(candidate.industry)}' carries NO curated benchmark - the industry's task-world EXISTS (the combined catalog), the coverage row is CLOSED and cannot be registered as an open gap; carry the curated benchmark binding (never a silently skipped evaluable benchmark leg)`, ['benchmark', 'expectedGaps']);
         }
         return {
                 ok: true,
@@ -666,7 +918,7 @@ export function validateIndustryAcceptanceFixture(fixture: unknown): FixtureVali
                         bodies: [...bodiesList],
                         packs: [...packsList],
                         profiles: [...profilesList],
-                        benchmark: carriesBenchmark ? { ...(candidate.benchmark as unknown as BenchmarkEntry) } : null,
+                        benchmark: canonicalBenchmarkOf(candidate.benchmark),
                         expectedGaps: [...(candidate.expectedGaps as AcceptanceGapRow[])],
                 },
         };
@@ -988,16 +1240,22 @@ export const OVERALL_VERDICT_SCHEMA_KEYS = ['verdict', 'industriesComplete', 'in
 
 /**
  * The frozen disclosure strings (the instrument's own laws, carried in
- * every report so a green verdict can never be over-read).
+ * every report so a green verdict can never be over-read). The
+ * DH-GAP-2 wave re-worded the evidence disclosure (the benchmark
+ * legs' two binding lanes) and ADDED the content-census disclosure
+ * (the declared censused representativeness bar and its bound) - both
+ * re-pins disclosed in the wave's D-register.
  */
 export const ACCEPTANCE_CONTENT_DISCLOSURE =
         'the four industry content sets are curated fixture-level acceptance content - representative, deliberately modest, honestly labeled; not a claim of comprehensive domain truth, not promoted evidence';
 export const ACCEPTANCE_EVIDENCE_DISCLOSURE =
-        'the task execution evidence is the LAB closedLoop fixture execution over the real deterministic instances plus the real authority routing (the DH-01 lifecycle and the DH-09 evaluation surfaces), honestly labeled at the fixture/simulated ceiling - never a live-provider exchange, never a production deployment';
+        'the task execution evidence is the LAB closedLoop fixture execution over the real deterministic instances (the landed closed-loop engine drives the base-registry SE scenario for every benchmark leg, honestly labeled) plus the real authority routing (the DH-01 lifecycle; the benchmark legs evaluated through the REAL DH-09 surfaces for the base-registry binding and through the acceptance family\'s combined-catalog composition over the REAL imported lab extension registry lookups for the industry-extension bindings), honestly labeled at the fixture/simulated ceiling - never a live-provider exchange, never a production deployment';
 export const ACCEPTANCE_COMPOSITION_DISCLOSURE =
         'the industries differ only in data: one set of real kit constructions serves all four (the composition-not-fork census pins the twelve contract versions identical across every industry\'s composed records; a fifth industry is a new fixture module, never a code path)';
 export const ACCEPTANCE_FAIL_CLOSED_DISCLOSURE =
         'the overall verdict is fail-closed: any refused leg or any missing gap registration is the typed refusal, never a silent pass';
+export const ACCEPTANCE_CONTENT_CENSUS_DISCLOSURE =
+        'the four industry content sets meet the declared censused representativeness bar: each industry carries at least six roles, ten terms, four tasks, four bodies, four packs and two profiles of real domain-shaped curated content (the census pinned by the battery); the bound is disclosed here - curated fixture-level acceptance content over the REAL family shapes, never a claim of comprehensive domain truth';
 
 /** The frozen report disclosure list (in the canonical order). */
 export const ACCEPTANCE_DISCLOSURES: readonly string[] = Object.freeze([
@@ -1005,6 +1263,7 @@ export const ACCEPTANCE_DISCLOSURES: readonly string[] = Object.freeze([
         ACCEPTANCE_EVIDENCE_DISCLOSURE,
         ACCEPTANCE_COMPOSITION_DISCLOSURE,
         ACCEPTANCE_FAIL_CLOSED_DISCLOSURE,
+        ACCEPTANCE_CONTENT_CENSUS_DISCLOSURE,
 ]);
 
 /**
@@ -1189,9 +1448,9 @@ export function parseAcceptanceReport(bytes: unknown): AcceptanceParseOutcome {
  * through it): the frozen fourteen-key schema, the REAL industry
  * member, THE SINGLE-VERSION LAW, every leg's shape and frozen
  * verdict, the frozen benchmark status, the twelve-key census map
- * and THE GAP-MUST-BE-REGISTERED LAW re-proven from the row alone
- * (a gap-registered benchmark status REQUIRES the world-coverage
- * row in expectedGaps).
+ * and THE CLOSED-ROW LAW re-proven from the row alone (an
+ * expectedGaps row can never be a CLOSED ledger row - the closures
+ * are recorded IN the ledger rows, never registered as open gaps).
  */
 export function validateIndustryVerdictRow(row: unknown): { readonly ok: true; readonly industry: HarnessIndustry } | { readonly ok: false; readonly message: string } {
         if (!isRecord(row)) {
@@ -1240,12 +1499,49 @@ export function validateIndustryVerdictRow(row: unknown): { readonly ok: true; r
         if (!Array.isArray(candidate.expectedGaps)) {
                 return { ok: false, message: 'the expectedGaps must be an array' };
         }
-        // THE GAP-MUST-BE-REGISTERED LAW re-proven from the row alone: a gap-registered benchmark status REQUIRES the world-coverage row.
+        // THE CLOSED-ROW LAW re-proven from the row alone: an expectedGaps row can never be a
+        // CLOSED ledger row (its closure is recorded IN the ledger row - the DH-GAP-2 wave's
+        // updated truth; the gap-registered benchmark status is the honest uncovered-industry
+        // state and registers only OPEN rows).
         const gapKeys = (candidate.expectedGaps as Record<string, unknown>[]).map((gapRow) => gapRow.gapKey);
-        if (candidate.benchmarkStatus === 'gap-registered' && !gapKeys.includes('lab-task-worlds-coverage')) {
-                return { ok: false, message: 'the gap-registered benchmark status requires the \'lab-task-worlds-coverage\' row in expectedGaps (the gap MUST be registered)' };
+        for (const gapKey of gapKeys) {
+                if (isAcceptanceClosedGapKey(gapKey)) {
+                        return { ok: false, message: `the expectedGaps row '${gapKey}' is a CLOSED ledger row (its closure is recorded IN the ledger row and can never be registered as an open gap)` };
+                }
         }
         return { ok: true, industry: candidate.industry };
+}
+
+/**
+ * THE COVERAGE LAW's registry facts (pure): whether the industry
+ * carries a task-world - software through the landed base registry
+ * (THE REGISTRY FACT LAW: the base registry carries the SE fixture
+ * world, the software industry's own), any other industry through the
+ * lab industry extension registry's own descriptors (the declared
+ * domain equals the industry). Imported by reference, never
+ * transcribed.
+ */
+function industryCarriesTaskWorld(industry: unknown): boolean {
+        if (industry === 'software') {
+                return true;
+        }
+        return listIndustryWorlds().some((world) => world.world.domain === industry);
+}
+
+/**
+ * The benchmark slot's canonical fixed-key-order copy: the honest null, the
+ * wrapped industry-extension binding (bindingMode first - the frozen two-key
+ * order), or the shallow-copied plain base-registry entry.
+ */
+function canonicalBenchmarkOf(benchmark: unknown): BenchmarkEntry | IndustryBenchmarkBinding | null {
+        if (benchmark === null) {
+                return null;
+        }
+        if (benchmarkBindingModeOf(benchmark) === 'industry-extension-registry') {
+                const binding = benchmark as Record<string, unknown>;
+                return { bindingMode: 'industry-extension-registry', entry: { ...(binding.entry as unknown as BenchmarkEntry) } };
+        }
+        return { ...(benchmark as unknown as BenchmarkEntry) };
 }
 
 function ledgerRowOf(gapKey: unknown): AcceptanceGapRow | undefined {
