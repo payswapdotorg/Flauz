@@ -525,3 +525,7 @@ DH-008 + DH-009 are DONE (PRs #199/#200; 1252 DH family tests at the merged head
 ## Addendum — 2026-10-15 (later, TL-B): Wave 9 landed
 
 DH-010 + DH-011 are DONE (PRs #201/#202; 1561 DH family tests + 99 surface tests at the merged head). The remaining TL-B sequence: DH-012 · DH-013.
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 10 landed
+
+DH-012 is DONE (PR #203; 1734 DH family tests at the merged head). The remaining TL-B sequence: DH-013 (the final row).

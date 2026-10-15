@@ -159,3 +159,7 @@ DH-008 (profiles, PR #199) + DH-009 (benchmarks, PR #200) are DONE — see the r
 ## Addendum — 2026-10-15 (later, TL-B): Wave 9 landed
 
 DH-010 (PR #201) + DH-011 (PR #202) are DONE — see the registry wave-9 landing record. The outstanding TL-B sequence is now **DH-012 → DH-013**.
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 10 landed
+
+DH-012 (PR #203) is DONE — see the registry wave-10 landing record. The outstanding TL-B item is now **DH-013 (cross-industry harness acceptance)** — the final row of the DH sequence.

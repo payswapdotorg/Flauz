@@ -144,3 +144,7 @@ DH-008 (policy/approval/evidence/KPI profiles, PR #199 `f83687163f`) and DH-009 
 ## Addendum — 2026-10-15 (later, TL-B): Wave 9 landed
 
 DH-010 (domain UI/navigation projections + the flauz-harness workbench surface, PR #201 `032e7b0369`) and DH-011 (the end-to-end onboarding→activation journey family, PR #202 `36285b9dc78`) are DONE. The remaining TL-B sequence is now **DH-012 and DH-013**. The DH family test total is 1561 at the merged head (+99 extension-surface tests).
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 10 landed
+
+DH-012 (the Lab-driven harness optimization loop, PR #203 `e79cfe73b65`) is DONE. The remaining TL-B item is **DH-013 (cross-industry harness acceptance) — the final row**. The DH family test total is 1734 at the merged head.
