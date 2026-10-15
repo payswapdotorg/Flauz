@@ -48,7 +48,8 @@ export interface TaskWorldDescriptor {
 // Module-private fixture data
 // --------------------------------------------------------------------------------------------
 
-const LAB_FIXTURE_SCOPE: LabScope = { workspaceId: 'lab-fixtures', tenantId: 'lab-fixtures' };
+/** The fixture scope shared by every task-world in the fixture lane (exported for the industry data modules — composition, never a fork). */
+export const LAB_FIXTURE_SCOPE: LabScope = { workspaceId: 'lab-fixtures', tenantId: 'lab-fixtures' };
 
 const WORLD_SE_FIXTURES_ID = 'world-se-fixtures';
 
@@ -116,13 +117,29 @@ type ContextFile = { path: string; lines: number; relevance: number };
 type Obstacle = { kind: string; severity: number };
 
 /** Per-scenario fixed fragment banks the brief and the acceptance criteria are composed from. */
-interface ScenarioBanks {
+export interface ScenarioBanks {
 	openers: readonly string[];
 	evidenceFragments: readonly string[];
 	constraints: readonly string[];
 	deliverables: readonly string[];
 	acceptanceCriteria: readonly string[];
 }
+
+/** Per-world fixture data tables the shared generator draws from: the context-path table and the obstacle-kind table (the SE world's are the landed synthetic 24-path repo layout and 8-kind table; the industry worlds carry their own — THE COMPOSITION-NOT-FORK LAW: the industries differ only in data). */
+export interface TaskWorldTables {
+	/** The fixed context-path table context files are drawn from. */
+	contextPaths: readonly string[];
+	/** The fixed obstacle-kind table obstacles are drawn from. */
+	obstacleKinds: readonly string[];
+}
+
+/** The landed SE world's data tables (the originals the generator drew from before the industry extension). */
+const SE_WORLD_TABLES: TaskWorldTables = { contextPaths: SYNTHETIC_REPO_PATHS, obstacleKinds: OBSTACLE_KINDS };
+
+/** Per-world fixture data tables keyed by world id — the landed registry's own worlds only (never injected into: the industry extension registry in industryTaskWorlds.ts carries its own table map over the same shared engine). */
+const WORLD_DATA_TABLES: ReadonlyMap<string, TaskWorldTables> = new Map<string, TaskWorldTables>([
+	[WORLD_SE_FIXTURES_ID, SE_WORLD_TABLES],
+]);
 
 const SCENARIO_SE_BUGFIX_REGRESSION: TaskScenario = {
 	scope: LAB_FIXTURE_SCOPE,
@@ -392,26 +409,26 @@ function sampleIndices(rng: () => number, length: number, count: number): number
 	return pool.slice(0, count);
 }
 
-function drawContextFiles(rng: () => number): ContextFile[] {
+function drawContextFiles(rng: () => number, contextPaths: readonly string[]): ContextFile[] {
 	const count = pickCount(rng, CONTEXT_FILE_COUNT_MIN, CONTEXT_FILE_COUNT_MAX);
-	const indices = sampleIndices(rng, SYNTHETIC_REPO_PATHS.length, count);
+	const indices = sampleIndices(rng, contextPaths.length, count);
 	const files: ContextFile[] = [];
 	for (const index of indices) {
 		const lines = REPO_LINES_MIN + REPO_LINES_STEP * Math.floor(rng() * REPO_LINES_COUNT);
 		const relevance = round2(RELEVANCE_MIN + rng() * (RELEVANCE_MAX - RELEVANCE_MIN));
-		files.push({ path: SYNTHETIC_REPO_PATHS[index]!, lines, relevance });
+		files.push({ path: contextPaths[index]!, lines, relevance });
 	}
 	files.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
 	return files;
 }
 
-function drawObstacles(rng: () => number): Obstacle[] {
+function drawObstacles(rng: () => number, obstacleKinds: readonly string[]): Obstacle[] {
 	const count = pickCount(rng, OBSTACLE_COUNT_MIN, OBSTACLE_COUNT_MAX);
-	const indices = sampleIndices(rng, OBSTACLE_KINDS.length, count);
+	const indices = sampleIndices(rng, obstacleKinds.length, count);
 	const obstacles: Obstacle[] = [];
 	for (const index of indices) {
 		const severity = round2(OBSTACLE_SEVERITY_MIN + rng() * (OBSTACLE_SEVERITY_MAX - OBSTACLE_SEVERITY_MIN));
-		obstacles.push({ kind: OBSTACLE_KINDS[index]!, severity });
+		obstacles.push({ kind: obstacleKinds[index]!, severity });
 	}
 	obstacles.sort((left, right) => (left.kind < right.kind ? -1 : left.kind > right.kind ? 1 : 0));
 	return obstacles;
@@ -454,16 +471,19 @@ function drawAcceptanceCriteria(banks: ScenarioBanks, rng: () => number): string
 //   drawn from 0.2..0.9 and rounded to two decimals; emitted in ascending kind order.
 // - acceptanceCriteria: 2-4 entries chosen from the scenario's canonical criterion bank and
 //   emitted in fixed canonical (bank) order.
+// - the context-path and obstacle-kind tables are the scenario's world's recorded fixture
+//   tables (the SE world's are the landed originals; the industry worlds carry their own —
+//   composition, never a fork).
 // - difficulty = clamp(0.05, 0.95, difficultyBase + 0.25 * avgObstacleSeverity + jitter),
 //   with jitter drawn from -0.05..+0.05 as the final RNG draw of the instance.
 // - Draw order (fixed): context count, context indices, per-file lines+relevance, obstacle
 //   count, obstacle indices, per-obstacle severity, brief opener, evidence count, evidence
 //   indices, constraint, deliverable, criterion count, criterion indices, difficulty jitter.
-function generateInstance(scenario: TaskScenario, banks: ScenarioBanks, evidenceLevel: LabEvidenceLevel, seed: number, instanceIndex: number): WorldInstance {
+export function generateInstance(scenario: TaskScenario, banks: ScenarioBanks, evidenceLevel: LabEvidenceLevel, tables: TaskWorldTables, seed: number, instanceIndex: number): WorldInstance {
 	const subSeed = fnv1a32(`${scenario.id}:${seed}:${instanceIndex}`);
 	const rng = mulberry32(subSeed);
-	const contextFiles = drawContextFiles(rng);
-	const obstacles = drawObstacles(rng);
+	const contextFiles = drawContextFiles(rng, tables.contextPaths);
+	const obstacles = drawObstacles(rng, tables.obstacleKinds);
 	const brief = composeBrief(banks, rng);
 	const acceptanceCriteria = drawAcceptanceCriteria(banks, rng);
 	const totalSeverity = obstacles.reduce((sum, obstacle) => sum + obstacle.severity, 0);
@@ -491,12 +511,13 @@ export function generateInstances(scenarioId: string, seed: number, count: numbe
 	}
 	const banks = SCENARIO_BANKS.get(scenario.id);
 	const world = getWorld(scenario.worldId);
-	if (banks === undefined || world === undefined) {
+	const tables = WORLD_DATA_TABLES.get(scenario.worldId);
+	if (banks === undefined || world === undefined || tables === undefined) {
 		return [];
 	}
 	const instances: WorldInstance[] = [];
 	for (let instanceIndex = 0; instanceIndex < count; instanceIndex++) {
-		instances.push(generateInstance(scenario, banks, world.world.evidenceLevel, seed, instanceIndex));
+		instances.push(generateInstance(scenario, banks, world.world.evidenceLevel, tables, seed, instanceIndex));
 	}
 	return instances;
 }

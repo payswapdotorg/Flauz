@@ -306,8 +306,8 @@ suite('occupancySearch', () => {
 		assert.strictEqual(result.candidates.length, 4);
 		// utilities are non-increasing down the ranked list
 		for (let index = 1; index < result.candidates.length; index++) {
-			const previous = result.candidates[index - 1];
-			const current = result.candidates[index];
+			const previous: ScoredAssignment | undefined = result.candidates[index - 1];
+			const current: ScoredAssignment | undefined = result.candidates[index];
 			assert.ok(previous);
 			assert.ok(current);
 			assert.ok(previous.utility >= current.utility, `ranking broken at index ${index}`);
