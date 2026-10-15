@@ -503,3 +503,17 @@ Preferred topology:
 Do not create a public Flauz gateway that pools other people's free-tier provider API keys. Verify each upstream license and each provider's current terms before enabling a source.
 
 FreeLLMAPI is replaceable infrastructure, not a Flauz authority. Model/provider authorization remains owned by Model Fabric; policy/approval remains authoritative; inference routing must not grant permissions.
+
+
+## Current frontier — 2026-10-15 reconciliation (TL-B)
+
+Program state at `main` head `1430141c358f6460b437346bfc794076fc43b781`:
+
+- Phase C-R: COMPLETE (CR-001..013; terminal ledger closed=5 / exercised-still-gap=3 / unexercised-still-gap=2).
+- Free Inference Fabric: COMPLETE as an implementation workstream (INF-001..009); the INF-009 live-provider acceptance canary remains an env-gated clean-SKIP — no live-provider exchange is verified until a configured successful run is recorded.
+- Domain Harness OS: waves 1-7 COMPLETE (DH-001..007; 938 family tests) — the composition layers, not industry content.
+- TL-A production: the first production-real deployment is closed at v0.2.0; sustained production-operation closure remains open (TL-A-owned).
+
+The remaining TL-B roadmap sequence: DH-008 policy/approval/evidence/KPI profiles · DH-009 domain benchmark/simulation worlds · DH-010 domain UI/navigation projections · DH-011 end-to-end onboarding and activation · DH-012 Lab-driven harness optimization · DH-013 cross-industry harness acceptance.
+
+A domain harness remains composable configuration over the universal Flauz core, never an industry fork.

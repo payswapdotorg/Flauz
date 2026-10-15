@@ -132,3 +132,22 @@ Workers may proceed independently using fixtures/mock adapters. No worker waits 
 
 ## Final strategic acceptance question
 Can a new user select an industry during onboarding and receive a credible, usable, safe and increasingly adaptive domain-specific Flauz harness, while the universal Agent OS/Workspace OS remain underneath and the inference fabric transparently supplies whatever permitted model capacity is available?
+
+## Verified frontier refresh — 2026-10-15 (TL-B)
+
+Reconciliation of this handoff to the registry and current `main` (head `1430141c358f6460b437346bfc794076fc43b781`):
+
+- LAB-001..011: COMPLETE (unchanged).
+- ZC-001..010: COMPLETE (unchanged).
+- CR-001..013: COMPLETE — Phase C-R closed; the ledger retains three exercised-but-unresolved and two unexercised integration gaps as open rows.
+- INF-001..009: COMPLETE as an implementation workstream (fixture evidence); the live-provider acceptance canary is an env-gated clean-SKIP — no live exchange verified until a configured successful run is recorded.
+- DH-001..007: COMPLETE (938 family tests, PRs #193..#198) — contracts and composition layers; no per-industry content shipped yet (the CONTENT LAW disclosures in each family README).
+- TL-A: the first production-real deployment is closed at v0.2.0 (https://flauz-web.vercel.app); sustained production-operation closure remains TL-A's open gate.
+
+### The outstanding TL-B sequence
+
+DH-008 policy/approval/evidence/KPI profiles → DH-009 domain benchmark/simulation worlds → DH-010 domain UI/navigation projections → DH-011 end-to-end onboarding and activation → DH-012 Lab-driven harness optimization → DH-013 cross-industry harness acceptance.
+
+Every family binds to the REAL landed modules and the REAL Flauz authorities — no new permission broker, approval engine, evidence ledger, execution authority, scheduler, journal, model router, resource registry or persistence authority. The evidence law holds: fixture | simulated | local-real | runtime-real | live-provider | production-real, never promoted by wording.
+
+Consult `WORK-REGISTRY.md` and the family READMEs under `build/flauz/harness/` for the landed patterns (staged records, PIN-2 persistence, the import law, the no-dangling-ref boundaries).

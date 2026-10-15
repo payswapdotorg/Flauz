@@ -116,3 +116,23 @@ Free-tier decision:
 - Prefer per-user/direct/local inference capacity.
 - Do not pool third-party free-tier API keys into a shared public Flauz gateway.
 - FreeLLMAPI is reference/optional adapter technology, not an authority or required dependency.
+
+
+## Control-plane refresh — 2026-10-15 (TL-B reconciliation)
+
+Verified frontier at `main` head `1430141c358f6460b437346bfc794076fc43b781` (the pre-reconciliation head; station-verified this session: the seven DH family tsc gates EXIT 0, the DH family batteries 938/938 passing, the production/ops sibling battery 137/137 passing).
+
+Completed work (preserve; evidence levels as registered):
+
+- Phase C-R: COMPLETE — CR-001..013 landed; the terminal acceptance ledger reads closed=5 / exercised-still-gap=3 / unexercised-still-gap=2 (the three exercised-but-unresolved integration gaps and two unexercised gaps remain OPEN ledger rows, tracked not closed).
+- INF (Free Inference Fabric): COMPLETE — INF-001..009 landed (fixture-evidence implementation workstream; PRs #179..#191). The INF-009 live-provider acceptance canary remains an env-gated clean-SKIP: no live-provider exchange at the INF-009 boundary is verified until a successful, appropriately configured run is recorded. The earlier TL2-H1 live-provider drill (4/4) remains its own separate record.
+- DH (Domain Harness OS): waves 1-7 COMPLETE — DH-001..007 landed (PRs #193..#198): the DomainHarness contract, onboarding, role composition, ontology, task/workflow templates, Agent Body/organization defaults and capability-pack population families; 938 passing family tests. These establish reusable contracts and composition layers — NOT a finished, populated, end-to-end industry harness.
+- TL-A: the first production-real deployment is recorded closed — LIVE https://flauz-web.vercel.app, product version 0.2.0, PR #192 (`ce92e834`), with the production smoke battery and the E2E boot receipt (production-real evidence).
+
+Remaining work:
+
+- TL-B: DH-008 through DH-013 (the outstanding Domain Harness OS sequence).
+- TL-A: sustained production-operation closure under A-PROD-006 remains OPEN (TL-A-owned).
+- Inference Fabric: the live-provider acceptance exchange remains UNVERIFIED (env-gated skip) — do not describe it as verified until a configured successful run is recorded.
+
+The work registry (`WORK-REGISTRY.md`) is the operational source of truth; this section reconciles this document to it as of 2026-10-15. Historical sections above are preserved unchanged.
