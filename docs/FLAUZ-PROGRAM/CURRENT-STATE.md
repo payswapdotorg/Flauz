@@ -159,3 +159,8 @@ DH-013 (the cross-industry harness acceptance family, PR #204 `e2d738074`) is DO
 - INF: the live-provider acceptance exchange remains UNVERIFIED (env-gated skip) until a configured successful run is recorded.
 
 The work registry (`WORK-REGISTRY.md`) remains the operational source of truth.
+
+
+## Addendum — 2026-10-16 (TL-B): the DH gap ledger row 1 closed (the lab industry task-worlds)
+
+The registered residue's first row — LAB industry task-worlds coverage — is closed: the three industry fixture task-worlds (finance · healthcare · construction) are shipped to the LAB-003 fixture lane on branch `flauz-tlb/dh-gap1-lab-worlds` (PR placeholder #PRXX — the station fills the PR number at merge), composed over the REAL task-world engine with the industry extension registry disclosed (the landed registry census unchanged, pinned by the landed batteries; the combined catalog composed by import). The lab family state: 331 passing tests (210 landed, unmodified + 121 new), the scoped lab tsconfig gate EXIT 0, determinism greps law-comment-only. The DH-009 benchmark binding for the new scenarios is skipped with the reason disclosed (the binding law resolves against the landed registry — never forced). The remaining registered residue: the gap ledger's rows 2-6 (content representativeness · no live-provider execution · no production-real harness deployment · the workbench runtime binding · the CR ledger integration gaps), TL-A's sustained production-operation closure (TL-A-owned), and the INF live-provider exchange (env-gated skip). The work registry (`WORK-REGISTRY.md`) remains the operational source of truth.
