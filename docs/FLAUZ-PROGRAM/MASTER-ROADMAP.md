@@ -529,3 +529,7 @@ DH-010 + DH-011 are DONE (PRs #201/#202; 1561 DH family tests + 99 surface tests
 ## Addendum — 2026-10-15 (later, TL-B): Wave 10 landed
 
 DH-012 is DONE (PR #203; 1734 DH family tests at the merged head). The remaining TL-B sequence: DH-013 (the final row).
+
+## Final state — 2026-10-15 (TL-B): the Domain Harness OS roadmap complete
+
+DH-001..DH-013 are ALL LANDED (the final wave: DH-013, PR #204 — the four-industry cross-industry acceptance with the composition-not-fork census and the six-row honest gap ledger). Thirteen harness families, 1,868 passing family tests at the merged head `147a7dd5d30` (+ production/ops 137 + the workbench surfaces 99). The strategic direction stated in this roadmap — Flauz as the domain-specific work harness composed over the universal core — is implemented and acceptance-proven at the fixture/simulated rung, with the unproven registered, never promoted. The registered residue: the gap ledger's six rows; TL-A's sustained production-operation closure; the INF live-provider exchange.

@@ -163,3 +163,7 @@ DH-010 (PR #201) + DH-011 (PR #202) are DONE — see the registry wave-9 landing
 ## Addendum — 2026-10-15 (later, TL-B): Wave 10 landed
 
 DH-012 (PR #203) is DONE — see the registry wave-10 landing record. The outstanding TL-B item is now **DH-013 (cross-industry harness acceptance)** — the final row of the DH sequence.
+
+## Final state — 2026-10-15 (TL-B): the DH sequence complete
+
+**DH-001 through DH-013 are ALL LANDED** (the wave records in the registry; PRs #193–#198, #199, #200, #201, #202, #203, #204). Thirteen families, 1,868 passing tests at the merged head. The outstanding items for any future TL-B session: the DH gap ledger's six rows (the LAB industry task-worlds coverage first among them — the acceptance family's honest residue), and the coordination surfaces with TL-A (sustained production-operation closure; the INF live-provider exchange). The evidence law holds — nothing promoted, nothing faked.

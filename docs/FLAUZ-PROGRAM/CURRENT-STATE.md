@@ -148,3 +148,14 @@ DH-010 (domain UI/navigation projections + the flauz-harness workbench surface, 
 ## Addendum — 2026-10-15 (later, TL-B): Wave 10 landed
 
 DH-012 (the Lab-driven harness optimization loop, PR #203 `e79cfe73b65`) is DONE. The remaining TL-B item is **DH-013 (cross-industry harness acceptance) — the final row**. The DH family test total is 1734 at the merged head.
+
+## Final state — 2026-10-15 (TL-B): THE DOMAIN HARNESS OS SEQUENCE COMPLETE
+
+DH-013 (the cross-industry harness acceptance family, PR #204 `e2d738074`) is DONE — **the DH-001..DH-013 sequence is complete**. Thirteen harness families live on main at `147a7dd5d30` with **1,868 passing family tests** (+ production/ops 137 + the flauz-lab/flauz-harness workbench surfaces 99), verified at the merged head. The cross-industry acceptance (software · finance · healthcare · construction) proves the composition-not-fork law programmatically and registers the six-row honest gap ledger verbatim.
+
+**The registered residue (tracked, not closed):**
+- The DH gap ledger's six rows (registry wave-11 record): LAB industry task-worlds coverage · content representativeness · no live-provider execution · no production-real harness deployment · workbench runtime binding · the CR ledger integration gaps.
+- TL-A: sustained production-operation closure under A-PROD-006 remains OPEN (TL-A-owned).
+- INF: the live-provider acceptance exchange remains UNVERIFIED (env-gated skip) until a configured successful run is recorded.
+
+The work registry (`WORK-REGISTRY.md`) remains the operational source of truth.
