@@ -140,3 +140,7 @@ The work registry (`WORK-REGISTRY.md`) is the operational source of truth; this 
 ## Addendum — 2026-10-15 (later, TL-B): Wave 8 landed
 
 DH-008 (policy/approval/evidence/KPI profiles, PR #199 `f83687163f`) and DH-009 (domain benchmark/simulation-worlds, PR #200 `75c239fa9a`) are DONE. The remaining TL-B sequence is now **DH-010 through DH-013**. The DH family test total is 1252 at the merged head (registry landing record at `ed06a93c074`).
+
+## Addendum — 2026-10-15 (later, TL-B): Wave 9 landed
+
+DH-010 (domain UI/navigation projections + the flauz-harness workbench surface, PR #201 `032e7b0369`) and DH-011 (the end-to-end onboarding→activation journey family, PR #202 `36285b9dc78`) are DONE. The remaining TL-B sequence is now **DH-012 and DH-013**. The DH family test total is 1561 at the merged head (+99 extension-surface tests).
