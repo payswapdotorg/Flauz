@@ -41,12 +41,15 @@
  * its closure is updated to its CLOSED successor state - the closure
  * recorded IN the row's own description, never by silent removal -
  * and a closed row can never again be registered as an open gap by a
- * fixture (rows 1 and 2 are closed at this version: the lab
+ * fixture (rows 1, 2 and 3 are closed at this version: the lab
  * task-worlds coverage closed 2026-10-15 when the three industry
  * task-worlds landed at PR #205 in the lab extension registry; the
- * content representativeness closed with this wave's declared
- * censused content bar). Rows 3-6 remain open and are registered by
- * every fixture.
+ * content representativeness closed 2026-10-16 with the declared
+ * censused content bar; the live-provider execution closed 2026-10-16
+ * by the INF-009 canary's station-verified live-real run - a REAL
+ * chat-completion round-trip recorded as live-real DrillRecord at the
+ * INF boundary, never an exchange exercised here). Rows 4-6 remain
+ * open and are registered by every fixture.
  *
  * THE CONTENT DISCLOSURE (binding on the four curated fixture
  * modules): the industry content sets are CURATED FIXTURE-LEVEL
@@ -191,23 +194,29 @@ export function isAcceptanceGapKey(value: unknown): value is AcceptanceGapKey {
 
 /**
  * THE CLOSED-ROW LAW's frozen closed-key list (the DH-GAP-2 wave's
- * lawful ledger update): the ledger rows whose owning lanes landed
- * their closures - 'lab-task-worlds-coverage' (closed 2026-10-15: the
- * three industry task-worlds landed at PR #205 in the lab industry
- * extension registry, so all four acceptance-lane industries carry
- * industry-specific simulation worlds) and
- * 'content-representativeness' (closed with this wave: the four
- * industry content sets deepened to the declared censused
- * representativeness bar). A closed row rides the report VERBATIM -
- * its closure recorded IN its own description - and can never be
- * registered as an open gap by a fixture. The list is cross-pinned
- * against the ledger by construction (every member is a frozen row)
- * and by the battery (every closed row's description records its
- * closure; no open row's description does).
+ * lawful ledger update, extended to row 3 by the DH-GAP-3 wave): the
+ * ledger rows whose owning lanes landed their closures -
+ * 'lab-task-worlds-coverage' (closed 2026-10-15: the three industry
+ * task-worlds landed at PR #205 in the lab industry extension
+ * registry, so all four acceptance-lane industries carry
+ * industry-specific simulation worlds),
+ * 'content-representativeness' (closed 2026-10-16: the four industry
+ * content sets deepened to the declared censused representativeness
+ * bar) and 'no-live-provider-execution' (closed 2026-10-16: the
+ * INF-009 live-provider canary ran green over a station-configured
+ * REAL provider endpoint - the station's endpoint contract over the
+ * platform's sanctioned inference gateway - the exchange recorded as
+ * a live-real DrillRecord at the INF boundary). A closed row rides
+ * the report VERBATIM - its closure recorded IN its own description -
+ * and can never be registered as an open gap by a fixture. The list
+ * is cross-pinned against the ledger by construction (every member is
+ * a frozen row) and by the battery (every closed row's description
+ * records its closure; no open row's description does).
  */
 export const ACCEPTANCE_CLOSED_GAP_KEYS = [
         'lab-task-worlds-coverage',
         'content-representativeness',
+        'no-live-provider-execution',
 ] as const satisfies readonly AcceptanceGapKey[];
 export type AcceptanceClosedGapKey = (typeof ACCEPTANCE_CLOSED_GAP_KEYS)[number];
 
@@ -238,10 +247,11 @@ export const ACCEPTANCE_GAP_ROW_SCHEMA_KEYS = ['gapKey', 'description', 'evidenc
  * every acceptance report. The instrument never closes these rows by
  * passing a test - the report carries them so a green verdict can
  * never be read as a claim the ledger refutes. THE CLOSED-ROW LAW
- * (the DH-GAP-2 wave): rows 1 and 2 carry their CLOSED successor
- * states - the closures recorded IN the rows' own descriptions (the
- * truth of what landed, with the dates and the bounds), never by
- * silent removal - and rows 3-6 remain the open registered residue.
+ * (the DH-GAP-2 and DH-GAP-3 waves): rows 1, 2 and 3 carry their
+ * CLOSED successor states - the closures recorded IN the rows' own
+ * descriptions (the truth of what landed, with the dates and the
+ * bounds), never by silent removal - and rows 4-6 remain the open
+ * registered residue.
  */
 export const HARNESS_ACCEPTANCE_GAP_LEDGER: readonly AcceptanceGapRow[] = Object.freeze([
         Object.freeze({
@@ -258,7 +268,7 @@ export const HARNESS_ACCEPTANCE_GAP_LEDGER: readonly AcceptanceGapRow[] = Object
         }),
         Object.freeze({
                 gapKey: 'no-live-provider-execution',
-                description: 'no live-provider exchange is exercised here (tracked at the INF boundary: the INF-009 canary env-gated skip)',
+                description: 'CLOSED 2026-10-16: the INF-009 live-provider canary ran green with a station-configured REAL provider endpoint (the station\'s endpoint contract over the platform\'s sanctioned inference gateway - a REAL chat-completion round-trip; the raw secret stays station-side, the drill binds only the opaque handle) - a REAL network exchange recorded as live-real DrillRecord (drillClass "acceptance-exchange", verdict "eligible", the byte-identical ledger read-back, the fixture-configured no-live-port rejection - live-real is claimed ONLY when a live exchange actually happened); the row is closed, recorded in the row (never by silent removal)',
                 evidenceLevel: 'fixture',
                 owner: 'INF lane (the INF-009 canary)',
         }),
@@ -459,7 +469,7 @@ export const FIXTURE_ENTRY_CENSUS = Object.freeze({
  *     gap-registered path);
  *   - expectedGaps: the typed gap rows this industry HONESTLY
  *     registers (each a frozen ledger row, carried verbatim; the
- *     CLOSED rows 1-2 are registered by NONE - their closures are
+ *     CLOSED rows 1-3 are registered by NONE - their closures are
  *     recorded IN the ledger rows themselves).
  */
 export interface IndustryAcceptanceFixture {
@@ -575,7 +585,8 @@ export interface IndustryAcceptanceFixture {
  *   gap-registration-inconsistent  - THE CLOSED-ROW LAW: an
  *                                   expectedGaps row is a CLOSED ledger
  *                                   row ('lab-task-worlds-coverage' /
- *                                   'content-representativeness') - a
+ *                                   'content-representativeness' /
+ *                                   'no-live-provider-execution') - a
  *                                   closed row's closure is recorded
  *                                   IN the ledger row and can never be
  *                                   registered as an open gap; or an
