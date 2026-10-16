@@ -24,7 +24,11 @@
  * does NOT register the CLOSED 'lab-task-worlds-coverage' row (its
  * closure is recorded IN the ledger row); the closed
  * 'content-representativeness' row is registered by none (the censused
- * bar is met by construction). The journey's DH-09 record still
+ * bar is met by construction); the closed 'no-live-provider-execution'
+ * row is registered by none (the INF-009 canary's station-verified
+ * live-real exchange closed it at the INF boundary 2026-10-16 - this
+ * family's own task-execution evidence ceiling stays fixture-labeled,
+ * never promoted). The journey's DH-09 record still
  * composes the runner-derived REGISTRY-BOUND floor entry (the REAL
  * DH-09 scenario-binding law resolves scenarioRefs against the landed
  * base registry - the limitation is disclosed IN that entry itself).
@@ -43,8 +47,8 @@ import type { AcceptanceGapRow, IndustryAcceptanceFixture } from '../common/acce
 const HEALTHCARE_TASK_WORLD = getIndustryWorld(HEALTHCARE_WORLD_ID);
 const REAL_HEALTHCARE_SCENARIO_IDS: readonly string[] = HEALTHCARE_TASK_WORLD === undefined ? [] : HEALTHCARE_TASK_WORLD.taskScenarios.map((scenario) => scenario.id);
 
-/** The honest gaps the healthcare industry registers: the four OPEN ledger rows (the closed rows 1-2 are registered by none - their closures are recorded IN the ledger rows). */
-const HEALTHCARE_EXPECTED_GAPS: readonly AcceptanceGapRow[] = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => row.gapKey !== 'lab-task-worlds-coverage' && row.gapKey !== 'content-representativeness');
+/** The honest gaps the healthcare industry registers: the three OPEN ledger rows (the closed rows 1-3 are registered by none - their closures are recorded IN the ledger rows). */
+const HEALTHCARE_EXPECTED_GAPS: readonly AcceptanceGapRow[] = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => row.gapKey !== 'lab-task-worlds-coverage' && row.gapKey !== 'content-representativeness' && row.gapKey !== 'no-live-provider-execution');
 
 const healthcareFixture: IndustryAcceptanceFixture = {
         industry: 'healthcare',

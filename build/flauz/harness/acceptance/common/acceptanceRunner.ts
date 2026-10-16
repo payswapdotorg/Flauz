@@ -1078,7 +1078,7 @@ function buildRunner(bound: BoundRunnerOptions, state: AcceptanceRunState, reloa
                                 return { ok: false, refusal: gapRegistration.refusal };
                         }
                         const gapsNext: AcceptanceRunState = { ...current, seq: current.seq + 1, gapsRegistered: true };
-                        const gapsRefusal = await appendLine('register-gaps', { op: 'register-gaps', industry: null, law: 'THE CLOSED-ROW LAW', payload: [...ACCEPTANCE_GAP_KEYS], detail: 'registered the honest gap ledger verbatim: the six frozen rows carried in the report (rows 1-2 closed - the closures recorded IN the rows); every lane industry\'s benchmark leg evaluated; the four open rows registered by every industry, the closed rows by none' }, gapsNext);
+                        const gapsRefusal = await appendLine('register-gaps', { op: 'register-gaps', industry: null, law: 'THE CLOSED-ROW LAW', payload: [...ACCEPTANCE_GAP_KEYS], detail: 'registered the honest gap ledger verbatim: the six frozen rows carried in the report (rows 1-3 closed - the closures recorded IN the rows); every lane industry\'s benchmark leg evaluated; the three open rows registered by every industry, the closed rows by none' }, gapsNext);
                         if (gapsRefusal !== null) {
                                 return { ok: false, refusal: gapsRefusal };
                         }
@@ -1856,16 +1856,16 @@ type GapsOutcome = { readonly ok: true } | { readonly ok: false; readonly refusa
 
 /**
  * THE GAP REGISTRATION (fail-closed, the DH-GAP-2 wave's updated
- * truth): every frozen ledger row is carried in the report (by
- * construction - the closed rows 1-2 ride VERBATIM with their
- * closures recorded IN the rows); every lane industry's benchmark
- * leg is EVALUATED (the lane industries all carry task-worlds - a
- * gap-registered lane row would be an un-exercised evaluable
- * benchmark leg); every industry's rows are the OPEN frozen ledger
- * rows carried VERBATIM and no closed row is registered as an open
- * gap (THE CLOSED-ROW LAW). A missing or inconsistent registration
- * is the typed gap-registration-missing refusal - never a silent
- * pass.
+ * truth, extended to row 3 by the DH-GAP-3 wave): every frozen ledger
+ * row is carried in the report (by construction - the closed rows 1-3
+ * ride VERBATIM with their closures recorded IN the rows); every lane
+ * industry's benchmark leg is EVALUATED (the lane industries all
+ * carry task-worlds - a gap-registered lane row would be an
+ * un-exercised evaluable benchmark leg); every industry's rows are
+ * the OPEN frozen ledger rows carried VERBATIM and no closed row is
+ * registered as an open gap (THE CLOSED-ROW LAW). A missing or
+ * inconsistent registration is the typed gap-registration-missing
+ * refusal - never a silent pass.
  */
 function registerGaps(rows: ReadonlyMap<HarnessIndustry, IndustryAcceptanceVerdict>): GapsOutcome {
         const missing: string[] = [];
