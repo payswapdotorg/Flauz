@@ -18,6 +18,15 @@
  * 16-hex id rng over node:crypto (src/flauzHarnessPort.ts, the only
  * cross-lane runtime edge) - so their exact narrow surfaces are declared
  * here.
+ *
+ * The node:fs / node:os / node:path declarations and the console / process
+ * globals are the DH-GAP-5 binding drill's surface (see
+ * test/flauzHarnessPort.binding.drill.ts): the drill runs under bun (the
+ * station lane that resolves the kits' .js specifiers) and freshens/removes
+ * its temp roots through node:fs's sync surface, locates the OS tmpdir
+ * through node:os, joins paths through node:path, prints its receipts
+ * through console and exits through process - the exact narrow surface the
+ * drill calls, nothing more.
  */
 
 declare module 'node:test' {
@@ -40,3 +49,25 @@ declare module 'node:fs/promises' {
 declare module 'node:crypto' {
         export function randomBytes(size: number): { toString(encoding: 'hex'): string };
 }
+
+declare module 'node:fs' {
+        export function rmSync(path: string, options: { recursive: boolean; force: boolean }): void;
+        export function mkdirSync(path: string, options: { recursive: boolean }): void;
+}
+
+declare module 'node:os' {
+        export function tmpdir(): string;
+}
+
+declare module 'node:path' {
+        export function join(...paths: string[]): string;
+}
+
+declare const console: {
+        log(message: string): void;
+        error(message: string, ...optionalParams: unknown[]): void;
+};
+
+declare const process: {
+        exit(code: number): never;
+};

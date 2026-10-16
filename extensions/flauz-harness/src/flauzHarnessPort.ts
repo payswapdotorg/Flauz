@@ -7,12 +7,23 @@
  * DH-010 Harness console runtime port binding - the ONLY cross-lane
  * runtime edge (the flauz-lab law): this file imports the REAL
  * Domain Harness OS kits at build/flauz/harness/ with the kits' own
- * .js specifiers, which esbuild resolves at bundle time. NO TEST
- * EVER IMPORTS THIS FILE: Node type stripping cannot resolve those
- * .js specifiers, so the test lane covers the console state machine
- * and the view rendering against the port contract
- * (src/harnessPort.ts), while this binding is exercised by the
- * bundle + activation gates.
+ * .js specifiers, which esbuild resolves at bundle time. NO NODE-TEST
+ * FILE EVER IMPORTS THIS FILE: Node type stripping cannot resolve
+ * those .js specifiers, so the node --test lane (test/*.test.ts)
+ * covers the console state machine and the view rendering against the
+ * port contract (src/harnessPort.ts), while this binding is exercised
+ * by the bundle + activation gates. THE BUN-LANE DRILL (the DH-GAP-5
+ * wave's disclosed amendment): the runtime binding IS now executed
+ * live by test/flauzHarnessPort.binding.drill.ts - the .drill.ts
+ * suffix keeps it OUTSIDE the node --test glob (the letter of the
+ * flauz-lab law kept), and bun resolves the .js-specifier-to-.ts
+ * imports natively (the same runner law the build/flauz family
+ * batteries document - `bunx --bun mocha`) - driving the full op
+ * chain over the REAL kits: the vocabularies, the DH-02 session walk,
+ * the DH-03 compose+emit at the same root, the propose boundary
+ * minting the harness through the inner REAL DH-01 kit, the DH-010
+ * navigation projection, the closed activation door. The node --test
+ * lane still never imports this file; only the bun lane does.
  *
  * THE COMPOSITION ROUTE (every op rides a REAL kit): the selection
  * session ops delegate to the real DH-02 onboarding kit (reopened

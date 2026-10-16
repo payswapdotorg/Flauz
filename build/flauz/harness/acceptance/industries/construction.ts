@@ -28,7 +28,12 @@
  * closed 'no-live-provider-execution' row is registered by none (the
  * INF-009 canary's station-verified live-real exchange closed it at
  * the INF boundary 2026-10-16 - this family's own task-execution
- * evidence ceiling stays fixture-labeled, never promoted). The
+ * evidence ceiling stays fixture-labeled, never promoted); the closed
+ * 'workbench-surface-runtime-binding' row is registered by none (the
+ * flauz-harness extension's binding drill's station-verified bun-lane
+ * run closed it at the extension boundary 2026-10-16 - this family's
+ * own UI-behavior verdict stays at the projection-derivation level,
+ * never a claim the extension ran here). The
  * journey's DH-09 record still composes the runner-derived
  * REGISTRY-BOUND floor entry (the REAL DH-09 scenario-binding law
  * resolves scenarioRefs against the landed base registry - the
@@ -48,8 +53,8 @@ import type { AcceptanceGapRow, IndustryAcceptanceFixture } from '../common/acce
 const CONSTRUCTION_TASK_WORLD = getIndustryWorld(CONSTRUCTION_WORLD_ID);
 const REAL_CONSTRUCTION_SCENARIO_IDS: readonly string[] = CONSTRUCTION_TASK_WORLD === undefined ? [] : CONSTRUCTION_TASK_WORLD.taskScenarios.map((scenario) => scenario.id);
 
-/** The honest gaps the construction industry registers: the three OPEN ledger rows (the closed rows 1-3 are registered by none - their closures are recorded IN the ledger rows). */
-const CONSTRUCTION_EXPECTED_GAPS: readonly AcceptanceGapRow[] = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => row.gapKey !== 'lab-task-worlds-coverage' && row.gapKey !== 'content-representativeness' && row.gapKey !== 'no-live-provider-execution');
+/** The honest gaps the construction industry registers: the two OPEN ledger rows (the closed rows 1, 2, 3 and 5 are registered by none - their closures are recorded IN the ledger rows). */
+const CONSTRUCTION_EXPECTED_GAPS: readonly AcceptanceGapRow[] = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => row.gapKey !== 'lab-task-worlds-coverage' && row.gapKey !== 'content-representativeness' && row.gapKey !== 'no-live-provider-execution' && row.gapKey !== 'workbench-surface-runtime-binding');
 
 const constructionFixture: IndustryAcceptanceFixture = {
         industry: 'construction',

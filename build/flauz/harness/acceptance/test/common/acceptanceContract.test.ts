@@ -6,12 +6,15 @@
  * DH-013 acceptance contract battery (re-pinned by the DH-GAP-2 wave:
  * the closed-row ledger update, the benchmark binding modes, the
  * doubled curated census; re-pinned again by the DH-GAP-3 wave: row 3
- * closed by the INF-009 canary's station-verified live-real run): the
+ * closed by the INF-009 canary's station-verified live-real run;
+ * re-pinned again by the DH-GAP-5 wave: row 5 closed by the binding
+ * drill's station-verified bun-lane run): the
  * version cross-pins (this family + the TWELVE prior family versions +
  * the REAL LAB_CONTRACTS_VERSION, all imported by reference and pinned
  * equal), the frozen acceptance lane and the honest gap ledger (the
- * six rows verbatim - rows 1-3 CLOSED, their closures recorded IN the
- * rows; THE CLOSED-ROW LAW's closed-key list), the curated-fixture
+ * six rows verbatim - rows 1, 2, 3 and 5 CLOSED, their closures
+ * recorded IN the rows; THE CLOSED-ROW LAW's closed-key list), the
+ * curated-fixture
  * walk (THE STRICT-SCHEMA LAW, the REAL vocabulary stations, the OWNING
  * families' REAL entry validators, THE INTERNAL-REF LAW, THE CURATED
  * CENSUS LAW at the declared censused bar, THE BINDING-MODE LAW (the
@@ -221,7 +224,7 @@ suite('acceptanceContract · the frozen acceptance lane', () => {
         });
 });
 
-suite('acceptanceContract · the honest gap ledger (the six frozen rows; rows 1-3 CLOSED by the DH-GAP-2/GAP-3 waves)', () => {
+suite('acceptanceContract · the honest gap ledger (the six frozen rows; rows 1, 2, 3 and 5 CLOSED by the DH-GAP-2/GAP-3/GAP-5 waves)', () => {
         test('the six frozen gap keys, in the frozen order', () => {
                 assert.deepStrictEqual([...ACCEPTANCE_GAP_KEYS], [
                         'lab-task-worlds-coverage',
@@ -235,13 +238,13 @@ suite('acceptanceContract · the honest gap ledger (the six frozen rows; rows 1-
                 assert.ok(!isAcceptanceGapKey('made-up-gap'));
         });
 
-        test('the ledger rows carry the registry row\'s own descriptions verbatim (rows 1-3 in their CLOSED successor states - the closures recorded IN the rows, never by silent removal)', () => {
+        test('the ledger rows carry the registry row\'s own descriptions verbatim (rows 1, 2, 3 and 5 in their CLOSED successor states - the closures recorded IN the rows, never by silent removal)', () => {
                 assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER.length, 6);
                 assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[0].description, 'CLOSED 2026-10-15: the three industry task-worlds (finance/healthcare/construction) landed at PR #205 in the lab extension registry; the SE world plus three industry worlds - all four acceptance-lane industries carry industry-specific simulation worlds and their benchmark legs are bound; the coverage row is closed, recorded in the row (never by silent removal)');
                 assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[1].description, 'CLOSED 2026-10-16: the four industry content sets are deepened to the declared censused representativeness bar - each industry carries at least six roles, ten terms, four tasks, four bodies, four packs and two profiles of real domain-shaped curated content (the census pinned by the battery, the content-census disclosure riding every report); the fixture-level bound stays disclosed - curated acceptance content, never a domain-truth claim; the row is closed, recorded in the row (never by silent removal)');
                 assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[2].description, 'CLOSED 2026-10-16: the INF-009 live-provider canary ran green with a station-configured REAL provider endpoint (the station\'s endpoint contract over the platform\'s sanctioned inference gateway - a REAL chat-completion round-trip; the raw secret stays station-side, the drill binds only the opaque handle) - a REAL network exchange recorded as live-real DrillRecord (drillClass "acceptance-exchange", verdict "eligible", the byte-identical ledger read-back, the fixture-configured no-live-port rejection - live-real is claimed ONLY when a live exchange actually happened); the row is closed, recorded in the row (never by silent removal)');
                 assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[3].description, 'the harness families\' evidence ceiling is fixture/simulated; production deployment of harness configurations is a future TL-A-coordinated step');
-                assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[4].description, 'the flauz-harness extension\'s runtime binding is covered by the bundle+activation gates (the flauz-lab law), not the node lane; the UI behavior is verified here at the projection-derivation level + the extension\'s own node suites');
+                assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[4].description, 'CLOSED 2026-10-16: the flauz-harness extension\'s runtime binding executed live at the station - the binding drill (extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts, run under bun, the lane that resolves the kits\' .js specifiers Node dropped) drove the full op chain over the REAL kits: the port open over a fresh root, the REAL frozen vocabularies, the DH-02 session ops (industry -> company -> work-types -> review), the DH-03 compose+emit at the same root, the propose boundary minting the harness through the inner REAL DH-01 kit with the deterministic injected seams (the pinned harness id, the determinism double-run byte-equal), the REAL DH-010 navigation projection over the minted harness - the nine frozen sections with the honest not-composed families; the closed activation door pinned on the port surface (exactly the twelve ops + the id/mode data keys, no activation op - the DH-01 authority keeps the lifecycle); the extension\'s node --test lane still never imports the binding (the letter of the flauz-lab law kept); the row is closed, recorded in the row (never by silent removal)');
                 assert.strictEqual(HARNESS_ACCEPTANCE_GAP_LEDGER[5].description, 'the Phase C-R terminal ledger\'s three exercised-but-unresolved and two unexercised integration gaps remain tracked in the CR records (cross-referenced, not re-litigated here)');
                 for (const row of HARNESS_ACCEPTANCE_GAP_LEDGER) {
                         assert.ok((PROFILES_EVIDENCE_LADDER as readonly string[]).includes(row.evidenceLevel), `the row '${row.gapKey}' carries a REAL ladder rung as its honest evidence floor`);
@@ -249,8 +252,8 @@ suite('acceptanceContract · the honest gap ledger (the six frozen rows; rows 1-
                 }
         });
 
-        test('THE CLOSED-ROW LAW: the closed-key list is exactly rows 1-3; every closed row\'s description records its closure; no open row\'s description does', () => {
-                assert.deepStrictEqual([...ACCEPTANCE_CLOSED_GAP_KEYS], ['lab-task-worlds-coverage', 'content-representativeness', 'no-live-provider-execution']);
+        test('THE CLOSED-ROW LAW: the closed-key list is exactly rows 1, 2, 3 and 5; every closed row\'s description records its closure; no open row\'s description does', () => {
+                assert.deepStrictEqual([...ACCEPTANCE_CLOSED_GAP_KEYS], ['lab-task-worlds-coverage', 'content-representativeness', 'no-live-provider-execution', 'workbench-surface-runtime-binding']);
                 for (const key of ACCEPTANCE_CLOSED_GAP_KEYS) {
                         const row = HARNESS_ACCEPTANCE_GAP_LEDGER.find((ledgerRow) => ledgerRow.gapKey === key);
                         assert.ok(row !== undefined, `the closed key '${key}' is a REAL frozen ledger row`);
@@ -263,7 +266,9 @@ suite('acceptanceContract · the honest gap ledger (the six frozen rows; rows 1-
                 }
                 assert.ok(isAcceptanceClosedGapKey('lab-task-worlds-coverage'));
                 assert.ok(isAcceptanceClosedGapKey('no-live-provider-execution'));
+                assert.ok(isAcceptanceClosedGapKey('workbench-surface-runtime-binding'));
                 assert.ok(!isAcceptanceClosedGapKey('no-production-real-harness-deployment'));
+                assert.ok(!isAcceptanceClosedGapKey('cr-ledger-integration-gaps'));
                 assert.ok(!isAcceptanceClosedGapKey('made-up-gap'));
         });
 
@@ -382,13 +387,13 @@ suite('acceptanceContract · the curated fixture walk (the four shipped fixtures
                 }
         });
 
-        test('no fixture registers a CLOSED row; every fixture registers exactly the three OPEN rows (the closures are recorded IN the ledger rows)', () => {
+        test('no fixture registers a CLOSED row; every fixture registers exactly the TWO OPEN rows (the closures are recorded IN the ledger rows)', () => {
                 for (const [industry, fixture] of Object.entries(LANE_FIXTURES) as unknown as [string, IndustryAcceptanceFixture][]) {
                         const keys = fixture.expectedGaps.map((row) => row.gapKey);
                         for (const key of keys) {
                                 assert.ok(!isAcceptanceClosedGapKey(key), `${industry}: the closed row '${key}' is registered by none`);
                         }
-                        assert.deepStrictEqual(keys, ['no-production-real-harness-deployment', 'workbench-surface-runtime-binding', 'cr-ledger-integration-gaps'], `${industry}: exactly the three open rows`);
+                        assert.deepStrictEqual(keys, ['no-production-real-harness-deployment', 'cr-ledger-integration-gaps'], `${industry}: exactly the two open rows`);
                 }
         });
 
@@ -630,17 +635,17 @@ suite('acceptanceContract · the fixture walk\'s fail-closed stations', () => {
                 }
         });
 
-        test('a benchmark-absent fixture for an UNCOVERED industry is green (the honest null; the three open rows only - a fifth industry is a new fixture module, never a code path)', () => {
+        test('a benchmark-absent fixture for an UNCOVERED industry is green (the honest null; the two open rows only - a fifth industry is a new fixture module, never a code path)', () => {
                 const mutated = copy(SOFTWARE_ACCEPTANCE_FIXTURE);
                 mutated.industry = 'legal';
                 mutated.benchmark = null;
                 const outcome = validateIndustryAcceptanceFixture(mutated);
                 assert.ok(outcome.ok, outcome.ok ? '' : outcome.rejection.message);
                 assert.strictEqual(outcome.fixture.benchmark, null);
-                assert.deepStrictEqual(outcome.fixture.expectedGaps.map((row) => row.gapKey), ['no-production-real-harness-deployment', 'workbench-surface-runtime-binding', 'cr-ledger-integration-gaps']);
+                assert.deepStrictEqual(outcome.fixture.expectedGaps.map((row) => row.gapKey), ['no-production-real-harness-deployment', 'cr-ledger-integration-gaps']);
         });
 
-        test('a fixture registering a CLOSED ledger row is the typed gap-registration-inconsistent rejection (THE CLOSED-ROW LAW - rows 1, 2 and 3)', () => {
+        test('a fixture registering a CLOSED ledger row is the typed gap-registration-inconsistent rejection (THE CLOSED-ROW LAW - rows 1, 2, 3 and 5)', () => {
                 for (const closedKey of ACCEPTANCE_CLOSED_GAP_KEYS) {
                         const mutated = copy(SOFTWARE_ACCEPTANCE_FIXTURE);
                         const closedRow = HARNESS_ACCEPTANCE_GAP_LEDGER.find((row) => row.gapKey === closedKey);
@@ -1157,7 +1162,7 @@ suite('acceptanceContract · the report walk, the canonical serialization and th
         });
 });
 
-/** A structurally-green canonical report (four lanes; every row evaluated over the three OPEN rows - the closed rows ride the gapLedger verbatim). */
+/** A structurally-green canonical report (four lanes; every row evaluated over the two OPEN rows - the closed rows ride the gapLedger verbatim). */
 function reportBytes(): string {
         const openRows = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => !isAcceptanceClosedGapKey(row.gapKey));
         const rows = ACCEPTANCE_INDUSTRIES.map((industry) => {
