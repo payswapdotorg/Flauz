@@ -66,7 +66,9 @@ KPIs, benchmarks, lifecycle), and record proposed drafts.
 - `src/flauzHarnessPort.ts` - the runtime binding to the real Domain
   Harness OS kits at `build/flauz/harness/` (the only cross-lane
   runtime edge; esbuild resolves the kits' `.js` specifiers at bundle
-  time; no test imports it).
+  time; no node-test file imports it - but the binding drill
+  `test/flauzHarnessPort.binding.drill.ts` executes it under bun, the
+  runner that resolves those `.js` specifiers natively).
 - `src/extension.ts` - activation wiring (view registered FIRST,
   narrow `onView:flauz.harness` + `onCommand:flauz.harness.*`
   activation only - the activation budget law).
@@ -84,10 +86,25 @@ through the runtime binding.
 # from extensions/flauz-harness (or the repo root with full paths)
 node --test test/*.test.ts                # 66 pass, 0 fail (32 state + 34 view)
 ~/toolchain/node_modules/.bin/tsc -p tsconfig.json --noEmit   # EXIT 0
+
+# from the repo root (the station's documented form)
+bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts   # exit 0
 ```
 
 | Gate | Command | Receipt (this delivery) |
 | --- | --- | --- |
 | Extension typecheck | `tsc -p extensions/flauz-harness/tsconfig.json --noEmit` | EXIT 0 |
 | Extension test lane | `node --test extensions/flauz-harness/test/*.test.ts` | 66 pass, 0 fail |
+| Runtime binding drill | `bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts` | exit 0 — the full op chain over the real kits (the DH-02 session walk, the DH-03 compose+emit at the same root, the propose boundary minting the harness through the inner real DH-01 kit, the real DH-010 nine-section projection, the determinism double-run), the closed activation door pinned on the port surface |
 | Projection family battery | `bunx --bun mocha --ui tdd build/flauz/harness/projections/test/common/*.test.ts` | 153 pass, 0 fail |
+
+The runtime binding drill (the DH-GAP-5 wave, the INF-009 canary's
+`real-execution drill` precedent): the `.drill.ts` suffix keeps it
+OUTSIDE the node `--test` glob — the node lane still never imports
+`src/flauzHarnessPort.ts` (Node type stripping cannot resolve the
+kits' `.js` specifiers, the flauz-lab law's letter kept) — while bun
+resolves the `.js`-specifier-to-`.ts` imports natively (the same
+runner law the `build/flauz` family batteries document). It drives
+the port end-to-end over the REAL kits with the fixed injected
+clock/rng seams (deterministic ids, pinned harness id), needs no env
+and no network, and removes its temp roots on exit.
