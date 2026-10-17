@@ -2,7 +2,7 @@
 	"$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
 	"bomFormat": "CycloneDX",
 	"specVersion": "1.5",
-	"serialNumber": "urn:uuid:d65f6cf4-e73b-502b-957b-ccd95914c98d",
+	"serialNumber": "urn:uuid:1471115a-bcbe-5ec0-a4fc-193500efe383",
 	"version": 1,
 	"metadata": {
 		"tools": {
@@ -16,10 +16,10 @@
 		},
 		"component": {
 			"type": "application",
-			"bom-ref": "pkg:generic/flauz@0.2.0",
+			"bom-ref": "pkg:generic/flauz@0.2.1",
 			"name": "Flauz",
-			"version": "0.2.0",
-			"purl": "pkg:generic/flauz@0.2.0",
+			"version": "0.2.1",
+			"purl": "pkg:generic/flauz@0.2.1",
 			"properties": [
 				{
 					"name": "flauz:component-kind",
@@ -166,6 +166,23 @@
 				{
 					"name": "flauz:artifact",
 					"value": "extensions/flauz-execution/dist/"
+				}
+			]
+		},
+		{
+			"type": "library",
+			"bom-ref": "pkg:generic/flauz/flauz-harness@0.1.0",
+			"name": "flauz-harness",
+			"version": "0.1.0",
+			"purl": "pkg:generic/flauz/flauz-harness@0.1.0",
+			"properties": [
+				{
+					"name": "flauz:component-kind",
+					"value": "flauz-extension"
+				},
+				{
+					"name": "flauz:artifact",
+					"value": "extensions/flauz-harness/dist/"
 				}
 			]
 		},
@@ -393,7 +410,7 @@
 	],
 	"dependencies": [
 		{
-			"ref": "pkg:generic/flauz@0.2.0",
+			"ref": "pkg:generic/flauz@0.2.1",
 			"dependsOn": [
 				"pkg:generic/flauz/flauz-acceptance@0.1.0",
 				"pkg:generic/flauz/flauz-agent@0.1.0",
@@ -403,6 +420,7 @@
 				"pkg:generic/flauz/flauz-durability@0.1.0",
 				"pkg:generic/flauz/flauz-environments@0.1.0",
 				"pkg:generic/flauz/flauz-execution@0.1.0",
+				"pkg:generic/flauz/flauz-harness@0.1.0",
 				"pkg:generic/flauz/flauz-incidents@0.1.0",
 				"pkg:generic/flauz/flauz-integrity@0.1.0",
 				"pkg:generic/flauz/flauz-isolation@0.1.0",

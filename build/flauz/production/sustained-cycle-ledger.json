@@ -1,0 +1,37 @@
+{
+	"$schema": "flauz.production-cycle-ledger/v1",
+	"description": "A-PROD-006-W8: the sustained-production-cycle ledger (the W8 addendum to the W7 sustained-operation ledger surface). The LIVE production evidence ledger is the Neon production_evidence table (build/flauz/production/ops/README.md section 'The ledger schema') banked through the production /api/evidence endpoint - station-held credentials, per the credential-free delivery law. This additive repo-side file carries the W8 cycle row in EXACTLY that ledger's row shape (the ProductionEvidenceRecord contract: id flauz:prd:<16-hex>, the frozen evidence kinds, the derived label, the payload, recordedAtIso, the append-only revision) at the honest in-sandbox evidence level: local-real. The station banks the production-real W8 cycle row on the LIVE ledger at the 0.2.1 landing (the station-side half of the cycle, per the work order's section 7).",
+	"notes": "The id is derived deterministically (sha256 of the canonical payload, first 16 hex) - the rng seam belongs to the kit runtime (never Math.random in shipped code; this is a data artifact, not shipped code). Rows are append-only: the next cycle appends a new row, re-recording an id appends revision N+1, nothing is edited or deleted (the append-only ledger law).",
+	"rows": [
+		{
+			"id": "flauz:prd:4e100076f1bb0854",
+			"kind": "verification",
+			"label": "local-real",
+			"payload": {
+				"workOrder": "A-PROD-006-W8",
+				"cycle": 5,
+				"revolution": "production-real #2 (station-side)",
+				"incident": "INC-W8-PARITY-GAP",
+				"incidentClass": "production-integration",
+				"releaseIdentity": "0.2.1",
+				"branch": "flauz-aprod/aprod-006-w8",
+				"base": "7478237a0e46b14fa8118343e54868edba3c6447",
+				"batteryVerdictSet": {
+					"verify-fixtures": "AS EXPECTED, 0 deviations",
+					"security-gate": "GREEN",
+					"security-runtime-gate": "GREEN (SBOM byte-exact at 0.2.1)",
+					"premium-ux": "CLEAN",
+					"compat-battery": "1887/1887 PASS",
+					"packaging-parity": "CLEAN (22 extensions covered, 74 rows, 0 drift, 0 violations)",
+					"fork-critical": "EMPTY (divergence and ledger both empty vs upstream/main)",
+					"activation-lint": "GREEN",
+					"production-ops-battery": "137/137",
+					"scoped-tsc-production-ops": "EXIT 0",
+					"regression-pin": "A-PROD-006-W8 real-repo parity pin: fails-on-base (PP2 unclassified flauz-harness), passes-on-fix (24/24)"
+				}
+			},
+			"recordedAtIso": "2026-10-16T17:47:36Z",
+			"revision": 1
+		}
+	]
+}

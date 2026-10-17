@@ -254,15 +254,23 @@ test('--help: exit 0, single-line options, exit-code contract documented', () =>
 // case family 8: the real-repo pin - the committed registry classifies the live tree
 // ---------------------------------------------------------------------------------------------
 
-test('real repo: committed registry vs live tree -> exit 0 CLEAN with the nine extensions covered', () => {
+test('real repo: committed registry vs live tree -> exit 0 CLEAN with the 22 extensions covered (A-PROD-006-W8: flauz-harness classified)', () => {
 	const r = runTool(['--root', REPO_ROOT, '--require']);
 	assert.equal(r.status, 0, `exit ${r.status}\n${r.out}\n${r.err}`);
 	// PLATFORM-H1 (2026-09-28): flauz-execution + flauz-memory gained their first
 	// rows (3 each) and flauz-models gained the two node-bound TL2-002 rows
 	// (adapter wire plumbing + fabric wiring) after its seam citation was
 	// narrowed - 28 -> 36 rows, 7 -> 9 extensions.
-	assert.match(r.out, /packaging-parity: CLEAN \(9 extension\(s\) covered, 36 rows, 0 drift, 0 violations\)/);
-	for (const name of ['flauz-agent', 'flauz-browser', 'flauz-environments', 'flauz-execution', 'flauz-memory', 'flauz-models', 'flauz-resources', 'flauz-workflow', 'flauz-workspace']) {
+	// A-PROD-006-W8 (2026-10-16, the INC-W8-PARITY-GAP regression pin): the
+	// DH-010 wave-9 landing shipped extensions/flauz-harness WITHOUT parity
+	// rows - PP2 failed on the unclassified surface (this test failed-on-base
+	// with exit 1). The W8 fix classifies the surface (3 rows: the
+	// web-blocked posture, the web-full console core, the web-blocked real-kit
+	// runtime binding) - 71 -> 74 rows, 21 -> 22 extensions. The count also
+	// re-pins the stale nine-extension expectation the interim waves had
+	// drifted past (the pin follows the landed tree, never a guess).
+	assert.match(r.out, /packaging-parity: CLEAN \(22 extension\(s\) covered, 74 rows, 0 drift, 0 violations\)/);
+	for (const name of ['flauz-agent', 'flauz-browser', 'flauz-environments', 'flauz-execution', 'flauz-memory', 'flauz-models', 'flauz-resources', 'flauz-workflow', 'flauz-workspace', 'flauz-diagnostics', 'flauz-backup', 'flauz-migration', 'flauz-telemetry', 'flauz-release', 'flauz-lab', 'flauz-production', 'flauz-integrity', 'flauz-isolation', 'flauz-durability', 'flauz-incidents', 'flauz-acceptance', 'flauz-harness']) {
 		assert.match(r.out, new RegExp(`extensions/${name}\\s+packaging=web-blocked`));
 	}
 });

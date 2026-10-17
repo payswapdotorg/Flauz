@@ -77,7 +77,7 @@ console.log(`  copied vercel.json: ${vercelJsonSrc} -> ${join(deployWs, 'vercel.
 // 5. A minimal package.json (the @neondatabase/serverless dep).
 const minimalPackageJson = {
         name: 'flauz-deploy',
-        version: '0.2.0',
+        version: '0.2.1',
         private: true,
         dependencies: {
                 '@neondatabase/serverless': '^1.0.0',
