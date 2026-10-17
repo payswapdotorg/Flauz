@@ -56,7 +56,7 @@ npx vercel@latest whoami                    # the token check - cite the user/te
 npx vercel project add flauz-web            # or link an existing project
 npx vercel env add DATABASE_URL production  # the Neon connection string; env-only
 npx vercel env add FLAUZ_PRODUCTION_URL production  # the production URL
-npx vercel env add FLAUZ_VERSION production  # '0.2.0'
+npx vercel env add FLAUZ_VERSION production  # '0.2.1'
 
 # Assemble the deployment workspace:
 node build/flauz/production/deploy/assemble-deploy.mjs
@@ -99,7 +99,7 @@ curl -s https://<production-url>/ | head -3
 # 3. GET /api/healthz -> the healthy JSON - dbConnectivity: "connected" (production-real)
 curl -s https://<production-url>/api/healthz
 
-# 4. GET /api/status -> the version 0.2.0 + the ledger census
+# 4. GET /api/status -> the version 0.2.1 + the ledger census
 curl -s https://<production-url>/api/status
 
 # 5. POST /api/evidence {"kind":"smoke-run","payload":{...}} -> banked -> GET /api/evidence?limit=5

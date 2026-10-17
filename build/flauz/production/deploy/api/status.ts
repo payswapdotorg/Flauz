@@ -40,7 +40,7 @@ export default async function handler(
 		target: { url: targetUrl, expectedLabel: 'production-real' },
 		queryLike,
 		rng: () => generateHex(),
-		version: process.env.FLAUZ_VERSION ?? '0.2.0',
+		version: process.env.FLAUZ_VERSION ?? '0.2.1',
 	});
 	const view = await kit.statusView();
 	res.status(200).json(view);

@@ -50,7 +50,7 @@ export default async function handler(
 		target: { url: targetUrl, expectedLabel: 'production-real' },
 		queryLike,
 		rng: () => generateHex(),
-		version: process.env.FLAUZ_VERSION ?? '0.2.0',
+		version: process.env.FLAUZ_VERSION ?? '0.2.1',
 	});
 	const method = typeof req.method === 'string' ? req.method.toUpperCase() : 'GET';
 	if (method === 'POST') {

@@ -2223,6 +2223,84 @@
 				}
 			],
 			"recoveryPath": "Implement the AcceptanceFsPort over vscode.workspace.fs in the browser build; the desktop entry keeps nodeFs (the flauz-incidents wiring-row precedent)."
+		},
+		{
+			"surface": "extensions/flauz-harness",
+			"capability": "extension packaging posture",
+			"class": "web-blocked",
+			"reason": "main-only manifest (./dist/extension.js, no browser sibling): not-web under the upstream isWebExtension() rule. View + command activation only (onView:flauz.harness, onCommand:flauz.harness.* + onCommand:flauz.focusView.harness), no proposed APIs, no onStartupFinished. Row added by A-PROD-006-W8 (the INC-W8-PARITY-GAP production-integration incident: the DH-010 wave-9 landing shipped the extension without the parity regeneration - the surface is classified here, the gate debt cleared).",
+			"evidence": [
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-harness/package.json",
+					"key": [
+						"main"
+					],
+					"value": "./dist/extension.js"
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-harness/package.json",
+					"key": [
+						"browser"
+					],
+					"absent": true
+				},
+				{
+					"kind": "manifest-key",
+					"file": "extensions/flauz-harness/package.json",
+					"key": [
+						"engines",
+						"vscode"
+					],
+					"value": "^1.140.0"
+				}
+			],
+			"recoveryPath": "Browser entrypoint once the core row below recovers; the command/tree surface itself is host-agnostic (the HarnessConsolePort is injected)."
+		},
+		{
+			"surface": "extensions/flauz-harness",
+			"capability": "harness console core: the pure selection-session state machine, the injected port contract and the flauz.harness tree view (port-injected)",
+			"class": "web-full",
+			"reason": "The DH-010 console core is node-free and port-injected: the pure selection-session state machine (the observed onboarding session with the honest (not ... yet) markers + the composed role-composition menu), the HarnessConsolePort contract (the onboarding ops + the harness-list/navigation-load surfaces), the flauz.harness tree view (vscode slices injected; the container flauz is owned by flauz-workspace) and the shared timestamp formatter (the PU6 verbatim flauz-lab format copy). Every effect flows through the port; the runtime binding to the real Domain Harness OS kits lives exclusively in the wiring row below - the flauz-lab core-row precedent.",
+			"evidence": [
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-harness/src/harnessState.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-harness/src/harnessPort.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-harness/src/harnessView.ts"
+				},
+				{
+					"kind": "node-free",
+					"path": "extensions/flauz-harness/src/format.ts"
+				}
+			],
+			"recoveryPath": "Packaging plus a web-backed HarnessConsolePort (the console core is pure TS with no node surface) ships the whole DH-010 console to web with byte-identical tree contents; the real-kit binding moves to the service side (the endpoint-host path, never a fork of core)."
+		},
+		{
+			"surface": "extensions/flauz-harness",
+			"capability": "runtime binding to the real Domain Harness OS kits + the durable-state reads/writes over the workspace .flauz/harness tree (node HarnessFsPort over node:fs/promises + node:crypto rng)",
+			"class": "web-blocked",
+			"reason": "flauzHarnessPort.ts is the only cross-lane runtime edge: it wires the HarnessFsPort to node:fs/promises (the onboarding-session, harness-record and proposal-record reads/writes over the workspace .flauz/harness tree) and mints the 16-hex ids through node:crypto randomBytes, and binds the console to the REAL Domain Harness OS kits at build/flauz/harness/ (loadHarnessKit/loadOnboardingKit/loadRolesKit/loadOntologyKit/loadTemplatesKit/loadBodiesKit/loadPacksKit/loadProfilesKit/loadBenchmarksKit + the DH-10 projectNavigation projection; esbuild resolves the kits' .js specifiers at bundle time; no test imports it). The node dependency is confined to this wiring row; the core row above is node-free.",
+			"evidence": [
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-harness/src/flauzHarnessPort.ts",
+					"module": "fs/promises"
+				},
+				{
+					"kind": "node-import",
+					"file": "extensions/flauz-harness/src/flauzHarnessPort.ts",
+					"module": "crypto"
+				}
+			],
+			"recoveryPath": "Implement the HarnessFsPort over vscode.workspace.fs and the rng seam over WebCrypto in the browser build (both seams are injected at the extension boundary); the real-kit binding ships from the service side (the endpoint-host path) - the desktop entry keeps nodeFs (the flauz-incidents wiring-row precedent)."
 		}
 	]
 }

@@ -55,7 +55,7 @@ export default async function handler(
 		target: { url: targetUrl, expectedLabel: 'production-real' },
 		queryLike,
 		rng: () => generateHex(),
-		version: process.env.FLAUZ_VERSION ?? '0.2.0',
+		version: process.env.FLAUZ_VERSION ?? '0.2.1',
 	});
 	// The healthCheck self-probes: the fetchLike proves the app is up
 	// (the function is executing); the kit probes the DB via queryLike.
