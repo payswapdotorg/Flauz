@@ -270,7 +270,7 @@ test('real repo: committed registry vs live tree -> exit 0 CLEAN with the 22 ext
         // re-pins the stale nine-extension expectation the interim waves had
         // drifted past (the pin follows the landed tree, never a guess).
         // A-PROD-006-W9 (2026-10-17, the gap-ledger row-4 closure vehicle): the
-        // browser sibling landed (./dist/web/extension.js over the in-session
+        // browser sibling landed (./dist/web/extension.cjs over the in-session
         // port seam) - the harness posture row re-pins web-blocked -> web-full
         // (the FIRST Flauz surface in the web build) and the web-product row
         // re-pins web-blocked -> web-degraded with the harness browser citation.

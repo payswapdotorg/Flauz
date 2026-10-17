@@ -1,87 +1,87 @@
 {
-        "name": "flauz-harness",
-        "displayName": "Flauz Harness",
-        "description": "The Domain Harness console (DH-010): drive the onboarding selection session (industry, company, work types, roles) through the real Domain Harness OS kits, inspect any harness's projected navigation model (roles, workflows, capabilities, policies, evidence, KPIs, benchmarks, lifecycle), and propose drafts - activation stays routed through the DH-01 authority, never this console.",
-        "version": "0.1.0",
-        "publisher": "flauz",
-        "license": "MIT",
-        "type": "module",
-        "engines": {
-                "vscode": "^1.140.0"
-        },
-        "categories": [
-                "Other"
-        ],
-        "activationEvents": [
-                "onView:flauz.harness",
-                "onCommand:flauz.harness.beginSession",
-                "onCommand:flauz.harness.selectIndustry",
-                "onCommand:flauz.harness.composeCompany",
-                "onCommand:flauz.harness.selectWorkTypes",
-                "onCommand:flauz.harness.proposeDraft",
-                "onCommand:flauz.focusView.harness",
-                "onCommand:flauz.harness.refreshView"
-        ],
-        "main": "./dist/extension.js",
-        "browser": "./dist/web/extension.js",
-        "contributes": {
-                "views": {
-                        "flauz": [
-                                {
-                                        "id": "flauz.harness",
-                                        "name": "Harness"
-                                }
-                        ]
-                },
-                "commands": [
-                        {
-                                "command": "flauz.harness.beginSession",
-                                "title": "Begin Onboarding Session",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.harness.selectIndustry",
-                                "title": "Select Industry",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.harness.composeCompany",
-                                "title": "Compose Company Profile",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.harness.selectWorkTypes",
-                                "title": "Select Work Types",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.harness.proposeDraft",
-                                "title": "Propose Draft",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.focusView.harness",
-                                "title": "Focus Harness View",
-                                "category": "Flauz"
-                        },
-                        {
-                                "command": "flauz.harness.refreshView",
-                                "title": "Refresh Harness View",
-                                "category": "Flauz"
-                        }
-                ],
-                "viewsWelcome": [
-                        {
-                                "view": "flauz.harness",
-                                "contents": "The Flauz Harness console selects, inspects and composes domain harnesses: drive the onboarding session (industry, company, work types, roles), propose the draft through the real onboarding kit, and inspect any harness's projected navigation model.\n[Begin Onboarding Session](command:flauz.harness.beginSession)\nActivating a harness stays routed through the DH-01 authority, never this console."
-                        }
-                ]
-        },
-        "scripts": {
-                "typecheck": "tsc --noEmit",
-                "test": "node --test \"test/*.test.ts\""
-        },
-        "devDependencies": {
-                "typescript": "5.9.3"
-        }
+	"name": "flauz-harness",
+	"displayName": "Flauz Harness",
+	"description": "The Domain Harness console (DH-010): drive the onboarding selection session (industry, company, work types, roles) through the real Domain Harness OS kits, inspect any harness's projected navigation model (roles, workflows, capabilities, policies, evidence, KPIs, benchmarks, lifecycle), and propose drafts - activation stays routed through the DH-01 authority, never this console.",
+	"version": "0.1.0",
+	"publisher": "flauz",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"vscode": "^1.140.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onView:flauz.harness",
+		"onCommand:flauz.harness.beginSession",
+		"onCommand:flauz.harness.selectIndustry",
+		"onCommand:flauz.harness.composeCompany",
+		"onCommand:flauz.harness.selectWorkTypes",
+		"onCommand:flauz.harness.proposeDraft",
+		"onCommand:flauz.focusView.harness",
+		"onCommand:flauz.harness.refreshView"
+	],
+	"main": "./dist/extension.js",
+	"browser": "./dist/web/extension.cjs",
+	"contributes": {
+		"views": {
+			"flauz": [
+				{
+					"id": "flauz.harness",
+					"name": "Harness"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "flauz.harness.beginSession",
+				"title": "Begin Onboarding Session",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.harness.selectIndustry",
+				"title": "Select Industry",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.harness.composeCompany",
+				"title": "Compose Company Profile",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.harness.selectWorkTypes",
+				"title": "Select Work Types",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.harness.proposeDraft",
+				"title": "Propose Draft",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.focusView.harness",
+				"title": "Focus Harness View",
+				"category": "Flauz"
+			},
+			{
+				"command": "flauz.harness.refreshView",
+				"title": "Refresh Harness View",
+				"category": "Flauz"
+			}
+		],
+		"viewsWelcome": [
+			{
+				"view": "flauz.harness",
+				"contents": "The Flauz Harness console selects, inspects and composes domain harnesses: drive the onboarding session (industry, company, work types, roles), propose the draft through the real onboarding kit, and inspect any harness's projected navigation model.\n[Begin Onboarding Session](command:flauz.harness.beginSession)\nActivating a harness stays routed through the DH-01 authority, never this console."
+			}
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "node --test \"test/*.test.ts\""
+	},
+	"devDependencies": {
+		"typescript": "5.9.3"
+	}
 }
