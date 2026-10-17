@@ -364,10 +364,44 @@ test('registerHarnessView registers the provider for the flauz.harness view and 
         const view = registerHarnessView(api, stateRef);
         strictEqual(registered.length, 1);
         strictEqual(registered[0].viewId, 'flauz.harness');
-        const provider = registered[0].provider as { getChildren(): HarnessTreeElement[] };
-        strictEqual(provider.getChildren().length, 2);
+        // THE HIERARCHICAL CONTRACT (2026-10-17, the live-caught crash fix):
+        // getChildren() with no argument returns the ROOT level (the headers +
+        // standalone rows); getChildren(element) returns that element's
+        // section-scoped children; leaves return []. The flat census
+        // (treeElementsFor) is unchanged — the provider composes over it.
+        const provider = registered[0].provider as { getChildren(element?: HarnessTreeElement): HarnessTreeElement[] };
+        const initialRoot = provider.getChildren();
+        strictEqual(initialRoot.length, 2);
+        strictEqual(initialRoot[0].kind, 'selectionHeader');
+        strictEqual(initialRoot[1].kind, 'harnessHeader');
+        // an empty header's children: the empty sub-list (never the root list —
+        // the infinite-recursion class the fix closes)
+        strictEqual(provider.getChildren(initialRoot[0]).length, 0);
+        strictEqual(provider.getChildren(initialRoot[1]).length, 0);
         stateRef.current = inspectedState();
-        strictEqual(provider.getChildren().length, 30);
+        const inspectedRoot = provider.getChildren();
+        // the full flat census stays the pinned 30; the root carries the spine
+        strictEqual(inspectedRoot.length, treeElementsFor(inspectedState()).filter((element) =>
+                element.kind === 'error' || element.kind === 'selectionHeader' || element.kind === 'rolesHeader' ||
+                element.kind === 'harnessHeader' || element.kind === 'navigationHeader' || element.kind === 'proposedHeader' ||
+                element.kind === 'lifecycle').length);
+        const selectionHeader = inspectedRoot.find((element) => element.kind === 'selectionHeader');
+        ok(selectionHeader);
+        const selectionChildren = provider.getChildren(selectionHeader);
+        // sessions + the driven session's selection fields (never the root list:
+        // the kind scope proves it — the root carries headers, these never do)
+        ok(selectionChildren.every((row) => row.kind === 'session' || row.kind === 'selectionField'));
+        const navigationHeader = inspectedRoot.find((element) => element.kind === 'navigationHeader');
+        ok(navigationHeader);
+        const sections = provider.getChildren(navigationHeader);
+        ok(sections.every((row) => row.kind === 'section'));
+        for (const section of sections) {
+                const navRows = provider.getChildren(section);
+                ok(navRows.every((row) => row.kind === 'navRow'));
+        }
+        // a leaf's children: the empty list (the recursion terminator)
+        const harnessRow = provider.getChildren(inspectedRoot.find((element) => element.kind === 'harnessHeader'))[0];
+        strictEqual(provider.getChildren(harnessRow).length, 0);
         view.refresh();
 });
 

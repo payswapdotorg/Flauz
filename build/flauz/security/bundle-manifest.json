@@ -58,8 +58,8 @@
 		"flauz-harness": {
 			"version": "0.1.0",
 			"artifacts": {
-				"dist/extension.js": "e029c7b5e8a93418ee2a056b853bcdbb06ebaa8932b43cd770d0dfc99cfcd8bd",
-				"dist/web/extension.cjs": "d344cd72e05ad07d23189f89a8ec68f5eeff1a7c0fac38065c148fa9b8494145"
+				"dist/extension.js": "c37991ce74ebf5105e57c5c2c4424b53205f7766d7c567d764366f39d61bc505",
+				"dist/web/extension.cjs": "70c9b45b31770cc0397ab7477087ea2734f12e25977f43949492bf7be9fc715e"
 			}
 		},
 		"flauz-incidents": {
