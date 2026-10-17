@@ -23,6 +23,7 @@
                 "onCommand:flauz.harness.refreshView"
         ],
         "main": "./dist/extension.js",
+        "browser": "./dist/web/extension.js",
         "contributes": {
                 "views": {
                         "flauz": [

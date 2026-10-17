@@ -72,6 +72,16 @@ KPIs, benchmarks, lifecycle), and record proposed drafts.
 - `src/extension.ts` - activation wiring (view registered FIRST,
   narrow `onView:flauz.harness` + `onCommand:flauz.harness.*`
   activation only - the activation budget law).
+- `src/extension.web.ts` - the WEB (browser) entry point
+  (A-PROD-006-W9, the gap-ledger row-4 closure vehicle): composes the
+  same console core (the state machine, the tree view, the formatter,
+  the REAL frozen vocabularies) over the IN-SESSION port seam - the
+  browser session has no workspace filesystem, so the session walk
+  rides an honest in-session store and the durable-state surfaces
+  disclose their bounds (empty roles menu, the in-session proposals
+  list, the typed navigation refusal). The runtime binding
+  (`src/flauzHarnessPort.ts`) is NEVER imported here - the node
+  binding never ships web (the packaging-parity law).
 - `src/format.ts` - the shared timestamp formatting (the PU6 verbatim
   copy of the flauz-lab format module; the single timestamp source).
 
@@ -89,6 +99,10 @@ node --test test/*.test.ts                # 66 pass, 0 fail (32 state + 34 view)
 
 # from the repo root (the station's documented form)
 bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts   # exit 0
+
+# the WEB sibling bundle (A-PROD-006-W9; dist/web/extension.js)
+node extensions/flauz-harness/esbuild.web.mjs                      # exit 0
+~/toolchain/node_modules/.bin/tsc -p extensions/flauz-harness/tsconfig.browser.json --noEmit   # EXIT 0
 ```
 
 | Gate | Command | Receipt (this delivery) |
@@ -97,6 +111,8 @@ bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts   # exit 0
 | Extension test lane | `node --test extensions/flauz-harness/test/*.test.ts` | 66 pass, 0 fail |
 | Runtime binding drill | `bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts` | exit 0 — the full op chain over the real kits (the DH-02 session walk, the DH-03 compose+emit at the same root, the propose boundary minting the harness through the inner real DH-01 kit, the real DH-010 nine-section projection, the determinism double-run), the closed activation door pinned on the port surface |
 | Projection family battery | `bunx --bun mocha --ui tdd build/flauz/harness/projections/test/common/*.test.ts` | 153 pass, 0 fail |
+| WEB bundle (W9) | `node extensions/flauz-harness/esbuild.web.mjs` | exit 0 — dist/web/extension.js (31,421 bytes; node-free, external vscode) |
+| WEB typecheck (W9) | `tsc -p extensions/flauz-harness/tsconfig.browser.json --noEmit` | EXIT 0 |
 
 The runtime binding drill (the DH-GAP-5 wave, the INF-009 canary's
 `real-execution drill` precedent): the `.drill.ts` suffix keeps it
