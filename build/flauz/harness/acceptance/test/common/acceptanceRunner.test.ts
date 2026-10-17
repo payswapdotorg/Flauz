@@ -6,8 +6,14 @@
  * DH-013 acceptance runner battery (re-pinned by the DH-GAP-2 wave:
  * the closed-row gap registration, the two benchmark binding modes,
  * the industry benchmark legs over the combined catalog, the doubled
- * census): the fail-closed factory (every
- * option station, the one-clock/one-rng read law), THE CROSS-INDUSTRY
+ * census; re-pinned again by the DH-GAP-3 wave: row 3 closed by the
+ * INF-009 canary's station-verified live-real run - the closed-key
+ * list extended to rows 1-3, the open rows now three; re-pinned
+ * again by the DH-GAP-5 wave: row 5 closed by the binding drill's
+ * station-verified bun-lane run - the closed-key
+ * list extended to rows 1, 2, 3 and 5, the open rows now two): the
+ * fail-closed factory (every option station, the one-clock/one-rng read
+ * law), THE CROSS-INDUSTRY
  * CROWN (the four industries journey-complete through the REAL kits -
  * the REAL DH-01 authority re-read at 'active' for every industry,
  * the DH-10 navigation models populated, every benchmark leg EVALUATED
@@ -461,16 +467,14 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('THE CAPABILITY-GAPS LEG: every row registers exactly the four OPEN rows; the CLOSED rows 1-2 are registered by NONE (their closures ride the ledger verbatim)', async () => {
+        test('THE CAPABILITY-GAPS LEG: every row registers exactly the TWO OPEN rows; the CLOSED rows 1, 2, 3 and 5 are registered by NONE (their closures ride the ledger verbatim)', async () => {
                 const rig = await crown();
                 for (const row of rig.report.industries) {
                         assert.strictEqual(row.capabilityGaps.verdict, 'complete', row.industry);
                         assert.deepStrictEqual([...row.capabilityGaps.registeredGapKeys], [
-                                'no-live-provider-execution',
                                 'no-production-real-harness-deployment',
-                                'workbench-surface-runtime-binding',
                                 'cr-ledger-integration-gaps',
-                        ], `${row.industry}: exactly the four open rows`);
+                        ], `${row.industry}: exactly the two open rows`);
                         for (const gapRow of row.expectedGaps) {
                                 const frozen = HARNESS_ACCEPTANCE_GAP_LEDGER.find((ledgerRow) => ledgerRow.gapKey === gapRow.gapKey);
                                 assert.ok(frozen !== undefined);
@@ -526,11 +530,11 @@ suite('acceptanceRunner · THE CROSS-INDUSTRY CROWN (the four industries through
                 }
         });
 
-        test('the honest gap ledger rides the report VERBATIM (the six frozen rows; rows 1-2 in their CLOSED successor states)', async () => {
+        test('the honest gap ledger rides the report VERBATIM (the six frozen rows; rows 1, 2, 3 and 5 in their CLOSED successor states)', async () => {
                 const rig = await crown();
                 assert.deepStrictEqual(rig.report.gapLedger.map((row) => row.gapKey), [...ACCEPTANCE_GAP_KEYS]);
                 assert.deepStrictEqual(rig.report.gapLedger, HARNESS_ACCEPTANCE_GAP_LEDGER.map((row) => ({ gapKey: row.gapKey, description: row.description, evidenceLevel: row.evidenceLevel, owner: row.owner })));
-                assert.deepStrictEqual([...ACCEPTANCE_CLOSED_GAP_KEYS], ['lab-task-worlds-coverage', 'content-representativeness']);
+                assert.deepStrictEqual([...ACCEPTANCE_CLOSED_GAP_KEYS], ['lab-task-worlds-coverage', 'content-representativeness', 'no-live-provider-execution', 'workbench-surface-runtime-binding']);
         });
 
         test('the five frozen disclosures ride the report (the content / evidence / composition / fail-closed / content-census laws)', async () => {
@@ -722,8 +726,8 @@ suite('acceptanceRunner · the per-industry op surface', () => {
                 assert.strictEqual(outcome.verdict.journey.harnessLifecycleEndState, 'active');
                 assert.strictEqual(outcome.verdict.benchmarkStatus, 'gap-registered');
                 assert.deepStrictEqual(outcome.verdict.capabilityGaps.registeredGapKeys, [
-                        'no-live-provider-execution', 'no-production-real-harness-deployment', 'workbench-surface-runtime-binding', 'cr-ledger-integration-gaps',
-                ], 'the uncovered fifth industry registers the four open rows - no closed row');
+                        'no-production-real-harness-deployment', 'cr-ledger-integration-gaps',
+                ], 'the uncovered fifth industry registers the two open rows - no closed row');
                 runner.dispose();
         });
 
@@ -1176,12 +1180,13 @@ suite('acceptanceRunner · THE INDUSTRY BENCHMARK LEGS + THE CLOSED-ROW LAWS (th
                 }
         });
 
-        test('THE REGISTER-GAPS op detail carries the closed-row truth (rows 1-2 closed - the closures recorded IN the rows; the closed rows registered by none)', async () => {
+        test('THE REGISTER-GAPS op detail carries the closed-row truth (four of the six rows closed - rows 1-3 and 5, the closures recorded IN the rows; the closed rows registered by none)', async () => {
                 const rig = await crown();
                 const line = ledgerLines(rig.port).find((candidate) => candidate.op === 'register-gaps');
                 assert.ok(line !== undefined);
                 assert.ok(typeof line.detail === 'string');
-                assert.ok((line.detail as string).includes('rows 1-2 closed - the closures recorded IN the rows'));
+                assert.ok((line.detail as string).includes('four of the six rows closed - rows 1-3 and 5, the closures recorded IN the rows'));
+                assert.ok((line.detail as string).includes('the two open rows registered by every industry'));
                 assert.ok((line.detail as string).includes('the closed rows by none'));
                 assert.strictEqual(line?.law, 'THE CLOSED-ROW LAW');
         });
@@ -1191,7 +1196,11 @@ suite('acceptanceRunner · THE INDUSTRY BENCHMARK LEGS + THE CLOSED-ROW LAWS (th
                 const text = rig.port.dump('ws/.flauz/harness/acceptance-report.json') as string;
                 assert.ok(text.includes('CLOSED 2026-10-15: the three industry task-worlds (finance/healthcare/construction) landed at PR #205 in the lab extension registry'), 'the row-1 closure record rides the report verbatim');
                 assert.ok(text.includes('CLOSED 2026-10-16: the four industry content sets are deepened to the declared censused representativeness bar'), 'the row-2 closure record rides the report verbatim');
+                assert.ok(text.includes('CLOSED 2026-10-16: the INF-009 live-provider canary ran green with a station-configured REAL provider endpoint'), 'the row-3 closure record rides the report verbatim');
+                assert.ok(text.includes('CLOSED 2026-10-16: the flauz-harness extension\'s runtime binding executed live at the station - the binding drill'), 'the row-5 closure record rides the report verbatim');
                 assert.ok(!text.includes('the LAB task-world registry covers the SE fixture world only'), 'the stale registry claim is carried by NONE (the report never carries a false registry claim)');
+                assert.ok(!text.includes('no live-provider exchange is exercised here'), 'the stale live-provider-skip claim is carried by NONE (the report never carries a false INF-boundary claim)');
+                assert.ok(!text.includes("the flauz-harness extension's runtime binding is covered by the bundle+activation gates"), 'the stale workbench-binding-lane claim is carried by NONE (the report never carries a false binding claim)');
         });
 
         test('THE DH-09 RECORD\'S HONEST ENTRY SHAPE: exactly four add-benchmark entries ride the DH-09 family ledger, every one binding the REAL three SE scenarios (the landed binding law\'s own lane)', async () => {
@@ -1246,21 +1255,23 @@ suite('acceptanceRunner · THE INDUSTRY BENCHMARK LEGS + THE CLOSED-ROW LAWS (th
                 runner.dispose();
         });
 
-        test('THE CLOSED-ROW LAW at the ledger replay: a tampered industry row registering a CLOSED row is the typed E_LEDGER_TORN (the row walk re-proves the law from the ledger alone)', async () => {
+        test('THE CLOSED-ROW LAW at the ledger replay: a tampered industry row registering a CLOSED row is the typed E_LEDGER_TORN (the row walk re-proves the law from the ledger alone - every closed row 1, 2, 3 and 5)', async () => {
                 const rig = await crown();
-                const port = new MemoryFsPort();
-                for (const [path, text] of rig.port.files) {
-                        port.files.set(path, text);
+                for (const closedKey of ACCEPTANCE_CLOSED_GAP_KEYS) {
+                        const port = new MemoryFsPort();
+                        for (const [path, text] of rig.port.files) {
+                                port.files.set(path, text);
+                        }
+                        const closedRow = HARNESS_ACCEPTANCE_GAP_LEDGER.find((row) => row.gapKey === closedKey);
+                        assert.ok(closedRow !== undefined);
+                        rewriteLedger(port, (lines) => lines.map((line, index) => (index === 1 ? { ...line, payload: { ...(line.payload as Record<string, unknown>), expectedGaps: [...((line.payload as { expectedGaps: unknown[] }).expectedGaps), { gapKey: closedRow.gapKey, description: closedRow.description, evidenceLevel: closedRow.evidenceLevel, owner: closedRow.owner }] } } : line)));
+                        const refusal = await (async () => {
+                                const outcome = await loadAcceptanceRunner({ clock: rig.seams.clock, rng: rig.seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
+                                return mustRefuse(outcome);
+                        })();
+                        assert.strictEqual(refusal.reason, 'E_LEDGER_TORN', `the closed row '${closedKey}' must not ride a tampered industry row`);
+                        assert.ok(refusal.message.includes('CLOSED ledger row'));
                 }
-                const closedRow = HARNESS_ACCEPTANCE_GAP_LEDGER.find((row) => row.gapKey === 'lab-task-worlds-coverage');
-                assert.ok(closedRow !== undefined);
-                rewriteLedger(port, (lines) => lines.map((line, index) => (index === 1 ? { ...line, payload: { ...(line.payload as Record<string, unknown>), expectedGaps: [...((line.payload as { expectedGaps: unknown[] }).expectedGaps), { gapKey: closedRow.gapKey, description: closedRow.description, evidenceLevel: closedRow.evidenceLevel, owner: closedRow.owner }] } } : line)));
-                const refusal = await (async () => {
-                        const outcome = await loadAcceptanceRunner({ clock: rig.seams.clock, rng: rig.seams.rng, fsPort: port as unknown as HarnessFsPort, root: 'ws' });
-                        return mustRefuse(outcome);
-                })();
-                assert.strictEqual(refusal.reason, 'E_LEDGER_TORN');
-                assert.ok(refusal.message.includes('CLOSED ledger row'));
         });
 
         test('THE REGISTER-GAPS LANE LAW: a lane industry\'s row at gap-registered refuses the terminal gap registration (the lane industries all carry task-worlds - every lane benchmark leg must be evaluated)', async () => {

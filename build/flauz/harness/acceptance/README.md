@@ -24,15 +24,54 @@ exactly what is and is not proven.**
 > deepened to the declared censused representativeness bar (six roles /
 ten terms / four tasks / four bodies / four packs / two profiles per
 > industry), and the battery grew 134 → 161.
+>
+> **The DH-GAP-3 wave (2026-10-16)** closed the ledger's row 3
+> (`no-live-provider-execution`): the INF-009 live-provider canary ran
+> GREEN (exit 0) over a station-configured REAL provider endpoint — the
+> station's endpoint contract over the platform's sanctioned inference
+> gateway (a REAL chat-completion round-trip; the raw secret stays
+> station-side, the drill binds only the opaque handle) — a REAL network
+> exchange recorded as a live-real DrillRecord (drillClass
+> `acceptance-exchange`, verdict `eligible`, the byte-identical ledger
+> read-back, the fixture-configured no-live-port rejection; live-real is
+> claimed ONLY when a live exchange actually happened). The closure is
+> recorded IN the row (never by silent removal), the row is registered
+> by NO fixture, and the battery is re-pinned to the new truth (161
+> unchanged: 66 contract + 95 runner). Rows 4-6 remain the open
+> registered residue.
+
+> **The DH-GAP-5 wave (2026-10-16)** closed the ledger's row 5
+> (`workbench-surface-runtime-binding`): the flauz-harness extension's
+> runtime binding executed live at the station — the binding drill
+> (`extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts`,
+> run under `bun`, the lane that resolves the kits' `.js` specifiers
+> Node dropped; the `.drill.ts` suffix keeps it outside the node
+> `--test` glob, so the extension's node lane still never imports the
+> binding — the letter of the flauz-lab law kept) drove the full op
+> chain over the REAL kits: the port open over a fresh root, the REAL
+> frozen vocabularies, the DH-02 session walk (industry → company →
+> work-types → review), the DH-03 compose+emit at the same root, the
+> propose boundary minting the harness through the inner REAL DH-01
+> kit with the deterministic injected seams (the pinned harness id,
+> the determinism double-run byte-equal), the REAL DH-010 navigation
+> projection over the minted harness — the nine frozen sections with
+> the honest not-composed families — and the closed activation door
+> pinned on the port surface (exactly the twelve ops + the id/mode
+> data keys, no activation op — the DH-01 authority keeps the
+> lifecycle). The closure is recorded IN the row (never by silent
+> removal), the row is registered by NO fixture, and the battery is
+> re-pinned to the new truth (161 unchanged: 66 contract + 95
+> runner). Rows 4 and 6 remain the open registered residue (no longer
+> contiguous: row 5 closed between them).
 
 ## The four-industry map (the frozen acceptance lane)
 
 | industry | benchmark leg | the honest gap |
 | --- | --- | --- |
-| `software` | **evaluated** — the curated base-registry benchmark (`regression-suite-health`) bound to the REAL three SE scenarios (`scenario-se-bugfix-regression`, `scenario-se-feature-addition`, `scenario-se-flaky-investigation`), the DH-09 shapes with the honest hypothesis / limitations / `evidenceLevel: 'fixture'` | registers the four OPEN rows (rows 1-2 are closed — the closures ride the ledger verbatim) |
-| `finance` | **evaluated** — the curated industry-extension benchmark (`lending-operations-health`) binding the finance world's OWN three scenarios (`scenario-finance-reconciliation-discrepancy`, `scenario-finance-regulatory-report-validation`, `scenario-finance-payment-failure-triage`) through the combined catalog | registers the four OPEN rows |
-| `healthcare` | **evaluated** — the curated industry-extension benchmark (`clinical-operations-health`) binding the healthcare world's OWN three scenarios through the combined catalog | registers the four OPEN rows |
-| `construction` | **evaluated** — the curated industry-extension benchmark (`site-delivery-health`) binding the construction world's OWN three scenarios through the combined catalog | registers the four OPEN rows |
+| `software` | **evaluated** — the curated base-registry benchmark (`regression-suite-health`) bound to the REAL three SE scenarios (`scenario-se-bugfix-regression`, `scenario-se-feature-addition`, `scenario-se-flaky-investigation`), the DH-09 shapes with the honest hypothesis / limitations / `evidenceLevel: 'fixture'` | registers the two OPEN rows (rows 1, 2, 3 and 5 are closed — the closures ride the ledger verbatim) |
+| `finance` | **evaluated** — the curated industry-extension benchmark (`lending-operations-health`) binding the finance world's OWN three scenarios (`scenario-finance-reconciliation-discrepancy`, `scenario-finance-regulatory-report-validation`, `scenario-finance-payment-failure-triage`) through the combined catalog | registers the two OPEN rows |
+| `healthcare` | **evaluated** — the curated industry-extension benchmark (`clinical-operations-health`) binding the healthcare world's OWN three scenarios through the combined catalog | registers the two OPEN rows |
+| `construction` | **evaluated** — the curated industry-extension benchmark (`site-delivery-health`) binding the construction world's OWN three scenarios through the combined catalog | registers the two OPEN rows |
 
 Each industry is one CURATED FIXTURE MODULE (`industries/software.ts`,
 `industries/finance.ts`, `industries/healthcare.ts`,
@@ -83,11 +122,12 @@ The overall acceptance verdict is GREEN only when EVERY industry's
 journey leg is complete AND every honest gap is REGISTERED. Any refused
 leg or any missing gap registration is the TYPED refusal — never a
 silent pass, never a partial green. **THE CLOSED-ROW LAW**: the
-ledger's closed rows (1-2) ride the report VERBATIM with their closures
-recorded IN the rows — and can never be registered as an open gap by a
-fixture (the contract walk, the row walk, the runner's gap registration
-and the ledger replay all refuse a closed-row registration). **THE
-COVERAGE LAW**: a fixture whose industry carries a task-world (the four
+ledger's closed rows (1, 2, 3 and 5) ride the report VERBATIM with
+their closures recorded IN the rows — and can never be registered as
+an open gap by a fixture (the contract walk, the row walk, the
+runner's gap registration and the ledger replay all refuse a
+closed-row registration). **THE COVERAGE LAW**: a fixture whose
+industry carries a task-world (the four
 lane industries — software through the landed base registry; the three
 through the lab industry extension registry) MUST carry the curated
 benchmark (the coverage row is closed; an un-exercised evaluable
@@ -98,15 +138,15 @@ journey leg fails the whole cross run and no report is emitted over a
 refused leg (pinned: the CORRUPT_SEAM budget pin leaves ZERO ledger
 lines and NO report file).
 
-## The honest gap ledger (the six frozen rows, carried VERBATIM in every report; rows 1-2 CLOSED)
+## The honest gap ledger (the six frozen rows, carried VERBATIM in every report; rows 1, 2, 3 and 5 CLOSED)
 
 | # | gapKey | description | evidence level | owner |
 | --- | --- | --- | --- | --- |
 | 1 | `lab-task-worlds-coverage` | CLOSED 2026-10-15: the three industry task-worlds (finance/healthcare/construction) landed at PR #205 in the lab extension registry; the SE world plus three industry worlds - all four acceptance-lane industries carry industry-specific simulation worlds and their benchmark legs are bound; the coverage row is closed, recorded in the row (never by silent removal) | `fixture` | TL-B (the Lab lane) |
 | 2 | `content-representativeness` | CLOSED 2026-10-16: the four industry content sets are deepened to the declared censused representativeness bar - each industry carries at least six roles, ten terms, four tasks, four bodies, four packs and two profiles of real domain-shaped curated content (the census pinned by the battery, the content-census disclosure riding every report); the fixture-level bound stays disclosed - curated acceptance content, never a domain-truth claim; the row is closed, recorded in the row (never by silent removal) | `fixture` | TL-B (the harness acceptance family) |
-| 3 | `no-live-provider-execution` | no live-provider exchange is exercised here (tracked at the INF boundary: the INF-009 canary env-gated skip) | `fixture` | INF lane (the INF-009 canary) |
+| 3 | `no-live-provider-execution` | CLOSED 2026-10-16: the INF-009 live-provider canary ran green with a station-configured REAL provider endpoint (the station's endpoint contract over the platform's sanctioned inference gateway - a REAL chat-completion round-trip; the raw secret stays station-side, the drill binds only the opaque handle) - a REAL network exchange recorded as live-real DrillRecord (drillClass "acceptance-exchange", verdict "eligible", the byte-identical ledger read-back, the fixture-configured no-live-port rejection - live-real is claimed ONLY when a live exchange actually happened); the row is closed, recorded in the row (never by silent removal) | `fixture` | INF lane (the INF-009 canary) |
 | 4 | `no-production-real-harness-deployment` | the harness families' evidence ceiling is fixture/simulated; production deployment of harness configurations is a future TL-A-coordinated step | `fixture` | TL-A (the production lane) |
-| 5 | `workbench-surface-runtime-binding` | the flauz-harness extension's runtime binding is covered by the bundle+activation gates (the flauz-lab law), not the node lane; the UI behavior is verified here at the projection-derivation level + the extension's own node suites | `fixture` | TL-B (the workbench surface family) |
+| 5 | `workbench-surface-runtime-binding` | CLOSED 2026-10-16: the flauz-harness extension's runtime binding executed live at the station - the binding drill (extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts, run under bun, the lane that resolves the kits' .js specifiers Node dropped) drove the full op chain over the REAL kits: the port open over a fresh root, the REAL frozen vocabularies, the DH-02 session ops (industry -> company -> work-types -> review), the DH-03 compose+emit at the same root, the propose boundary minting the harness through the inner REAL DH-01 kit with the deterministic injected seams (the pinned harness id, the determinism double-run byte-equal), the REAL DH-010 navigation projection over the minted harness - the nine frozen sections with the honest not-composed families; the closed activation door pinned on the port surface (exactly the twelve ops + the id/mode data keys, no activation op - the DH-01 authority keeps the lifecycle); the extension's node --test lane still never imports the binding (the letter of the flauz-lab law kept); the row is closed, recorded in the row (never by silent removal) | `fixture` | TL-B (the workbench surface family) |
 | 6 | `cr-ledger-integration-gaps` | the Phase C-R terminal ledger's three exercised-but-unresolved and two unexercised integration gaps remain tracked in the CR records (cross-referenced, not re-litigated here) | `fixture` | station (the Phase C-R ledger) |
 
 The instrument never closes these rows by passing a test — the report
@@ -115,7 +155,8 @@ refutes. The unproven is REGISTERED, never promoted. A row whose owning
 lane landed its closure carries its CLOSED successor state — the
 closure recorded IN the row, never by silent removal (THE FROZEN-LEDGER
 LAW, the DH-GAP-2 wave's own subject) — and the closed rows are
-registered by NO fixture (rows 3-6 remain the open registered residue).
+registered by NO fixture (rows 4 and 6 remain the open registered
+residue — no longer contiguous: row 5 closed between them).
 
 ## THE CONTENT DISCLOSURE + THE CONTENT CENSUS
 
@@ -141,7 +182,11 @@ binding and through the acceptance family's combined-catalog
 composition over the REAL imported lab extension registry lookups for
 the industry-extension bindings) — honestly labeled at the
 fixture/simulated ceiling. Never a live-provider exchange, never a
-production deployment. The DH-12 optimization smoke leg runs observe →
+production deployment (this family's own task execution — the
+live-provider execution evidence lives at the INF boundary: the
+INF-009 canary's station-verified live-real run that closed ledger
+row 3; never an exchange claimed here, never promoted into this
+family's fixture-labeled evidence). The DH-12 optimization smoke leg runs observe →
 simulate → compare → recommend through the REAL loop kit over the
 combined-catalog-derived activity corpus and pins the auditable
 recommendation (the uncertainty / missing-capability / reversibility
@@ -234,5 +279,5 @@ bunx --bun mocha --ui tdd 'build/flauz/harness/acceptance/test/common/*.test.ts'
 
 | suite | pins |
 | --- | --- |
-| the contract battery (66) | the version cross-pins (this family + the TWELVE prior family versions + the REAL `LAB_CONTRACTS_VERSION`), the frozen lane, the six-row honest gap ledger (verbatim + frozen; rows 1-2 CLOSED with their closure records; THE CLOSED-ROW LAW's closed-key list), the curated-fixture walk (the four shipped fixtures green; every REAL vocabulary station; THE INTERNAL-REF LAW; the censused bar; THE BINDING-MODE LAW — the base-registry walk, the industry-extension walk with THE TWO-PHASE BINDING LAW + the combined-catalog scenario binding + THE INDUSTRY-MATCH LAW; THE COVERAGE LAW; THE CLOSED-ROW LAW; every fail-closed station typed), THE CONTENT CENSUS (the per-industry depth pins by name), the industry-row walk, the report walk + the canonical serialization + the fail-closed parse, the determinism greps |
+| the contract battery (66) | the version cross-pins (this family + the TWELVE prior family versions + the REAL `LAB_CONTRACTS_VERSION`), the frozen lane, the six-row honest gap ledger (verbatim + frozen; rows 1, 2, 3 and 5 CLOSED with their closure records; THE CLOSED-ROW LAW's closed-key list), the curated-fixture walk (the four shipped fixtures green; every REAL vocabulary station; THE INTERNAL-REF LAW; the censused bar; THE BINDING-MODE LAW — the base-registry walk, the industry-extension walk with THE TWO-PHASE BINDING LAW + the combined-catalog scenario binding + THE INDUSTRY-MATCH LAW; THE COVERAGE LAW; THE CLOSED-ROW LAW; every fail-closed station typed), THE CONTENT CENSUS (the per-industry depth pins by name), the industry-row walk, the report walk + the canonical serialization + the fail-closed parse, the determinism greps |
 | the runner battery (95) | the fail-closed factory, THE CROSS-INDUSTRY CROWN (the four industries journey-complete through the REAL kits, the DH-01 authority re-read at `active`, the per-leg verdicts, the four evaluated benchmark legs with the deterministic measures over both binding lanes, the census identity, the closed-row gap registration, the report emission + re-parse + byte-stability + restart determinism), the per-industry op surface (the unique-industry law, the fifth-industry pin with the floor entry, the malformed-fixture pins incl. THE COVERAGE LAW, the dispose law, the fresh-kit guard), THE FAIL-CLOSED PINS (the CORRUPT_SEAM budget pin, the real load-surface refusals carried verbatim, the census-divergence pin), THE COMPOSITION-NOT-FORK source pins, THE INDUSTRY BENCHMARK LEGS + THE CLOSED-ROW LAWS (the binding-mode composition at the ops surface, the honest split at the DH-09/DH-12 surfaces, the combined-catalog corpus, the emitted closure records, the closed-row replay station, the register-gaps lane law), THE PERSISTENCE MIRROR (the line schema, the op order, the payload walks, the envelope cross-check, restart determinism at two points, the resumable terminal walk, the IO refusals, every torn/tampered station), the determinism greps |

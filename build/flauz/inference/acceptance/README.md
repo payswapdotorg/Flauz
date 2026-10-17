@@ -321,6 +321,7 @@ the repo tree, never a repo install - the dogfood discipline).
 | kit battery | `bunx --bun mocha --ui tdd 'build/flauz/inference/acceptance/test/common/acceptanceKit.test.ts'` | 108 passing / 0 failing / 0 pending |
 | whole battery | `bunx --bun mocha --ui tdd 'build/flauz/inference/acceptance/test/common/*.test.ts'` | 180 passing / 0 failing / 0 pending |
 | canary (no env contract) | `bun build/flauz/inference/acceptance/test/canary/live-provider-drill.drill.ts` | clean SKIP, exit 0 (never fails a gate for lacking a provider) |
+| canary (station env contract, 2026-10-16) | the same drill with `FLAUZ_LIVE_PROVIDER_URL` + `FLAUZ_LIVE_PROVIDER_KEY_HANDLE` set for the station-verified PERMITTED provider (the station endpoint, opaque handle only) | live-real DrillRecord GREEN (exit 0) - the station's real-exchange run over the platform's sanctioned inference gateway (the station endpoint, opaque handle only) |
 | isolation regression (the landed 121) | `bunx --bun mocha --ui tdd 'build/flauz/inference/isolation/test/common/*.test.ts'` | 121 passing / 0 failing |
 | presentation regression (the landed 164) | `bunx --bun mocha --ui tdd 'build/flauz/inference/presentation/test/common/*.test.ts'` | 164 passing / 0 failing |
 | determinism grep (shipped code) | `grep -n 'Date\.now\|Math\.random\|process\.env' common/*.ts` | 3 hit lines, all law-comments |

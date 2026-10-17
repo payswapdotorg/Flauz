@@ -24,7 +24,16 @@
  * leg is EVALUATED and it does NOT register the CLOSED
  * 'lab-task-worlds-coverage' row (its closure is recorded IN the
  * ledger row); the closed 'content-representativeness' row is
- * registered by none (the censused bar is met by construction).
+ * registered by none (the censused bar is met by construction); the
+ * closed 'no-live-provider-execution' row is registered by none (the
+ * INF-009 canary's station-verified live-real exchange closed it at
+ * the INF boundary 2026-10-16 - this family's own task-execution
+ * evidence ceiling stays fixture-labeled, never promoted); the closed
+ * 'workbench-surface-runtime-binding' row is registered by none (the
+ * flauz-harness extension's binding drill's station-verified bun-lane
+ * run closed it at the extension boundary 2026-10-16 - this family's
+ * own UI-behavior verdict stays at the projection-derivation level,
+ * never a claim the extension ran here).
  *
  * This module is PURE DATA: it exports ONLY the frozen fixture (no
  * functions, no code paths - THE COMPOSITION-NOT-FORK LAW: the
@@ -38,8 +47,8 @@ import type { AcceptanceGapRow, IndustryAcceptanceFixture } from '../common/acce
 /** THE SCENARIO-BINDING LAW's pin-by-import: the REAL three SE scenario ids, derived from the REAL landed base registry. */
 const REAL_SE_SCENARIO_IDS: readonly string[] = TASK_WORLDS.flatMap((world) => world.taskScenarios.map((scenario) => scenario.id));
 
-/** The honest gaps the software industry registers: the four OPEN ledger rows (the closed rows 1-2 are registered by none - their closures are recorded IN the ledger rows). */
-const SOFTWARE_EXPECTED_GAPS: readonly AcceptanceGapRow[] = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => row.gapKey !== 'lab-task-worlds-coverage' && row.gapKey !== 'content-representativeness');
+/** The honest gaps the software industry registers: the two OPEN ledger rows (the closed rows 1, 2, 3 and 5 are registered by none - their closures are recorded IN the ledger rows). */
+const SOFTWARE_EXPECTED_GAPS: readonly AcceptanceGapRow[] = HARNESS_ACCEPTANCE_GAP_LEDGER.filter((row) => row.gapKey !== 'lab-task-worlds-coverage' && row.gapKey !== 'content-representativeness' && row.gapKey !== 'no-live-provider-execution' && row.gapKey !== 'workbench-surface-runtime-binding');
 
 const softwareFixture: IndustryAcceptanceFixture = {
         industry: 'software',
