@@ -48,7 +48,17 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 
 const entry = path.join(here, 'src', 'extension.web.ts');
-const outfile = path.join(here, 'dist', 'web', 'extension.js');
+// THE .CJS SUFFIX LAW (live-caught 2026-10-17, the second layer under the
+// ESM-format bug): the web worker extension host classifies an extension
+// as ESM when the manifest declares "type": "module" AND the entry point
+// does NOT end with .cjs (src/vs/workbench/api/common/
+// extHostExtensionService.ts _isESM). This extension's manifest MUST keep
+// "type": "module" (the desktop entry dist/extension.js is an ESM-format
+// esbuild bundle loaded by the node extension host's ESM loader). The
+// web entry therefore carries the explicit .cjs suffix - the unambiguous
+// CommonJS signal that routes the CJS-format web bundle to the web
+// worker host's CommonJS loader (the _loadCommonJSModule path).
+const outfile = path.join(here, 'dist', 'web', 'extension.cjs');
 
 if (!fs.existsSync(entry)) {
         console.error(`esbuild.web: the web entry is missing: ${entry}`);

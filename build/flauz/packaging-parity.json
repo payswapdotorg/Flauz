@@ -165,7 +165,7 @@
           "key": [
             "browser"
           ],
-          "value": "./dist/web/extension.js"
+          "value": "./dist/web/extension.cjs"
         }
       ],
       "recoveryPath": "Per extension: add a browser entrypoint built from the node-free core each extension already has (see the capability rows), keep desktop-only executors behind the desktop entry, and update this registry in the same commit. flauz-harness took this path at W9; the others remain main-only by design."
@@ -2236,7 +2236,7 @@
       "surface": "extensions/flauz-harness",
       "capability": "extension packaging posture",
       "class": "web-full",
-      "reason": "The manifest carries BOTH entrypoints (A-PROD-006-W9, the gap-ledger row-4 closure vehicle): the node main (./dist/extension.js, the runtime binding over the REAL Domain Harness OS kits) and the browser sibling (./dist/web/extension.js, the web-full console core over the in-session port seam - the state machine, the tree view, the formatter and the REAL frozen vocabularies; the node binding never ships web). Under the upstream isWebExtension() rule the extension now enters the web build's built-in set: the gulp vscode-web target packages it (esbuild.browser.mts, the upstream web-dist convention, platform=browser, external vscode) and the web worker extension host activates it (onView:flauz.harness + the command surface; no proposed APIs, no onStartupFinished). View + command activation only. Row added by A-PROD-006-W8 (the INC-W8-PARITY-GAP incident); regenerated to web-full by A-PROD-006-W9.",
+      "reason": "The manifest carries BOTH entrypoints (A-PROD-006-W9, the gap-ledger row-4 closure vehicle): the node main (./dist/extension.js, the runtime binding over the REAL Domain Harness OS kits) and the browser sibling (./dist/web/extension.cjs, the web-full console core over the in-session port seam - the state machine, the tree view, the formatter and the REAL frozen vocabularies; the node binding never ships web). Under the upstream isWebExtension() rule the extension now enters the web build's built-in set: the gulp vscode-web target packages it (esbuild.browser.mts, the upstream web-dist convention, platform=browser, external vscode) and the web worker extension host activates it (onView:flauz.harness + the command surface; no proposed APIs, no onStartupFinished). View + command activation only. Row added by A-PROD-006-W8 (the INC-W8-PARITY-GAP incident); regenerated to web-full by A-PROD-006-W9.",
       "evidence": [
         {
           "kind": "manifest-key",
@@ -2252,7 +2252,7 @@
           "key": [
             "browser"
           ],
-          "value": "./dist/web/extension.js"
+          "value": "./dist/web/extension.cjs"
         },
         {
           "kind": "manifest-key",
