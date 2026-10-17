@@ -100,8 +100,10 @@ console.log(`  wrote package.json: ${join(deployWs, 'package.json')}`);
 // carrying additionalBuiltinExtensions (A-PROD-006-W9: the flauz-harness
 // WEB sibling's activation seam — the workbench boot's construction
 // options declare the extension BY ITS HOSTED LOCATION, the upstream
-// server's own mechanism; the web extension scanner fetches the
-// manifest from that same-origin https URL, validates the web kind
+// server's own mechanism; the path is relative to the DEPLOY ROOT - vercel.json's
+// outputDirectory is vscode-web/, so the dist root IS the served root and the
+// extension lands at /extensions/flauz-harness; the web extension scanner fetches
+// the manifest from that same-origin https URL, validates the web kind
 // (the manifest's browser entry) and the web worker extension host
 // activates the console surface)
 // (entity-escaped — the parser decodes entities, JSON.parse then sees
@@ -116,7 +118,7 @@ if (!existsSync(workbenchHtmlPath)) {
 }
 const substitutions = [
         ['{{WORKBENCH_SCRIPT_NONCE}}', ''],
-        ['{{WORKBENCH_WEB_CONFIGURATION}}', '{&quot;workspaceId&quot;:&quot;&quot;,&quot;folders&quot;:[],&quot;additionalBuiltinExtensions&quot;:[{&quot;scheme&quot;:&quot;https&quot;,&quot;authority&quot;:&quot;flauz-web.vercel.app&quot;,&quot;path&quot;:&quot;/vscode-web/extensions/flauz-harness&quot;}]}'],
+        ['{{WORKBENCH_WEB_CONFIGURATION}}', '{&quot;workspaceId&quot;:&quot;&quot;,&quot;folders&quot;:[],&quot;additionalBuiltinExtensions&quot;:[{&quot;scheme&quot;:&quot;https&quot;,&quot;authority&quot;:&quot;flauz-web.vercel.app&quot;,&quot;path&quot;:&quot;/extensions/flauz-harness&quot;}]}'],
         ['{{WORKBENCH_WEB_BASE_URL}}', ''],
         ['{{WORKBENCH_AUTH_SESSION}}', ''],
         ['{{WORKBENCH_NLS_FALLBACK_URL}}', '/out/nls.messages.js'],
