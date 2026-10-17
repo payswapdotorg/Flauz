@@ -101,7 +101,7 @@ node --test test/*.test.ts                # 66 pass, 0 fail (32 state + 34 view)
 bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts   # exit 0
 
 # the WEB sibling bundle (A-PROD-006-W9; dist/web/extension.js)
-node extensions/flauz-harness/esbuild.web.mjs                      # exit 0
+node extensions/flauz-harness/esbuild.browser.mts                  # exit 0
 ~/toolchain/node_modules/.bin/tsc -p extensions/flauz-harness/tsconfig.browser.json --noEmit   # EXIT 0
 ```
 
@@ -111,7 +111,7 @@ node extensions/flauz-harness/esbuild.web.mjs                      # exit 0
 | Extension test lane | `node --test extensions/flauz-harness/test/*.test.ts` | 66 pass, 0 fail |
 | Runtime binding drill | `bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts` | exit 0 — the full op chain over the real kits (the DH-02 session walk, the DH-03 compose+emit at the same root, the propose boundary minting the harness through the inner real DH-01 kit, the real DH-010 nine-section projection, the determinism double-run), the closed activation door pinned on the port surface |
 | Projection family battery | `bunx --bun mocha --ui tdd build/flauz/harness/projections/test/common/*.test.ts` | 153 pass, 0 fail |
-| WEB bundle (W9) | `node extensions/flauz-harness/esbuild.web.mjs` | exit 0 — dist/web/extension.js (31,421 bytes; node-free, external vscode) |
+| WEB bundle (W9) | `node extensions/flauz-harness/esbuild.browser.mts` | exit 0 — dist/web/extension.js (31,308 bytes; node-free, external vscode; byte-stable across invocation cwds) |
 | WEB typecheck (W9) | `tsc -p extensions/flauz-harness/tsconfig.browser.json --noEmit` | EXIT 0 |
 
 The runtime binding drill (the DH-GAP-5 wave, the INF-009 canary's
