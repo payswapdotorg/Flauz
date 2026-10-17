@@ -96,7 +96,19 @@ const argv = [
         esbuildBin, entry,
         '--bundle',
         '--outfile=' + outfile,
-        '--format=esm',
+        // WEB-WORKER CJS LAW (live-caught 2026-10-17 at the LIVE 0.2.1 surface):
+        // the web worker extension host evaluates the browser entry under
+        // CommonJS require semantics - an ESM-format bundle REJECTS at
+        // activation ("Activating extension 'flauz.flauz-harness' failed:
+        // ESM modules are not supported in the web worker extension host",
+        // followed by "command 'flauz.harness.beginSession' not found" - the
+        // declarative manifest surface renders, the code never runs). The
+        // upstream convention is CJS by default: build/lib's
+        // esbuild-extension-common.mts resolves `format: config.format ?? 'cjs'`.
+        // The desktop entry keeps ESM (bundle-extensions.mjs --format=esm
+        // --platform=node) - the node extension host loads ESM fine; only
+        // the web sibling must be CJS.
+        '--format=cjs',
         '--platform=browser',
         '--target=es2022',
         '--external:vscode',
