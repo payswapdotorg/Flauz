@@ -113,7 +113,7 @@ node extensions/flauz-harness/esbuild.browser.mts                  # exit 0
 | Extension test lane | `node --test extensions/flauz-harness/test/*.test.ts` | 66 pass, 0 fail |
 | Runtime binding drill | `bun extensions/flauz-harness/test/flauzHarnessPort.binding.drill.ts` | exit 0 — the full op chain over the real kits (the DH-02 session walk, the DH-03 compose+emit at the same root, the propose boundary minting the harness through the inner real DH-01 kit, the real DH-010 nine-section projection, the determinism double-run), the closed activation door pinned on the port surface |
 | Projection family battery | `bunx --bun mocha --ui tdd build/flauz/harness/projections/test/common/*.test.ts` | 153 pass, 0 fail |
-| WEB bundle (W9) | `node extensions/flauz-harness/esbuild.browser.mts` | exit 0 — dist/web/extension.cjs (32,861 bytes; CommonJS format; node-free, external vscode; byte-stable across invocation cwds — byte-parity station-proven: local build == runner build == deployed LIVE bundle, sha256 d344cd72e05) |
+| WEB bundle (W9) | `node extensions/flauz-harness/esbuild.browser.mts` | exit 0 — dist/web/extension.cjs (34,050 bytes; CommonJS format; node-free, external vscode; byte-stable across invocation cwds — the hierarchical-contract wave: the tree provider honors the getChildren element argument, sha256 70c9b45b31) |
 | WEB typecheck (W9) | `tsc -p extensions/flauz-harness/tsconfig.browser.json --noEmit` | EXIT 0 |
 
 The runtime binding drill (the DH-GAP-5 wave, the INF-009 canary's
