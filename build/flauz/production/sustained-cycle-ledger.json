@@ -1,6 +1,6 @@
 {
 	"$schema": "flauz.production-cycle-ledger/v1",
-	"description": "A-PROD-006-W8: the sustained-production-cycle ledger (the W8 addendum to the W7 sustained-operation ledger surface). The LIVE production evidence ledger is the Neon production_evidence table (build/flauz/production/ops/README.md section 'The ledger schema') banked through the production /api/evidence endpoint - station-held credentials, per the credential-free delivery law. This additive repo-side file carries the W8 cycle row in EXACTLY that ledger's row shape (the ProductionEvidenceRecord contract: id flauz:prd:<16-hex>, the frozen evidence kinds, the derived label, the payload, recordedAtIso, the append-only revision) at the honest in-sandbox evidence level: local-real. The station banks the production-real W8 cycle row on the LIVE ledger at the 0.2.1 landing (the station-side half of the cycle, per the work order's section 7).",
+	"description": "A-PROD-006-W8: the sustained-production-cycle ledger (the W8 addendum to the W7 sustained-operation ledger surface). The LIVE production evidence ledger is the Neon production_evidence table (build/flauz/production/ops/README.md section 'The ledger schema') banked through the production /api/evidence endpoint - station-held credentials, per the credential-free delivery law. This additive repo-side file carries the W8 cycle row and the W9 sustained-production-operation closure row in EXACTLY that ledger's row shape (the ProductionEvidenceRecord contract: id flauz:prd:<16-hex>, the frozen evidence kinds, the derived label, the payload, recordedAtIso, the append-only revision) at the honest in-sandbox evidence level: local-real. The station banks the production-real W8 cycle row on the LIVE ledger at the 0.2.1 landing (the station-side half of the cycle, per the work order's section 7).",
 	"notes": "The id is derived deterministically (sha256 of the canonical payload, first 16 hex) - the rng seam belongs to the kit runtime (never Math.random in shipped code; this is a data artifact, not shipped code). Rows are append-only: the next cycle appends a new row, re-recording an id appends revision N+1, nothing is edited or deleted (the append-only ledger law).",
 	"rows": [
 		{
@@ -31,6 +31,48 @@
 				}
 			},
 			"recordedAtIso": "2026-10-16T17:47:36Z",
+			"revision": 1
+		},
+		{
+			"id": "flauz:prd:fdc6f5f1782d2021",
+			"kind": "verification",
+			"label": "local-real",
+			"payload": {
+				"workOrder": "A-PROD-006-W9",
+				"cycle": 6,
+				"revolution": "the sustained-production-operation closure (station-side, registry-read-first)",
+				"closureClass": "sustained-production-operation",
+				"releaseIdentity": "0.2.1",
+				"landingBase": "167ef252",
+				"completionGraphFinal": {
+					"production-deployment-verification": "production-real x2 (v0.2.0 flauz-nz3ogbvdh + v0.2.1 flauz-2i2h8tmji, both LIVE with the real-browser E2E boot receipt)",
+					"production-smoke-critical-journey-battery": "GO x6 (the six-row LIVE battery 8/8 at v0.2.0 and re-executed 8/8 at v0.2.1; the boot chain all-200; healthz connected; status+census)",
+					"operational-observability": "exercised (the LIVE ledger census read production-real at every cycle; 6 rows pre-closure, revisionCounts all 1: 3 W7-era + 2 R40 smoke-runs + the W8 verification)",
+					"incident-problem-lifecycle": "2 REAL incidents through the frozen-stage machine end-to-end (A-PROD-006-W4-I1 the SBOM version-coupling regression at v0.1.1; INC-W8-PARITY-GAP the flauz-harness production-integration incident at v0.2.1) - both driven incident -> reproducible-finding -> registry-item -> fix -> regression -> release -> post-release-verification -> closed",
+					"failure-rollback-drills": "x4 (the local release cycles W3-W6)",
+					"upgrade-migration-verification": "x6 (v0.1.0 -> v0.1.1 -> v0.1.2 -> v0.1.3 -> v0.2.0 -> v0.2.1; the 0.2.1 upgrade carries the full-dist byte-comparison receipt vs W7: 2380/2385 identical, the 5 diffs per-build identity only)",
+					"security-data-isolation-operations": "x5 (security-gate + security-runtime-gate GREEN at every identity; SBOM byte-exact at 0.2.1; secrets 0 findings across 2100 files; the credential-free delivery law held throughout)",
+					"support-diagnostics-workflow": "x5 (healthz/status/evidence exercised production-real at both production identities; the typed-refusal surfaces pinned by the production-ops battery 137/137; the R40 smoke POSTs read back)",
+					"post-release-acceptance": "x5 (every release identity post-release verified; the R40 verification at 0.2.1: battery 8/8 + E2E boot + census + release-identity integrity self-report == tag)",
+					"reliability-review": "this record (the closure review over the full inventory above)",
+					"sustained-production-operation-closure": "CLOSED BY THIS RECORD (5 local revolutions + 2 production-real revolutions on record; 6 release identities; 2 real incidents; the closed reliability loop demonstrated at production-real twice)"
+				},
+				"releaseIdentities": [
+					"v0.1.0",
+					"v0.1.1",
+					"v0.1.2",
+					"v0.1.3",
+					"v0.2.0",
+					"v0.2.1"
+				],
+				"honestDisclosures": {
+					"macOS-CI-red": "the long-standing platform red (fails at both release tags; characterized as pre-existing platform infrastructure, identical on sibling PRs since the TL1 era) - root-cause remains pending, disclosed here, never hidden",
+					"local-ensureSchema": "not re-executed at the closure (DATABASE_URL is a one-way Vercel secret; the schema's functional state is receipt-proven through healthz connected + the census reads + the evidence writes)",
+					"registered-residue-remaining": "the DH gap ledger's rows 4 + 6 (TL-B lanes; row 4 TL-A-coordinated with the production evidence now staged by W8/R40 at the LIVE 0.2.1 surface); the INF-009 live-provider exchange is station-verified live-real per the GAP-3 record (2026-10-16) - no open INF residue per the registry terminal state",
+					"evidence-law": "production-real claimed ONLY for the LIVE-surface rows (the deploys, the batteries, the E2E boots, the census reads, the evidence writes); the station-side review itself is this record's local-real twin in the repo-side ledger"
+				}
+			},
+			"recordedAtIso": "2026-10-17T07:50:00Z",
 			"revision": 1
 		}
 	]
